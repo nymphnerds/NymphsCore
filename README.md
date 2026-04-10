@@ -54,4 +54,5 @@ Open `Runtime/Scenes/NymphsTDC_QuickTest.unity` for a ready-to-test local scene 
 
 - The package currently includes the temporary `OakTreeEnt_PBR` character assets so `NTDC_Player_Template.prefab` works out of the box.
 - Replace that temporary character later with your own prefab when you're ready.
+- The old third-party Oak Tree demo scene was removed in favor of the package-specific quick test scene.
 - The included camera prefab was stripped of URP-only camera data so it imports cleanly in non-URP projects.
