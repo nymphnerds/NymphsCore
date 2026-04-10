@@ -10,6 +10,7 @@ Reusable Unity package for a top-down player controller and follow camera.
 - `Editor/PlayerControllerEditor.cs`
 - `Runtime/Prefabs/NTDC_Camera.prefab`
 - `Runtime/Prefabs/NTDC_Player_Template.prefab`
+- `Runtime/Scenes/NymphsTDC_QuickTest.unity`
 - `Runtime/Settings/GameInput.inputactions`
 - `Runtime/Characters/Oak Tree Ent/*`
 
@@ -44,6 +45,10 @@ Add this repository to `Packages/manifest.json`:
 3. Assign `Runtime/Settings/GameInput.inputactions` to `PlayerInput`.
 4. Set the camera's target to your player, or tag the player as `Player`.
 5. Update the player animation state names to match your animator.
+
+## Quick Test Scene
+
+Open `Runtime/Scenes/NymphsTDC_QuickTest.unity` for a ready-to-test local scene with the temporary tree player, camera prefab, and ground collider already set up.
 
 ## Notes
 
