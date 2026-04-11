@@ -8,6 +8,7 @@ Reusable Unity package for a top-down player controller and follow camera.
 - `Runtime/Scripts/CameraController.cs`
 - `Runtime/Scripts/ClickIndicatorRuntime.cs`
 - `Editor/PlayerControllerEditor.cs`
+- `Runtime/Guide.txt`
 - `Runtime/Prefabs/NTDC_Camera.prefab`
 - `Runtime/Prefabs/NTDC_Player_Template.prefab`
 - `Runtime/Scenes/NymphsTDC_QuickTest.unity`
