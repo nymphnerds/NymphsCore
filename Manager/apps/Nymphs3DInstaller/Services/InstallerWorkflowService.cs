@@ -10,9 +10,9 @@ public sealed class InstallerWorkflowService
     public const string ManagedLinuxUser = "nymph";
     public const string WslAvailabilityCheckKey = "wsl_availability";
     public const string ExistingWslDistrosCheckKey = "existing_wsl_distros";
-    public const string ReadmeUrl = "https://github.com/Babyjawz/Nymphs3D#readme";
-    public const string FootprintDocUrl = "https://github.com/Babyjawz/Nymphs3D/blob/main/docs/install_disk_and_model_footprint.md";
-    public const string AddonGuideUrl = "https://github.com/Babyjawz/Nymphs3D-Blender-Addon/blob/main/docs/USER_GUIDE.md";
+    public const string ReadmeUrl = "https://github.com/nymphnerds/NymphsCore#readme";
+    public const string FootprintDocUrl = "https://github.com/nymphnerds/NymphsCore/blob/main/Manager/docs/install_disk_and_model_footprint.md";
+    public const string AddonGuideUrl = "https://github.com/nymphnerds/NymphsCore/blob/main/Blender/Addon/docs/USER_GUIDE.md";
 
     private readonly ProcessRunner _processRunner = new();
 

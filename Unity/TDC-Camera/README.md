@@ -36,7 +36,7 @@ Reusable Unity package for a top-down player controller and follow camera.
 Add this repository to `Packages/manifest.json`:
 
 ```json
-"com.nymphs.topdown-controller": "https://github.com/Babyjawz/Nymphs-TDC-Unity.git"
+"com.nymphs.topdown-controller": "https://github.com/nymphnerds/NymphsCore.git?path=/Unity/TDC-Camera"
 ```
 
 ## Setup

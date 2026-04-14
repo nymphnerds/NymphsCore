@@ -9,11 +9,11 @@ This guide is for a user who:
 
 This guide covers the backend/helper repo only.
 
-The Blender addon/frontend is a separate distribution. Install that separately after the backend is working.
+The Blender addon/frontend is part of the NymphsCore monorepo. Install it separately after the backend is working.
 
-Temporary addon link for testing:
+Addon link:
 
-- [Nymphs3D Blender Addon](https://github.com/Babyjawz/Nymphs3D-Blender-Addon)
+- [Nymphs3D Blender Addon](https://github.com/nymphnerds/NymphsCore/tree/main/Blender/Addon)
 
 ## What You Are Installing
 
@@ -77,7 +77,7 @@ Use the Windows manager app.
 
 Recommended download:
 
-- [Download NymphsCoreManager-win-x64.zip](https://github.com/Babyjawz/Nymphs3D/raw/main/apps/Nymphs3DInstaller/publish/NymphsCoreManager-win-x64.zip)
+- [Download NymphsCoreManager-win-x64.zip](https://github.com/nymphnerds/NymphsCore/raw/main/apps/Nymphs3DInstaller/publish/NymphsCoreManager-win-x64.zip)
 - [Download NymphsCore.tar](https://drive.google.com/file/d/1PIE9LJCcb06MCQ9G4T5ywrBJ8DWeqR5a/view?usp=drive_link)
 
 Beginner path:
@@ -157,9 +157,9 @@ Important:
 - if models were not prefetched during install, the first real manager/addon model download can take a long time
 - this is normal for the first real use
 
-Temporary addon link for testing:
+Addon link:
 
-- [Nymphs3D Blender Addon](https://github.com/Babyjawz/Nymphs3D-Blender-Addon)
+- [Nymphs3D Blender Addon](https://github.com/nymphnerds/NymphsCore/tree/main/Blender/Addon)
 
 If you want a deeper proof that the local API can really boot, open Ubuntu and run:
 
