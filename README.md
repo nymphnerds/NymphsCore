@@ -71,7 +71,7 @@ No submodules. Push normally. Full history from all original repos is preserved.
 
 | Repo | Purpose |
 |---|---|
-| [NymphsExt](https://github.com/nymphnerds/NymphsExt) | Blender Extensions (Git-installable from inside Blender) |
+| [NymphsExt](https://raw.githubusercontent.com/nymphnerds/NymphsExt/main/index.json) | Blender Extensions (install via repository URL) |
 | [Nymphs3D](https://github.com/Babyjawz/Nymphs3D) | Original Manager repo (backup) |
 | [Nymphs3D-Blender-Addon](https://github.com/Babyjawz/Nymphs3D-Blender-Addon) | Original Addon repo (backup) |
 | [Nymphs-TDC-Unity](https://github.com/Babyjawz/Nymphs-TDC-Unity) | Original Unity repo (backup) |
