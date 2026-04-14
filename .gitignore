@@ -1,0 +1,16 @@
+.DS_Store
+*.pyc
+__pycache__/
+.venv/
+logs/
+build/
+dist/
+*.spec
+bin/
+obj/
+.vs/
+frontend/*_backup_*.py
+frontend/*_pre_*.py
+*:Zone.Identifier
+apps/Nymphs3DInstaller/publish/**/*.pdb
+apps/Nymphs3DInstaller/publish/**/Nymphs3DInstaller.exe
