@@ -25,9 +25,9 @@ This repo contains the Blender-side frontend code for Nymphs3D.
 - `dist/`
   - locally built installable test zips
 
-This repo is separate from the backend/helper repo at:
+This repo is part of the NymphsCore monorepo at:
 
-- [Babyjawz/Nymphs3D](https://github.com/Babyjawz/Nymphs3D)
+- [nymphnerds/NymphsCore](https://github.com/nymphnerds/NymphsCore)
 
 The backend/helper repo is responsible for:
 
@@ -54,16 +54,15 @@ This source repo can still work as a manual `Install from Disk` fallback when do
 
 Public extension repo:
 
-- [Babyjawz/Nymphs3D2-Extensions](https://github.com/Babyjawz/Nymphs3D2-Extensions)
+- [nymphnerds/NymphsExt](https://raw.githubusercontent.com/nymphnerds/NymphsExt/main/index.json)
 
 Repository URL for Blender:
 
 ```text
-https://raw.githubusercontent.com/Babyjawz/Nymphs3D2-Extensions/main/index.json
+https://raw.githubusercontent.com/nymphnerds/NymphsExt/main/index.json
 ```
 
 Use the `main` feed URL only.
-Old branch URLs such as `.../exp/2mv-remake/index.json` are obsolete because the public extension repo now publishes from `main` only.
 
 Current public build:
 
@@ -77,7 +76,7 @@ Short install guide:
 4. Add a custom remote repository and use this URL:
 
 ```text
-https://raw.githubusercontent.com/Babyjawz/Nymphs3D2-Extensions/main/index.json
+https://raw.githubusercontent.com/nymphnerds/NymphsExt/main/index.json
 ```
 
 5. Refresh remote data if Blender does not load it immediately.
