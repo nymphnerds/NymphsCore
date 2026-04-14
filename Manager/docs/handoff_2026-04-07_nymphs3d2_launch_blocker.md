@@ -9,7 +9,7 @@ healthy even though launching against a normal Ubuntu distro works.
 
 ### Addon Repo
 
-- repo: `Babyjawz/Nymphs3D-Blender-Addon`
+- repo: `nymphnerds/NymphsCore` (Blender/Addon/)
 - branch: `main`
 - latest pushed commit at handoff time:
   - `766cb84`
@@ -17,7 +17,7 @@ healthy even though launching against a normal Ubuntu distro works.
 
 ### Extensions Repo
 
-- repo: `Babyjawz/Nymphs3D2-Extensions`
+- repo: `nymphnerds/NymphsExt`
 - branch: `main`
 - latest pushed commit at handoff time:
   - `8a6109c`
@@ -25,7 +25,7 @@ healthy even though launching against a normal Ubuntu distro works.
 
 ### Main Repo
 
-- repo: `Babyjawz/Nymphs3D`
+- repo: `nymphnerds/NymphsCore` (Manager/)
 - branch: `base_distro_v2`
 
 ## Published Addon Status

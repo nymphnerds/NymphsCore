@@ -672,9 +672,9 @@ Why this name:
 
 Repos that carried the remake work:
 
-- [Nymphs3D-Blender-Addon](https://github.com/Babyjawz/Nymphs3D-Blender-Addon/tree/main)
+- [NymphsCore Blender Addon](https://github.com/nymphnerds/NymphsCore/tree/main/Blender/Addon)
 - [Hunyuan3D-2](https://github.com/Babyjawz/Hunyuan3D-2/tree/main)
-- [Nymphs3D](https://github.com/Babyjawz/Nymphs3D/tree/main)
+- [NymphsCore Manager](https://github.com/nymphnerds/NymphsCore/tree/main/Manager)
 
 Possible future repo:
 

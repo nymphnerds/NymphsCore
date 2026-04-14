@@ -6,7 +6,7 @@ troubleshooting, and the first round of launcher/addon backend shutdown fixes.
 
 ## Main Repo State
 
-- repo: `Babyjawz/Nymphs3D`
+- repo: `nymphnerds/NymphsCore`
 - branch: `base_distro_v2`
 - current pushed HEAD at handoff:
   - `35c14f7`
@@ -36,7 +36,7 @@ The main repo is clean at this handoff.
 
 ## Blender Addon Repo State
 
-- repo: `Babyjawz/Nymphs3D-Blender-Addon`
+- repo: `nymphnerds/NymphsCore` (Blender/Addon/)
 - branch: `main`
 - current local HEAD at handoff:
   - `766cb84`
