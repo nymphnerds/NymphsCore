@@ -18,7 +18,7 @@ It is not the Blender addon itself.
 
 The Blender addon is separate:
 
-- [Nymphs3D Blender Addon](https://github.com/Babyjawz/Nymphs3D-Blender-Addon)
+- [Nymphs3D Blender Addon](https://github.com/nymphnerds/NymphsCore/tree/main/Blender/Addon)
 
 The backend model/runtime repos used by this setup are:
 
@@ -33,7 +33,7 @@ Old `exp/2mv-remake` download URLs are obsolete.
 
 Download these two files:
 
-- [NymphsCoreManager-win-x64.zip](https://github.com/Babyjawz/Nymphs3D/raw/main/apps/Nymphs3DInstaller/publish/NymphsCoreManager-win-x64.zip)
+- [NymphsCoreManager-win-x64.zip](https://github.com/nymphnerds/NymphsCore/raw/main/apps/Nymphs3DInstaller/publish/NymphsCoreManager-win-x64.zip)
 - [NymphsCore.tar](https://drive.google.com/file/d/1PIE9LJCcb06MCQ9G4T5ywrBJ8DWeqR5a/view?usp=drive_link)
 
 ## What To Do
@@ -122,7 +122,7 @@ After the backend install completes:
 
 Addon link:
 
-- [Nymphs3D Blender Addon](https://github.com/Babyjawz/Nymphs3D-Blender-Addon)
+- [Nymphs3D Blender Addon](https://github.com/nymphnerds/NymphsCore/tree/main/Blender/Addon)
 
 Default local API URL:
 
