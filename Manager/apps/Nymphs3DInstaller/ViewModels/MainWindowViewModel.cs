@@ -1,0 +1,1352 @@
+using System.Collections.ObjectModel;
+using System.IO;
+using System.Text;
+using Nymphs3DInstaller.Models;
+using Nymphs3DInstaller.Services;
+
+namespace Nymphs3DInstaller.ViewModels;
+
+public sealed class MainWindowViewModel : ViewModelBase
+{
+    private const int TotalSteps = 7;
+    private const string ModelDownloadDetails =
+        "- Hunyuan 2 texture model (tencent/Hunyuan3D-2): about 28 GB\n" +
+        "- Hunyuan 2mv shape model (tencent/Hunyuan3D-2mv): about 19 GB\n" +
+        "- u2net helper model: about 168 MB\n" +
+        "- Tongyi-MAI/Z-Image-Turbo: about 31 GB";
+    private const string RuntimeDownloadDetails =
+        "- Hunyuan 2mv runtime repo folder on the working machine: about 6.5 GB\n" +
+        "- Hunyuan 2mv Python .venv: about 6.1 GB\n" +
+        "- Z-Image Turbo via Nunchaku Python .venv: about 5.4 GB\n" +
+        "- CUDA 13.0 in WSL: about 4.9 GB";
+
+    private readonly InstallerWorkflowService _workflowService;
+    private readonly AsyncRelayCommand _primaryCommand;
+    private readonly AsyncRelayCommand _checkForUpdatesCommand;
+    private readonly AsyncRelayCommand _openRuntimeToolsCommand;
+    private readonly AsyncRelayCommand _refreshRuntimeStatusCommand;
+    private readonly AsyncRelayCommand _fetchModelsNowCommand;
+    private readonly AsyncRelayCommand _testHunyuanCommand;
+    private readonly AsyncRelayCommand _testZImageCommand;
+    private readonly AsyncRelayCommand _testTrellisCommand;
+    private readonly RelayCommand _backCommand;
+    private readonly RelayCommand _openLogFolderCommand;
+    private readonly RelayCommand _openReadmeCommand;
+    private readonly RelayCommand _openFootprintDocCommand;
+    private readonly RelayCommand _openAddonGuideCommand;
+    private readonly string _installSessionLogPath;
+
+    private int _currentStepIndex;
+    private bool _isBusy;
+    private bool _systemChecksCompleted;
+    private bool _installCompleted;
+    private bool _installSucceeded;
+    private bool _managedDistroDetected;
+    private bool _updateCheckCompleted;
+    private bool _updatesAvailableFromCheck;
+    private bool _lastRunUsedExistingInstall;
+    private bool _lastRunAppliedUpdates;
+    private string _currentStepTitle = string.Empty;
+    private string _currentStepSubtitle = string.Empty;
+    private string _primaryButtonText = string.Empty;
+    private string _statusMessage = string.Empty;
+    private string _finishSummary = string.Empty;
+    private string _postInstallActionSummary = string.Empty;
+    private string _runtimeToolsSummary = string.Empty;
+    private string _updateCheckSummary = string.Empty;
+    private double _progressValue;
+    private bool _prefetchModelsNow = true;
+    private bool _includeExperimentalParts = true;
+    private string _huggingFaceToken = string.Empty;
+    private string _managedDistroName = InstallerWorkflowService.ManagedDistroName;
+    private DriveChoice? _selectedDrive;
+    private RuntimeBackendStatus _hunyuanRuntimeStatus = RuntimeBackendStatus.Unknown("2mv", "Hunyuan 2mv", "Open Runtime Tools to check status.");
+    private RuntimeBackendStatus _zImageRuntimeStatus = RuntimeBackendStatus.Unknown("zimage", "Z-Image", "Open Runtime Tools to check status.");
+    private RuntimeBackendStatus _trellisRuntimeStatus = RuntimeBackendStatus.Unknown("trellis", "TRELLIS.2", "Open Runtime Tools to check status.");
+
+    public MainWindowViewModel(InstallerWorkflowService workflowService)
+    {
+        _workflowService = workflowService;
+        _installSessionLogPath = _workflowService.CreateInstallSessionLogPath();
+
+        SystemChecks = new ObservableCollection<SystemCheckItem>();
+        LogLines = new ObservableCollection<string>();
+
+        _primaryCommand = new AsyncRelayCommand(ExecutePrimaryActionAsync, CanExecutePrimaryAction);
+        _checkForUpdatesCommand = new AsyncRelayCommand(RunManagedRepoUpdateCheckAsync, CanRunManagedRepoUpdateCheck);
+        _openRuntimeToolsCommand = new AsyncRelayCommand(OpenRuntimeToolsAsync, CanRunManagedRuntimeAction);
+        _refreshRuntimeStatusCommand = new AsyncRelayCommand(RefreshRuntimeStatusAsync, CanRunManagedRuntimeAction);
+        _fetchModelsNowCommand = new AsyncRelayCommand(RunFetchModelsNowAsync, CanRunManagedRuntimeAction);
+        _testHunyuanCommand = new AsyncRelayCommand(() => RunSmokeTestAsync("2mv"), CanRunHunyuanSmokeTest);
+        _testZImageCommand = new AsyncRelayCommand(() => RunSmokeTestAsync("zimage"), CanRunZImageSmokeTest);
+        _testTrellisCommand = new AsyncRelayCommand(() => RunSmokeTestAsync("trellis"), CanRunTrellisSmokeTest);
+        _backCommand = new RelayCommand(GoBack, CanGoBack);
+        _openLogFolderCommand = new RelayCommand(_workflowService.OpenLogFolder);
+        _openReadmeCommand = new RelayCommand(_workflowService.OpenReadme);
+        _openFootprintDocCommand = new RelayCommand(_workflowService.OpenFootprintDoc);
+        _openAddonGuideCommand = new RelayCommand(_workflowService.OpenAddonGuide);
+
+        AvailableDrives = new ObservableCollection<DriveChoice>(_workflowService.GetAvailableDrives());
+        SelectedDrive = AvailableDrives
+            .OrderByDescending(drive => drive.FreeBytes)
+            .FirstOrDefault();
+
+        RecomputeStepState();
+    }
+
+    public Action? RequestClose { get; set; }
+
+    public ObservableCollection<SystemCheckItem> SystemChecks { get; }
+
+    public ObservableCollection<DriveChoice> AvailableDrives { get; }
+
+    public ObservableCollection<string> LogLines { get; }
+
+    public AsyncRelayCommand PrimaryCommand => _primaryCommand;
+
+    public RelayCommand BackCommand => _backCommand;
+
+    public AsyncRelayCommand CheckForUpdatesCommand => _checkForUpdatesCommand;
+
+    public AsyncRelayCommand OpenRuntimeToolsCommand => _openRuntimeToolsCommand;
+
+    public AsyncRelayCommand RefreshRuntimeStatusCommand => _refreshRuntimeStatusCommand;
+
+    public AsyncRelayCommand FetchModelsNowCommand => _fetchModelsNowCommand;
+
+    public AsyncRelayCommand TestHunyuanCommand => _testHunyuanCommand;
+
+    public AsyncRelayCommand TestZImageCommand => _testZImageCommand;
+
+    public AsyncRelayCommand TestTrellisCommand => _testTrellisCommand;
+
+    public System.Windows.Input.ICommand HunyuanRuntimeActionCommand => HunyuanRuntimeStatus.TestReady ? _testHunyuanCommand : _fetchModelsNowCommand;
+
+    public System.Windows.Input.ICommand ZImageRuntimeActionCommand => ZImageRuntimeStatus.TestReady ? _testZImageCommand : _fetchModelsNowCommand;
+
+    public System.Windows.Input.ICommand TrellisRuntimeActionCommand => TrellisRuntimeStatus.TestReady ? _testTrellisCommand : _fetchModelsNowCommand;
+
+    public RelayCommand OpenLogFolderCommand => _openLogFolderCommand;
+
+    public RelayCommand OpenReadmeCommand => _openReadmeCommand;
+
+    public RelayCommand OpenFootprintDocCommand => _openFootprintDocCommand;
+
+    public RelayCommand OpenAddonGuideCommand => _openAddonGuideCommand;
+
+    public string AppTitle => "NymphsCore Manager";
+
+    public string StepCounterText => $"Step {_currentStepIndex + 1} of {TotalSteps}";
+
+    public string CurrentStepTitle
+    {
+        get => _currentStepTitle;
+        private set => SetProperty(ref _currentStepTitle, value);
+    }
+
+    public string CurrentStepSubtitle
+    {
+        get => _currentStepSubtitle;
+        private set => SetProperty(ref _currentStepSubtitle, value);
+    }
+
+    public string PrimaryButtonText
+    {
+        get => _primaryButtonText;
+        private set => SetProperty(ref _primaryButtonText, value);
+    }
+
+    public string StatusMessage
+    {
+        get => _statusMessage;
+        private set => SetProperty(ref _statusMessage, value);
+    }
+
+    public string FinishSummary
+    {
+        get => _finishSummary;
+        private set => SetProperty(ref _finishSummary, value);
+    }
+
+    public string PostInstallActionSummary
+    {
+        get => _postInstallActionSummary;
+        private set
+        {
+            if (SetProperty(ref _postInstallActionSummary, value))
+            {
+                OnPropertyChanged(nameof(HasPostInstallActionSummary));
+            }
+        }
+    }
+
+    public double ProgressValue
+    {
+        get => _progressValue;
+        private set => SetProperty(ref _progressValue, value);
+    }
+
+    public string BaseTarPath => _workflowService.BaseTarPath;
+
+    public string ReadmeUrl => InstallerWorkflowService.ReadmeUrl;
+
+    public string FootprintDocUrl => InstallerWorkflowService.FootprintDocUrl;
+
+    public string AddonGuideUrl => InstallerWorkflowService.AddonGuideUrl;
+
+    public string LogFolderPath => _workflowService.LogFolderPath;
+
+    public string InstallSessionLogPath => _installSessionLogPath;
+
+    public bool IsBusy
+    {
+        get => _isBusy;
+        private set
+        {
+            if (SetProperty(ref _isBusy, value))
+            {
+                RaiseCommandStateChanged();
+            }
+        }
+    }
+
+    public bool IsWelcomeStep => _currentStepIndex == 0;
+
+    public bool IsSystemCheckStep => _currentStepIndex == 1;
+
+    public bool IsInstallLocationStep => _currentStepIndex == 2;
+
+    public bool IsRuntimeSetupStep => _currentStepIndex == 3;
+
+    public bool IsProgressStep => _currentStepIndex == 4;
+
+    public bool IsFinishStep => _currentStepIndex == 5;
+
+    public bool IsRuntimeToolsStep => _currentStepIndex == 6;
+
+    public bool HasSystemCheckFailures => SystemChecks.Any(item => item.Status == CheckState.Fail);
+
+    public bool RequiresWslSetup => SystemChecks.Any(item =>
+        item.Key == InstallerWorkflowService.WslAvailabilityCheckKey &&
+        item.Status == CheckState.Fail);
+
+    public bool InstallSucceeded => _installSucceeded;
+
+    public bool ShowExistingInstallActions => ManagedDistroDetected && IsSystemCheckStep;
+
+    public bool ShowPostInstallActions => InstallSucceeded || ManagedDistroDetected;
+
+    public bool ManagedDistroDetected
+    {
+        get => _managedDistroDetected;
+        private set
+        {
+            if (SetProperty(ref _managedDistroDetected, value))
+            {
+                OnPropertyChanged(nameof(ManagedDistroStatusText));
+                OnPropertyChanged(nameof(ShowExistingInstallActions));
+                OnPropertyChanged(nameof(ShowPostInstallActions));
+                OnPropertyChanged(nameof(HunyuanRuntimeActionCommand));
+                OnPropertyChanged(nameof(ZImageRuntimeActionCommand));
+                OnPropertyChanged(nameof(TrellisRuntimeActionCommand));
+                RaiseCommandStateChanged();
+            }
+        }
+    }
+
+    public DriveChoice? SelectedDrive
+    {
+        get => _selectedDrive;
+        set
+        {
+            if (SetProperty(ref _selectedDrive, value))
+            {
+                OnPropertyChanged(nameof(SelectedInstallPath));
+                RaiseCommandStateChanged();
+            }
+        }
+    }
+
+    public string SelectedInstallPath => SelectedDrive?.InstallPath ?? "Choose a drive to continue.";
+
+    public bool PrefetchModelsNow
+    {
+        get => _prefetchModelsNow;
+        set
+        {
+            if (SetProperty(ref _prefetchModelsNow, value))
+            {
+                OnPropertyChanged(nameof(ModelDownloadDecisionTitle));
+                OnPropertyChanged(nameof(ModelDownloadDecisionSummary));
+                OnPropertyChanged(nameof(ModelDownloadDecisionDetails));
+                OnPropertyChanged(nameof(RuntimeDownloadSummary));
+                OnPropertyChanged(nameof(RuntimeDownloadDetailsText));
+                RaiseCommandStateChanged();
+            }
+        }
+    }
+
+    public bool IncludeExperimentalParts
+    {
+        get => _includeExperimentalParts;
+        set
+        {
+            if (SetProperty(ref _includeExperimentalParts, value))
+            {
+                OnPropertyChanged(nameof(ExperimentalPartsSummary));
+                RaiseCommandStateChanged();
+            }
+        }
+    }
+
+    public string HuggingFaceToken
+    {
+        get => _huggingFaceToken;
+        set
+        {
+            var normalized = value?.Trim() ?? string.Empty;
+            if (SetProperty(ref _huggingFaceToken, normalized))
+            {
+                OnPropertyChanged(nameof(HuggingFaceTokenStatus));
+            }
+        }
+    }
+
+    public string HuggingFaceTokenStatus =>
+        string.IsNullOrWhiteSpace(HuggingFaceToken)
+            ? "No Hugging Face token entered. Installer downloads will use anonymous access."
+            : "A Hugging Face token is attached for installer-time downloads only.";
+
+    public string ModelDownloadDecisionTitle =>
+        PrefetchModelsNow ? "Extra model downloads during install" : "Model downloads deferred until later";
+
+    public string ModelDownloadDecisionSummary =>
+        PrefetchModelsNow
+            ? "With model prefetch turned on, the installer downloads about 72 GB of required model and helper files now. This is the smoothest option for non-technical users, but it can add 1 to 2 hours or more to the install on a typical home connection."
+            : "With model prefetch turned off, the installer skips about 72 GB of model and helper downloads for now. The manager or Blender addon will need to download these later on first real use, which can make first launch feel very slow or look stuck.";
+
+    public string ModelDownloadDecisionDetails => ModelDownloadDetails;
+
+    public string RuntimeDownloadSummary =>
+        PrefetchModelsNow
+            ? "The installer also prepares the runtime stack now. That work happens either way and is separate from the large model downloads."
+            : "The installer still has to prepare the runtime stack now, even with model prefetch turned off. Turning prefetch off only skips the large Hugging Face model downloads.";
+
+    public string RuntimeDownloadDetailsText => RuntimeDownloadDetails;
+
+    public string ExperimentalPartsSummary =>
+        IncludeExperimentalParts
+            ? "Experimental Parts tools are enabled. The manager will also prepare the dedicated Hunyuan3D-Part environment used by the addon."
+            : "Experimental Parts tools are disabled. The core runtime stack will still be installed. Rerun the latest manager later with this option enabled if you want to add Parts.";
+
+    public string ManagedDistroStatusText =>
+        ManagedDistroDetected
+            ? $"Existing managed {_managedDistroName} distro detected. Rerun the latest manager to repair or refresh it in place. You can preview managed repo git status first if you want."
+            : string.Empty;
+
+    public string UpdateCheckSummary
+    {
+        get => _updateCheckSummary;
+        private set
+        {
+            if (SetProperty(ref _updateCheckSummary, value))
+            {
+                OnPropertyChanged(nameof(HasUpdateCheckSummary));
+            }
+        }
+    }
+
+    public bool HasUpdateCheckSummary => !string.IsNullOrWhiteSpace(UpdateCheckSummary);
+
+    public bool HasPostInstallActionSummary => !string.IsNullOrWhiteSpace(PostInstallActionSummary);
+
+    public string RuntimeToolsSummary
+    {
+        get => _runtimeToolsSummary;
+        private set => SetProperty(ref _runtimeToolsSummary, value);
+    }
+
+    public RuntimeBackendStatus HunyuanRuntimeStatus
+    {
+        get => _hunyuanRuntimeStatus;
+        private set
+        {
+            if (SetProperty(ref _hunyuanRuntimeStatus, value))
+            {
+                OnPropertyChanged(nameof(HunyuanTestButtonText));
+                OnPropertyChanged(nameof(HunyuanRuntimeActionCommand));
+                RaiseCommandStateChanged();
+            }
+        }
+    }
+
+    public RuntimeBackendStatus ZImageRuntimeStatus
+    {
+        get => _zImageRuntimeStatus;
+        private set
+        {
+            if (SetProperty(ref _zImageRuntimeStatus, value))
+            {
+                OnPropertyChanged(nameof(ZImageTestButtonText));
+                OnPropertyChanged(nameof(ZImageRuntimeActionCommand));
+                RaiseCommandStateChanged();
+            }
+        }
+    }
+
+    public RuntimeBackendStatus TrellisRuntimeStatus
+    {
+        get => _trellisRuntimeStatus;
+        private set
+        {
+            if (SetProperty(ref _trellisRuntimeStatus, value))
+            {
+                OnPropertyChanged(nameof(TrellisTestButtonText));
+                OnPropertyChanged(nameof(TrellisRuntimeActionCommand));
+                RaiseCommandStateChanged();
+            }
+        }
+    }
+
+    public string HunyuanTestButtonText => HunyuanRuntimeStatus.ModelsReady ? "Test Hunyuan 2mv" : "Fetch Models First";
+
+    public string ZImageTestButtonText => ZImageRuntimeStatus.ModelsReady ? "Test Z-Image" : "Fetch Models First";
+
+    public string TrellisTestButtonText => TrellisRuntimeStatus.ModelsReady ? "Test TRELLIS.2" : "Fetch Models First";
+
+    private bool CanGoBack()
+    {
+        return !IsBusy && _currentStepIndex > 0 && !IsProgressStep;
+    }
+
+    private bool CanExecutePrimaryAction()
+    {
+        if (IsBusy)
+        {
+            return false;
+        }
+
+        return _currentStepIndex switch
+        {
+            0 => true,
+            1 => true,
+            2 => SelectedDrive is not null,
+            3 => SelectedDrive is not null,
+            4 => _installCompleted,
+            5 => true,
+            6 => true,
+            _ => false,
+        };
+    }
+
+    private bool CanRunManagedRepoUpdateCheck()
+    {
+        return !IsBusy && ManagedDistroDetected && (IsSystemCheckStep || IsInstallLocationStep || IsRuntimeSetupStep);
+    }
+
+    private bool CanRunManagedRuntimeAction()
+    {
+        return !IsBusy && (ManagedDistroDetected || InstallSucceeded);
+    }
+
+    private bool CanRunHunyuanSmokeTest()
+    {
+        return CanRunManagedRuntimeAction() && HunyuanRuntimeStatus.TestReady;
+    }
+
+    private bool CanRunZImageSmokeTest()
+    {
+        return CanRunManagedRuntimeAction() && ZImageRuntimeStatus.TestReady;
+    }
+
+    private bool CanRunTrellisSmokeTest()
+    {
+        return CanRunManagedRuntimeAction() && TrellisRuntimeStatus.TestReady;
+    }
+
+    private async Task ExecutePrimaryActionAsync()
+    {
+        switch (_currentStepIndex)
+        {
+            case 0:
+                MoveToStep(1);
+                await RunSystemChecksAsync().ConfigureAwait(true);
+                break;
+            case 1:
+                if (RequiresWslSetup)
+                {
+                    await RunWslSetupAsync().ConfigureAwait(true);
+                }
+                else if (!_systemChecksCompleted || HasSystemCheckFailures)
+                {
+                    await RunSystemChecksAsync().ConfigureAwait(true);
+                }
+                else
+                {
+                    MoveToStep(2);
+                }
+                break;
+            case 2:
+                MoveToStep(3);
+                break;
+            case 3:
+                await RunInstallAsync().ConfigureAwait(true);
+                break;
+            case 4:
+                MoveToStep(5);
+                break;
+            case 5:
+                if (_installSucceeded)
+                {
+                    await OpenRuntimeToolsAsync().ConfigureAwait(true);
+                }
+                else
+                {
+                    RequestClose?.Invoke();
+                }
+                break;
+            case 6:
+                RequestClose?.Invoke();
+                break;
+        }
+    }
+
+    private async Task RunSystemChecksAsync()
+    {
+        IsBusy = true;
+        StatusMessage = "Running system checks...";
+        SystemChecks.Clear();
+        AppendInstallLog("Running system checks.");
+
+        try
+        {
+            var checks = await _workflowService.RunSystemChecksAsync(CancellationToken.None).ConfigureAwait(true);
+            foreach (var check in checks)
+            {
+                SystemChecks.Add(check);
+                AppendInstallLog($"System check: {check.Title} [{check.StatusLabel}] {check.Details}");
+            }
+
+            var existingManagedDistroName = await _workflowService.GetExistingManagedDistroNameAsync(CancellationToken.None).ConfigureAwait(true);
+            _managedDistroName = existingManagedDistroName ?? InstallerWorkflowService.ManagedDistroName;
+            ManagedDistroDetected = !string.IsNullOrWhiteSpace(existingManagedDistroName);
+            if (ManagedDistroDetected)
+            {
+                AppendInstallLog($"System check note: existing managed {_managedDistroName} distro detected. Check for Updates is available before repair/continue.");
+                OnPropertyChanged(nameof(ManagedDistroStatusText));
+            }
+
+            _systemChecksCompleted = true;
+            StatusMessage = HasSystemCheckFailures
+                ? "One or more system checks need attention."
+                : "System checks passed.";
+            AppendInstallLog(StatusMessage);
+        }
+        finally
+        {
+            IsBusy = false;
+            RecomputeStepState();
+        }
+    }
+
+    private async Task RunManagedRepoUpdateCheckAsync()
+    {
+        if (!ManagedDistroDetected || SelectedDrive is null)
+        {
+            return;
+        }
+
+        IsBusy = true;
+        StatusMessage = "Checking managed repo updates...";
+        UpdateCheckSummary = string.Empty;
+        _updateCheckCompleted = false;
+        _updatesAvailableFromCheck = false;
+        AppendInstallLog("Starting managed repo update check.");
+
+        var settings = new InstallSettings
+        {
+            DistroName = _managedDistroName,
+            LinuxUser = InstallerWorkflowService.ManagedLinuxUser,
+            TarPath = _workflowService.BaseTarPath,
+            InstallLocation = SelectedDrive.InstallPath,
+            PrefetchModelsNow = PrefetchModelsNow,
+            IncludeExperimentalParts = IncludeExperimentalParts,
+            RepairExistingDistro = true,
+            HuggingFaceToken = string.Empty,
+        };
+
+        var updateCheckLines = new List<string>();
+        var progress = new Progress<string>(line =>
+        {
+            var sanitizedLine = line.Replace("\0", string.Empty);
+            if (!string.IsNullOrWhiteSpace(sanitizedLine))
+            {
+                StatusMessage = sanitizedLine;
+                AppendInstallLog(sanitizedLine);
+
+                if (ShouldShowUpdateCheckLine(sanitizedLine))
+                {
+                    updateCheckLines.Add(sanitizedLine);
+                }
+            }
+        });
+
+        try
+        {
+            await _workflowService.RunManagedRepoUpdateCheckAsync(settings, progress, CancellationToken.None).ConfigureAwait(true);
+            StatusMessage = "Managed repo update check completed.";
+            AppendInstallLog(StatusMessage);
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = "Managed repo update check failed.";
+            updateCheckLines.Add($"ERROR: {ex.Message}");
+            AppendInstallLog($"ERROR: {ex}");
+        }
+        finally
+        {
+            var presentation = BuildFriendlyUpdateCheckSummary(updateCheckLines);
+            UpdateCheckSummary = presentation.Summary;
+            _updateCheckCompleted = presentation.CheckCompleted;
+            _updatesAvailableFromCheck = presentation.UpdatesAvailable;
+            IsBusy = false;
+            RecomputeStepState();
+        }
+    }
+
+    private async Task RunWslSetupAsync()
+    {
+        IsBusy = true;
+        StatusMessage = "Setting up Windows WSL support...";
+        AppendInstallLog("Starting guided WSL setup.");
+
+        var progress = new Progress<string>(line =>
+        {
+            var sanitizedLine = line.Replace("\0", string.Empty);
+            if (!string.IsNullOrWhiteSpace(sanitizedLine))
+            {
+                StatusMessage = sanitizedLine;
+                AppendInstallLog(sanitizedLine);
+            }
+        });
+
+        try
+        {
+            await _workflowService.BootstrapWslAsync(progress, CancellationToken.None).ConfigureAwait(true);
+            AppendInstallLog("Guided WSL setup finished. Running checks again.");
+            await RunSystemChecksAsync().ConfigureAwait(true);
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = "WSL setup stopped with an error.";
+            AppendInstallLog($"ERROR: {ex}");
+        }
+        finally
+        {
+            IsBusy = false;
+            RecomputeStepState();
+        }
+    }
+
+    private InstallSettings BuildManagedActionSettings()
+    {
+        return new InstallSettings
+        {
+            DistroName = _managedDistroName,
+            LinuxUser = InstallerWorkflowService.ManagedLinuxUser,
+            TarPath = _workflowService.BaseTarPath,
+            InstallLocation = SelectedDrive?.InstallPath ?? string.Empty,
+            PrefetchModelsNow = true,
+            IncludeExperimentalParts = IncludeExperimentalParts,
+            RepairExistingDistro = true,
+            HuggingFaceToken = HuggingFaceToken,
+        };
+    }
+
+    private async Task OpenRuntimeToolsAsync()
+    {
+        MoveToStep(6);
+        await RefreshRuntimeStatusAsync().ConfigureAwait(true);
+    }
+
+    private async Task RefreshRuntimeStatusAsync()
+    {
+        var settings = BuildManagedActionSettings();
+        IsBusy = true;
+        LogLines.Clear();
+        RuntimeToolsSummary = "Checking backend readiness...";
+        PostInstallActionSummary = string.Empty;
+        StatusMessage = "Checking backend readiness...";
+        AppendInstallLog("Starting runtime tools status check.");
+
+        var progress = new Progress<string>(line =>
+        {
+            var sanitizedLine = line.Replace("\0", string.Empty);
+            if (string.IsNullOrWhiteSpace(sanitizedLine))
+            {
+                return;
+            }
+
+            if (!sanitizedLine.StartsWith("backend=", StringComparison.Ordinal))
+            {
+                LogLines.Add(sanitizedLine);
+                StatusMessage = sanitizedLine;
+            }
+
+            AppendInstallLog(sanitizedLine);
+        });
+
+        try
+        {
+            var statuses = await _workflowService.GetRuntimeBackendStatusesAsync(settings, progress, CancellationToken.None).ConfigureAwait(true);
+            ApplyRuntimeBackendStatuses(statuses);
+            RuntimeToolsSummary = BuildRuntimeToolsSummary(statuses);
+            StatusMessage = "Runtime tool status check completed.";
+            AppendInstallLog(StatusMessage);
+        }
+        catch (Exception ex)
+        {
+            RuntimeToolsSummary = "Runtime tool status check failed. Use the log panel and log folder to see what failed.";
+            StatusMessage = "Runtime tool status check failed.";
+            LogLines.Add($"ERROR: {ex.Message}");
+            AppendInstallLog($"ERROR: {ex}");
+        }
+        finally
+        {
+            IsBusy = false;
+            RaiseCommandStateChanged();
+        }
+    }
+
+    private void ApplyRuntimeBackendStatuses(IReadOnlyDictionary<string, RuntimeBackendStatus> statuses)
+    {
+        HunyuanRuntimeStatus = statuses.TryGetValue("2mv", out var h2)
+            ? h2
+            : RuntimeBackendStatus.Unknown("2mv", "Hunyuan 2mv", "No runtime status was returned.");
+        ZImageRuntimeStatus = statuses.TryGetValue("zimage", out var zimage)
+            ? zimage
+            : RuntimeBackendStatus.Unknown("zimage", "Z-Image", "No runtime status was returned.");
+        TrellisRuntimeStatus = statuses.TryGetValue("trellis", out var trellis)
+            ? trellis
+            : RuntimeBackendStatus.Unknown("trellis", "TRELLIS.2", "No runtime status was returned.");
+        OnPropertyChanged(nameof(HunyuanRuntimeActionCommand));
+        OnPropertyChanged(nameof(ZImageRuntimeActionCommand));
+        OnPropertyChanged(nameof(TrellisRuntimeActionCommand));
+    }
+
+    private static string BuildRuntimeToolsSummary(IReadOnlyDictionary<string, RuntimeBackendStatus> statuses)
+    {
+        if (statuses.Count == 0)
+        {
+            return "No backend status was returned from the managed runtime.";
+        }
+
+        var readyCount = statuses.Values.Count(status => status.TestReady);
+        var missingModelCount = statuses.Values.Count(status => status.EnvironmentReady && !status.ModelsReady);
+        var missingRuntimeCount = statuses.Values.Count(status => !status.EnvironmentReady);
+
+        if (missingRuntimeCount > 0)
+        {
+            return "One or more backend runtimes are missing or incomplete. Run repair/update before testing.";
+        }
+
+        if (missingModelCount > 0)
+        {
+            return "Runtime environments are present, but some required models are missing. Fetch models before testing those backends.";
+        }
+
+        if (readyCount > 0)
+        {
+            return "Core backends look ready for smoke testing.";
+        }
+
+        return "Runtime tools are available, but backend readiness could not be confirmed.";
+    }
+
+    private void MarkCoreRuntimeModelsReady()
+    {
+        if (HunyuanRuntimeStatus.EnvironmentReady)
+        {
+            HunyuanRuntimeStatus = HunyuanRuntimeStatus with
+            {
+                ModelsReady = true,
+                TestReady = true,
+                Detail = "Runtime env and required models are present. Ready for smoke test.",
+            };
+        }
+
+        if (ZImageRuntimeStatus.EnvironmentReady)
+        {
+            ZImageRuntimeStatus = ZImageRuntimeStatus with
+            {
+                ModelsReady = true,
+                TestReady = true,
+                Detail = "Runtime env and required models are present. Ready for smoke test.",
+            };
+        }
+
+        if (TrellisRuntimeStatus.EnvironmentReady)
+        {
+            TrellisRuntimeStatus = TrellisRuntimeStatus with
+            {
+                ModelsReady = true,
+                TestReady = true,
+                Detail = "Runtime env, adapter scripts, and required models are present. Ready for smoke test.",
+            };
+        }
+
+        OnPropertyChanged(nameof(HunyuanRuntimeActionCommand));
+        OnPropertyChanged(nameof(ZImageRuntimeActionCommand));
+        OnPropertyChanged(nameof(TrellisRuntimeActionCommand));
+    }
+
+    private async Task RunFetchModelsNowAsync()
+    {
+        var settings = BuildManagedActionSettings();
+        PrepareManagedActionRun(
+            "Fetching required models into the existing NymphsCore runtime...",
+            "Starting explicit model-prefetch pass against the managed runtime.");
+        IsBusy = true;
+
+        var progress = new Progress<string>(line =>
+        {
+            var sanitizedLine = line.Replace("\0", string.Empty);
+            if (!string.IsNullOrWhiteSpace(sanitizedLine))
+            {
+                LogLines.Add(sanitizedLine);
+                StatusMessage = sanitizedLine;
+                AppendInstallLog(sanitizedLine);
+            }
+        });
+
+        try
+        {
+            await _workflowService.RunModelPrefetchOnlyAsync(settings, progress, CancellationToken.None).ConfigureAwait(true);
+            MarkCoreRuntimeModelsReady();
+            PostInstallActionSummary = "Required models were downloaded successfully.";
+            RuntimeToolsSummary = "Model download completed. Core backends should now be ready for smoke tests.";
+            StatusMessage = "Model prefetch completed successfully.";
+            AppendInstallLog(StatusMessage);
+        }
+        catch (Exception ex)
+        {
+            PostInstallActionSummary = "Model prefetch failed. Check the live log and log folder.";
+            RuntimeToolsSummary = "Model download failed. Use the live log and log folder to inspect the failure.";
+            StatusMessage = "Model prefetch stopped with an error.";
+            LogLines.Add($"ERROR: {ex.Message}");
+            AppendInstallLog($"ERROR: {ex}");
+        }
+        finally
+        {
+            IsBusy = false;
+            RaiseCommandStateChanged();
+        }
+    }
+
+    private async Task RunSmokeTestAsync(string backend)
+    {
+        var settings = BuildManagedActionSettings();
+        var backendLabel = backend switch
+        {
+            "2mv" => "Hunyuan 2mv",
+            "zimage" => "Z-Image",
+            "trellis" => "TRELLIS.2",
+            _ => backend,
+        };
+
+        PrepareManagedActionRun(
+            $"Running {backendLabel} smoke test...",
+            $"Starting {backendLabel} smoke test.");
+        IsBusy = true;
+
+        var progress = new Progress<string>(line =>
+        {
+            var sanitizedLine = line.Replace("\0", string.Empty);
+            if (!string.IsNullOrWhiteSpace(sanitizedLine))
+            {
+                LogLines.Add(sanitizedLine);
+                StatusMessage = sanitizedLine;
+                AppendInstallLog(sanitizedLine);
+            }
+        });
+
+        try
+        {
+            await _workflowService.RunSmokeTestAsync(settings, backend, progress, CancellationToken.None).ConfigureAwait(true);
+            PostInstallActionSummary = $"{backendLabel} smoke test passed.";
+            RuntimeToolsSummary = $"{backendLabel} smoke test passed.";
+            StatusMessage = $"{backendLabel} smoke test completed successfully.";
+            AppendInstallLog(StatusMessage);
+        }
+        catch (Exception ex)
+        {
+            PostInstallActionSummary = $"{backendLabel} smoke test failed. Check the live log and log folder.";
+            RuntimeToolsSummary = $"{backendLabel} smoke test failed. Use the live log and log folder to inspect the failure.";
+            StatusMessage = $"{backendLabel} smoke test stopped with an error.";
+            LogLines.Add($"ERROR: {ex.Message}");
+            AppendInstallLog($"ERROR: {ex}");
+        }
+        finally
+        {
+            IsBusy = false;
+            RaiseCommandStateChanged();
+        }
+    }
+
+    private void PrepareManagedActionRun(string summary, string initialLogLine)
+    {
+        LogLines.Clear();
+        StatusMessage = summary;
+        PostInstallActionSummary = summary;
+        AppendInstallLog(initialLogLine);
+        if (!IsRuntimeToolsStep)
+        {
+            MoveToStep(6);
+        }
+    }
+
+    private async Task RunInstallAsync()
+    {
+        if (SelectedDrive is null)
+        {
+            return;
+        }
+
+        MoveToStep(4);
+        LogLines.Clear();
+        FinishSummary = string.Empty;
+        PostInstallActionSummary = string.Empty;
+        _installCompleted = false;
+        _installSucceeded = false;
+        _lastRunUsedExistingInstall = false;
+        _lastRunAppliedUpdates = false;
+        ProgressValue = 5;
+        StatusMessage = "Starting install...";
+        IsBusy = true;
+        AppendInstallLog("Starting install.");
+
+        try
+        {
+            var existingManagedDistroName = await _workflowService.GetExistingManagedDistroNameAsync(CancellationToken.None).ConfigureAwait(true);
+            var repairExistingDistro = !string.IsNullOrWhiteSpace(existingManagedDistroName);
+            var settings = new InstallSettings
+            {
+                DistroName = existingManagedDistroName ?? InstallerWorkflowService.ManagedDistroName,
+                LinuxUser = InstallerWorkflowService.ManagedLinuxUser,
+                TarPath = _workflowService.BaseTarPath,
+                InstallLocation = SelectedDrive.InstallPath,
+                PrefetchModelsNow = PrefetchModelsNow,
+                IncludeExperimentalParts = IncludeExperimentalParts,
+                RepairExistingDistro = repairExistingDistro,
+                HuggingFaceToken = HuggingFaceToken,
+            };
+
+            if (settings.RepairExistingDistro)
+            {
+                _lastRunUsedExistingInstall = true;
+                _lastRunAppliedUpdates = _updateCheckCompleted && _updatesAvailableFromCheck;
+                AppendInstallLog($"Existing managed {settings.DistroName} distro detected. The installer will repair/continue that distro in place.");
+            }
+            else
+            {
+                AppendInstallLog($"Install location: {settings.InstallLocation}");
+            }
+
+            AppendInstallLog($"Linux user: {settings.LinuxUser}");
+            AppendInstallLog($"Base tar: {settings.TarPath}");
+            AppendInstallLog(
+                string.IsNullOrWhiteSpace(settings.HuggingFaceToken)
+                    ? "Hugging Face token: not provided"
+                    : "Hugging Face token: provided");
+            AppendInstallLog(
+                settings.PrefetchModelsNow
+                    ? "Model prefetch: enabled"
+                    : "Model prefetch: disabled");
+            AppendInstallLog(
+                settings.IncludeExperimentalParts
+                    ? "Experimental Parts tools: enabled"
+                    : "Experimental Parts tools: disabled");
+
+            var progress = new Progress<string>(line =>
+            {
+                var sanitizedLine = line.Replace("\0", string.Empty);
+                if (!string.IsNullOrWhiteSpace(sanitizedLine))
+                {
+                    LogLines.Add(sanitizedLine);
+                    StatusMessage = sanitizedLine;
+                    AppendInstallLog(sanitizedLine);
+                }
+            });
+
+            var baseStepMessage = settings.RepairExistingDistro
+                ? "Continuing with the existing NymphsCore base environment..."
+                : "Importing the NymphsCore base environment...";
+            LogLines.Add(baseStepMessage);
+            AppendInstallLog(baseStepMessage);
+            await _workflowService.ImportBaseDistroAsync(settings, progress, CancellationToken.None).ConfigureAwait(true);
+            ProgressValue = 45;
+
+            LogLines.Add("Running the selected runtime setup...");
+            AppendInstallLog("Running the selected runtime setup...");
+            await _workflowService.RunRuntimeSetupAsync(settings, progress, CancellationToken.None).ConfigureAwait(true);
+            ProgressValue = 90;
+
+            _installSucceeded = true;
+            _installCompleted = true;
+            _managedDistroName = settings.DistroName;
+            ManagedDistroDetected = true;
+            ProgressValue = 100;
+            StatusMessage = "Install completed successfully.";
+            FinishSummary = BuildFinishSummary(settings);
+            AppendInstallLog(StatusMessage);
+            AppendInstallLog(FinishSummary);
+            OnPropertyChanged(nameof(ShowPostInstallActions));
+        }
+        catch (Exception ex)
+        {
+            _installCompleted = true;
+            _installSucceeded = false;
+            ProgressValue = 100;
+            LogLines.Add($"ERROR: {ex.Message}");
+            StatusMessage = "Install stopped with an error.";
+            FinishSummary =
+                "The installer did not complete. Use the log panel and log folder to see what failed.";
+            AppendInstallLog($"ERROR: {ex}");
+            OnPropertyChanged(nameof(ShowPostInstallActions));
+        }
+        finally
+        {
+            IsBusy = false;
+            RecomputeStepState();
+            if (_installCompleted)
+            {
+                MoveToStep(5);
+            }
+        }
+    }
+
+    private void GoBack()
+    {
+        if (_currentStepIndex <= 0)
+        {
+            return;
+        }
+
+        MoveToStep(_currentStepIndex - 1);
+    }
+
+    private void MoveToStep(int stepIndex)
+    {
+        _currentStepIndex = Math.Clamp(stepIndex, 0, TotalSteps - 1);
+        OnPropertyChanged(nameof(IsWelcomeStep));
+        OnPropertyChanged(nameof(IsSystemCheckStep));
+        OnPropertyChanged(nameof(IsInstallLocationStep));
+        OnPropertyChanged(nameof(IsRuntimeSetupStep));
+        OnPropertyChanged(nameof(IsProgressStep));
+        OnPropertyChanged(nameof(IsFinishStep));
+        OnPropertyChanged(nameof(IsRuntimeToolsStep));
+        OnPropertyChanged(nameof(ShowExistingInstallActions));
+        RecomputeStepState();
+    }
+
+    private void RecomputeStepState()
+    {
+        switch (_currentStepIndex)
+        {
+            case 0:
+                CurrentStepTitle = "Welcome";
+                CurrentStepSubtitle =
+                    "This app installs and manages the local runtime systems required by the Nymphs addon.";
+                PrimaryButtonText = "Continue";
+                break;
+            case 1:
+                CurrentStepTitle = "System Check";
+                CurrentStepSubtitle =
+                    RequiresWslSetup
+                        ? "Windows WSL support is missing or not ready yet. Set up WSL first, then the manager will continue using its own separate NymphsCore distro."
+                        : "Check WSL, existing distro state, NVIDIA visibility, drive availability, and whether NymphsCore.tar is present next to the manager.";
+                PrimaryButtonText =
+                    !_systemChecksCompleted
+                        ? "Checking..."
+                        : RequiresWslSetup
+                            ? "Set Up WSL"
+                            : HasSystemCheckFailures
+                            ? "Run Checks Again"
+                            : "Continue";
+                break;
+            case 2:
+                CurrentStepTitle = "Install Location";
+                CurrentStepSubtitle =
+                    "Choose which Windows drive should hold the dedicated NymphsCore distro for a fresh install. If NymphsCore already exists, reruns reuse that managed distro in place.";
+                PrimaryButtonText = "Continue";
+                break;
+            case 3:
+                CurrentStepTitle = "Model Prefetch";
+                CurrentStepSubtitle =
+                    "Base import and required runtime environments will be installed automatically. Choose whether to prefetch models now, and whether to include the experimental Parts lane.";
+                PrimaryButtonText = ManagedDistroDetected ? "Repair / Refresh" : "Start Install";
+                break;
+            case 4:
+                CurrentStepTitle = "Installation Progress";
+                CurrentStepSubtitle =
+                    "The app is importing or repairing the managed distro and running the selected setup steps.";
+                PrimaryButtonText = "Finish";
+                break;
+            case 5:
+                CurrentStepTitle = _installSucceeded ? GetFinishSuccessTitle() : "Install Summary";
+                CurrentStepSubtitle =
+                    _installSucceeded
+                        ? GetFinishSuccessSubtitle()
+                        : "The installer stopped before everything completed.";
+                PrimaryButtonText = _installSucceeded ? "Open Runtime Tools" : "Close";
+                break;
+            case 6:
+                CurrentStepTitle = "Runtime Tools";
+                CurrentStepSubtitle =
+                    "Open core backend tools, fetch missing models, and run smoke tests when the required runtimes are ready. To add Experimental Parts later, rerun the latest manager with that option enabled.";
+                PrimaryButtonText = "Close";
+                break;
+        }
+
+        OnPropertyChanged(nameof(StepCounterText));
+        RaiseCommandStateChanged();
+    }
+
+    private void RaiseCommandStateChanged()
+    {
+        _primaryCommand.RaiseCanExecuteChanged();
+        _checkForUpdatesCommand.RaiseCanExecuteChanged();
+        _openRuntimeToolsCommand.RaiseCanExecuteChanged();
+        _refreshRuntimeStatusCommand.RaiseCanExecuteChanged();
+        _fetchModelsNowCommand.RaiseCanExecuteChanged();
+        _testHunyuanCommand.RaiseCanExecuteChanged();
+        _testZImageCommand.RaiseCanExecuteChanged();
+        _testTrellisCommand.RaiseCanExecuteChanged();
+        _backCommand.RaiseCanExecuteChanged();
+    }
+
+    private string GetFinishSuccessTitle()
+    {
+        if (_lastRunUsedExistingInstall)
+        {
+            return "Repair Complete";
+        }
+
+        return "Install Complete";
+    }
+
+    private string GetFinishSuccessSubtitle()
+    {
+        if (_lastRunUsedExistingInstall)
+        {
+            return "Your installed runtime was checked and refreshed successfully.";
+        }
+
+        return "Your NymphsCore runtime was installed successfully.";
+    }
+
+    private string BuildFinishSummary(InstallSettings settings)
+    {
+        var runtimeTail = settings.PrefetchModelsNow
+            ? "Required models were prefetched during setup."
+            : "Runtime environments were prepared. The manager or Blender addon will download required models later on first real use.";
+        var partsTail = settings.IncludeExperimentalParts
+            ? " Experimental Parts tools were included."
+            : " Experimental Parts tools were skipped. Rerun the latest manager later with Experimental Parts enabled if you want to add them.";
+
+        if (settings.RepairExistingDistro)
+        {
+            return $"Your existing NymphsCore runtime was repaired and refreshed in place. Default Linux user: {settings.LinuxUser}. Managed repos were checked during this run. {runtimeTail}{partsTail}";
+        }
+
+        return $"NymphsCore was installed to {settings.InstallLocation}. Default Linux user: {settings.LinuxUser}. {runtimeTail}{partsTail}";
+    }
+
+    private static bool ShouldShowUpdateCheckLine(string line)
+    {
+        return !(line.StartsWith("Running finalize step inside distro", StringComparison.Ordinal) ||
+                 line.StartsWith("Mode:", StringComparison.Ordinal) ||
+                 line.StartsWith("Using packaged helper scripts", StringComparison.Ordinal) ||
+                 line.StartsWith("Using in-distro helper scripts", StringComparison.Ordinal) ||
+                 line.StartsWith("Effective finalize script:", StringComparison.Ordinal) ||
+                 line.StartsWith("Managed repo update check completed.", StringComparison.Ordinal) ||
+                 line.StartsWith("Managed repo update policy:", StringComparison.Ordinal) ||
+                 line.StartsWith("- Nymphs3D helper repo is checked here", StringComparison.Ordinal) ||
+                 line.StartsWith("- The current installer run still uses", StringComparison.Ordinal) ||
+                 line.StartsWith("- Backend repos are safe to fast-forward", StringComparison.Ordinal));
+    }
+
+    private static UpdateCheckPresentation BuildFriendlyUpdateCheckSummary(IEnumerable<string> lines)
+    {
+        var repoStates = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var details = new List<string>();
+
+        foreach (var line in lines)
+        {
+            if (TryParseRepoLine(line, out var repoName, out var state, out var message))
+            {
+                repoStates[repoName] = state;
+            }
+        }
+
+        var summary = new StringBuilder();
+        var managedRepos = new[]
+        {
+            "Nymphs3D helper repo",
+            "Hunyuan3D-2",
+            "Z-Image backend",
+            "TRELLIS.2",
+            "Hunyuan Parts",
+        };
+        var updatesAvailable = 0;
+        var attentionNeeded = 0;
+        var upToDate = 0;
+
+        foreach (var repo in managedRepos)
+        {
+            if (!repoStates.TryGetValue(repo, out var state))
+            {
+                continue;
+            }
+
+            var repoLabel = FriendlyManagedRepoLabel(repo);
+
+            switch (state)
+            {
+                case "up_to_date":
+                case "ahead_local":
+                    upToDate++;
+                    details.Add($"{repoLabel}: Repo checkout looks current. This does not verify the runtime env, models, or smoke-test health.");
+                    break;
+                case "behind_clean":
+                case "missing":
+                    updatesAvailable++;
+                    details.Add($"{repoLabel}: Repo update available.");
+                    break;
+                case "dirty":
+                    attentionNeeded++;
+                    details.Add($"{repoLabel}: The installer found extra local files in this backend folder, so it did not change anything automatically. This is often generated output, not something you did wrong.");
+                    break;
+                case "fetch_timed_out":
+                    attentionNeeded++;
+                    details.Add($"{repoLabel}: The update check took too long to get a response from GitHub.");
+                    break;
+                case "fetch_failed":
+                    attentionNeeded++;
+                    details.Add($"{repoLabel}: The update check could not be completed right now.");
+                    break;
+                case "branch_mismatch":
+                    attentionNeeded++;
+                    details.Add($"{repoLabel}: This backend is on a different git branch than the installer currently expects, so it did not change anything automatically.");
+                    break;
+                case "remote_mismatch":
+                    attentionNeeded++;
+                    details.Add($"{repoLabel}: This backend points at a different git remote than the installer currently expects.");
+                    break;
+                case "diverged":
+                    attentionNeeded++;
+                    details.Add($"{repoLabel}: This backend has local and remote history that no longer fast-forward cleanly.");
+                    break;
+                default:
+                    attentionNeeded++;
+                    details.Add($"{repoLabel}: Needs attention before automatic updating can continue.");
+                    break;
+            }
+        }
+
+        if (updatesAvailable > 0)
+        {
+            summary.AppendLine("Managed repo updates are available.");
+            summary.AppendLine("Rerun the latest manager to apply them during repair / refresh.");
+        }
+        else if (attentionNeeded > 0)
+        {
+            summary.AppendLine("No managed repo updates can be installed automatically right now.");
+            summary.AppendLine("The installer found something it did not want to overwrite.");
+        }
+        else if (upToDate > 0)
+        {
+            summary.AppendLine("Managed repo check completed.");
+            summary.AppendLine("The tracked repo checkouts look current.");
+        }
+        else
+        {
+            summary.AppendLine("The installer could not check managed repo status.");
+        }
+
+        if (details.Count > 0)
+        {
+            summary.AppendLine();
+            summary.AppendLine("What this means:");
+            foreach (var detail in details)
+            {
+                summary.AppendLine($"- {detail}");
+            }
+            summary.AppendLine("- This screen does not prove that every backend env or model is installed correctly. Use Fetch Models Now, repair/update, or the smoke tests for that.");
+        }
+
+        return new UpdateCheckPresentation(
+            Summary: summary.ToString().TrimEnd(),
+            CheckCompleted: repoStates.Count > 0,
+            UpdatesAvailable: updatesAvailable > 0);
+    }
+
+    private static string FriendlyManagedRepoLabel(string repoName)
+    {
+        return repoName switch
+        {
+            "Nymphs3D helper repo" => "Manager helper repo",
+            "Hunyuan3D-2" => "Hunyuan 2mv",
+            "Z-Image backend" => "Z-Image Turbo via Nunchaku",
+            "Hunyuan Parts" => "Experimental Hunyuan Parts",
+            _ => repoName,
+        };
+    }
+
+    private static bool TryParseRepoLine(string line, out string repoName, out string state, out string message)
+    {
+        repoName = string.Empty;
+        state = string.Empty;
+        message = string.Empty;
+
+        if (!line.StartsWith("repo=", StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        foreach (var segment in line.Split('|', StringSplitOptions.RemoveEmptyEntries))
+        {
+            var separatorIndex = segment.IndexOf('=');
+            if (separatorIndex <= 0)
+            {
+                continue;
+            }
+
+            var key = segment[..separatorIndex];
+            var value = segment[(separatorIndex + 1)..];
+            switch (key)
+            {
+                case "repo":
+                    repoName = value;
+                    break;
+                case "state":
+                    state = value;
+                    break;
+                case "message":
+                    message = value;
+                    break;
+            }
+        }
+
+        return !string.IsNullOrWhiteSpace(repoName) && !string.IsNullOrWhiteSpace(state);
+    }
+
+    private void AppendInstallLog(string message)
+    {
+        var sanitizedMessage = message.Replace("\0", string.Empty);
+        var line = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {sanitizedMessage}{Environment.NewLine}";
+        File.AppendAllText(_installSessionLogPath, line);
+    }
+
+    private sealed record UpdateCheckPresentation(string Summary, bool CheckCompleted, bool UpdatesAvailable);
+}

@@ -1,0 +1,804 @@
+<Window x:Class="Nymphs3DInstaller.Views.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        Title="NymphsCore Manager"
+        Width="1160"
+        Height="800"
+        MinWidth="960"
+        MinHeight="680"
+        WindowStartupLocation="CenterScreen"
+        Background="#F3EFE6">
+  <Window.Resources>
+    <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter" />
+    <Style TargetType="Border" x:Key="CardStyle">
+      <Setter Property="Background" Value="#FFFDFC" />
+      <Setter Property="CornerRadius" Value="18" />
+      <Setter Property="Padding" Value="24" />
+      <Setter Property="BorderBrush" Value="#E5DAC8" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="Margin" Value="0,0,0,16" />
+    </Style>
+    <Style TargetType="Button">
+      <Setter Property="Padding" Value="16,10" />
+      <Setter Property="FontSize" Value="15" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Margin" Value="0,0,12,0" />
+      <Setter Property="Background" Value="#B74322" />
+      <Setter Property="Foreground" Value="White" />
+      <Setter Property="BorderBrush" Value="#B74322" />
+      <Setter Property="BorderThickness" Value="1" />
+    </Style>
+    <Style TargetType="Button" x:Key="SecondaryActionButton">
+      <Setter Property="Padding" Value="14,9" />
+      <Setter Property="FontSize" Value="14" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Margin" Value="0,0,12,0" />
+      <Setter Property="Background" Value="#F8F3EA" />
+      <Setter Property="Foreground" Value="#42392F" />
+      <Setter Property="BorderBrush" Value="#C7BCAE" />
+      <Setter Property="BorderThickness" Value="1" />
+    </Style>
+	    <Style TargetType="TextBlock" x:Key="MutedText">
+	      <Setter Property="Foreground" Value="#6B6259" />
+	    </Style>
+	    <Style TargetType="Button" x:Key="SidebarInfoButton">
+	      <Setter Property="HorizontalAlignment" Value="Stretch" />
+	      <Setter Property="Padding" Value="10,8" />
+	      <Setter Property="Margin" Value="0,0,0,8" />
+	      <Setter Property="Background" Value="#F8F3EA" />
+	      <Setter Property="BorderBrush" Value="#C7BCAE" />
+	      <Setter Property="Foreground" Value="#42392F" />
+	      <Setter Property="FontSize" Value="12" />
+	    </Style>
+	  </Window.Resources>
+
+  <Grid Margin="20">
+    <Grid.ColumnDefinitions>
+      <ColumnDefinition Width="280" />
+      <ColumnDefinition Width="24" />
+      <ColumnDefinition Width="*" />
+    </Grid.ColumnDefinitions>
+
+    <Border Grid.Column="0"
+            Background="#153B3A"
+            CornerRadius="24"
+            Padding="24">
+        <Grid>
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="18" />
+            <RowDefinition Height="Auto" />
+          </Grid.RowDefinitions>
+
+        <TextBlock Text="{Binding AppTitle}"
+                   FontSize="26"
+                   FontWeight="Bold"
+                   Foreground="#F8F3EA" />
+
+        <TextBlock Grid.Row="1"
+                   Margin="0,10,0,0"
+                   Text="{Binding StepCounterText}"
+                   FontSize="16"
+                   Foreground="#C1D7D1" />
+
+        <Grid Grid.Row="2" Margin="0,32,0,0">
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="12" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+          </Grid.RowDefinitions>
+
+          <Border Grid.Row="0"
+                  Background="#235756"
+                  CornerRadius="16"
+                  Padding="16"
+                  MinHeight="164">
+            <StackPanel>
+              <TextBlock Text="Current Step" Foreground="#C1D7D1" FontSize="13" />
+              <TextBlock Text="{Binding CurrentStepTitle}"
+                         Margin="0,6,0,0"
+                         FontSize="22"
+                         FontWeight="SemiBold"
+                         Foreground="#FFFFFF"
+                         TextWrapping="Wrap" />
+              <TextBlock Text="{Binding CurrentStepSubtitle}"
+                         Margin="0,10,0,0"
+                         TextWrapping="Wrap"
+                         Foreground="#F1ECE5" />
+            </StackPanel>
+          </Border>
+
+          <Border Grid.Row="2"
+                  Background="#1C4A49"
+                  CornerRadius="16"
+                  Padding="16">
+            <StackPanel>
+              <TextBlock Text="More Info"
+                         FontSize="14"
+                         FontWeight="SemiBold"
+                         Foreground="#FFFFFF" />
+
+	              <StackPanel Margin="0,12,0,0">
+	                <Button Style="{StaticResource SidebarInfoButton}"
+	                        Command="{Binding OpenReadmeCommand}"
+	                        Content="README" />
+	                <Button Style="{StaticResource SidebarInfoButton}"
+	                        Command="{Binding OpenFootprintDocCommand}"
+	                        Content="Footprint" />
+                  <Button Style="{StaticResource SidebarInfoButton}"
+                          Command="{Binding OpenAddonGuideCommand}"
+                          Content="Addon Guide" />
+	                <Button Style="{StaticResource SidebarInfoButton}"
+	                        Command="{Binding OpenRuntimeToolsCommand}"
+	                        Content="Runtime Tools" />
+	                <Button Style="{StaticResource SidebarInfoButton}"
+	                        Margin="0,0,0,0"
+	                        Command="{Binding OpenLogFolderCommand}"
+	                        Content="Show Logs" />
+	              </StackPanel>
+            </StackPanel>
+          </Border>
+        </Grid>
+
+        <TextBlock Grid.Row="4"
+                   Text="Windows will ask for administrator permission. Click Yes to continue."
+                   TextWrapping="Wrap"
+                   Foreground="#C1D7D1" />
+      </Grid>
+    </Border>
+
+    <Grid Grid.Column="2">
+      <Grid.RowDefinitions>
+        <RowDefinition Height="*" />
+        <RowDefinition Height="Auto" />
+      </Grid.RowDefinitions>
+
+      <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto">
+        <StackPanel>
+        <Border Style="{StaticResource CardStyle}"
+                Visibility="{Binding IsWelcomeStep, Converter={StaticResource BoolToVisibilityConverter}}">
+          <StackPanel>
+            <TextBlock Text="Install and manage the local runtime systems required by the Nymphs addon."
+                       FontSize="28"
+                       FontWeight="Bold"
+                       Foreground="#1E1C18"
+                       TextWrapping="Wrap" />
+            <TextBlock Margin="0,18,0,0"
+                       Text="This manager app is the Windows-first frontend for the NymphsCore runtime workflow. It is designed to hide the WSL setup mechanics and keep the backend setup self-contained."
+                       TextWrapping="Wrap"
+                       FontSize="16"
+                       Foreground="#3E3A34" />
+            <Border Margin="0,18,0,0"
+                    Padding="16"
+                    Background="#F8F3EA"
+                    BorderBrush="#E7DDCF"
+                    BorderThickness="1"
+                    CornerRadius="14">
+              <StackPanel>
+                <TextBlock Text="What This App Does"
+                           FontWeight="SemiBold"
+                           FontSize="16" />
+                <TextBlock Margin="0,10,0,0"
+                           Text="Installs a dedicated NymphsCore runtime distro on a drive you choose."
+                           TextWrapping="Wrap"
+                           FontSize="15"
+                           Foreground="#3E3A34" />
+                <TextBlock Margin="0,10,0,0"
+                           Text="Uses a dedicated NymphsCore install instead of mixing files into an existing setup."
+                           TextWrapping="Wrap"
+                           FontSize="15"
+                           Foreground="#3E3A34" />
+                <TextBlock Margin="0,10,0,0"
+                           Text="Uses the small base distro first, then adds runtime pieces afterward."
+                           TextWrapping="Wrap"
+                           FontSize="15"
+                           Foreground="#3E3A34" />
+              </StackPanel>
+            </Border>
+            <TextBlock Margin="0,18,0,0"
+                       Text="What happens next:"
+                       FontWeight="SemiBold"
+                       FontSize="16" />
+            <TextBlock Margin="0,12,0,0"
+                       Text="- The app checks WSL, NVIDIA visibility, and the base distro package."
+                       TextWrapping="Wrap"
+                       FontSize="15" />
+            <TextBlock Text="- You choose which Windows drive should hold the NymphsCore distro."
+                       TextWrapping="Wrap"
+                       FontSize="15" />
+            <TextBlock Text="- The app imports the small base distro and runs the setup level you choose."
+                       TextWrapping="Wrap"
+                       FontSize="15" />
+          </StackPanel>
+        </Border>
+
+        <Border Style="{StaticResource CardStyle}"
+                Visibility="{Binding IsSystemCheckStep, Converter={StaticResource BoolToVisibilityConverter}}">
+          <StackPanel>
+            <TextBlock Text="System Check" FontSize="26" FontWeight="Bold" />
+            <TextBlock Margin="0,6,0,0"
+                       Text="Run the checks once, then continue if everything needed for the base install is available."
+                       TextWrapping="Wrap"
+                       FontSize="15"
+                       Style="{StaticResource MutedText}" />
+
+            <Border Margin="0,18,0,0"
+                    Padding="16"
+                    Background="#F8F3EA"
+                    BorderBrush="#E7DDCF"
+                    BorderThickness="1"
+                    CornerRadius="12"
+                    Visibility="{Binding ShowExistingInstallActions, Converter={StaticResource BoolToVisibilityConverter}}">
+              <StackPanel>
+                <TextBlock Text="Existing install detected"
+                           FontWeight="SemiBold"
+                           FontSize="16" />
+                <TextBlock Margin="0,10,0,0"
+                           Text="{Binding ManagedDistroStatusText}"
+                           TextWrapping="Wrap"
+                           Style="{StaticResource MutedText}" />
+                <WrapPanel Margin="0,14,0,0">
+                  <Button Width="170"
+                          Style="{StaticResource SecondaryActionButton}"
+                          HorizontalAlignment="Left"
+                          Command="{Binding CheckForUpdatesCommand}"
+                          Content="Check Repo Updates" />
+                  <Button Width="170"
+                          Style="{StaticResource SecondaryActionButton}"
+                          HorizontalAlignment="Left"
+                          Command="{Binding OpenRuntimeToolsCommand}"
+                          Content="Runtime Tools" />
+                  <Button Width="170"
+                          Style="{StaticResource SecondaryActionButton}"
+                          HorizontalAlignment="Left"
+                          Command="{Binding FetchModelsNowCommand}"
+                          Content="Fetch Models Now" />
+                </WrapPanel>
+                <Border Margin="0,14,0,0"
+                        Padding="12"
+                        Background="#FFFDFC"
+                        BorderBrush="#E7DDCF"
+                        BorderThickness="1"
+                        CornerRadius="10">
+                  <StackPanel>
+                    <TextBlock Text="Optional Hugging Face token"
+                               FontWeight="SemiBold"
+                               FontSize="15" />
+                    <TextBlock Margin="0,8,0,0"
+                               Text="Add a token here if you want existing-install model downloads to use authenticated Hugging Face access."
+                               TextWrapping="Wrap"
+                               Style="{StaticResource MutedText}" />
+                    <PasswordBox Margin="0,10,0,0"
+                                 Padding="10"
+                                 FontSize="14"
+                                 PasswordChanged="OnHuggingFaceTokenChanged" />
+                    <TextBlock Margin="0,8,0,0"
+                               Text="{Binding HuggingFaceTokenStatus}"
+                               TextWrapping="Wrap"
+                               FontSize="13"
+                               Style="{StaticResource MutedText}" />
+                  </StackPanel>
+                </Border>
+                <Border Margin="0,14,0,0"
+                        Padding="12"
+                        Background="#FFFDFC"
+                        BorderBrush="#E7DDCF"
+                        BorderThickness="1"
+                        CornerRadius="10"
+                        Visibility="{Binding HasUpdateCheckSummary, Converter={StaticResource BoolToVisibilityConverter}}">
+                  <TextBlock Text="{Binding UpdateCheckSummary}"
+                             FontSize="14"
+                             Foreground="#3E3A34"
+                             LineHeight="22"
+                             LineStackingStrategy="BlockLineHeight"
+                             TextWrapping="Wrap" />
+                </Border>
+                <Border Margin="0,14,0,0"
+                        Padding="12"
+                        Background="#FFFDFC"
+                        BorderBrush="#E7DDCF"
+                        BorderThickness="1"
+                        CornerRadius="10"
+                        Visibility="{Binding HasPostInstallActionSummary, Converter={StaticResource BoolToVisibilityConverter}}">
+                  <TextBlock Text="{Binding PostInstallActionSummary}"
+                             FontSize="14"
+                             Foreground="#3E3A34"
+                             TextWrapping="Wrap" />
+                </Border>
+              </StackPanel>
+            </Border>
+
+            <ItemsControl Margin="0,12,0,0" ItemsSource="{Binding SystemChecks}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                  <Border Margin="0,0,0,6"
+                          Padding="10"
+                          Background="#F8F3EA"
+                          BorderBrush="#E7DDCF"
+                          BorderThickness="1"
+                          CornerRadius="12">
+                    <StackPanel>
+                      <DockPanel>
+                        <TextBlock Text="{Binding Title}" FontWeight="SemiBold" FontSize="15" />
+                        <Border DockPanel.Dock="Right"
+                                Background="{Binding StatusBadgeBackground}"
+                                CornerRadius="10"
+                                Padding="8,2"
+                                Margin="8,0,0,0">
+                          <TextBlock Text="{Binding StatusLabel}"
+                                     Foreground="White"
+                                     FontSize="11" />
+                        </Border>
+                      </DockPanel>
+                      <TextBlock Margin="0,4,0,0"
+                                 Text="{Binding Description}"
+                                 TextWrapping="Wrap"
+                                 FontSize="13"
+                                 Style="{StaticResource MutedText}" />
+                      <TextBlock Margin="0,4,0,0"
+                                 Text="{Binding Details}"
+                                 TextWrapping="Wrap"
+                                 FontSize="13" />
+                    </StackPanel>
+                  </Border>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+        </Border>
+
+        <Border Style="{StaticResource CardStyle}"
+                Visibility="{Binding IsInstallLocationStep, Converter={StaticResource BoolToVisibilityConverter}}">
+          <StackPanel>
+            <TextBlock Text="Install Location" FontSize="28" FontWeight="Bold" />
+            <TextBlock Margin="0,10,0,0"
+                       Text="Choose the Windows drive that should hold the dedicated NymphsCore distro. The app uses a fixed distro name so you do not have to think about WSL naming."
+                       TextWrapping="Wrap"
+                       Style="{StaticResource MutedText}" />
+
+            <TextBlock Margin="0,22,0,6" Text="Available drives" FontWeight="SemiBold" />
+            <ComboBox ItemsSource="{Binding AvailableDrives}"
+                      SelectedItem="{Binding SelectedDrive}"
+                      DisplayMemberPath="DisplayLabel"
+                      FontSize="16"
+                      Padding="10" />
+
+            <TextBlock Margin="0,22,0,6" Text="Planned install path" FontWeight="SemiBold" />
+            <Border Background="#F8F3EA"
+                    BorderBrush="#E7DDCF"
+                    BorderThickness="1"
+                    CornerRadius="12"
+                    Padding="14">
+              <TextBlock Text="{Binding SelectedInstallPath}"
+                         FontFamily="Consolas"
+                         FontSize="15"
+                         TextWrapping="Wrap" />
+            </Border>
+
+            <TextBlock Margin="0,18,0,0"
+                       Text="The app will install a dedicated NymphsCore distro here."
+                       TextWrapping="Wrap"
+                       Style="{StaticResource MutedText}" />
+          </StackPanel>
+        </Border>
+
+        <Border Style="{StaticResource CardStyle}"
+                Visibility="{Binding IsRuntimeSetupStep, Converter={StaticResource BoolToVisibilityConverter}}">
+          <StackPanel>
+            <TextBlock Text="Model Prefetch" FontSize="28" FontWeight="Bold" />
+            <TextBlock Margin="0,10,0,0"
+                       Text="The app will always import the base distro and prepare the required runtime environments. The only optional choice here is whether to prefetch the required models now."
+                       TextWrapping="Wrap"
+                       Style="{StaticResource MutedText}" />
+
+            <Border Margin="0,22,0,0"
+                    Padding="16"
+                    Background="#F8F3EA"
+                    BorderBrush="#E7DDCF"
+                    BorderThickness="1"
+                    CornerRadius="12">
+              <StackPanel>
+                <CheckBox IsChecked="{Binding PrefetchModelsNow}"
+                          FontSize="16"
+                          FontWeight="SemiBold"
+                          Content="Download required models during install (Recommended)" />
+                <TextBlock Margin="28,10,0,0"
+                           Text="This is the best default for non-technical users. If you turn it off, the manager or Blender addon will need to download models later on first real use."
+                           TextWrapping="Wrap"
+                           Style="{StaticResource MutedText}" />
+              </StackPanel>
+            </Border>
+
+            <Border Margin="0,18,0,0"
+                    Padding="16"
+                    Background="#F8F3EA"
+                    BorderBrush="#E7DDCF"
+                    BorderThickness="1"
+                    CornerRadius="12">
+              <StackPanel>
+                <CheckBox IsChecked="{Binding IncludeExperimentalParts}"
+                          FontSize="16"
+                          FontWeight="SemiBold"
+                          Content="Include Experimental Parts Tools" />
+                <TextBlock Margin="28,10,0,0"
+                           Text="{Binding ExperimentalPartsSummary}"
+                           TextWrapping="Wrap"
+                           Style="{StaticResource MutedText}" />
+              </StackPanel>
+            </Border>
+
+            <Border Margin="0,18,0,0"
+                    Padding="16"
+                    Background="#F8F3EA"
+                    BorderBrush="#E7DDCF"
+                    BorderThickness="1"
+                    CornerRadius="12">
+              <StackPanel>
+                <TextBlock Text="Optional Hugging Face token"
+                           FontWeight="SemiBold"
+                           FontSize="16" />
+                <TextBlock Margin="0,10,0,0"
+                           Text="If you already have a Hugging Face access token, you can enter it here so installer-time model downloads use authenticated access. The token is used for this installer run only and is not written into the installed distro."
+                           TextWrapping="Wrap"
+                           Style="{StaticResource MutedText}" />
+                <PasswordBox Margin="0,12,0,0"
+                             Padding="10"
+                             FontSize="14"
+                             PasswordChanged="OnHuggingFaceTokenChanged" />
+                <TextBlock Margin="0,10,0,0"
+                           Text="{Binding HuggingFaceTokenStatus}"
+                           TextWrapping="Wrap"
+                           FontSize="13"
+                           Style="{StaticResource MutedText}" />
+              </StackPanel>
+            </Border>
+
+            <Border Margin="0,18,0,0"
+                    Padding="16"
+                    Background="#FFF7EC"
+                    BorderBrush="#E7D1A8"
+                    BorderThickness="1"
+                    CornerRadius="12">
+              <StackPanel>
+                <TextBlock Text="{Binding ModelDownloadDecisionTitle}"
+                           FontWeight="SemiBold"
+                           FontSize="16" />
+                <TextBlock Margin="0,10,0,0"
+                           Text="{Binding ModelDownloadDecisionSummary}"
+                           TextWrapping="Wrap"
+                           FontSize="14" />
+                <TextBlock Margin="0,10,0,0"
+                           Text="{Binding ModelDownloadDecisionDetails}"
+                           TextWrapping="Wrap"
+                           FontSize="14" />
+                <TextBlock Margin="0,14,0,0"
+                           Text="Expected size and time"
+                           FontWeight="SemiBold"
+                           FontSize="16" />
+                <TextBlock Margin="0,10,0,0"
+                           Text="- Ready-to-run footprint: about 92 GB installed"
+                           TextWrapping="Wrap"
+                           FontSize="14" />
+                <TextBlock Text="- Comfortable free space before install: about 120 GB"
+                           TextWrapping="Wrap"
+                           FontSize="14" />
+                <TextBlock Text="- Safer recommendation: about 150 GB free"
+                           TextWrapping="Wrap"
+                           FontSize="14" />
+                <TextBlock Text="- On a typical home connection, this model download stage can take 1 to 2 hours or more"
+                           TextWrapping="Wrap"
+                           FontSize="14" />
+                <TextBlock Margin="0,14,0,0"
+                           Text="Runtime pieces still installed either way"
+                           FontWeight="SemiBold"
+                           FontSize="16" />
+                <TextBlock Margin="0,10,0,0"
+                           Text="{Binding RuntimeDownloadSummary}"
+                           TextWrapping="Wrap"
+                           FontSize="14" />
+                <TextBlock Margin="0,10,0,0"
+                           Text="{Binding RuntimeDownloadDetailsText}"
+                           TextWrapping="Wrap"
+                           FontSize="14" />
+              </StackPanel>
+            </Border>
+
+            <TextBlock Margin="0,14,0,0"
+                       Text="{Binding BaseTarPath}"
+                       FontFamily="Consolas"
+                       FontSize="14"
+                       TextWrapping="Wrap"
+                       Style="{StaticResource MutedText}" />
+
+          </StackPanel>
+        </Border>
+
+        <Border Style="{StaticResource CardStyle}"
+                Visibility="{Binding IsProgressStep, Converter={StaticResource BoolToVisibilityConverter}}">
+          <Grid>
+            <Grid.RowDefinitions>
+              <RowDefinition Height="Auto" />
+              <RowDefinition Height="Auto" />
+              <RowDefinition Height="Auto" />
+              <RowDefinition Height="Auto" />
+              <RowDefinition Height="16" />
+              <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+            <TextBlock Text="Installation Progress" FontSize="28" FontWeight="Bold" />
+            <Border Grid.Row="1"
+                    Margin="0,10,0,0"
+                    MinHeight="40"
+                    Padding="0,2,0,0"
+                    Background="Transparent">
+              <TextBlock Text="{Binding StatusMessage}"
+                         TextWrapping="Wrap"
+                         FontSize="16"
+                         LineHeight="22"
+                         LineStackingStrategy="BlockLineHeight"
+                         Foreground="#3E3A34"
+                         VerticalAlignment="Top" />
+            </Border>
+
+            <TextBlock Grid.Row="2"
+                       Margin="0,12,0,0"
+                       Text="This step can stay on one log line for several minutes while Ubuntu packages, CUDA pieces, or Python environments finish. Keep the window open and watch the live log below."
+                       TextWrapping="Wrap"
+                       FontSize="13"
+                       Foreground="#6B6259" />
+
+            <ProgressBar Grid.Row="3"
+                         Margin="0,8,0,0"
+                         Height="18"
+                         Minimum="0"
+                         Maximum="100"
+                         Value="{Binding ProgressValue, Mode=OneWay}" />
+
+            <StackPanel Grid.Row="5">
+              <TextBlock Margin="0,0,0,8"
+                         Text="Live log"
+                         FontWeight="SemiBold"
+                         FontSize="16" />
+              <Border Background="#121212"
+                      CornerRadius="14"
+                      Padding="10">
+                <ListBox x:Name="LogListBox"
+                         ItemsSource="{Binding LogLines}"
+                         Height="416"
+                         FontFamily="Consolas"
+                         FontSize="13"
+                         Background="Transparent"
+                         BorderThickness="0"
+                         Foreground="#E8E8E8" />
+              </Border>
+            </StackPanel>
+          </Grid>
+        </Border>
+
+        <Border Style="{StaticResource CardStyle}"
+                Visibility="{Binding IsFinishStep, Converter={StaticResource BoolToVisibilityConverter}}">
+          <StackPanel>
+            <TextBlock Text="{Binding CurrentStepTitle}" FontSize="28" FontWeight="Bold" />
+            <TextBlock Margin="0,12,0,0"
+                       Text="{Binding FinishSummary}"
+                       TextWrapping="Wrap"
+                       FontSize="16"
+                       Foreground="#3E3A34" />
+
+            <Border Margin="0,22,0,0"
+                    Background="#F8F3EA"
+                    BorderBrush="#E7DDCF"
+                    BorderThickness="1"
+                    CornerRadius="12"
+                    Padding="14">
+              <StackPanel>
+                <TextBlock Text="Log folder" FontWeight="SemiBold" />
+                <TextBlock Margin="0,8,0,0"
+                           Text="{Binding LogFolderPath}"
+                           FontFamily="Consolas"
+                           TextWrapping="Wrap" />
+                <TextBlock Margin="0,14,0,0" Text="Current run log" FontWeight="SemiBold" />
+                <TextBlock Margin="0,8,0,0"
+                           Text="{Binding InstallSessionLogPath}"
+                           FontFamily="Consolas"
+                           TextWrapping="Wrap" />
+              </StackPanel>
+            </Border>
+
+            <Border Margin="0,22,0,0"
+                    Background="#F8F3EA"
+                    BorderBrush="#E7DDCF"
+                    BorderThickness="1"
+                    CornerRadius="12"
+                    Padding="14"
+                    Visibility="{Binding InstallSucceeded, Converter={StaticResource BoolToVisibilityConverter}}">
+              <StackPanel>
+                <TextBlock Text="Next Step" FontWeight="SemiBold" FontSize="16" />
+                <TextBlock Margin="0,8,0,0"
+                           Text="Open Runtime Tools to fetch missing models, check backend readiness, and run smoke tests."
+                           TextWrapping="Wrap"
+                           Style="{StaticResource MutedText}" />
+                <WrapPanel Margin="0,14,0,0">
+                  <Button Width="170"
+                          Style="{StaticResource SecondaryActionButton}"
+                          HorizontalAlignment="Left"
+                          Command="{Binding OpenRuntimeToolsCommand}"
+                          Content="Open Runtime Tools" />
+                  <Button Width="150"
+                          Style="{StaticResource SecondaryActionButton}"
+                          HorizontalAlignment="Left"
+                          Command="{Binding OpenLogFolderCommand}"
+                          Content="Open Log Folder" />
+                </WrapPanel>
+              </StackPanel>
+            </Border>
+
+            <Button Margin="0,18,0,0"
+                    Width="170"
+                    Style="{StaticResource SecondaryActionButton}"
+                    HorizontalAlignment="Left"
+                    Command="{Binding OpenLogFolderCommand}"
+                    Content="Open Log Folder" />
+          </StackPanel>
+        </Border>
+
+        <Border Style="{StaticResource CardStyle}"
+                Visibility="{Binding IsRuntimeToolsStep, Converter={StaticResource BoolToVisibilityConverter}}">
+          <StackPanel>
+            <TextBlock Text="Runtime Tools" FontSize="28" FontWeight="Bold" />
+            <TextBlock Margin="0,10,0,0"
+                       Text="{Binding RuntimeToolsSummary}"
+                       TextWrapping="Wrap"
+                       FontSize="15"
+                       Style="{StaticResource MutedText}" />
+
+            <WrapPanel Margin="0,18,0,0">
+              <Button Width="150"
+                      Style="{StaticResource SecondaryActionButton}"
+                      Command="{Binding RefreshRuntimeStatusCommand}"
+                      Content="Refresh Status" />
+              <Button Width="170"
+                      Style="{StaticResource SecondaryActionButton}"
+                      Command="{Binding FetchModelsNowCommand}"
+                      Content="Fetch Models Now" />
+              <Button Width="150"
+                      Style="{StaticResource SecondaryActionButton}"
+                      Command="{Binding OpenLogFolderCommand}"
+                      Content="Open Log Folder" />
+            </WrapPanel>
+
+            <Border Margin="0,18,0,0"
+                    Padding="16"
+                    Background="#F8F3EA"
+                    BorderBrush="#E7DDCF"
+                    BorderThickness="1"
+                    CornerRadius="12">
+              <StackPanel>
+                <TextBlock Text="Optional Hugging Face token"
+                           FontWeight="SemiBold"
+                           FontSize="15" />
+                <TextBlock Margin="0,8,0,0"
+                           Text="Use a token here if you want manager-driven model downloads to use authenticated Hugging Face access."
+                           TextWrapping="Wrap"
+                           Style="{StaticResource MutedText}" />
+                <PasswordBox Margin="0,10,0,0"
+                             Padding="10"
+                             FontSize="14"
+                             PasswordChanged="OnHuggingFaceTokenChanged" />
+                <TextBlock Margin="0,8,0,0"
+                           Text="{Binding HuggingFaceTokenStatus}"
+                           TextWrapping="Wrap"
+                           FontSize="13"
+                           Style="{StaticResource MutedText}" />
+              </StackPanel>
+            </Border>
+
+            <Grid Margin="0,18,0,0">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="12" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="12" />
+                <ColumnDefinition Width="*" />
+              </Grid.ColumnDefinitions>
+              <Border Grid.Column="0" Style="{StaticResource CardStyle}" Margin="0">
+                <StackPanel>
+                  <TextBlock Text="{Binding HunyuanRuntimeStatus.DisplayName}" FontWeight="SemiBold" FontSize="18" />
+                  <TextBlock Margin="0,8,0,0" Text="{Binding HunyuanRuntimeStatus.ReadinessLabel}" FontWeight="SemiBold" Foreground="#1C4A49" />
+                  <TextBlock Margin="0,10,0,0" Text="{Binding HunyuanRuntimeStatus.Detail}" TextWrapping="Wrap" Style="{StaticResource MutedText}" />
+                  <Button Margin="0,16,0,0"
+                          Style="{StaticResource SecondaryActionButton}"
+                          Width="170"
+                          HorizontalAlignment="Left"
+                          Command="{Binding HunyuanRuntimeActionCommand}"
+                          Content="{Binding HunyuanTestButtonText}" />
+                </StackPanel>
+              </Border>
+              <Border Grid.Column="2" Style="{StaticResource CardStyle}" Margin="0">
+                <StackPanel>
+                  <TextBlock Text="{Binding ZImageRuntimeStatus.DisplayName}" FontWeight="SemiBold" FontSize="18" />
+                  <TextBlock Margin="0,8,0,0" Text="{Binding ZImageRuntimeStatus.ReadinessLabel}" FontWeight="SemiBold" Foreground="#1C4A49" />
+                  <TextBlock Margin="0,10,0,0" Text="{Binding ZImageRuntimeStatus.Detail}" TextWrapping="Wrap" Style="{StaticResource MutedText}" />
+                  <Button Margin="0,16,0,0"
+                          Style="{StaticResource SecondaryActionButton}"
+                          Width="170"
+                          HorizontalAlignment="Left"
+                          Command="{Binding ZImageRuntimeActionCommand}"
+                          Content="{Binding ZImageTestButtonText}" />
+                </StackPanel>
+              </Border>
+              <Border Grid.Column="4" Style="{StaticResource CardStyle}" Margin="0">
+                <StackPanel>
+                  <TextBlock Text="{Binding TrellisRuntimeStatus.DisplayName}" FontWeight="SemiBold" FontSize="18" />
+                  <TextBlock Margin="0,8,0,0" Text="{Binding TrellisRuntimeStatus.ReadinessLabel}" FontWeight="SemiBold" Foreground="#1C4A49" />
+                  <TextBlock Margin="0,10,0,0" Text="{Binding TrellisRuntimeStatus.Detail}" TextWrapping="Wrap" Style="{StaticResource MutedText}" />
+                  <Button Margin="0,16,0,0"
+                          Style="{StaticResource SecondaryActionButton}"
+                          Width="170"
+                          HorizontalAlignment="Left"
+                          Command="{Binding TrellisRuntimeActionCommand}"
+                          Content="{Binding TrellisTestButtonText}" />
+                </StackPanel>
+              </Border>
+            </Grid>
+
+            <Border Margin="0,18,0,0"
+                    Padding="12"
+                    Background="#FFFDFC"
+                    BorderBrush="#E7DDCF"
+                    BorderThickness="1"
+                    CornerRadius="10"
+                    Visibility="{Binding HasPostInstallActionSummary, Converter={StaticResource BoolToVisibilityConverter}}">
+              <TextBlock Text="{Binding PostInstallActionSummary}"
+                         FontSize="14"
+                         Foreground="#3E3A34"
+                         TextWrapping="Wrap" />
+            </Border>
+
+            <Border Margin="0,18,0,0"
+                    Background="#121212"
+                    CornerRadius="14"
+                    Padding="10">
+              <StackPanel>
+                <TextBlock Margin="0,0,0,8"
+                           Text="Live log"
+                           FontWeight="SemiBold"
+                           FontSize="16"
+                           Foreground="#E8E8E8" />
+                <ListBox ItemsSource="{Binding LogLines}"
+                         Height="260"
+                         FontFamily="Consolas"
+                         FontSize="13"
+                         Background="Transparent"
+                         BorderThickness="0"
+                         Foreground="#E8E8E8" />
+              </StackPanel>
+            </Border>
+          </StackPanel>
+        </Border>
+
+        </StackPanel>
+      </ScrollViewer>
+
+      <DockPanel Grid.Row="1" Margin="0,12,0,0">
+        <Button DockPanel.Dock="Left"
+                Width="120"
+                Background="#F8F3EA"
+                BorderBrush="#C7BCAE"
+                Foreground="#42392F"
+                Command="{Binding BackCommand}"
+                Content="Back" />
+
+        <Button Width="180"
+                HorizontalAlignment="Right"
+                Command="{Binding PrimaryCommand}"
+                Content="{Binding PrimaryButtonText}" />
+      </DockPanel>
+    </Grid>
+  </Grid>
+</Window>
