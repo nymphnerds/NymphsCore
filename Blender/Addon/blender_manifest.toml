@@ -6,7 +6,7 @@ name = "Nymphs3D2"
 tagline = "Blender-first workflow for driving local or remote Nymphs3D backends"
 maintainer = "Babyjawz <babyjaws@gmail.com>"
 type = "add-on"
-website = "https://github.com/Babyjawz/Nymphs3D-Blender-Addon"
+website = "https://github.com/nymphnerds/NymphsCore"
 
 blender_version_min = "4.2.0"
 platforms = ["windows-x64"]

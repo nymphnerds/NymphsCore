@@ -6,7 +6,7 @@ Date: 2026-04-10 21:35 BST
 
 - Extension `1.1.47` is live on the extension feed.
 - Feed URL:
-  `https://raw.githubusercontent.com/Babyjawz/Nymphs3D2-Extensions/main/index.json`
+  `https://raw.githubusercontent.com/nymphnerds/NymphsExt/main/index.json`
 - Addon source commit for `1.1.47`: `46d48dc`
 - Extension feed commit for `1.1.47`: `285aa59`
 

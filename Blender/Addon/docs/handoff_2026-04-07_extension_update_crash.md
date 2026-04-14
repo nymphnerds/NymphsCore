@@ -6,13 +6,13 @@ and a Blender crash encountered while trying to update the extension.
 
 ## Repos And Current Pushed State
 
-- addon source repo: `Babyjawz/Nymphs3D-Blender-Addon`
+- addon source repo: `nymphnerds/NymphsCore` (Blender/Addon/)
 - branch: `main`
 - latest pushed commit at handoff time:
   - `8bcbca1`
   - `Add WSL user dropdown and move WSL target controls`
 
-- extension feed repo: `Babyjawz/Nymphs3D2-Extensions`
+- extension feed repo: `nymphnerds/NymphsExt`
 - branch: `main`
 - latest pushed commit at handoff time:
   - `db71c19`
