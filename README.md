@@ -67,6 +67,10 @@ git clone https://github.com/nymphnerds/NymphsCore.git
 
 No submodules. Push normally. Full history from all original repos is preserved.
 
+## Changelog
+
+See [`CHANGELOG.md`](CHANGELOG.md) for the full NymphsCore change history across the Manager, Blender addon, extension publishing flow, and Unity package.
+
 ---
 
 ## Related Repos
