@@ -21,6 +21,15 @@ Across the full documented history, the project moved through eight phases:
 
 Newest entries first.
 
+### 2026-04-17 style preset registration hotfix for Blender 4.5
+Source: live Blender 4.5 extension install failure after adding the style preset dropdown.
+Context: Blender rejects string defaults on `EnumProperty` values when the enum items come from a callback function, which caused addon registration to fail before the panel could load.
+
+Documented changes:
+
+- removed the invalid string default from the dynamic `imagegen_style_preset` enum property
+- kept the runtime fallback logic so the style preset still resolves cleanly to `No Style` when nothing is selected yet
+
 ### 2026-04-17 Nano breakout now requests the full part set automatically
 Source: follow-up after it became clear that asking the user to guess a good `Variants` count for breakout generation was bad UX.
 Context: for Nano breakout runs, the addon should request the full part set in one go rather than making the user predict how many separate outputs the character design will need.
