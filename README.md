@@ -1,6 +1,6 @@
 # NymphsCore
 
-The central hub for the NymphNerds game development backend. This monorepo contains all the core tools, packages, and addons that power our pipeline.
+The central hub for the NymphNerds game development backend. This repo contains the core runtime, Manager, and Blender addon source that power the local pipeline.
 
 ---
 
@@ -9,17 +9,15 @@ The central hub for the NymphNerds game development backend. This monorepo conta
 ```
 NymphsCore/
 ├── Manager/        — WSL backend, C# installer, and setup scripts
-├── Blender/
-│   └── Addon/      — Classic Blender Addon (installed via the Manager)
-└── Unity/
-    └── TDC-Camera/ — Top-down camera controller Unity package
+└── Blender/
+    └── Addon/      — Blender addon source and extension build tooling
 ```
 
 ---
 
 ## Why This Structure?
 
-Previously the codebase was split across several repos under the `Babyjawz` account with confusing names. This monorepo brings everything together under `nymphnerds` so the whole team works from one place, with one clone, and one push.
+Previously the codebase was split across several repos under the `Babyjawz` account with confusing names. NymphsCore now keeps the local runtime, Manager, and Blender addon source together under `nymphnerds`.
 
 The old `Babyjawz` repos are kept alive as backups and because the installer references some of their URLs — don't rename or delete them.
 
@@ -32,26 +30,30 @@ The current addon workflow includes guided image part extraction: generate or ch
 
 ---
 
-## Using the Unity Package
+## Unity Packages
 
-In Unity's Package Manager, click **Add package from Git URL** and paste:
+Unity packages now live in their own repo:
+
 ```
-https://github.com/nymphnerds/NymphsCore.git?path=/Unity/TDC-Camera
+https://github.com/nymphnerds/unity-packages
+```
+
+Install the top-down controller from Unity Package Manager with:
+
+```
+https://github.com/nymphnerds/unity-packages.git?path=/TDC-Camera
 ```
 
 Or add it directly to `Packages/manifest.json`:
 ```json
-"com.nymphnerds.tdc-camera": "https://github.com/nymphnerds/NymphsCore.git?path=/Unity/TDC-Camera"
+"com.nymphs.topdown-controller": "https://github.com/nymphnerds/unity-packages.git?path=/TDC-Camera"
 ```
 
 ---
 
 ## Adding Things in Future
 
-**New Unity package** — add a folder under `Unity/YourPackageName/` with a `package.json` at its root. The install URL will be:
-```
-https://github.com/nymphnerds/NymphsCore.git?path=/Unity/YourPackageName
-```
+**New Unity package** — add it to [`nymphnerds/unity-packages`](https://github.com/nymphnerds/unity-packages), not this repo.
 
 **New Blender Extension** — create a new repo on `nymphnerds` with `blender_manifest.toml` at the root. Same pattern as `NymphsExt`.
 
@@ -65,11 +67,11 @@ https://github.com/nymphnerds/NymphsCore.git?path=/Unity/YourPackageName
 git clone https://github.com/nymphnerds/NymphsCore.git
 ```
 
-No submodules. Push normally. Full history from all original repos is preserved.
+No submodules. Push normally. Unity package development happens in [`nymphnerds/unity-packages`](https://github.com/nymphnerds/unity-packages).
 
 ## Changelog
 
-See [`CHANGELOG.md`](CHANGELOG.md) for the full NymphsCore change history across the Manager, Blender addon, extension publishing flow, and Unity package.
+See [`CHANGELOG.md`](CHANGELOG.md) for the full NymphsCore change history across the Manager, Blender addon, extension publishing flow, and Unity package migration.
 
 ---
 
@@ -78,6 +80,7 @@ See [`CHANGELOG.md`](CHANGELOG.md) for the full NymphsCore change history across
 | Repo | Purpose |
 |---|---|
 | [NymphsExt](https://raw.githubusercontent.com/nymphnerds/NymphsExt/main/index.json) | Blender Extensions (install via repository URL) |
+| [unity-packages](https://github.com/nymphnerds/unity-packages) | Unity packages, including `TDC-Camera` |
 | [Nymphs3D](https://github.com/Babyjawz/Nymphs3D) | Original Manager repo (backup) |
 | [Nymphs3D-Blender-Addon](https://github.com/Babyjawz/Nymphs3D-Blender-Addon) | Original Addon repo (backup) |
 | [Nymphs-TDC-Unity](https://github.com/Babyjawz/Nymphs-TDC-Unity) | Original Unity repo (backup) |

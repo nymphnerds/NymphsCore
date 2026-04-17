@@ -21,6 +21,23 @@ Across the full documented history, the project moved through eight phases:
 
 Newest entries first.
 
+### 2026-04-17 moved Unity packages to `nymphnerds/unity-packages`
+Source: repository structure cleanup after deciding Unity packages should live outside the NymphsCore runtime/addon repo.
+
+Documented changes:
+
+- created `https://github.com/nymphnerds/unity-packages`
+- split the existing `Unity/` tree into the new repo with package history preserved
+- added a root README to the new Unity packages repo
+- updated the Unity install URL to `https://github.com/nymphnerds/unity-packages.git?path=/TDC-Camera`
+- removed `Unity/` from NymphsCore
+- updated the NymphsCore README structure and related-repo links
+
+Why it matters:
+
+- NymphsCore is now focused on the Manager, runtime, and Blender addon source
+- Unity package development has its own clean repo and install URL
+
 ### 2026-04-17 published Nymphs `1.1.141` to the extension feed
 Source: release pass after Blender testing confirmed the guided image part extraction workflow was ready to publish.
 
