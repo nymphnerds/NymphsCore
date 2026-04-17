@@ -1,6 +1,5 @@
 # Nymphs Blender Addon
 
-![Nymphs Blender header](assets/readme-header.png)
 
 Nymphs is the Blender frontend for the NymphsCore runtime. It creates image references, turns them into textured meshes, and can retexture selected meshes when a result needs another pass.
 
