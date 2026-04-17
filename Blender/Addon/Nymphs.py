@@ -64,8 +64,8 @@ UI_REFRESH_IDLE_SECONDS = 5.0
 PRESET_CACHE_TTL_SECONDS = 1.0
 WSL_DISTRO_CACHE_TTL_SECONDS = 15.0
 LOG_PREFIX_RE = re.compile(r"^\d{4}-\d{2}-\d{2}[^\|]*\|\s*[A-Z]+\s*\|\s*(?:stdout|stderr|[^|]+)\s*\|\s*")
-LOCAL_SHAPE_OUTPUT_DIRNAME = "nymphs3d2_shape_outputs"
-LOCAL_IMAGEGEN_OUTPUT_DIRNAME = "nymphs3d2_image_outputs"
+LOCAL_SHAPE_OUTPUT_DIRNAME = "nymphs_shape_outputs"
+LOCAL_IMAGEGEN_OUTPUT_DIRNAME = "nymphs_image_outputs"
 CACHE_MISS = object()
 
 DEFAULT_WSL_DISTRO = "NymphsCore"
@@ -417,7 +417,7 @@ def _active_state(scene_name):
     scene = bpy.data.scenes.get(scene_name)
     if scene is None:
         return None
-    return getattr(scene, "nymphs3d2v2_state", None)
+    return getattr(scene, "nymphs_state", None)
 
 
 def _touch_ui():
@@ -449,7 +449,7 @@ def _state_needs_periodic_ui_refresh(scene_name, state):
 
 def _ui_refresh_timer():
     for scene in bpy.data.scenes:
-        state = getattr(scene, "nymphs3d2v2_state", None)
+        state = getattr(scene, "nymphs_state", None)
         if _state_needs_periodic_ui_refresh(scene.name, state):
             _touch_ui()
             return UI_REFRESH_ACTIVE_SECONDS
@@ -685,7 +685,7 @@ def _drain_events():
         return 0.1
 
     for scene in bpy.data.scenes:
-        state = getattr(scene, "nymphs3d2v2_state", None)
+        state = getattr(scene, "nymphs_state", None)
         if state is not None and (
             state.is_busy or state.launch_state in {"Launching", "Stopping"}
         ):
@@ -848,7 +848,7 @@ def _on_n2d2_model_config_changed(self, context):
 def _imagegen_preset_dir():
     return bpy.utils.user_resource(
         "CONFIG",
-        path=os.path.join("nymphs3d2", "image_presets"),
+        path=os.path.join("nymphs", "image_presets"),
         create=True,
     )
 
@@ -967,7 +967,7 @@ def _sync_imagegen_prompt_preset(state):
 def _imagegen_settings_preset_dir():
     return bpy.utils.user_resource(
         "CONFIG",
-        path=os.path.join("nymphs3d2", "image_settings_presets"),
+        path=os.path.join("nymphs", "image_settings_presets"),
         create=True,
     )
 
@@ -1111,7 +1111,7 @@ def _sync_imagegen_settings_preset(state):
 def _trellis_shape_preset_dir():
     return bpy.utils.user_resource(
         "CONFIG",
-        path=os.path.join("nymphs3d2", "trellis_shape_presets"),
+        path=os.path.join("nymphs", "trellis_shape_presets"),
         create=True,
     )
 
@@ -3245,7 +3245,7 @@ def _background_imagegen_probe(scene_name):
 def _server_probe_timer():
     interval = SERVER_POLL_SECONDS
     for scene in bpy.data.scenes:
-        state = getattr(scene, "nymphs3d2v2_state", None)
+        state = getattr(scene, "nymphs_state", None)
         if state is None:
             continue
         threading.Thread(target=_background_primary_probe, args=(scene.name,), daemon=True).start()
@@ -3265,7 +3265,7 @@ def _server_probe_timer():
 def _active_probe_timer():
     interval = ACTIVE_POLL_IDLE_SECONDS
     for scene in bpy.data.scenes:
-        state = getattr(scene, "nymphs3d2v2_state", None)
+        state = getattr(scene, "nymphs_state", None)
         if state is None:
             continue
         threading.Thread(target=_background_active_probe, args=(scene.name,), daemon=True).start()
@@ -3289,7 +3289,7 @@ def _active_probe_timer():
 
 def _gpu_probe_timer():
     for scene in bpy.data.scenes:
-        state = getattr(scene, "nymphs3d2v2_state", None)
+        state = getattr(scene, "nymphs_state", None)
         if state is None:
             continue
         stats = _probe_gpu_host()
@@ -4508,7 +4508,7 @@ class NYMPHSV2_OT_probe_backend(bpy.types.Operator):
     bl_description = "Fetch /server_info from the local managed backends"
 
     def execute(self, context):
-        state = context.scene.nymphs3d2v2_state
+        state = context.scene.nymphs_state
         threading.Thread(target=_background_primary_probe, args=(context.scene.name,), daemon=True).start()
         for service_key in SERVICE_ORDER:
             if _service_enabled(state, service_key) or _backend_is_alive(service_key):
@@ -4528,7 +4528,7 @@ class NYMPHSV2_OT_probe_gpu(bpy.types.Operator):
     bl_description = "Probe host GPU usage with nvidia-smi"
 
     def execute(self, context):
-        state = context.scene.nymphs3d2v2_state
+        state = context.scene.nymphs_state
         stats = _probe_gpu_host()
         state.gpu_name = stats["name"]
         state.gpu_memory = stats["memory"]
@@ -4544,7 +4544,7 @@ class NYMPHSV2_OT_stop_backend(bpy.types.Operator):
     bl_description = "Stop all managed local WSL backends"
 
     def execute(self, context):
-        state = context.scene.nymphs3d2v2_state
+        state = context.scene.nymphs_state
         stopped_any = False
         for service_key in SERVICE_ORDER:
             ok, _message = _stop_service_process(state, service_key)
@@ -4568,7 +4568,7 @@ class NYMPHSV2_OT_start_service(bpy.types.Operator):
     service_key: StringProperty()
 
     def execute(self, context):
-        state = context.scene.nymphs3d2v2_state
+        state = context.scene.nymphs_state
         ok, message = _start_service_process(context, state, self.service_key)
         state.status_text = message
         _schedule_event_loop()
@@ -4583,7 +4583,7 @@ class NYMPHSV2_OT_stop_service(bpy.types.Operator):
     service_key: StringProperty()
 
     def execute(self, context):
-        state = context.scene.nymphs3d2v2_state
+        state = context.scene.nymphs_state
         ok, message = _stop_service_process(state, self.service_key)
         state.status_text = message
         _schedule_event_loop()
@@ -4598,7 +4598,7 @@ class NYMPHSV2_OT_set_3d_target(bpy.types.Operator):
     service_key: StringProperty()
 
     def execute(self, context):
-        state = context.scene.nymphs3d2v2_state
+        state = context.scene.nymphs_state
         _set_3d_target_from_service(state, self.service_key)
         state.status_text = f"3D target set to {_service_display_name(_selected_3d_service_key(state))}."
         _touch_ui()
@@ -4635,7 +4635,7 @@ class NYMPHSV2_OT_run_shape_request(bpy.types.Operator):
     bl_description = "Send the current shape request to the backend and import the result"
 
     def execute(self, context):
-        state = context.scene.nymphs3d2v2_state
+        state = context.scene.nymphs_state
         if state.is_busy or state.imagegen_is_busy:
             self.report({"WARNING"}, "A request is already running.")
             return {"CANCELLED"}
@@ -4687,7 +4687,7 @@ class NYMPHSV2_OT_run_texture_request(bpy.types.Operator):
     bl_description = "Send the selected mesh to the backend texture path and import the result"
 
     def execute(self, context):
-        state = context.scene.nymphs3d2v2_state
+        state = context.scene.nymphs_state
         if state.is_busy or state.imagegen_is_busy:
             self.report({"WARNING"}, "A request is already running.")
             return {"CANCELLED"}
@@ -4719,7 +4719,7 @@ class NYMPHSV2_OT_generate_image(bpy.types.Operator):
     bl_description = "Generate one image through the selected image backend and assign it to Image"
 
     def execute(self, context):
-        state = context.scene.nymphs3d2v2_state
+        state = context.scene.nymphs_state
         if state.is_busy or state.imagegen_is_busy:
             self.report({"WARNING"}, "Another request is already running.")
             return {"CANCELLED"}
@@ -4799,7 +4799,7 @@ class NYMPHSV2_OT_generate_mv_set(bpy.types.Operator):
     bl_description = "Generate front, left, right, and back images through the selected image backend and assign them to the multiview slots"
 
     def execute(self, context):
-        state = context.scene.nymphs3d2v2_state
+        state = context.scene.nymphs_state
         if state.is_busy or state.imagegen_is_busy:
             self.report({"WARNING"}, "Another request is already running.")
             return {"CANCELLED"}
@@ -4859,7 +4859,7 @@ class NYMPHSV2_OT_load_prompt_preset(bpy.types.Operator):
     bl_description = "Load the selected prompt preset without changing image settings"
 
     def execute(self, context):
-        state = context.scene.nymphs3d2v2_state
+        state = context.scene.nymphs_state
         preset = _imagegen_prompt_preset_data(_sync_imagegen_prompt_preset(state))
         state.imagegen_prompt = preset["prompt"]
         state.imagegen_status_text = f"Loaded preset: {preset['label']}"
@@ -4873,7 +4873,7 @@ class NYMPHSV2_OT_load_imagegen_settings_preset(bpy.types.Operator):
     bl_description = "Apply the selected Z-Image profile. Built-in profiles can change model rank, image settings, and variants without changing prompt text."
 
     def execute(self, context):
-        state = context.scene.nymphs3d2v2_state
+        state = context.scene.nymphs_state
         preset = _imagegen_settings_preset_data(_sync_imagegen_settings_preset(state))
         _apply_imagegen_settings_preset(state, preset.get("values", {}))
         state.imagegen_status_text = f"Loaded profile: {preset['label']}"
@@ -4892,13 +4892,13 @@ class NYMPHSV2_OT_save_imagegen_settings_preset(bpy.types.Operator):
     )
 
     def invoke(self, context, event):
-        state = context.scene.nymphs3d2v2_state
+        state = context.scene.nymphs_state
         current = _imagegen_settings_preset_data(_sync_imagegen_settings_preset(state))
         self.name = current.get("label", "") if current.get("values") else ""
         return context.window_manager.invoke_props_dialog(self, width=420)
 
     def execute(self, context):
-        state = context.scene.nymphs3d2v2_state
+        state = context.scene.nymphs_state
         name = (self.name or "").strip()
         if not name:
             self.report({"ERROR"}, "Enter a profile name.")
@@ -4928,7 +4928,7 @@ class NYMPHSV2_OT_delete_imagegen_settings_preset(bpy.types.Operator):
         return context.window_manager.invoke_confirm(self, event)
 
     def execute(self, context):
-        state = context.scene.nymphs3d2v2_state
+        state = context.scene.nymphs_state
         key = (state.imagegen_settings_preset or "").strip()
         path = _imagegen_settings_preset_file(key)
         if not key or key == "__none__" or not os.path.exists(path):
@@ -4967,13 +4967,13 @@ class NYMPHSV2_OT_save_prompt_preset(bpy.types.Operator):
     )
 
     def invoke(self, context, event):
-        state = context.scene.nymphs3d2v2_state
+        state = context.scene.nymphs_state
         current = _imagegen_prompt_preset_data(_sync_imagegen_prompt_preset(state))
         self.name = current.get("label", "") if current.get("prompt") else ""
         return context.window_manager.invoke_props_dialog(self, width=420)
 
     def execute(self, context):
-        state = context.scene.nymphs3d2v2_state
+        state = context.scene.nymphs_state
         name = (self.name or "").strip()
         if not name:
             self.report({"ERROR"}, "Enter a preset name.")
@@ -5006,7 +5006,7 @@ class NYMPHSV2_OT_delete_prompt_preset(bpy.types.Operator):
         return context.window_manager.invoke_confirm(self, event)
 
     def execute(self, context):
-        state = context.scene.nymphs3d2v2_state
+        state = context.scene.nymphs_state
         key = (state.imagegen_prompt_preset or "").strip()
         path = _imagegen_preset_file(key)
         if not key or key == "__none__" or not os.path.exists(path):
@@ -5040,7 +5040,7 @@ class NYMPHSV2_OT_load_trellis_shape_preset(bpy.types.Operator):
     bl_description = "Apply the selected TRELLIS shape preset"
 
     def execute(self, context):
-        state = context.scene.nymphs3d2v2_state
+        state = context.scene.nymphs_state
         preset = _trellis_shape_preset_data(_sync_trellis_shape_preset(state))
         _apply_trellis_shape_preset(state, preset.get("values", {}))
         state.status_text = (
@@ -5062,13 +5062,13 @@ class NYMPHSV2_OT_save_trellis_shape_preset(bpy.types.Operator):
     )
 
     def invoke(self, context, event):
-        state = context.scene.nymphs3d2v2_state
+        state = context.scene.nymphs_state
         current = _trellis_shape_preset_data(_sync_trellis_shape_preset(state))
         self.name = current.get("label", "") if current.get("values") else ""
         return context.window_manager.invoke_props_dialog(self, width=420)
 
     def execute(self, context):
-        state = context.scene.nymphs3d2v2_state
+        state = context.scene.nymphs_state
         name = (self.name or "").strip()
         if not name:
             self.report({"ERROR"}, "Enter a preset name.")
@@ -5098,7 +5098,7 @@ class NYMPHSV2_OT_delete_trellis_shape_preset(bpy.types.Operator):
         return context.window_manager.invoke_confirm(self, event)
 
     def execute(self, context):
-        state = context.scene.nymphs3d2v2_state
+        state = context.scene.nymphs_state
         key = (state.trellis_shape_preset or "").strip()
         path = _trellis_shape_preset_file(key)
         if not key or key == "__none__" or not os.path.exists(path):
@@ -5140,7 +5140,7 @@ class NYMPHSV2_OT_clear_image_prompt_field(bpy.types.Operator):
     )
 
     def execute(self, context):
-        state = context.scene.nymphs3d2v2_state
+        state = context.scene.nymphs_state
         state.imagegen_prompt = ""
         state.imagegen_status_text = "Cleared image prompt."
         _touch_ui()
@@ -5161,7 +5161,7 @@ class NYMPHSV2_OT_open_image_prompt_text_block(bpy.types.Operator):
     )
 
     def execute(self, context):
-        state = context.scene.nymphs3d2v2_state
+        state = context.scene.nymphs_state
         text = _ensure_imagegen_text(state, self.target)
         opened = _open_text_in_editor(context, text)
         if opened:
@@ -5187,7 +5187,7 @@ class NYMPHSV2_OT_pull_image_prompt_text_block(bpy.types.Operator):
     )
 
     def execute(self, context):
-        state = context.scene.nymphs3d2v2_state
+        state = context.scene.nymphs_state
         applied = []
         if _pull_imagegen_text_from_block(state, "prompt"):
             applied.append("prompt")
@@ -5219,7 +5219,7 @@ class NYMPHSV2_OT_edit_image_prompts(bpy.types.Operator):
     )
 
     def invoke(self, context, event):
-        state = context.scene.nymphs3d2v2_state
+        state = context.scene.nymphs_state
         text = _linked_imagegen_text(state, self.target)
         self.prompt = _text_to_prompt_value(text) if text is not None else getattr(
             state,
@@ -5240,7 +5240,7 @@ class NYMPHSV2_OT_edit_image_prompts(bpy.types.Operator):
         body.label(text="For long prompts, use Text Editor in the panel.")
 
     def execute(self, context):
-        state = context.scene.nymphs3d2v2_state
+        state = context.scene.nymphs_state
         setattr(state, _imagegen_text_field_name(self.target), self.prompt)
         _touch_ui()
         return {"FINISHED"}
@@ -5252,7 +5252,7 @@ class NYMPHSV2_OT_open_imagegen_folder(bpy.types.Operator):
     bl_description = "Open the folder that contains the generated Z-Image images"
 
     def execute(self, context):
-        state = context.scene.nymphs3d2v2_state
+        state = context.scene.nymphs_state
         folder_path = (state.imagegen_output_dir or "").strip()
         if not folder_path and state.imagegen_output_path.strip():
             folder_path = os.path.dirname(state.imagegen_output_path.strip())
@@ -5276,7 +5276,7 @@ class NYMPHSV2_OT_clear_imagegen_folder(bpy.types.Operator):
         return context.window_manager.invoke_confirm(self, event)
 
     def execute(self, context):
-        state = context.scene.nymphs3d2v2_state
+        state = context.scene.nymphs_state
         folder_path = (state.imagegen_output_dir or "").strip()
         if not folder_path and state.imagegen_output_path.strip():
             folder_path = os.path.dirname(state.imagegen_output_path.strip())
@@ -5298,7 +5298,7 @@ class NYMPHSV2_OT_open_shape_folder(bpy.types.Operator):
     bl_description = "Open the folder that contains the latest generated mesh"
 
     def execute(self, context):
-        state = context.scene.nymphs3d2v2_state
+        state = context.scene.nymphs_state
         folder_path = (state.shape_output_dir or "").strip()
         if not folder_path and state.shape_output_path.strip():
             folder_path = os.path.dirname(state.shape_output_path.strip())
@@ -5322,7 +5322,7 @@ class NYMPHSV2_OT_clear_shape_folder(bpy.types.Operator):
         return context.window_manager.invoke_confirm(self, event)
 
     def execute(self, context):
-        state = context.scene.nymphs3d2v2_state
+        state = context.scene.nymphs_state
         folder_path = (state.shape_output_dir or "").strip()
         if not folder_path and state.shape_output_path.strip():
             folder_path = os.path.dirname(state.shape_output_path.strip())
@@ -5345,7 +5345,7 @@ class NYMPHSV2_PT_server(bpy.types.Panel):
     bl_label = "Nymphs Server"
 
     def draw(self, context):
-        state = context.scene.nymphs3d2v2_state
+        state = context.scene.nymphs_state
         layout = self.layout
 
         layout.prop(
@@ -5440,7 +5440,7 @@ class NYMPHSV2_PT_image_generation(bpy.types.Panel):
     bl_label = "Nymphs Image"
 
     def draw(self, context):
-        state = context.scene.nymphs3d2v2_state
+        state = context.scene.nymphs_state
         layout = self.layout
 
         panel = layout.box()
@@ -5815,7 +5815,7 @@ class NYMPHSV2_PT_shape(bpy.types.Panel):
     bl_label = "Nymphs Shape"
 
     def draw(self, context):
-        state = context.scene.nymphs3d2v2_state
+        state = context.scene.nymphs_state
         layout = self.layout
 
         panel = layout.box()
@@ -6000,7 +6000,7 @@ class NYMPHSV2_PT_texture(bpy.types.Panel):
     bl_label = "Nymphs Texture"
 
     def draw(self, context):
-        state = context.scene.nymphs3d2v2_state
+        state = context.scene.nymphs_state
         layout = self.layout
         panel = layout.box()
 
@@ -6155,9 +6155,9 @@ CLASSES = (
 
 
 def _safe_remove_scene_state() -> None:
-    if hasattr(bpy.types.Scene, "nymphs3d2v2_state"):
+    if hasattr(bpy.types.Scene, "nymphs_state"):
         try:
-            del bpy.types.Scene.nymphs3d2v2_state
+            del bpy.types.Scene.nymphs_state
         except Exception:
             pass
 
@@ -6179,7 +6179,7 @@ def register():
         _safe_unregister_registered_class(cls)
     for cls in CLASSES:
         bpy.utils.register_class(cls)
-    bpy.types.Scene.nymphs3d2v2_state = PointerProperty(type=NymphsV2State)
+    bpy.types.Scene.nymphs_state = PointerProperty(type=NymphsV2State)
     if not bpy.app.timers.is_registered(_server_probe_timer):
         bpy.app.timers.register(_server_probe_timer, persistent=True)
     if not bpy.app.timers.is_registered(_active_probe_timer):

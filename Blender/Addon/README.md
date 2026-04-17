@@ -21,7 +21,7 @@ Install steps:
 5. Refresh remote data if Blender does not load it immediately.
 6. Search for `Nymphs` and install it.
 
-The extension id is `nymphs`. This is a new extension identity, not the old `nymphs3d2` id.
+The extension id is `nymphs`.
 
 ## Workflow
 
