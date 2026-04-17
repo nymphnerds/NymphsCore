@@ -21,6 +21,16 @@ Across the full documented history, the project moved through eight phases:
 
 Newest entries first.
 
+### 2026-04-17 breakout sequencing now applies even for a single image
+Source: follow-up after a live Nano test produced a side-by-side composite instead of a single breakout target.
+Context: `Character Part Breakout` only switched into strict per-item sequencing when `Variants > 1`, so single-image runs could still send the broad preset text and let the model improvise a composite layout.
+
+Documented changes:
+
+- changed breakout generation so `Character Part Breakout` always uses preset-specific per-item sequencing, even when `Variants = 1`
+- tightened per-item instructions to explicitly require exactly one centered subject and forbid side-by-side layouts or extra items in the same image
+- preserved the existing first-image assignment behavior for multi-image breakout batches
+
 ### 2026-04-17 Nano breakout anatomy-safe base and richer server status
 Source: local Nano breakout testing and follow-up UI/status work.
 Context: the previous breakout wording asked Nano for a nude base body, which OpenRouter/Gemini was refusing, and the Server panel was still underselling Nano-specific job context.
