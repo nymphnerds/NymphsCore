@@ -95,7 +95,6 @@ export NYMPHS3D_H2_DIR="$HOME/Hunyuan3D-2"
 export NYMPHS3D_Z_IMAGE_DIR="$HOME/Z-Image"
 export NYMPHS3D_N2D2_DIR="$NYMPHS3D_Z_IMAGE_DIR"
 export NYMPHS3D_TRELLIS_DIR="$HOME/TRELLIS.2"
-export NYMPHS3D_PARTS_DIR="$HOME/Hunyuan3D-Part"
 EOF
 chmod 644 /etc/profile.d/nymphscore.sh
 '@

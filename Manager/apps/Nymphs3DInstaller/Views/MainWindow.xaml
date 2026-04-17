@@ -422,24 +422,6 @@
                     BorderThickness="1"
                     CornerRadius="12">
               <StackPanel>
-                <CheckBox IsChecked="{Binding IncludeExperimentalParts}"
-                          FontSize="16"
-                          FontWeight="SemiBold"
-                          Content="Include Experimental Parts Tools" />
-                <TextBlock Margin="28,10,0,0"
-                           Text="{Binding ExperimentalPartsSummary}"
-                           TextWrapping="Wrap"
-                           Style="{StaticResource MutedText}" />
-              </StackPanel>
-            </Border>
-
-            <Border Margin="0,18,0,0"
-                    Padding="16"
-                    Background="#F8F3EA"
-                    BorderBrush="#E7DDCF"
-                    BorderThickness="1"
-                    CornerRadius="12">
-              <StackPanel>
                 <TextBlock Text="Optional Hugging Face token"
                            FontWeight="SemiBold"
                            FontSize="16" />

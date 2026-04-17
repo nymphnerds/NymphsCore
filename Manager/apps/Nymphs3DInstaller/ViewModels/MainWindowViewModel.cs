@@ -56,7 +56,6 @@ public sealed class MainWindowViewModel : ViewModelBase
     private string _updateCheckSummary = string.Empty;
     private double _progressValue;
     private bool _prefetchModelsNow = true;
-    private bool _includeExperimentalParts = true;
     private string _huggingFaceToken = string.Empty;
     private string _managedDistroName = InstallerWorkflowService.ManagedDistroName;
     private DriveChoice? _selectedDrive;
@@ -286,19 +285,6 @@ public sealed class MainWindowViewModel : ViewModelBase
         }
     }
 
-    public bool IncludeExperimentalParts
-    {
-        get => _includeExperimentalParts;
-        set
-        {
-            if (SetProperty(ref _includeExperimentalParts, value))
-            {
-                OnPropertyChanged(nameof(ExperimentalPartsSummary));
-                RaiseCommandStateChanged();
-            }
-        }
-    }
-
     public string HuggingFaceToken
     {
         get => _huggingFaceToken;
@@ -333,11 +319,6 @@ public sealed class MainWindowViewModel : ViewModelBase
             : "The installer still has to prepare the runtime stack now, even with model prefetch turned off. Turning prefetch off only skips the large Hugging Face model downloads.";
 
     public string RuntimeDownloadDetailsText => RuntimeDownloadDetails;
-
-    public string ExperimentalPartsSummary =>
-        IncludeExperimentalParts
-            ? "Experimental Parts tools are enabled. The manager will also prepare the dedicated Hunyuan3D-Part environment used by the addon."
-            : "Experimental Parts tools are disabled. The core runtime stack will still be installed. Rerun the latest manager later with this option enabled if you want to add Parts.";
 
     public string ManagedDistroStatusText =>
         ManagedDistroDetected
@@ -570,7 +551,6 @@ public sealed class MainWindowViewModel : ViewModelBase
             TarPath = _workflowService.BaseTarPath,
             InstallLocation = SelectedDrive.InstallPath,
             PrefetchModelsNow = PrefetchModelsNow,
-            IncludeExperimentalParts = IncludeExperimentalParts,
             RepairExistingDistro = true,
             HuggingFaceToken = string.Empty,
         };
@@ -657,7 +637,6 @@ public sealed class MainWindowViewModel : ViewModelBase
             TarPath = _workflowService.BaseTarPath,
             InstallLocation = SelectedDrive?.InstallPath ?? string.Empty,
             PrefetchModelsNow = true,
-            IncludeExperimentalParts = IncludeExperimentalParts,
             RepairExistingDistro = true,
             HuggingFaceToken = HuggingFaceToken,
         };
@@ -936,7 +915,6 @@ public sealed class MainWindowViewModel : ViewModelBase
                 TarPath = _workflowService.BaseTarPath,
                 InstallLocation = SelectedDrive.InstallPath,
                 PrefetchModelsNow = PrefetchModelsNow,
-                IncludeExperimentalParts = IncludeExperimentalParts,
                 RepairExistingDistro = repairExistingDistro,
                 HuggingFaceToken = HuggingFaceToken,
             };
@@ -962,10 +940,6 @@ public sealed class MainWindowViewModel : ViewModelBase
                 settings.PrefetchModelsNow
                     ? "Model prefetch: enabled"
                     : "Model prefetch: disabled");
-            AppendInstallLog(
-                settings.IncludeExperimentalParts
-                    ? "Experimental Parts tools: enabled"
-                    : "Experimental Parts tools: disabled");
 
             var progress = new Progress<string>(line =>
             {
@@ -1083,7 +1057,7 @@ public sealed class MainWindowViewModel : ViewModelBase
             case 3:
                 CurrentStepTitle = "Model Prefetch";
                 CurrentStepSubtitle =
-                    "Base import and required runtime environments will be installed automatically. Choose whether to prefetch models now, and whether to include the experimental Parts lane.";
+                    "Base import and required runtime environments will be installed automatically. Choose whether to prefetch models now.";
                 PrimaryButtonText = ManagedDistroDetected ? "Repair / Refresh" : "Start Install";
                 break;
             case 4:
@@ -1103,7 +1077,7 @@ public sealed class MainWindowViewModel : ViewModelBase
             case 6:
                 CurrentStepTitle = "Runtime Tools";
                 CurrentStepSubtitle =
-                    "Open core backend tools, fetch missing models, and run smoke tests when the required runtimes are ready. To add Experimental Parts later, rerun the latest manager with that option enabled.";
+                    "Open core backend tools, fetch missing models, and run smoke tests when the required runtimes are ready.";
                 PrimaryButtonText = "Close";
                 break;
         }
@@ -1150,16 +1124,13 @@ public sealed class MainWindowViewModel : ViewModelBase
         var runtimeTail = settings.PrefetchModelsNow
             ? "Required models were prefetched during setup."
             : "Runtime environments were prepared. The manager or Blender addon will download required models later on first real use.";
-        var partsTail = settings.IncludeExperimentalParts
-            ? " Experimental Parts tools were included."
-            : " Experimental Parts tools were skipped. Rerun the latest manager later with Experimental Parts enabled if you want to add them.";
 
         if (settings.RepairExistingDistro)
         {
-            return $"Your existing NymphsCore runtime was repaired and refreshed in place. Default Linux user: {settings.LinuxUser}. Managed repos were checked during this run. {runtimeTail}{partsTail}";
+            return $"Your existing NymphsCore runtime was repaired and refreshed in place. Default Linux user: {settings.LinuxUser}. Managed repos were checked during this run. {runtimeTail}";
         }
 
-        return $"NymphsCore was installed to {settings.InstallLocation}. Default Linux user: {settings.LinuxUser}. {runtimeTail}{partsTail}";
+        return $"NymphsCore was installed to {settings.InstallLocation}. Default Linux user: {settings.LinuxUser}. {runtimeTail}";
     }
 
     private static bool ShouldShowUpdateCheckLine(string line)
@@ -1196,7 +1167,6 @@ public sealed class MainWindowViewModel : ViewModelBase
             "Hunyuan3D-2",
             "Z-Image backend",
             "TRELLIS.2",
-            "Hunyuan Parts",
         };
         var updatesAvailable = 0;
         var attentionNeeded = 0;
@@ -1298,7 +1268,6 @@ public sealed class MainWindowViewModel : ViewModelBase
             "Nymphs3D helper repo" => "Manager helper repo",
             "Hunyuan3D-2" => "Hunyuan 2mv",
             "Z-Image backend" => "Z-Image Turbo via Nunchaku",
-            "Hunyuan Parts" => "Experimental Hunyuan Parts",
             _ => repoName,
         };
     }

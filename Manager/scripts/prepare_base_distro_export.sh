@@ -100,7 +100,6 @@ if [[ "$remove_models" -eq 1 ]]; then
   cleanup_glob "${NYMPHS3D_HF_CACHE_DIR}/models--Tencent-Hunyuan--HunyuanDiT-v1.1-Diffusers-Distilled*"
   cleanup_glob "${NYMPHS3D_HF_CACHE_DIR}/models--playgroundai--playground-v2.5-1024px-aesthetic*"
   cleanup_glob "${NYMPHS3D_HF_CACHE_DIR}/models--microsoft--TRELLIS.2-4B*"
-  cleanup_path "${HOME_DIR}/.cache/hunyuan3d-part"
   cleanup_path "${NYMPHS3D_U2NET_DIR}"
   cleanup_path "${NYMPHS3D_TRELLIS_DIR}/models"
 fi
@@ -111,8 +110,6 @@ if [[ "$remove_venvs" -eq 1 ]]; then
   cleanup_path "${NYMPHS3D_N2D2_DIR}/.venv"
   cleanup_path "${NYMPHS3D_N2D2_DIR}/.venv-nunchaku"
   cleanup_path "${NYMPHS3D_TRELLIS_DIR}/.venv"
-  cleanup_path "${NYMPHS3D_PARTS_DIR}/.venv"
-  cleanup_path "${NYMPHS3D_PARTS_DIR}/.venv-official"
   cleanup_path "${HOME_DIR}/Hunyuan3D-2.1"
 fi
 
@@ -125,8 +122,6 @@ cleanup_dir_contents "${NYMPHS3D_TRELLIS_DIR}/output"
 cleanup_dir_contents "${NYMPHS3D_TRELLIS_DIR}/gradio_cache"
 cleanup_dir_contents "${NYMPHS3D_TRELLIS_DIR}/gradio_cache_tex"
 cleanup_path "${NYMPHS3D_TRELLIS_DIR}/__pycache__"
-cleanup_dir_contents "${NYMPHS3D_PARTS_DIR}/P3-SAM/utils/tmp"
-cleanup_path "${NYMPHS3D_PARTS_DIR}/__pycache__"
 
 if [[ "$remove_cuda" -eq 1 ]]; then
   echo "Removing CUDA files from ${NYMPHS3D_CUDA_HOME}..."

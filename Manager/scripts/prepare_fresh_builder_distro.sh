@@ -11,12 +11,10 @@ NYMPHS3D_RUNTIME_ROOT="${NYMPHS3D_RUNTIME_ROOT:-/opt/nymphs3d/runtime}"
 NYMPHS3D_H2_REPO_URL="${NYMPHS3D_H2_REPO_URL:-https://github.com/Tencent-Hunyuan/Hunyuan3D-2.git}"
 NYMPHS3D_N2D2_REPO_URL="${NYMPHS3D_N2D2_REPO_URL:-https://github.com/Babyjawz/Nymphs2D2.git}"
 NYMPHS3D_TRELLIS_REPO_URL="${NYMPHS3D_TRELLIS_REPO_URL:-https://github.com/microsoft/TRELLIS.2.git}"
-NYMPHS3D_PARTS_REPO_URL="${NYMPHS3D_PARTS_REPO_URL:-https://github.com/Babyjawz/Hunyuan3D-Part.git}"
 
 H2_DIR="${NYMPHS3D_RUNTIME_ROOT}/Hunyuan3D-2"
 Z_IMAGE_DIR="${NYMPHS3D_RUNTIME_ROOT}/Z-Image"
 TRELLIS_DIR="${NYMPHS3D_RUNTIME_ROOT}/TRELLIS.2"
-PARTS_DIR="${NYMPHS3D_RUNTIME_ROOT}/Hunyuan3D-Part"
 
 echo "Preparing fresh Nymphs3D builder distro..."
 echo "Helper root: ${NYMPHS3D_HELPER_ROOT}"
@@ -47,7 +45,6 @@ clone_or_refresh_repo() {
 clone_or_refresh_repo "${NYMPHS3D_H2_REPO_URL}" "${H2_DIR}"
 clone_or_refresh_repo "${NYMPHS3D_N2D2_REPO_URL}" "${Z_IMAGE_DIR}"
 clone_or_refresh_repo "${NYMPHS3D_TRELLIS_REPO_URL}" "${TRELLIS_DIR}"
-clone_or_refresh_repo "${NYMPHS3D_PARTS_REPO_URL}" "${PARTS_DIR}"
 
 rm -rf "${HOME}/.cache/huggingface" \
        "${HOME}/.cache/pip" \
@@ -63,7 +60,6 @@ export NYMPHS3D_H2_DIR="$HOME/Hunyuan3D-2"
 export NYMPHS3D_Z_IMAGE_DIR="$HOME/Z-Image"
 export NYMPHS3D_N2D2_DIR="$NYMPHS3D_Z_IMAGE_DIR"
 export NYMPHS3D_TRELLIS_DIR="$HOME/TRELLIS.2"
-export NYMPHS3D_PARTS_DIR="$HOME/Hunyuan3D-Part"
 EOF
 
 chmod 644 /etc/profile.d/nymphscore.sh

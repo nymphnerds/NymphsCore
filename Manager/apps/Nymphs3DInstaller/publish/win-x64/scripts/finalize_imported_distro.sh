@@ -8,7 +8,6 @@ install_backend_envs=1
 download_models=1
 verify_install=1
 check_updates_only=0
-install_parts=0
 
 usage() {
   cat <<'EOF'
@@ -23,7 +22,6 @@ Options:
   --skip-backend-envs   Do not create backend Python environments
   --skip-models         Do not prefetch model weights
   --skip-verify         Do not run final verification
-  --install-parts       Also install the experimental Hunyuan Parts component
   --check-updates-only  Only report managed repo update state, then exit
   -h, --help       Show this help message
 EOF
@@ -42,9 +40,6 @@ while (($#)); do
       ;;
     --skip-verify)
       verify_install=0
-      ;;
-    --install-parts)
-      install_parts=1
       ;;
     --check-updates-only)
       check_updates_only=1
@@ -73,7 +68,6 @@ export NYMPHS3D_H2_DIR="$HOME/Hunyuan3D-2"
 export NYMPHS3D_Z_IMAGE_DIR="$HOME/Z-Image"
 export NYMPHS3D_N2D2_DIR="$NYMPHS3D_Z_IMAGE_DIR"
 export NYMPHS3D_TRELLIS_DIR="$HOME/TRELLIS.2"
-export NYMPHS3D_PARTS_DIR="$HOME/Hunyuan3D-Part"
 EOF
 sudo chmod 644 /etc/profile.d/nymphscore.sh
 
@@ -111,14 +105,6 @@ if [[ "$install_backend_envs" -eq 1 ]]; then
   "${ROOT_DIR}/scripts/install_hunyuan_2.sh"
   "${ROOT_DIR}/scripts/install_nymphs2d2.sh"
   "${ROOT_DIR}/scripts/install_trellis.sh"
-  if [[ "$install_parts" -eq 1 ]]; then
-    echo
-    echo "Installing experimental Hunyuan Parts component..."
-    "${ROOT_DIR}/scripts/install_hunyuan_parts.sh"
-  else
-    echo
-    echo "Skipping experimental Hunyuan Parts component."
-  fi
 else
   echo
   echo "Skipping backend environment creation."

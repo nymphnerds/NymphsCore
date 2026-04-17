@@ -12,8 +12,6 @@ public sealed class InstallSettings
 
     public bool PrefetchModelsNow { get; set; }
 
-    public bool IncludeExperimentalParts { get; set; }
-
     public bool RepairExistingDistro { get; set; }
 
     public string HuggingFaceToken { get; set; } = string.Empty;

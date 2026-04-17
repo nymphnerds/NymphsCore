@@ -86,11 +86,6 @@ if ($pythonResult.StdOut -notmatch "Python 3\.11") {
     throw "Z-Image Turbo via Nunchaku venv is not using Python 3.11."
 }
 
-Write-Step "Experimental Parts"
-$partsResult = Run-WslCapture -Distro $DistroName -Command "if [ -d ~/Hunyuan3D-Part ]; then echo PARTS_REPO_PRESENT; if [ -x ~/Hunyuan3D-Part/.venv-official/bin/python ]; then echo PARTS_ENV_PRESENT; fi; else echo PARTS_NOT_INSTALLED; fi"
-Require-Success -Label "parts check" -Result $partsResult
-$partsResult.StdOut | Out-Host
-
 Write-Step "CUDA path"
 $cudaResult = Run-WslCapture -Distro $DistroName -Command "test -d /usr/local/cuda-13.0 && echo CUDA_OK || echo CUDA_MISSING"
 Require-Success -Label "CUDA check" -Result $cudaResult

@@ -149,16 +149,6 @@ public sealed class InstallerWorkflowService
             }
         }
 
-        if (settings.IncludeExperimentalParts)
-        {
-            arguments.Add("-InstallParts");
-            progress.Report("Experimental Parts tools: enabled. A dedicated Hunyuan3D-Part environment will be prepared.");
-        }
-        else
-        {
-            progress.Report("Experimental Parts tools: disabled for this run.");
-        }
-
         var environmentVariables = string.IsNullOrWhiteSpace(settings.HuggingFaceToken)
             ? null
             : new Dictionary<string, string?>
@@ -193,11 +183,6 @@ public sealed class InstallerWorkflowService
             "-SkipBackendEnvs",
             "-SkipVerify",
         };
-
-        if (settings.IncludeExperimentalParts)
-        {
-            arguments.Add("-InstallParts");
-        }
 
         progress.Report("Model prefetch: downloading required models into the existing NymphsCore runtime.");
 
@@ -241,7 +226,6 @@ public sealed class InstallerWorkflowService
             "export NYMPHS3D_Z_IMAGE_DIR=\"$HOME/Z-Image\"; " +
             "export NYMPHS3D_N2D2_DIR=\"$NYMPHS3D_Z_IMAGE_DIR\"; " +
             "export NYMPHS3D_TRELLIS_DIR=\"$HOME/TRELLIS.2\"; " +
-            "export NYMPHS3D_PARTS_DIR=\"$HOME/Hunyuan3D-Part\"; " +
             $"bash {ToBashSingleQuoted(wslSmokeScriptPath)} --backend {ToBashSingleQuoted(backend)}";
 
         var arguments = new List<string>
@@ -329,7 +313,6 @@ public sealed class InstallerWorkflowService
             "export NYMPHS3D_Z_IMAGE_DIR=\"$HOME/Z-Image\"; " +
             "export NYMPHS3D_N2D2_DIR=\"$NYMPHS3D_Z_IMAGE_DIR\"; " +
             "export NYMPHS3D_TRELLIS_DIR=\"$HOME/TRELLIS.2\"; " +
-            "export NYMPHS3D_PARTS_DIR=\"$HOME/Hunyuan3D-Part\"; " +
             $"bash {ToBashSingleQuoted(wslStatusScriptPath)}";
 
         var arguments = new List<string>

@@ -7,7 +7,6 @@ source "${ROOT_DIR}/scripts/common_paths.sh"
 H2_DIR="${NYMPHS3D_H2_DIR}"
 N2D2_DIR="${NYMPHS3D_N2D2_DIR}"
 TRELLIS_DIR="${NYMPHS3D_TRELLIS_DIR}"
-PARTS_DIR="${NYMPHS3D_PARTS_DIR}"
 SMOKE_TEST_BACKEND=""
 
 usage() {
@@ -202,29 +201,6 @@ PY
   )
 }
 
-verify_parts_if_present() {
-  if [[ ! -d "${PARTS_DIR}/.git" ]]; then
-    echo "Hunyuan Parts not present in this install. Skipping experimental parts verification."
-    return
-  fi
-
-  echo "Verifying experimental Hunyuan Parts..."
-  require_file "${PARTS_DIR}/scripts/run_p3sam_segment.py"
-  require_file "${PARTS_DIR}/scripts/run_xpart_generate.py"
-
-  if [[ -x "${PARTS_DIR}/.venv-official/bin/python" ]]; then
-    (
-      cd "${PARTS_DIR}"
-      source .venv-official/bin/activate
-      python --version
-      python scripts/run_p3sam_segment.py --help >/dev/null
-      python scripts/run_xpart_generate.py --help >/dev/null
-    )
-  else
-    echo "Experimental Hunyuan Parts repo is present, but .venv-official is not installed. Skipping env verification."
-  fi
-}
-
 run_smoke_tests() {
   local target="$1"
   case "${target}" in
@@ -279,7 +255,6 @@ verify_hunyuan2
 verify_nymphs2d2
 verify_trellis
 require_file "${ROOT_DIR}/scripts/install_one_click_windows.ps1"
-verify_parts_if_present
 
 if [[ -n "${SMOKE_TEST_BACKEND}" ]]; then
   echo "Running smoke test: ${SMOKE_TEST_BACKEND}"
@@ -296,4 +271,3 @@ echo "- Hunyuan3D-2, Z-Image Turbo via Nunchaku, and TRELLIS.2 venvs are present
 echo "- Core API entrypoints compile"
 echo "- Critical runtime imports succeed"
 echo "- Required prefetched model snapshots and local TRELLIS bundle are present"
-echo "- Experimental Hunyuan Parts was checked when present"

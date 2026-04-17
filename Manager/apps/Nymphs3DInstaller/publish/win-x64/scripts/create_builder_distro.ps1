@@ -6,7 +6,6 @@ param(
     [string] $Hunyuan2RepoUrl = "https://github.com/Babyjawz/Hunyuan3D-2.git",
     [string] $ZImageRepoUrl = "https://github.com/Babyjawz/Nymphs2D2.git",
     [string] $TrellisRepoUrl = "https://github.com/microsoft/TRELLIS.2.git",
-    [string] $PartsRepoUrl = "https://github.com/Babyjawz/Hunyuan3D-Part.git",
     [switch] $Force
 )
 
@@ -84,7 +83,6 @@ export NYMPHS3D_RUNTIME_ROOT=/opt/nymphs3d/runtime
 export NYMPHS3D_H2_REPO_URL="__H2_REPO_URL__"
 export NYMPHS3D_N2D2_REPO_URL="__Z_IMAGE_REPO_URL__"
 export NYMPHS3D_TRELLIS_REPO_URL="__TRELLIS_REPO_URL__"
-export NYMPHS3D_PARTS_REPO_URL="__PARTS_REPO_URL__"
 /bin/bash /opt/nymphs3d/Nymphs3D/scripts/prepare_fresh_builder_distro.sh
 '@
 
@@ -93,7 +91,6 @@ $bootstrapCommand = $bootstrapCommand.Replace("__HELPER_REPO_URL__", $HelperRepo
 $bootstrapCommand = $bootstrapCommand.Replace("__H2_REPO_URL__", $Hunyuan2RepoUrl)
 $bootstrapCommand = $bootstrapCommand.Replace("__Z_IMAGE_REPO_URL__", $ZImageRepoUrl)
 $bootstrapCommand = $bootstrapCommand.Replace("__TRELLIS_REPO_URL__", $TrellisRepoUrl)
-$bootstrapCommand = $bootstrapCommand.Replace("__PARTS_REPO_URL__", $PartsRepoUrl)
 
 Write-Host "Bootstrapping fresh builder distro contents..."
 Write-Host "This clones only the helper repo and backend source repos into /opt/nymphs3d."

@@ -7,7 +7,6 @@ param(
     [switch] $SkipCuda,
     [switch] $SkipBackendEnvs,
     [switch] $SkipModels,
-    [switch] $InstallParts,
     [switch] $SkipVerify
 )
 
@@ -100,7 +99,6 @@ function Build-LinuxSessionPrefix {
         'export NYMPHS3D_Z_IMAGE_DIR="$HOME/Z-Image"; ' +
         'export NYMPHS3D_N2D2_DIR="$NYMPHS3D_Z_IMAGE_DIR"; ' +
         'export NYMPHS3D_TRELLIS_DIR="$HOME/TRELLIS.2"; ' +
-        'export NYMPHS3D_PARTS_DIR="$HOME/Hunyuan3D-Part"; ' +
         $TokenExportPrefix
     )
 }
@@ -119,9 +117,6 @@ if ($SkipBackendEnvs.IsPresent) {
 }
 if ($SkipModels.IsPresent) {
     $finalizeArgs += "--skip-models"
-}
-if ($InstallParts.IsPresent) {
-    $finalizeArgs += "--install-parts"
 }
 if ($SkipVerify.IsPresent) {
     $finalizeArgs += "--skip-verify"

@@ -1,12 +1,12 @@
-# Nymphs3D2 Changelog
+# NymphsCore Changelog
 
-This changelog lives in the addon repo because `Nymphs3D2` is now the Blender-side product surface.
+This changelog tracks `NymphsCore`, the full local system made up of the Blender addon, managed runtime, backend helper scripts, and Windows Manager.
 
-This file covers the project from the earliest local Hunyuan handoffs through the current packaged extension state, not just the history of this repo itself.
+This file covers the project from the earliest local Hunyuan handoffs through the current NymphsCore runtime and Manager state, not just the history of one package or repo path.
 
 ## High-Level Project Arc
 
-Across the full documented history, the project moved through seven phases:
+Across the full documented history, the project moved through eight phases:
 
 1. official Tencent WSL baseline, CUDA repair, and `2.0 MV` addon patching
 2. personal forks, custom API behavior, and a repeatable local machine setup
@@ -15,10 +15,136 @@ Across the full documented history, the project moved through seven phases:
 5. `Nymphs3D2`, Blender-first workflow positioning, and texture-path/product-surface audit
 6. repo split into a backend/helper repo and a separate Blender addon repo
 7. packaging `Nymphs3D2` as a proper Blender extension with bundled dependencies and GitHub-friendly install flow
+8. consolidating the addon, Manager, managed distro, and supported backends under the `NymphsCore` system name
 
 ## Detailed Timeline
 
 Newest entries first.
+
+### 2026-04-17 Nymphs addon identity rename
+Source: naming cleanup for the Blender-facing addon and extension feed.
+Context: `NymphsCore` is the full system/runtime name, while the Blender addon should present as `Nymphs` and no longer reuse the legacy `nymphs3d2` extension id.
+
+Documented changes:
+
+- renamed the live addon implementation file from `Nymphs3D2.py` to `Nymphs.py`
+- changed the Blender-visible addon name to `Nymphs`
+- changed the extension id to `nymphs`
+- bumped the addon package metadata to `1.1.112`
+- updated the addon README with the current image -> shape/texture -> retexture workflow
+- kept `NymphsCore` as the managed runtime, distro, and Manager system name
+
+Why it matters:
+
+- new Blender installs can use the clean `Nymphs` identity instead of inheriting the old test-track name
+- `Nymphs` now reads as the creative Blender tool, while `NymphsCore` remains the local system that powers it
+
+### 2026-04-17 editable packaged prompt preset library
+Source: prompt audit workflow cleanup.
+Context: the current image prompts were embedded in code, which made them awkward to review and tune as actual prompt assets.
+
+Documented changes:
+
+- added `Blender/Addon/prompt_presets/` as a source-controlled prompt preset library
+- exported every built-in image prompt preset into editable JSON files
+- updated the addon to load packaged prompt JSON files when present, while keeping the embedded prompts as startup-safe fallbacks
+- updated the extension build script so packaged prompt preset files are included in addon zips
+
+Why it matters:
+
+- prompt wording can now be audited and edited directly without digging through the Python addon file
+- edited prompt JSON files can ship with future extension builds
+
+### 2026-04-17 character part breakout prompt preset
+Source: prompt-library pass for generating character component references.
+Context: the image backend needs a reusable preset that takes a full character description and generates separate standalone images for the character's clothing, weapons, accessories, and carried objects.
+
+Documented changes:
+
+- added a built-in `Character Part Breakout` image prompt preset
+- worded the preset to generate exactly one standalone reference per image
+- added a nude uncensored base character body reference in a neutral A-pose or T-pose as the first generated target
+- kept clothing, armor, accessories, weapons, and carried objects as separate item-only images
+- explicitly blocked parts sheets, grids, collages, labels, scenery, and multi-item layouts
+- guided batch/variant output so each generated image should choose a different single target from the same character design
+- bumped the addon package metadata to `1.1.111`
+
+Why it matters:
+
+- character descriptions can now be broken into separate base-body, clothing, weapon, and prop references for downstream modeling or texturing
+- the prompt avoids the old "parts sheet" behavior and asks for standalone output images instead
+
+### 2026-04-17 NymphsCore extension feed test build
+Source: extension repository publishing pass for the renamed NymphsCore addon channel.
+Context: the addon and runtime now ship as part of the wider NymphsCore system, while Blender should still update through the existing `nymphs3d2` extension id for continuity.
+
+Documented changes:
+
+- bumped the packaged addon metadata to `1.1.110`
+- changed the Blender-visible addon name from `Nymphs3D2` to `NymphsCore`
+- refreshed extension metadata copy around NymphsCore image, shape, and texture backends
+- kept the extension id as `nymphs3d2` so existing test installs can update from the same feed
+
+Why it matters:
+
+- testers can install a fresh package from the `NymphsExt` feed without colliding with the older `1.1.109` package
+- the addon now presents itself under the new system name while preserving the current Blender extension update path
+
+### 2026-04-17 OpenRouter Nano Banana image backend
+Source: follow-up image-generation integration pass after retiring the heavy local Parts lane.
+Context: Z-Image remains the local prompt-to-image workflow, but the addon now needs a cloud image option for Gemini Flash / Nano Banana without adding another WSL runtime or Manager install dependency.
+
+Documented changes:
+
+- added an image backend selector to the `Nymphs Image` panel:
+  - `Z-Image`
+  - `Gemini Flash`
+- kept the existing Z-Image flow as the default local backend
+- added OpenRouter-backed Gemini image generation using the OpenAI-compatible chat completions endpoint
+- added support for OpenRouter's `google/gemini-2.5-flash-image` Nano Banana model
+- added optional model choices for newer Gemini image models exposed through OpenRouter
+- added OpenRouter API key handling through either the panel field or `OPENROUTER_API_KEY`
+- added Gemini aspect-ratio and image-size controls where the selected model supports them
+- routed generated Gemini images into the same addon image-output state used by Z-Image, so the result can feed the existing image-to-3D and multiview workflows
+
+Verification:
+
+- addon Python compile passed
+- live OpenRouter request to `google/gemini-2.5-flash-image` returned one base64 PNG image in `message.images`
+
+Why it matters:
+
+- local Z-Image stays available for offline/GPU-backed generation
+- Nano Banana can be used without installing a new backend into the managed distro
+- generated images still land in the existing Blender handoff path instead of creating a separate workflow island
+
+### 2026-04-17 retired Hunyuan Parts lane and installer payload cleanup
+Source: cleanup pass after deciding the Hunyuan Parts/P3-SAM/X-Part workflow was too heavy for the current GPU and not strong enough to keep shipping.
+Context: the Blender addon, Manager UI, installer scripts, and local runtime had grown an experimental mesh-decomposition lane. The supported addon backends are now the image backend, Hunyuan 2mv, Z-Image/Nymphs2D2, and TRELLIS.2, so the retired lane needed to disappear from both source and packaged distro tooling.
+
+Documented changes:
+
+- removed the Nymphs Parts panel, operators, settings, status handling, subprocess tracking, and import-routing code from the Blender addon
+- removed the Parts-oriented prompt preset and old guide/roadmap docs so the addon no longer points users toward that workflow
+- removed the Manager checkbox and settings flow for "Experimental Parts Tools"
+- removed the `-InstallParts` / `--install-parts` installer path and the `NYMPHS3D_PARTS_DIR` shell export from source scripts and the packaged `publish/win-x64` payload
+- deleted the Hunyuan Parts installer script and the P3-SAM/X-Part wrapper scripts from both source and packaged scripts
+- rebuilt the Manager release payload so the shipped installer scripts match the cleaned source tree
+- removed the installed local Hunyuan Parts repo/cache from the managed runtime while leaving Hunyuan3D-2, Z-Image, and TRELLIS.2 intact
+
+Verification:
+
+- addon Python compile passed
+- Windows `dotnet build` for the Manager passed with zero warnings and zero errors
+- Manager release packaging completed successfully
+- shell syntax checks passed for the edited source and packaged installer scripts
+- repo search found no remaining Hunyuan Parts/P3-SAM/X-Part installer or addon references outside this changelog note
+
+Why it matters:
+
+- the addon surface is back to the supported backend set instead of carrying a GPU-heavy experimental lane
+- new installs and repairs no longer clone, configure, verify, or advertise the retired backend
+- packaged Manager builds no longer ship stale scripts that could reinstall it by accident
 
 ### 2026-04-13 panel responsiveness pass and manager-aligned runtime defaults
 Source: follow-up Blender-side cleanup after the TRELLIS/Hunyuan backend selector fixes and the managed installer rollout
@@ -37,169 +163,28 @@ Documented changes:
 - updated `Nymphs Texture` so the backend selector also defaults to and orders as:
   - `TRELLIS.2`
   - `Hunyuan 2mv`
-- added a real top-level foldout for the `Nymphs Parts` panel instead of always drawing its work
 - made the main addon panels collapsed by default:
   - `Server`
   - `Image Generation`
   - `Shape Request`
   - `Texture Request`
-  - `Nymphs Parts`
 - changed collapsed panels to early-return before running heavier UI work
 - reduced idle redraw pressure by stopping the unconditional one-second full `VIEW_3D` refresh loop when nothing is active
-- kept frequent redraws only while launches, jobs, or Parts runs are actually active
+- kept frequent redraws only while launches or active backend jobs are actually active
 - added short-lived caching around redraw-time expensive lookups:
   - WSL distro enumeration
   - image prompt preset folder scans
   - image settings preset folder scans
   - TRELLIS preset folder scans
-  - Parts repo/python status checks
 - aligned the source `bl_info` version with the packaged extension version so source metadata and extension metadata no longer drift
 
 Why it matters:
 
 - the addon should feel noticeably less sticky during normal panel browsing, especially on Windows when WSL path checks are involved
-- the Parts panel no longer taxes the UI when you are not actively using it
 - fresh installs now point at the managed `NymphsCore` runtime by default instead of older local assumptions
 - the visible backend choices now match the intended product direction:
   - `TRELLIS.2` first for shape and single-image texture work
   - `Hunyuan 2mv` available as the alternate lane
-
-### 2026-04-13 Parts stabilization, runtime-status cleanup, and texture-panel simplification
-Source: iterative Blender-side testing after the first working `Hunyuan3D-Part` passes and a broad UI/status cleanup sweep
-Context: the addon had reached a point where `P3-SAM` and `X-Part` could run, but the feedback model, panel structure, and texture-path UI were still inconsistent. Recent work focused on making the addon testable rather than adding more hidden complexity.
-
-Documented changes:
-
-- added a dedicated `Nymphs X-Part` settings guide:
-  - `docs/NYMPHS_XPART_SETTINGS_GUIDE.md`
-- documented the practical local X-Part preset that actually worked on the current 16 GB machine:
-  - `steps=20`
-  - `octree=256`
-  - `max boxes=6`
-  - `cpu threads=16`
-  - `float32`
-- updated the addon defaults toward the documented X-Part path and later refined them based on actual survival-lane testing
-- rebuilt the Parts panel into clearer collapsible sections:
-  - `Experimental Backend`
-  - `Stage 1: Analyze Mesh`
-  - `Stage 2: Generate Parts`
-  - `Import & Storage`
-  - `Run Status`
-- removed the redundant top-level `Parts Workflow` wrapper so the real sections are directly visible
-- improved Parts progress reporting so the addon can show:
-  - PID
-  - stage
-  - detail
-  - progress
-  - log path
-- fixed the misleading “hung on pre-generation CUDA checks” feel by pairing addon parsing with better X-Part phase lines in the local Parts repo
-- fixed Parts import behavior so new imported results are explicitly unhidden
-- fixed Stage 1 / Stage 2 hide behavior:
-  - P3-SAM can hide the original source mesh when requested
-  - successful X-Part import can hide the prior P3-SAM segmented mesh instead of leaving both visible
-- fixed a false `Python: Missing` report for the Parts env by using a more Blender/WSL-friendly path existence check
-- added Runtimes-style `status | Start | Stop` strips directly into the `Image`, `Shape`, and `Texture` panels
-- corrected the inactive-state flow so stopped backends show the start/stop strip immediately, not behind a useless nested foldout
-- kept the same start/stop strip visible after launch so users can stop feature backends from the feature panels instead of going back to `Runtimes`
-- fixed a status-routing bug where stale Parts stages such as `Diffusion Sampling` could leak into later TRELLIS or backend-launch status
-- made Parts status participate only when a real Parts run is active, instead of piggybacking on generic busy state
-- simplified the `Nymphs Texture` panel:
-  - removed the redundant inner `Texture Request` foldout
-  - made backend selection explicit
-  - stopped inheriting texture behavior implicitly from the current 3D target
-- split texture texturing into the two real supported lanes only:
-  - `Hunyuan 2mv` = multiview image-guided texture lane
-  - `TRELLIS.2` = single-image texture lane
-- removed the extra texture method dropdown after confirming it only made the panel more confusing
-- made the texture backend switch render as direct buttons instead of another dropdown
-- built local test zips through `1.1.101` while stabilizing the UI and feedback model
-
-Why it matters:
-
-- the addon is now much closer to a coherent Blender product surface instead of a set of powerful but inconsistent experimental cards
-- the feature panels can now launch and stop their own required runtimes without forcing users back into the global `Runtimes` panel for every action
-- status feedback is less likely to mix unrelated jobs together, which was becoming a real trust problem during testing
-- the texture panel now matches the actual product model:
-  - `2mv` for multiview texture guidance
-  - `TRELLIS` for single-image texture guidance
-- the current packaged addon is now in a reasonable state for broader hardware testing, including the planned `5090` validation pass
-
-### 2026-04-11 Nymphs Parts P3-SAM bring-up
-Source: first real `Hunyuan3D-Part` prototype pass after the texture-panel and workflow planning work
-Context: `Nymphs Parts` had started as a panel prototype only. The next requirement was to prove that `P3-SAM` could actually run on the current local machine, find a viable memory lane, and expose that path in the addon without pretending `X-Part` was equally ready.
-
-Documented changes:
-
-- added the first real `Nymphs Parts` addon integration surface in the local addon branch
-- kept both experimental backend choices visible in the panel:
-  - `P3-SAM`
-  - `X-Part`
-- added explicit parts backend config in the addon:
-  - repo path
-  - python path
-  - source preparation
-  - result/output state
-- added low-memory `P3-SAM` controls in the addon:
-  - `Points`
-  - `Prompts`
-  - `Prompt Batch`
-- added a dedicated local `Hunyuan3D-Part` venv at `~/Hunyuan3D-Part/.venv-official`
-- layered that venv over the existing Hunyuan torch stack for the first prototype instead of duplicating a full new multi-GB runtime
-- installed and validated the core public `P3-SAM` dependencies, including:
-  - `scikit-learn`
-  - `fpsample`
-  - `addict`
-  - `easydict`
-  - `pytorch-lightning`
-  - `spconv-cu124`
-  - `torch_scatter` for `torch 2.11.0+cu130`
-- built the local `chamfer_3D` CUDA extension for the current GPU arch
-- patched `P3-SAM` cache paths so local downloads land under the user cache instead of `/root`
-- patched Sonata model loading to fall back cleanly when `flash_attn` is absent
-- recorded `flash-attn` as the intended finished runtime for `Hunyuan3D-Part` if feasible later
-- fixed two upstream `P3-SAM` memory/usability problems:
-  - removed unconditional `DataParallel` duplication on single-GPU runs
-  - removed the internal hard reset that ignored requested `point_num` / `prompt_num`
-- proved a working `P3-SAM` low-memory lane on the bundled sample mesh with:
-  - `point_num=30000`
-  - `prompt_num=96`
-  - `prompt_bs=4`
-- added a stable wrapper command for later addon execution:
-  - `~/Hunyuan3D-Part/scripts/run_p3sam_segment.py`
-- verified exported outputs from that wrapper, including:
-  - segmented GLB
-  - segmented PLY
-  - AABB GLB
-  - face-id numpy output
-  - JSON summary
-- wired the addon `Nymphs Parts` action so `P3-SAM` now launches a real background WSL job instead of only showing prototype placeholder text
-- kept `X-Part` visible in the panel but still intentionally non-executing because the public release remains incomplete
-- added a working user guide for the current `P3-SAM` test flow:
-  - `docs/NYMPHS_PARTS_P3SAM_GUIDE.md`
-- fixed Windows Blender detection of WSL-only parts repo paths by checking Blender-accessible WSL UNC path candidates
-- fixed the first addon-launched `P3-SAM` worker path so snapshot dict state is handled correctly instead of being read like live Blender property state
-- added per-run `Nymphs Parts` log capture so backend failures are written into each output folder as `nymphs_parts_run.log`
-- fixed Windows temp mesh path handoff into WSL by converting `C:\...` prepared-source paths to `/mnt/c/...`
-- removed the fragile shell `MESH_PATH` indirection and passed the prepared mesh path directly to the `P3-SAM` wrapper
-- built local test packages through `1.1.71` while iterating on the first real Blender-launched parts run
-- completed the first successful Blender-launched `P3-SAM` segmentation run from a selected mesh:
-  - prepared mesh: Windows temp exported GLB
-  - output folder: `~/.cache/hunyuan3d-part/outputs/20260411-161212-P3-SAM-geometry_0.001`
-  - output files included `p3sam_segmented.glb`, `p3sam_segmented.ply`, AABB outputs, face-id numpy output, `summary.json`, and `nymphs_parts_run.log`
-  - run settings: `point_num=30000`, `prompt_num=96`, `prompt_bs=4`
-  - input mesh size: `714151` faces, `357053` vertices
-  - wrapper summary reported `part_count=2`
-
-Why it matters:
-
-- `Nymphs Parts` is no longer just a speculative UI branch; it now has a proven real runtime lane through `P3-SAM`
-- the project now has a tested part-segmentation path that fits the current machine instead of only upstream defaults that exceed VRAM
-- addon integration can now move forward from a real command/output contract rather than a research-only mock surface
-- `X-Part` remains part of the plan, but the current product surface now distinguishes clearly between:
-  - the practical first public integration path
-  - the still-experimental decomposition lane
-- Windows Blender to WSL path handling is now proven for the prepared mesh handoff, which was the first blocking issue for real user testing
-- the next Parts work is now quality and UX evaluation rather than basic launch plumbing
 
 ### 2026-04-11 runtime card and image-panel cleanup
 Source: iterative Blender UI testing around the image panel and Runtimes panel

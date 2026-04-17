@@ -1,9 +1,9 @@
 schema_version = "1.0.0"
 
-id = "nymphs3d2"
-version = "1.1.109"
-name = "Nymphs3D2"
-tagline = "Blender-first workflow for driving local or remote Nymphs3D backends"
+id = "nymphs"
+version = "1.1.112"
+name = "Nymphs"
+tagline = "Blender client for NymphsCore image, shape, and texture backends"
 maintainer = "Babyjawz <babyjaws@gmail.com>"
 type = "add-on"
 website = "https://github.com/nymphnerds/NymphsCore"
@@ -13,5 +13,5 @@ platforms = ["windows-x64"]
 license = ["SPDX:GPL-3.0-or-later"]
 
 [permissions]
-network = "Connect to local or remote Nymphs3D API servers"
+network = "Connect to local NymphsCore services and OpenRouter image models"
 files = "Import generated meshes and store local presets and config"

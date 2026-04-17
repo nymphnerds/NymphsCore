@@ -15,10 +15,11 @@ import tomllib
 import zipfile
 
 
-PACKAGE_FILES = (
-    "Nymphs3D2.py",
+PACKAGE_PATHS = (
+    "Nymphs.py",
     "__init__.py",
     "blender_manifest.toml",
+    "prompt_presets",
 )
 
 
@@ -43,7 +44,7 @@ def repo_root() -> Path:
 
 
 def default_extensions_repo() -> Path:
-    return repo_root().parent / "Nymphs3D2-Extensions"
+    return repo_root().parent / "NymphsExt"
 
 
 def load_manifest(root: Path) -> Manifest:
@@ -121,11 +122,16 @@ def build_archive(root: Path, output_dir: Path) -> tuple[Path, int, str]:
     archive_path = output_dir / archive_name(manifest)
 
     with zipfile.ZipFile(archive_path, "w", compression=zipfile.ZIP_DEFLATED) as bundle:
-        for relative_name in PACKAGE_FILES:
+        for relative_name in PACKAGE_PATHS:
             source_path = root / relative_name
             if not source_path.exists():
-                raise SystemExit(f"Missing required package file: {source_path}")
-            bundle.write(source_path, arcname=relative_name)
+                raise SystemExit(f"Missing required package path: {source_path}")
+            if source_path.is_dir():
+                for child in sorted(source_path.rglob("*")):
+                    if child.is_file():
+                        bundle.write(child, arcname=str(child.relative_to(root)))
+            else:
+                bundle.write(source_path, arcname=relative_name)
 
     return archive_path, archive_path.stat().st_size, sha256_file(archive_path)
 
@@ -257,7 +263,7 @@ def build_parser() -> argparse.ArgumentParser:
     publish_parser.add_argument(
         "--extensions-repo",
         default=str(default_extensions_repo()),
-        help="Path to the local Nymphs3D2-Extensions repo.",
+        help="Path to the local NymphsExt repo.",
     )
     publish_parser.add_argument(
         "--tag-source",

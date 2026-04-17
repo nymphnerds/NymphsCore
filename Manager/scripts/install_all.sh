@@ -12,9 +12,6 @@ echo "Starting full Nymphs backend setup from ${ROOT_DIR}"
 "${ROOT_DIR}/scripts/install_hunyuan_2.sh"
 "${ROOT_DIR}/scripts/install_nymphs2d2.sh"
 "${ROOT_DIR}/scripts/install_trellis.sh"
-if [[ "${NYMPHS3D_INSTALL_PARTS:-0}" == "1" ]]; then
-  "${ROOT_DIR}/scripts/install_hunyuan_parts.sh"
-fi
 "${ROOT_DIR}/scripts/prefetch_models.sh"
 "${ROOT_DIR}/scripts/verify_install.sh"
 

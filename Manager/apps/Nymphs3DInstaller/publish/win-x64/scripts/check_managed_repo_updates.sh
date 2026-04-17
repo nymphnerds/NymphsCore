@@ -42,9 +42,6 @@ inspect_repo "Nymphs3D helper repo" "${NYMPHS3D_HELPER_ROOT}" "https://github.co
 inspect_repo "Hunyuan3D-2" "${NYMPHS3D_H2_DIR}" "${NYMPHS3D_H2_REPO_URL}" "${NYMPHS3D_H2_REPO_BRANCH}"
 inspect_repo "Z-Image backend" "${NYMPHS3D_N2D2_DIR}" "${NYMPHS3D_N2D2_REPO_URL:-https://github.com/Babyjawz/Nymphs2D2.git}" "${NYMPHS3D_N2D2_REPO_BRANCH}"
 inspect_repo "TRELLIS.2" "${NYMPHS3D_TRELLIS_DIR}" "${NYMPHS3D_TRELLIS_REPO_URL}" "${NYMPHS3D_TRELLIS_REPO_BRANCH}"
-if [[ -d "${NYMPHS3D_PARTS_DIR}/.git" ]]; then
-  inspect_repo "Hunyuan Parts" "${NYMPHS3D_PARTS_DIR}" "${NYMPHS3D_PARTS_REPO_URL}" "${NYMPHS3D_PARTS_REPO_BRANCH}"
-fi
 
 echo
 echo "Update check result:"
@@ -71,4 +68,3 @@ echo "- The current default branch policy is main for the managed Babyjawz forks
 echo "- Hunyuan3D-2 uses NYMPHS3D_H2_REPO_URL and NYMPHS3D_H2_REPO_BRANCH if you need to point the installer at a different repo or branch during experimentation."
 echo "- The Z-Image backend uses NYMPHS3D_N2D2_REPO_URL and NYMPHS3D_N2D2_REPO_BRANCH if you need to point the installer at a different repo or branch during experimentation."
 echo "- TRELLIS.2 uses NYMPHS3D_TRELLIS_REPO_URL and NYMPHS3D_TRELLIS_REPO_BRANCH if you need to point the installer at a different repo or branch during experimentation."
-echo "- Hunyuan Parts uses NYMPHS3D_PARTS_REPO_URL and NYMPHS3D_PARTS_REPO_BRANCH when the experimental parts component is installed."
