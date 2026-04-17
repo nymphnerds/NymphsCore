@@ -21,6 +21,43 @@ Across the full documented history, the project moved through eight phases:
 
 Newest entries first.
 
+### 2026-04-17 breakout runs now auto-assign the first image
+Source: shape workflow follow-up after testing breakout batches in Blender.
+Context: breakout mode generates the nude base body first, but the addon was still assigning the last generated image back to Blender after the batch finished, which made the body less convenient as the first shape source.
+
+Documented changes:
+
+- added preset-specific image assignment for `Character Part Breakout`
+- when breakout mode generates more than one image, Blender now assigns the first generated image back to `Image`
+- kept the existing last-image assignment behavior for other prompts and normal single-image asset generation
+- bumped the addon package metadata to `1.1.114`
+
+Why it matters:
+
+- breakout runs now land on the body/first target automatically for shape generation
+- ordinary single-image asset workflows keep their current behavior
+
+### 2026-04-17 Gemini breakout sequencing and separate hair target
+Source: follow-up fix after testing the `Character Part Breakout` preset on Gemini Flash.
+Context: the breakout prompt needed hair as its own asset image, and repeated variant requests were repeatedly starting from the first target because the addon was sending the same prompt for every request. Gemini also only kept the first image returned from a response.
+
+Documented changes:
+
+- updated `Character Part Breakout` so the nude base body explicitly excludes hair
+- added hair as its own required standalone target image
+- changed breakout variant generation for both Gemini and Z-Image so repeated requests are sequenced:
+  - base body first
+  - hair second
+  - then one different remaining item per request
+- changed Gemini response handling to save every returned image instead of discarding everything after the first one
+- bumped the addon package metadata to `1.1.113`
+
+Why it matters:
+
+- the base body should stop arriving with hair fused into the first image
+- both Gemini and Z-Image can now step through breakout targets instead of restarting from the first target on every variant
+- Gemini image batches can now surface all returned images into the output folder instead of keeping only the first one
+
 ### 2026-04-17 Nymphs addon identity rename
 Source: naming cleanup for the Blender-facing addon and extension feed.
 Context: `NymphsCore` is the full system/runtime name, while the Blender addon should present as `Nymphs` and no longer reuse the legacy `nymphs3d2` extension id.
