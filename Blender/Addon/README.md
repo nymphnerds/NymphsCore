@@ -32,6 +32,8 @@ The extension id is `nymphs`.
 
 Start with a single prompt image when the object is simple. Use a front, back, left, and right image set when the shape needs multiple views.
 
+For character assets, a guided parts workflow is available inside `Nymphs Image`: create or choose one master character image, open `Image Part Extraction`, plan the extractable parts, choose only the parts you want, then run `Extract Selected`. This produces separate reference images for the base body, clothing, hair, props, and optional eyeball assets while keeping everything tied to the same source image.
+
 ## Image Generation
 
 The `Nymphs Image` panel creates the reference image or multiview set that drives the rest of the workflow.
@@ -45,12 +47,28 @@ For OpenRouter, paste an API key in the addon field or set `OPENROUTER_API_KEY` 
 
 Useful image tools:
 
-- prompt and negative prompt fields
+- subject/style prompt presets plus manual prompt editing
 - editable JSON prompt presets in `prompt_presets/`
-- `Character Part Breakout` for separate body, clothing, weapon, accessory, and prop references from one character description
+- `Image Part Extraction` for planning and extracting separate parts from one master image
+- optional face, eyes-in-base, eyeball-only, style lock, and symmetry controls for extraction passes
 - generation profiles for size, steps, seed, guidance, and variant count
 - four-view multiview generation for front, back, left, and right references
 - open and clear buttons for generated image folders
+
+## Image Part Extraction
+
+The part extraction workflow uses Gemini Flash with a chosen source image.
+
+Typical flow:
+
+1. Generate or choose a complete master character image.
+2. Open `Image Part Extraction` and click `Choose` to set the source.
+3. Click `Plan` to ask Gemini to list practical extractable parts.
+4. Review the checklist and symmetry column.
+5. Run `Extract Selected (n)` to generate one isolated image per selected part.
+6. Use the generated anatomy base or part images as references for the shape workflow.
+
+Changing the source image clears the old part plan so a checklist cannot accidentally belong to a previous character. The `Face`, `Eyes In Base`, and `Add Eyeball Part` options are separate: face controls the base mesh face structure, eyes-in-base controls finished eyes on that base, and eyeball creates a separate isolated eyeball image.
 
 ## Shape And Texture Generation
 

@@ -21,6 +21,202 @@ Across the full documented history, the project moved through eight phases:
 
 Newest entries first.
 
+### 2026-04-17 clear stale part plans on source change
+Source: follow-up after testing showed the planned parts list could remain from an older source image.
+
+Documented changes:
+
+- bumped the local addon test package to `1.1.141`
+- clear the old part plan, results path, and checklist when the part-extraction source image changes
+- made `Use Image` read the current Image field directly instead of preferring a stale part-extraction source
+
+### 2026-04-17 shape texture direct layout and part selection clarity
+Source: follow-up after testing showed Shape and Texture had redundant inner request collapsibles and part extraction selection needed clearer confirmation.
+
+Documented changes:
+
+- bumped the local addon test package to `1.1.140`
+- removed the inner `Shape Request` and `Texture Request` collapsible rows
+- added an `Extract Selected (n)` action label for image part extraction
+
+### 2026-04-17 eyeball-only extraction hardening
+Source: follow-up after testing showed the separate eyeball part was still producing an eye-region crop.
+
+Documented changes:
+
+- bumped the local addon test package to `1.1.139`
+- renamed the separate part toggle to `Add Eyeball Part`
+- tightened the forced Eyeball prompt so it asks for one isolated spherical eyeball with no eyelids, lashes, skin, socket, or face crop
+
+### 2026-04-17 server summary direct layout
+Source: follow-up after testing showed the Server summary should not have its own inner collapse row.
+
+Documented changes:
+
+- bumped the local addon test package to `1.1.138`
+- removed the inner `Server` collapsible row so the server status box appears directly under `Nymphs Server`
+
+### 2026-04-17 server panel sibling sections
+Source: follow-up after testing showed collapsing the Server summary should not hide Runtimes or Advanced.
+
+Documented changes:
+
+- bumped the local addon test package to `1.1.137`
+- kept Runtimes and Advanced visible when the Server summary section is collapsed
+
+### 2026-04-17 image status visibility hotfix
+Source: follow-up after testing showed the top image status box disappeared in a clean panel state.
+
+Documented changes:
+
+- bumped the local addon test package to `1.1.136`
+- kept the image status and output folder actions always visible at the top of `Nymphs Image`
+
+### 2026-04-17 image panel sibling sections
+Source: follow-up after testing showed Image Part Extraction should stay usable when Image Generation is collapsed.
+
+Documented changes:
+
+- bumped the local addon test package to `1.1.135`
+- moved the image status and output folder actions to the top of the `Nymphs Image` panel
+- split Image Generation and Image Part Extraction into sibling collapsible sections inside the same panel
+
+### 2026-04-17 four-view generation checkbox
+Source: follow-up after testing showed the separate 4-view button still felt like the wrong interaction model in the image panel.
+
+Documented changes:
+
+- bumped the local addon test package to `1.1.134`
+- replaced the separate `Generate 4-View MV` action with a `4-View MV` checkbox beside `Variants`
+- the main `Generate Image` action now runs the existing multiview generation path when that checkbox is enabled
+
+### 2026-04-17 generate action visibility polish
+Source: follow-up after testing showed the main generate action was getting lost in the image panel flow.
+
+Documented changes:
+
+- bumped the local addon test package to `1.1.133`
+- reorganized the generate area so `Generate 4-View MV` sits as the smaller secondary action
+- made the main `Generate Image` action the larger final button
+- added a `Generate` label above the action area
+
+### 2026-04-17 text editor prompt sync fix
+Source: testing showed dropdown-driven prompt changes could update the visible prompt field while the linked Blender text block still showed stale text.
+
+Documented changes:
+
+- bumped the local addon test package to `1.1.132`
+- fixed the linked prompt text block to resync whenever the stored prompt text differs from the text block contents
+
+### 2026-04-17 saved prompt autoload and extraction prompt wording
+Source: follow-up after aligning the saved-prompt dropdown with the managed prompt-builder behavior and polishing nearby UI labels.
+
+Documented changes:
+
+- bumped the local addon test package to `1.1.131`
+- selecting a saved full prompt now loads it immediately
+- removed the saved prompt `Insert` button
+- renamed the part prompt section label from `Guidance` to `Extraction Prompt`
+- widened the Gemini model dropdown row slightly by shrinking the left label area
+
+### 2026-04-17 manual prompt editing label polish
+Source: small UI wording follow-up after switching Subject and Style to managed prompt blocks.
+
+Documented changes:
+
+- bumped the local addon test package to `1.1.130`
+- renamed the lower prompt area label to `Manual Prompt Editing`
+
+### 2026-04-17 managed subject-style prompt flow polish
+Source: follow-up after moving Subject and Style onto managed prompt blocks and testing the resulting prompt-builder flow.
+
+Documented changes:
+
+- bumped the local addon test package to `1.1.129`
+- kept Subject and Style as managed prompt blocks instead of stackable inserts
+- removed the duplicate managed-block clear button under Subject and Style
+- full saved prompts now reset the prompt-builder state before loading
+
+### 2026-04-17 auto guidance leak hotfix
+Source: testing showed the inserted eyeball guidance could leak into unrelated part prompts and contaminate anatomy-base extraction.
+
+Documented changes:
+
+- bumped the local addon test package to `1.1.128`
+- fixed auto guidance blocks so they are fully stripped from the final Gemini guidance text before requests are sent
+- prevents eyeball-only guidance from leaking into anatomy-base extraction
+
+### 2026-04-17 auto guidance blocks for part options
+Source: follow-up after deciding the face/eyes/eyeball options should stay visible and tweakable inside Guidance.
+
+Documented changes:
+
+- bumped the local addon test package to `1.1.127`
+- toggling `Face`, `Eyes In Base`, or `Include Eyeball Part` now inserts or removes matching guidance blocks automatically
+- those auto guidance markers are stripped before the final Gemini prompt is sent
+- turning `Face` off now also clears `Eyes In Base`
+
+### 2026-04-17 single eye extraction hardening
+Source: follow-up after testing showed the eye option still was not reliably producing one isolated reusable eye image.
+
+Documented changes:
+
+- bumped the local addon test package to `1.1.126`
+- normalized the planned eye part into one dedicated `Eye` asset when `Include Eye Part` is enabled
+- replaced weak generic eye wording with a dedicated single-eye extraction prompt
+- explicitly forbids face crops and both-eye outputs for the eye asset path
+
+### 2026-04-17 image part extraction options follow-up
+Source: follow-up pass after testing the new planned-part checklist flow.
+
+Documented changes:
+
+- bumped the local addon test package to `1.1.125`
+- renamed `Character Part Extraction` to `Image Part Extraction`
+- added `Face`, `Eyes In Base`, and `Include Eye Part` planning controls
+- added a per-part symmetry checkbox in the planned parts list
+- strengthened extraction prompt wording for symmetry-sensitive wearable parts
+
+### 2026-04-17 part extraction checkbox test build
+Source: local test pass for the guided character part extraction UI.
+
+Documented changes:
+
+- bumped the local addon test package to `1.1.124`
+- changed planned character parts into selectable checkboxes
+- extraction now sends only the checked planned parts to Gemini
+- the parts list now shows every planned part instead of hiding extras
+- kept the compact source, model, Style Lock, and editable Guidance controls from the previous UI pass
+
+### 2026-04-17 guided character part extraction prototype
+Source: follow-up after Nano/OpenRouter sometimes returned a true multi-image breakout set and sometimes collapsed the same request into a single parts-sheet style image.
+Context: the production path needs related, scale-consistent part images without requiring the user to guess a variant count or pay for unreliable one-shot breakout attempts.
+
+Documented changes:
+
+- added a local guided character-part extraction workflow for Nano-backed image editing
+- added a `Plan Parts` step that uses the current `Image` as the master reference and asks a vision model for structured part JSON
+- added a separate `Extract Parts` step that runs one guided Nano image-edit request per planned part
+- added planner model and max-part controls so the user can balance cost and recognition quality before extraction
+- added editable extraction guidance that is applied to every part request
+- saves planning/results metadata and assigns the anatomy/base-body output back to `Image` when extraction finishes
+- added a `Character Master Reference` prompt preset for creating the canonical full-character image before extraction
+- added compact source controls so the extraction section can use the current image, last generated image, or a picked master image
+- strengthened style injection wording and the Storybook Inkwash preset so style direction is less likely to be drowned out by asset-reference wording
+- moved art-direction wording out of the main image prompt presets so style language lives in style presets only
+- added Japanese Watercolor Woodblock and Minimalist Chinese Watercolor style presets
+- added extraction style locking so guided part extraction can strongly preserve the active Style preset and the master image media feel
+- reworked the image prompt UI around one visible prompt: Subject and Style snippets insert into the prompt, Saved Prompt stores full reusable prompts, and generation no longer sends hidden style text
+- moved editable prompt snippets into one shared user preset folder with `kind` metadata for subject, style, and saved full prompts
+- made the OpenRouter API key persist in the user config folder
+- fixed shared prompt preset keys so Subject, Style, and Saved Prompt files do not duplicate or crash after saving
+- changed Saved Prompt insertion so it clears the current prompt before inserting the saved full prompt
+- replaced the tall inline prompt preview with a compact one-line summary and a popup Preview button
+- simplified Character Part Extraction around a chosen Source Image, Model/Max planning, visible Style Lock, Guidance, and Parts extraction controls
+- tightened anatomy/base-body extraction so it preserves inferred body type and silhouette proportions instead of defaulting to a generic slim anatomy reference
+- tightened anatomy/base-body extraction again so it asks for body/base mesh only and removes every clothing, hair, beard, cloak, boot, prop, and covering artifact while staying non-explicit
+- preserved the existing Shape panel and existing image-to-shape flow
+
 ### 2026-04-17 style preset registration hotfix for Blender 4.5
 Source: live Blender 4.5 extension install failure after adding the style preset dropdown.
 Context: Blender rejects string defaults on `EnumProperty` values when the enum items come from a callback function, which caused addon registration to fail before the panel could load.

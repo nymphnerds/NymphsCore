@@ -28,6 +28,8 @@ Blender Extensions (Blender 4.2+) must have `blender_manifest.toml` at the **roo
 
 The classic **Blender Addon** (`Blender/Addon/`) is different — it's installed by the Manager app automatically, so it doesn't need to be Blender-accessible directly and lives fine as a subfolder here.
 
+The current addon workflow includes guided image part extraction: generate or choose a master image, plan extractable character parts, select the parts to keep, and generate separate references for the anatomy base, clothing, hair, props, and optional eyeball assets. The source addon lives in `Blender/Addon/`, while the public extension feed is mirrored through `NymphsExt`.
+
 ---
 
 ## Using the Unity Package
