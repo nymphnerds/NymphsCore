@@ -21,6 +21,27 @@ Across the full documented history, the project moved through eight phases:
 
 Newest entries first.
 
+### 2026-04-17 Nano breakout now requests the full part set automatically
+Source: follow-up after it became clear that asking the user to guess a good `Variants` count for breakout generation was bad UX.
+Context: for Nano breakout runs, the addon should request the full part set in one go rather than making the user predict how many separate outputs the character design will need.
+
+Documented changes:
+
+- changed Nano `Character Part Breakout` generation so `Generate Image` requests the full breakout set automatically
+- removed the need to guess a useful `Variants` count just to get the anatomy base, hair, and major carried/worn items
+- reinforced the breakout prompt so each returned image should contain exactly one centered subject with no side-by-side layout or combined items
+
+### 2026-04-17 separate reusable style presets for image generation
+Source: addon UX follow-up after prompt-style repetition became tedious during image generation work.
+Context: style direction was getting manually typed into prompts over and over, even though it really belongs as a separate reusable layer.
+
+Documented changes:
+
+- added a separate `Style Preset` system for image generation, independent from the main prompt preset dropdown
+- added editable packaged `style_presets/` JSON files and matching user-editable style preset storage
+- wired final image prompt assembly so a selected style fragment is injected automatically at generation time instead of having to be pasted into every prompt by hand
+- added UI controls to load, save, delete, open, and clear reusable styles
+
 ### 2026-04-17 breakout sequencing now applies even for a single image
 Source: follow-up after a live Nano test produced a side-by-side composite instead of a single breakout target.
 Context: `Character Part Breakout` only switched into strict per-item sequencing when `Variants > 1`, so single-image runs could still send the broad preset text and let the model improvise a composite layout.
