@@ -21,6 +21,18 @@ Across the full documented history, the project moved through eight phases:
 
 Newest entries first.
 
+### 2026-04-17 Nano breakout anatomy-safe base and richer server status
+Source: local Nano breakout testing and follow-up UI/status work.
+Context: the previous breakout wording asked Nano for a nude base body, which OpenRouter/Gemini was refusing, and the Server panel was still underselling Nano-specific job context.
+
+Documented changes:
+
+- changed `Character Part Breakout` so the first image is a neutral anatomy base body suitable for game base-mesh reference rather than nude-body wording
+- kept hair as its own separate generated asset and preserved the body -> hair -> remaining items breakout sequence
+- improved Nano/OpenRouter image error reporting so provider finish reasons show up when no image is returned
+- added Nano guide-image context to runtime status reporting
+- updated the Server panel to show the active image backend plus Nano model, aspect, size, and guide-image state during image jobs
+
 ### 2026-04-17 breakout runs now auto-assign the first image
 Source: shape workflow follow-up after testing breakout batches in Blender.
 Context: breakout mode generates the nude base body first, but the addon was still assigning the last generated image back to Blender after the batch finished, which made the body less convenient as the first shape source.
