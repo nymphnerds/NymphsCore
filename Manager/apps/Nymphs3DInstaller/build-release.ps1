@@ -1,5 +1,6 @@
 param(
-    [string] $Runtime = "win-x64"
+    [string] $Runtime = "win-x64",
+    [switch] $SkipPayloadTar
 )
 
 $ErrorActionPreference = "Stop"
@@ -52,8 +53,15 @@ if (Test-Path $legacyPartsWrappers) {
     Remove-Item -Path $legacyPartsWrappers -Recurse -Force
 }
 
-$payloadTarPath = $payloadTarCandidates | Where-Object { Test-Path $_ } | Select-Object -First 1
-if ($payloadTarPath) {
+$payloadTarPath = if ($SkipPayloadTar.IsPresent) {
+    $null
+} else {
+    $payloadTarCandidates | Where-Object { Test-Path $_ } | Select-Object -First 1
+}
+
+if ($SkipPayloadTar.IsPresent) {
+    Write-Host "Base tar not bundled because -SkipPayloadTar was requested."
+} elseif ($payloadTarPath) {
     Copy-Item -Path $payloadTarPath -Destination (Join-Path $publishRoot "NymphsCore.tar") -Force
     Write-Host "Bundled local base tar into release folder."
 } else {
