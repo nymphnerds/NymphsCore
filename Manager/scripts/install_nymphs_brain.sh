@@ -74,6 +74,11 @@ BIN_DIR="${INSTALL_ROOT}/bin"
 VENV_DIR="${INSTALL_ROOT}/venv"
 NPM_GLOBAL="${INSTALL_ROOT}/npm-global"
 CACHE_DIR="${INSTALL_ROOT}/models"
+LOCAL_TOOLS_DIR="${INSTALL_ROOT}/local-tools"
+LOCAL_BIN_DIR="${LOCAL_TOOLS_DIR}/bin"
+LOCAL_NODE_DIR="${LOCAL_TOOLS_DIR}/node"
+
+export PATH="${BIN_DIR}:${LOCAL_BIN_DIR}:${LOCAL_NODE_DIR}/bin:${NPM_GLOBAL}/bin:${PATH}"
 
 log() {
   if [[ "${QUIET}" != "1" ]]; then
@@ -81,8 +86,16 @@ log() {
   fi
 }
 
+have_python_venv() {
+  python3 - <<'PYEOF' >/dev/null 2>&1
+import venv
+PYEOF
+}
+
 add_lmstudio_paths() {
   local candidates=(
+    "${LOCAL_NODE_DIR}/bin"
+    "${LOCAL_BIN_DIR}"
     "${HOME}/.lmstudio/bin"
     "${HOME}/.cache/lm-studio/bin"
     "${HOME}/.local/bin"
@@ -94,6 +107,45 @@ add_lmstudio_paths() {
       export PATH="${candidate}:${PATH}"
     fi
   done
+}
+
+detect_node_arch() {
+  case "$(uname -m)" in
+    x86_64) echo "linux-x64" ;;
+    aarch64|arm64) echo "linux-arm64" ;;
+    *)
+      echo "Unsupported architecture for local Node bootstrap: $(uname -m)" >&2
+      return 1
+      ;;
+  esac
+}
+
+ensure_local_node() {
+  if command -v node >/dev/null 2>&1 && command -v npm >/dev/null 2>&1; then
+    return 0
+  fi
+
+  local node_arch
+  local node_version="20.19.0"
+  local node_archive=""
+  local node_url=""
+  local temp_extract_dir=""
+  local tarball=""
+
+  node_arch="$(detect_node_arch)"
+  node_archive="node-v${node_version}-${node_arch}"
+  node_url="https://nodejs.org/dist/v${node_version}/${node_archive}.tar.xz"
+  temp_extract_dir="$(mktemp -d)"
+  tarball="${temp_extract_dir}/${node_archive}.tar.xz"
+
+  echo "Installing local Node.js runtime (${node_version}, ${node_arch})..."
+  curl -fsSL "${node_url}" -o "${tarball}"
+  rm -rf "${LOCAL_NODE_DIR}"
+  mkdir -p "${LOCAL_TOOLS_DIR}"
+  tar -xf "${tarball}" -C "${temp_extract_dir}"
+  mv "${temp_extract_dir}/${node_archive}" "${LOCAL_NODE_DIR}"
+  rm -rf "${temp_extract_dir}"
+  export PATH="${LOCAL_NODE_DIR}/bin:${PATH}"
 }
 
 detect_vram_mb() {
@@ -148,7 +200,7 @@ model_served_name() {
 echo "Nymphs-Brain experimental installer"
 echo "Install root: ${INSTALL_ROOT}"
 
-mkdir -p "${BIN_DIR}" "${VENV_DIR}" "${NPM_GLOBAL}" "${CACHE_DIR}"
+mkdir -p "${BIN_DIR}" "${VENV_DIR}" "${NPM_GLOBAL}" "${CACHE_DIR}" "${LOCAL_TOOLS_DIR}" "${LOCAL_BIN_DIR}"
 
 if [[ "${MODEL_ID}" == "auto" ]]; then
   VRAM_MB="$(detect_vram_mb)"
@@ -160,25 +212,24 @@ SERVED_NAME="$(model_served_name "${MODEL_ID}")"
 DL_TARGET="${MODEL_ID}@${QUANTIZATION}"
 
 export DEBIAN_FRONTEND=noninteractive
-MISSING_DEPS=()
-for dep in curl jq git bc python3-pip python3-venv ninja-build; do
+MISSING_CRITICAL=()
+for dep in python3 curl tar; do
   if ! command -v "${dep}" >/dev/null 2>&1; then
-    MISSING_DEPS+=("${dep}")
+    MISSING_CRITICAL+=("${dep}")
   fi
 done
-
-if ! command -v node >/dev/null 2>&1 || ! command -v npm >/dev/null 2>&1; then
-  MISSING_DEPS+=(nodejs npm)
+if ! have_python_venv; then
+  MISSING_CRITICAL+=(python3-venv)
+fi
+if [[ "${#MISSING_CRITICAL[@]}" -gt 0 ]]; then
+  echo "ERROR: Missing critical dependencies: ${MISSING_CRITICAL[*]}"
+  echo "These must be in the base distro."
+  exit 1
 fi
 
-if [[ "${#MISSING_DEPS[@]}" -gt 0 ]]; then
-  echo "Installing missing dependencies: ${MISSING_DEPS[*]}"
-  sudo -v
-  sudo apt-get -o Acquire::ForceIPv4=true update -y
-  sudo apt-get -o Acquire::ForceIPv4=true install -y "${MISSING_DEPS[@]}"
-else
-  log "System dependencies already present."
-fi
+ensure_local_node
+
+log "Zero-sudo dependency check complete."
 
 if [[ ! -x "${VENV_DIR}/bin/python3" ]]; then
   echo "Creating Python venv at ${VENV_DIR}"
@@ -188,7 +239,6 @@ fi
 "${VENV_DIR}/bin/pip" install --upgrade pip requests huggingface_hub
 
 export npm_config_prefix="${NPM_GLOBAL}"
-export PATH="${NPM_GLOBAL}/bin:${PATH}"
 export LMSTUDIO_MODEL_PATH="${CACHE_DIR}"
 
 echo "Installing/updating LM Studio CLI in the user profile."
