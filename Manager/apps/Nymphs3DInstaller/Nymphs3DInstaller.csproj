@@ -25,8 +25,14 @@
     <Resource Include="../../../Graphics/nsw.ico">
       <Link>Assets/nsw.ico</Link>
     </Resource>
+    <Resource Include="../../../Graphics/nsw.ico">
+      <Link>Views/Assets/nsw.ico</Link>
+    </Resource>
     <Resource Include="../../../Graphics/splash.png">
       <Link>Assets/splash.png</Link>
+    </Resource>
+    <Resource Include="../../../Graphics/splash.png">
+      <Link>Views/Assets/splash.png</Link>
     </Resource>
   </ItemGroup>
 </Project>
