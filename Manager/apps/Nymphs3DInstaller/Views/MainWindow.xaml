@@ -1073,10 +1073,10 @@
                       <ColumnDefinition Width="*" />
                     </Grid.ColumnDefinitions>
                     <Button Grid.Column="0" Style="{StaticResource SecondaryActionButton}" Margin="0"
-                            HorizontalAlignment="Stretch" VerticalAlignment="Top" Height="36" Padding="10,0"
+                            HorizontalAlignment="Stretch" VerticalAlignment="Top"
                             Command="{Binding FetchModelsNowCommand}" Content="Fetch" />
                     <Button Grid.Column="2" Style="{StaticResource SecondaryActionButton}" Margin="0"
-                            HorizontalAlignment="Stretch" VerticalAlignment="Top" Height="36" Padding="10,0"
+                            HorizontalAlignment="Stretch" VerticalAlignment="Top"
                             Command="{Binding TestHunyuanCommand}" Content="{Binding HunyuanTestButtonText}" />
                   </Grid>
                 </StackPanel>
@@ -1113,10 +1113,10 @@
                       <ColumnDefinition Width="*" />
                     </Grid.ColumnDefinitions>
                     <Button Grid.Column="0" Style="{StaticResource SecondaryActionButton}" Margin="0"
-                            HorizontalAlignment="Stretch" VerticalAlignment="Top" Height="36" Padding="10,0"
+                            HorizontalAlignment="Stretch" VerticalAlignment="Top"
                             Command="{Binding FetchModelsNowCommand}" Content="Fetch" />
                     <Button Grid.Column="2" Style="{StaticResource SecondaryActionButton}" Margin="0"
-                            HorizontalAlignment="Stretch" VerticalAlignment="Top" Height="36" Padding="10,0"
+                            HorizontalAlignment="Stretch" VerticalAlignment="Top"
                             Command="{Binding TestZImageCommand}" Content="{Binding ZImageTestButtonText}" />
                   </Grid>
                 </StackPanel>
@@ -1153,10 +1153,10 @@
                       <ColumnDefinition Width="*" />
                     </Grid.ColumnDefinitions>
                     <Button Grid.Column="0" Style="{StaticResource SecondaryActionButton}" Margin="0"
-                            HorizontalAlignment="Stretch" VerticalAlignment="Top" Height="36" Padding="10,0"
+                            HorizontalAlignment="Stretch" VerticalAlignment="Top"
                             Command="{Binding FetchModelsNowCommand}" Content="Fetch" />
                     <Button Grid.Column="2" Style="{StaticResource SecondaryActionButton}" Margin="0"
-                            HorizontalAlignment="Stretch" VerticalAlignment="Top" Height="36" Padding="10,0"
+                            HorizontalAlignment="Stretch" VerticalAlignment="Top"
                             Command="{Binding TestTrellisCommand}" Content="{Binding TrellisTestButtonText}" />
                   </Grid>
                 </StackPanel>

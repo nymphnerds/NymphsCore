@@ -1075,7 +1075,7 @@ public sealed class MainWindowViewModel : ViewModelBase
             {
                 ModelsReady = true,
                 TestReady = true,
-                Detail = "Runtime env, adapter scripts, and required models are present. Ready for smoke test.",
+                Detail = "Runtime env and required models are present. Ready for smoke test.",
             };
         }
 
