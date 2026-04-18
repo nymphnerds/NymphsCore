@@ -22,6 +22,7 @@ public partial class MainWindow : Window
 
         DataContext = _viewModel;
         _viewModel.LogLines.CollectionChanged += OnLogLinesChanged;
+        Loaded += OnLoaded;
     }
 
     protected override void OnClosed(EventArgs e)
@@ -31,7 +32,19 @@ public partial class MainWindow : Window
             _viewModel.LogLines.CollectionChanged -= OnLogLinesChanged;
         }
 
+        Loaded -= OnLoaded;
+
         base.OnClosed(e);
+    }
+
+    private async void OnLoaded(object sender, RoutedEventArgs e)
+    {
+        if (_viewModel is null)
+        {
+            return;
+        }
+
+        await _viewModel.InitializeAsync();
     }
 
     private void OnLogLinesChanged(object? sender, NotifyCollectionChangedEventArgs e)

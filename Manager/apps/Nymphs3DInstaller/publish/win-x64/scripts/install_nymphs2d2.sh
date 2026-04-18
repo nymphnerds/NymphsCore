@@ -28,23 +28,34 @@ fi
 
 cd "${REPO_DIR}"
 
-if [[ -d ".venv-nunchaku" && ! -x ".venv-nunchaku/bin/python" ]]; then
-  echo "Existing Nunchaku venv is incomplete. Recreating it."
-  rm -rf .venv-nunchaku
+LIVE_VENV_DIR="${REPO_DIR}/.venv-nunchaku"
+STAGING_VENV_DIR="${REPO_DIR}/.venv-nunchaku.staging"
+BACKUP_VENV_DIR="${REPO_DIR}/.venv-nunchaku.backup"
+FILTERED_LOCK_FILE=""
+
+rm -rf "${STAGING_VENV_DIR}" "${BACKUP_VENV_DIR}"
+
+cleanup_on_exit() {
+  local exit_code=$?
+  if [[ -n "${FILTERED_LOCK_FILE}" ]]; then
+    rm -f "${FILTERED_LOCK_FILE}"
+  fi
+  if [[ "${exit_code}" -ne 0 ]]; then
+    rm -rf "${STAGING_VENV_DIR}" "${BACKUP_VENV_DIR}"
+  fi
+}
+trap cleanup_on_exit EXIT
+
+echo "Creating staged Python 3.11 Nunchaku venv"
+python3.11 -m venv "${STAGING_VENV_DIR}"
+
+if [[ -x "${STAGING_VENV_DIR}/bin/python3.11" ]]; then
+  ln -sf python3.11 "${STAGING_VENV_DIR}/bin/python"
+  ln -sf python3.11 "${STAGING_VENV_DIR}/bin/python3"
 fi
 
-if [[ ! -d ".venv-nunchaku" ]]; then
-  echo "Creating Python 3.11 Nunchaku venv"
-  python3.11 -m venv .venv-nunchaku
-fi
-
-if [[ -x ".venv-nunchaku/bin/python3.11" ]]; then
-  ln -sf python3.11 .venv-nunchaku/bin/python
-  ln -sf python3.11 .venv-nunchaku/bin/python3
-fi
-
-VENV_PYTHON="${REPO_DIR}/.venv-nunchaku/bin/python"
-VENV_PIP="${REPO_DIR}/.venv-nunchaku/bin/pip"
+VENV_PYTHON="${STAGING_VENV_DIR}/bin/python"
+VENV_PIP="${STAGING_VENV_DIR}/bin/pip"
 
 if [[ ! -x "${VENV_PYTHON}" || ! -x "${VENV_PIP}" ]]; then
   echo "Python 3.11 Nunchaku venv was created, but the expected executables are missing."
@@ -58,7 +69,7 @@ if [[ "${VENV_VERSION}" != "3.11" ]]; then
 fi
 
 "${VENV_PYTHON}" --version
-"${VENV_PIP}" install --upgrade pip setuptools wheel
+"${VENV_PIP}" install --upgrade pip "setuptools<82" wheel
 
 if ! "${VENV_PYTHON}" -c 'import torch' >/dev/null 2>&1; then
   echo "Installing PyTorch for Z-Image Turbo via Nunchaku runtime"
@@ -71,16 +82,29 @@ if [[ ! -f "${LOCK_FILE}" ]]; then
   exit 1
 fi
 
+FILTERED_LOCK_FILE="$(mktemp)"
+grep -Evi '(diffusers|safetensors)' "${LOCK_FILE}" > "${FILTERED_LOCK_FILE}"
+
 echo "Installing locked Python environment from requirements.lock.txt"
-"${VENV_PIP}" install -r "${LOCK_FILE}"
+"${VENV_PIP}" install -r "${FILTERED_LOCK_FILE}"
 
 if ! "${VENV_PYTHON}" -c 'import nunchaku' >/dev/null 2>&1; then
   echo "Installing Nunchaku runtime package"
   "${VENV_PIP}" install --no-deps --pre --index-url https://appmana.github.io/forks-nunchaku-stable-abi/cu130 nunchaku
 fi
 
-echo "Pinning diffusers for the Nunchaku runtime path"
-"${VENV_PIP}" install --no-deps --force-reinstall diffusers==0.36.0
+echo "Pinning Z-Image compatibility packages for the Nunchaku runtime path"
+"${VENV_PIP}" install --no-deps --force-reinstall safetensors==0.7.0
+"${VENV_PIP}" install --no-deps --force-reinstall git+https://github.com/huggingface/diffusers.git
+
+echo "Swapping staged Nunchaku venv into place"
+if [[ -d "${LIVE_VENV_DIR}" ]]; then
+  mv "${LIVE_VENV_DIR}" "${BACKUP_VENV_DIR}"
+fi
+mv "${STAGING_VENV_DIR}" "${LIVE_VENV_DIR}"
+rm -rf "${BACKUP_VENV_DIR}"
+rm -f "${FILTERED_LOCK_FILE}"
+trap - EXIT
 
 echo
 echo "Z-Image Turbo via Nunchaku install complete."

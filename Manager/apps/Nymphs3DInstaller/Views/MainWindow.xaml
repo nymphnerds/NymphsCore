@@ -5,6 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
         Title="NymphsCore Manager"
+        Icon="Assets/nsw.ico"
         Width="1160"
         Height="800"
         MinWidth="960"
@@ -75,7 +76,16 @@
             <RowDefinition Height="Auto" />
           </Grid.RowDefinitions>
 
-        <TextBlock Text="{Binding AppTitle}"
+          <Image Source="Assets/splash.png"
+                 Width="276"
+                 Margin="0,36,0,0"
+                 VerticalAlignment="Top"
+                 HorizontalAlignment="Center"
+                 Opacity="0.28"
+                 Stretch="Uniform"
+                 IsHitTestVisible="False" />
+
+        <TextBlock Text="{Binding SidebarTitle}"
                    FontSize="26"
                    FontWeight="Bold"
                    Foreground="#F8F3EA" />
@@ -95,7 +105,7 @@
           </Grid.RowDefinitions>
 
           <Border Grid.Row="0"
-                  Background="#235756"
+                  Background="Transparent"
                   CornerRadius="16"
                   Padding="16"
                   MinHeight="164">
@@ -115,7 +125,7 @@
           </Border>
 
           <Border Grid.Row="2"
-                  Background="#1C4A49"
+                  Background="Transparent"
                   CornerRadius="16"
                   Padding="16">
             <StackPanel>
@@ -124,7 +134,7 @@
                          FontWeight="SemiBold"
                          Foreground="#FFFFFF" />
 
-	              <StackPanel Margin="0,12,0,0">
+	              <StackPanel Margin="0,20,0,0">
 	                <Button Style="{StaticResource SidebarInfoButton}"
 	                        Command="{Binding OpenReadmeCommand}"
 	                        Content="README" />
@@ -164,13 +174,13 @@
         <Border Style="{StaticResource CardStyle}"
                 Visibility="{Binding IsWelcomeStep, Converter={StaticResource BoolToVisibilityConverter}}">
           <StackPanel>
-            <TextBlock Text="Install and manage the local runtime systems required by the Nymphs addon."
+            <TextBlock Text="Install and configure NymphsCore"
                        FontSize="28"
                        FontWeight="Bold"
                        Foreground="#1E1C18"
                        TextWrapping="Wrap" />
             <TextBlock Margin="0,18,0,0"
-                       Text="This manager app is the Windows-first frontend for the NymphsCore runtime workflow. It is designed to hide the WSL setup mechanics and keep the backend setup self-contained."
+                       Text="The central hub for the Nymph Nerds game development backend. NymphsCore is the Brains behind the system"
                        TextWrapping="Wrap"
                        FontSize="16"
                        Foreground="#3E3A34" />
@@ -215,6 +225,16 @@
             <TextBlock Text="- The app imports the small base distro and runs the setup level you choose."
                        TextWrapping="Wrap"
                        FontSize="15" />
+            <TextBlock Margin="0,18,0,0"
+                       Text="NymphsCore is the simplest, most fully configured, and most advanced AI-powered game asset pipeline available directly inside Blender. While other solutions require you to learn complex node-based workflows, juggle multiple applications, and manually configure servers, NymphsCore delivers professional-grade AI image-to-3D generation with a single click from the Blender sidebar you already know."
+                       TextWrapping="Wrap"
+                       FontSize="13"
+                       Style="{StaticResource MutedText}" />
+            <TextBlock Margin="0,8,0,0"
+                       Text="Stop switching between apps. Stop configuring servers. Stop memorizing node graphs. Just create."
+                       TextWrapping="Wrap"
+                       FontSize="14"
+                       FontWeight="SemiBold" />
           </StackPanel>
         </Border>
 
@@ -260,31 +280,6 @@
                           Command="{Binding FetchModelsNowCommand}"
                           Content="Fetch Models Now" />
                 </WrapPanel>
-                <Border Margin="0,14,0,0"
-                        Padding="12"
-                        Background="#FFFDFC"
-                        BorderBrush="#E7DDCF"
-                        BorderThickness="1"
-                        CornerRadius="10">
-                  <StackPanel>
-                    <TextBlock Text="Optional Hugging Face token"
-                               FontWeight="SemiBold"
-                               FontSize="15" />
-                    <TextBlock Margin="0,8,0,0"
-                               Text="Add a token here if you want existing-install model downloads to use authenticated Hugging Face access."
-                               TextWrapping="Wrap"
-                               Style="{StaticResource MutedText}" />
-                    <PasswordBox Margin="0,10,0,0"
-                                 Padding="10"
-                                 FontSize="14"
-                                 PasswordChanged="OnHuggingFaceTokenChanged" />
-                    <TextBlock Margin="0,8,0,0"
-                               Text="{Binding HuggingFaceTokenStatus}"
-                               TextWrapping="Wrap"
-                               FontSize="13"
-                               Style="{StaticResource MutedText}" />
-                  </StackPanel>
-                </Border>
                 <Border Margin="0,14,0,0"
                         Padding="12"
                         Background="#FFFDFC"
@@ -544,6 +539,8 @@
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
                   </Grid.RowDefinitions>
                   <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="2*" />
@@ -588,14 +585,28 @@
                              Text="{Binding CustomBrainModelId, UpdateSourceTrigger=PropertyChanged}" />
                   </StackPanel>
 
-                  <CheckBox Grid.Row="3"
+                  <StackPanel Grid.Row="3"
+                              Grid.Column="0"
+                              Grid.ColumnSpan="3"
+                              Margin="0,12,0,0">
+                    <TextBlock Text="Approximate model size and footprint"
+                               FontWeight="SemiBold"
+                               FontSize="14" />
+                    <TextBlock Margin="0,8,0,0"
+                               Text="{Binding BrainModelSizeGuide}"
+                               TextWrapping="Wrap"
+                               FontSize="13"
+                               Style="{StaticResource MutedText}" />
+                  </StackPanel>
+
+                  <CheckBox Grid.Row="4"
                             Grid.Column="0"
                             Grid.ColumnSpan="3"
                             Margin="0,14,0,0"
                             IsChecked="{Binding DownloadBrainModelNow}"
                             Content="Download the selected LLM model during install" />
 
-                  <TextBlock Grid.Row="4"
+                  <TextBlock Grid.Row="5"
                              Grid.Column="0"
                              Grid.ColumnSpan="3"
                              Margin="0,12,0,0"

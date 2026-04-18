@@ -47,6 +47,7 @@ public sealed class MainWindowViewModel : ViewModelBase
     private bool _updatesAvailableFromCheck;
     private bool _lastRunUsedExistingInstall;
     private bool _lastRunAppliedUpdates;
+    private int _runtimeToolsReturnStep = 5;
     private string _currentStepTitle = string.Empty;
     private string _currentStepSubtitle = string.Empty;
     private string _primaryButtonText = string.Empty;
@@ -157,7 +158,15 @@ public sealed class MainWindowViewModel : ViewModelBase
 
     public string AppTitle => "NymphsCore Manager";
 
-    public string StepCounterText => $"Step {_currentStepIndex + 1} of {TotalSteps}";
+    public string SidebarTitle => "NymphsCore";
+
+    public string StepCounterText => $"Step {CurrentStepNumber} of {VisibleTotalSteps}";
+
+    private int VisibleTotalSteps => ManagedDistroDetected ? 6 : TotalSteps;
+
+    private int CurrentStepNumber => ManagedDistroDetected && _currentStepIndex >= 3
+        ? _currentStepIndex
+        : _currentStepIndex + 1;
 
     public string CurrentStepTitle
     {
@@ -265,6 +274,7 @@ public sealed class MainWindowViewModel : ViewModelBase
             if (SetProperty(ref _managedDistroDetected, value))
             {
                 OnPropertyChanged(nameof(ManagedDistroStatusText));
+                OnPropertyChanged(nameof(StepCounterText));
                 OnPropertyChanged(nameof(ShowExistingInstallActions));
                 OnPropertyChanged(nameof(ShowPostInstallActions));
                 OnPropertyChanged(nameof(HunyuanRuntimeActionCommand));
@@ -425,6 +435,13 @@ public sealed class MainWindowViewModel : ViewModelBase
     public string BrainSelectedModelDescription =>
         SelectedBrainModelOption?.Description ?? "Choose a model preset for the experimental local LLM stack.";
 
+    public string BrainModelSizeGuide =>
+        "- Small / safe: about 1 to 2 GB download, low VRAM footprint\n" +
+        "- Balanced coder: about 8 to 10 GB download, better on 16 GB+ VRAM\n" +
+        "- High-end coder: about 18 to 22 GB download, aimed at 24 GB+ VRAM\n" +
+        "- Large experimental: about 18 to 22 GB download, roomy high-end GPU setups\n" +
+        "- Installed Nymphs-Brain stack after setup: often about 20 to 35 GB total depending on model";
+
     public string BrainInstallSummary
     {
         get
@@ -534,7 +551,7 @@ public sealed class MainWindowViewModel : ViewModelBase
 
     public string ManagedDistroStatusText =>
         ManagedDistroDetected
-            ? $"Existing managed {_managedDistroName} distro detected. Rerun the latest manager to repair or refresh it in place. You can preview managed repo git status first if you want."
+            ? $"Existing managed {_managedDistroName} distro detected. The manager will reuse it in place, keep your downloads where possible, and repair the runtime instead of creating a second install."
             : string.Empty;
 
     public string UpdateCheckSummary
@@ -639,7 +656,7 @@ public sealed class MainWindowViewModel : ViewModelBase
 
     private bool CanRunManagedRuntimeAction()
     {
-        return !IsBusy && (ManagedDistroDetected || InstallSucceeded);
+        return !IsBusy;
     }
 
     private bool CanRunHunyuanSmokeTest()
@@ -676,7 +693,7 @@ public sealed class MainWindowViewModel : ViewModelBase
                 }
                 else
                 {
-                    MoveToStep(2);
+                    MoveToStep(ManagedDistroDetected ? 3 : 2);
                 }
                 break;
             case 2:
@@ -720,14 +737,7 @@ public sealed class MainWindowViewModel : ViewModelBase
                 AppendInstallLog($"System check: {check.Title} [{check.StatusLabel}] {check.Details}");
             }
 
-            var existingManagedDistroName = await _workflowService.GetExistingManagedDistroNameAsync(CancellationToken.None).ConfigureAwait(true);
-            _managedDistroName = existingManagedDistroName ?? InstallerWorkflowService.ManagedDistroName;
-            ManagedDistroDetected = !string.IsNullOrWhiteSpace(existingManagedDistroName);
-            if (ManagedDistroDetected)
-            {
-                AppendInstallLog($"System check note: existing managed {_managedDistroName} distro detected. Check for Updates is available before repair/continue.");
-                OnPropertyChanged(nameof(ManagedDistroStatusText));
-            }
+            await DetectExistingManagedDistroAsync(logDetection: true).ConfigureAwait(true);
 
             _systemChecksCompleted = true;
             StatusMessage = HasSystemCheckFailures
@@ -857,12 +867,24 @@ public sealed class MainWindowViewModel : ViewModelBase
 
     private async Task OpenRuntimeToolsAsync()
     {
-        MoveToStep(6);
+        MoveToRuntimeTools();
         await RefreshRuntimeStatusAsync().ConfigureAwait(true);
     }
 
     private async Task RefreshRuntimeStatusAsync()
     {
+        if (!ManagedDistroDetected && !InstallSucceeded)
+        {
+            LogLines.Clear();
+            RuntimeToolsSummary = "No managed runtime install is detected yet. Run the installer first, then come back here to check backend readiness, fetch models, and run smoke tests.";
+            PostInstallActionSummary = string.Empty;
+            StatusMessage = "No managed runtime install detected yet.";
+            AppendInstallLog(StatusMessage);
+            ApplyRuntimeBackendStatuses(new Dictionary<string, RuntimeBackendStatus>());
+            RaiseCommandStateChanged();
+            return;
+        }
+
         var settings = BuildManagedActionSettings();
         IsBusy = true;
         LogLines.Clear();
@@ -924,6 +946,38 @@ public sealed class MainWindowViewModel : ViewModelBase
         OnPropertyChanged(nameof(HunyuanRuntimeActionCommand));
         OnPropertyChanged(nameof(ZImageRuntimeActionCommand));
         OnPropertyChanged(nameof(TrellisRuntimeActionCommand));
+    }
+
+    public async Task InitializeAsync()
+    {
+        await DetectExistingManagedDistroAsync(logDetection: false).ConfigureAwait(true);
+        RaiseCommandStateChanged();
+    }
+
+    private async Task DetectExistingManagedDistroAsync(bool logDetection)
+    {
+        try
+        {
+            var existingManagedDistroName = await _workflowService.GetExistingManagedDistroNameAsync(CancellationToken.None).ConfigureAwait(true);
+            _managedDistroName = existingManagedDistroName ?? InstallerWorkflowService.ManagedDistroName;
+            ManagedDistroDetected = !string.IsNullOrWhiteSpace(existingManagedDistroName);
+            OnPropertyChanged(nameof(ManagedDistroStatusText));
+
+            if (ManagedDistroDetected && logDetection)
+            {
+                AppendInstallLog($"System check note: existing managed {_managedDistroName} distro detected. Check for Updates is available before repair/continue.");
+            }
+        }
+        catch (Exception ex)
+        {
+            _managedDistroName = InstallerWorkflowService.ManagedDistroName;
+            ManagedDistroDetected = false;
+
+            if (logDetection)
+            {
+                AppendInstallLog($"WARNING: existing managed distro detection failed: {ex.Message}");
+            }
+        }
     }
 
     private static string BuildRuntimeToolsSummary(IReadOnlyDictionary<string, RuntimeBackendStatus> statuses)
@@ -1247,7 +1301,29 @@ public sealed class MainWindowViewModel : ViewModelBase
             return;
         }
 
+        if (IsRuntimeToolsStep)
+        {
+            MoveToStep(_runtimeToolsReturnStep);
+            return;
+        }
+
+        if (ManagedDistroDetected && IsRuntimeSetupStep)
+        {
+            MoveToStep(1);
+            return;
+        }
+
         MoveToStep(_currentStepIndex - 1);
+    }
+
+    private void MoveToRuntimeTools()
+    {
+        if (!IsRuntimeToolsStep)
+        {
+            _runtimeToolsReturnStep = _currentStepIndex;
+        }
+
+        MoveToStep(6);
     }
 
     private void MoveToStep(int stepIndex)
@@ -1271,7 +1347,7 @@ public sealed class MainWindowViewModel : ViewModelBase
             case 0:
                 CurrentStepTitle = "Welcome";
                 CurrentStepSubtitle =
-                    "This app installs and manages the local runtime systems required by the Nymphs addon.";
+                    "Set up the local NymphsCore pipeline for Blender.";
                 PrimaryButtonText = "Continue";
                 break;
             case 1:
@@ -1287,7 +1363,9 @@ public sealed class MainWindowViewModel : ViewModelBase
                             ? "Set Up WSL"
                             : HasSystemCheckFailures
                             ? "Run Checks Again"
-                            : "Continue";
+                            : ManagedDistroDetected
+                                ? "Repair Runtime"
+                                : "Continue";
                 break;
             case 2:
                 CurrentStepTitle = "Install Location";
@@ -1296,19 +1374,27 @@ public sealed class MainWindowViewModel : ViewModelBase
                 PrimaryButtonText = "Continue";
                 break;
             case 3:
-                CurrentStepTitle = "WSL Resources And Models";
+                CurrentStepTitle = ManagedDistroDetected ? "Repair Runtime Settings" : "WSL Resources And Models";
                 CurrentStepSubtitle =
-                    "Choose how the installer should handle .wslconfig, then decide whether to prefetch models now.";
-                PrimaryButtonText = ManagedDistroDetected ? "Repair / Refresh" : "Start Install";
+                    ManagedDistroDetected
+                        ? "Choose how the manager should handle .wslconfig and model downloads while repairing the existing runtime in place."
+                        : "Choose how the installer should handle .wslconfig, then decide whether to prefetch models now.";
+                PrimaryButtonText = ManagedDistroDetected ? "Run Repair" : "Start Install";
                 break;
             case 4:
-                CurrentStepTitle = "Installation Progress";
+                CurrentStepTitle = ManagedDistroDetected || _lastRunUsedExistingInstall ? "Repair Progress" : "Installation Progress";
                 CurrentStepSubtitle =
-                    "The app is importing or repairing the managed distro and running the selected setup steps.";
+                    ManagedDistroDetected || _lastRunUsedExistingInstall
+                        ? "The manager is repairing the existing managed distro and refreshing the selected runtime pieces."
+                        : "The app is importing or repairing the managed distro and running the selected setup steps.";
                 PrimaryButtonText = "Finish";
                 break;
             case 5:
-                CurrentStepTitle = _installSucceeded ? GetFinishSuccessTitle() : "Install Summary";
+                CurrentStepTitle = _installSucceeded
+                    ? GetFinishSuccessTitle()
+                    : _lastRunUsedExistingInstall
+                        ? "Repair Summary"
+                        : "Install Summary";
                 CurrentStepSubtitle =
                     _installSucceeded
                         ? GetFinishSuccessSubtitle()

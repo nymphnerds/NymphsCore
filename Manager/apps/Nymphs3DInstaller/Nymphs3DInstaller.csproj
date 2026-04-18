@@ -7,6 +7,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>Nymphs3DInstaller</RootNamespace>
     <AssemblyName>NymphsCoreManager</AssemblyName>
+    <ApplicationIcon>../../../../Graphics/nsw.ico</ApplicationIcon>
     <Platforms>x64</Platforms>
     <PublishSingleFile>true</PublishSingleFile>
     <SelfContained>false</SelfContained>
@@ -19,4 +20,13 @@
   <PropertyGroup Condition="'$(Configuration)' != 'Debug'">
     <ApplicationManifest>app.manifest</ApplicationManifest>
   </PropertyGroup>
+
+  <ItemGroup>
+    <Resource Include="../../../../Graphics/nsw.ico">
+      <Link>Assets/nsw.ico</Link>
+    </Resource>
+    <Resource Include="../../../../Graphics/splash.png">
+      <Link>Assets/splash.png</Link>
+    </Resource>
+  </ItemGroup>
 </Project>
