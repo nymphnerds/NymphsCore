@@ -27,7 +27,12 @@ if (-not (Test-Path $exePath)) {
 $scriptsSource = Join-Path $repoRoot "scripts"
 $scriptsDestination = Join-Path $publishRoot "scripts"
 if (Test-Path $scriptsSource) {
-    Copy-Item -Path $scriptsSource -Destination $scriptsDestination -Recurse -Force
+    if (Test-Path $scriptsDestination) {
+        Remove-Item -Path $scriptsDestination -Recurse -Force
+    }
+
+    New-Item -ItemType Directory -Path $scriptsDestination -Force | Out-Null
+    Copy-Item -Path (Join-Path $scriptsSource "*") -Destination $scriptsDestination -Recurse -Force
     
     # Clean up Python cache
     Get-ChildItem -Path $scriptsDestination -Recurse -Directory -Filter "__pycache__" |
