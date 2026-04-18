@@ -22,7 +22,7 @@ Previously the codebase was split across several repos under the `Babyjawz` acco
 The old `Babyjawz` repos are kept alive as backups and because the installer references some of their URLs — don't rename or delete them.
 
 ### Why is the Blender Extension a separate repo?
-Blender Extensions (Blender 4.2+) must have `blender_manifest.toml` at the **root** of a repo to support direct Git URL installs from inside Blender. Unlike Unity, Blender doesn't support a `?path=` subfolder parameter. So each Blender Extension needs its own repo — see [`NymphsExt`](https://github.com/nymphnerds/NymphsExt).
+Blender Extensions (Blender 4.2+) must have `blender_manifest.toml` at the **root** of a repo to support direct Git URL installs from inside Blender. So each Blender Extension needs its own repo — see [`NymphsExt`](https://github.com/nymphnerds/NymphsExt).
 
 The classic **Blender Addon** (`Blender/Addon/`) is different — it's installed by the Manager app automatically, so it doesn't need to be Blender-accessible directly and lives fine as a subfolder here.
 
@@ -30,30 +30,7 @@ The current addon workflow includes guided image part extraction: generate or ch
 
 ---
 
-## Unity Packages
-
-Unity packages now live in their own repo:
-
-```
-https://github.com/nymphnerds/unity-packages
-```
-
-Install the top-down controller from Unity Package Manager with:
-
-```
-https://github.com/nymphnerds/unity-packages.git?path=/TDC-Camera
-```
-
-Or add it directly to `Packages/manifest.json`:
-```json
-"com.nymphs.topdown-controller": "https://github.com/nymphnerds/unity-packages.git?path=/TDC-Camera"
-```
-
----
-
 ## Adding Things in Future
-
-**New Unity package** — add it to [`nymphnerds/unity-packages`](https://github.com/nymphnerds/unity-packages), not this repo.
 
 **New Blender Extension** — create a new repo on `nymphnerds` with `blender_manifest.toml` at the root. Same pattern as `NymphsExt`.
 
@@ -67,11 +44,11 @@ Or add it directly to `Packages/manifest.json`:
 git clone https://github.com/nymphnerds/NymphsCore.git
 ```
 
-No submodules. Push normally. Unity package development happens in [`nymphnerds/unity-packages`](https://github.com/nymphnerds/unity-packages).
+No submodules. Push normally.
 
 ## Changelog
 
-See [`CHANGELOG.md`](CHANGELOG.md) for the full NymphsCore change history across the Manager, Blender addon, extension publishing flow, and Unity package migration.
+See [`CHANGELOG.md`](CHANGELOG.md) for the full NymphsCore change history across the Manager, Blender addon, and extension publishing flow.
 
 ---
 
@@ -80,7 +57,5 @@ See [`CHANGELOG.md`](CHANGELOG.md) for the full NymphsCore change history across
 | Repo | Purpose |
 |---|---|
 | [NymphsExt](https://raw.githubusercontent.com/nymphnerds/NymphsExt/main/index.json) | Blender Extensions (install via repository URL) |
-| [unity-packages](https://github.com/nymphnerds/unity-packages) | Unity packages, including `TDC-Camera` |
 | [Nymphs3D](https://github.com/Babyjawz/Nymphs3D) | Original Manager repo (backup) |
 | [Nymphs3D-Blender-Addon](https://github.com/Babyjawz/Nymphs3D-Blender-Addon) | Original Addon repo (backup) |
-| [Nymphs-TDC-Unity](https://github.com/Babyjawz/Nymphs-TDC-Unity) | Original Unity repo (backup) |
