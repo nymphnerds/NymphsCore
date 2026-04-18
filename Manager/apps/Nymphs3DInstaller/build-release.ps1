@@ -79,13 +79,24 @@ if (Test-Path $tempZipPath) {
 
 $itemsToZip = Get-ChildItem -Path $publishRoot
 if ($itemsToZip.Count -gt 0) {
+    # Create a temporary folder to hold contents for zipping
+    $tempZipContent = Join-Path ([System.IO.Path]::GetTempPath()) ([System.IO.Path]::GetRandomFileName())
+    New-Item -ItemType Directory -Path $tempZipContent -Force | Out-Null
+    
+    # Copy contents (not the folder itself) to temp location
+    Copy-Item -Path "$publishRoot\*" -Destination $tempZipContent -Recurse -Force
+    
+    # Create zip from the temp folder contents
     [System.IO.Compression.ZipFile]::CreateFromDirectory(
-        $publishRoot,
+        $tempZipContent,
         $tempZipPath,
         [System.IO.Compression.CompressionLevel]::Optimal,
         $false
     )
-
+    
+    # Clean up temp folder
+    Remove-Item -Path $tempZipContent -Recurse -Force
+    
     $zipHeader = [System.IO.File]::ReadAllBytes($tempZipPath)
     if ($zipHeader.Length -lt 4 -or $zipHeader[0] -ne 0x50 -or $zipHeader[1] -ne 0x4B) {
         throw "Release archive validation failed: output is not a ZIP file."
