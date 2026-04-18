@@ -165,7 +165,7 @@ check_trellis() {
   fi
 
   if probe_trellis_models; then
-    emit_status "trellis" "TRELLIS.2" "yes" "yes" "yes" "Runtime env, adapter scripts, and required models are present. Ready for smoke test."
+    emit_status "trellis" "TRELLIS.2" "yes" "yes" "yes" "Runtime env and required models are present. Ready for smoke test."
   else
     emit_status "trellis" "TRELLIS.2" "yes" "no" "no" "Runtime env is ready, but required models are missing. Fetch models before testing."
   fi
