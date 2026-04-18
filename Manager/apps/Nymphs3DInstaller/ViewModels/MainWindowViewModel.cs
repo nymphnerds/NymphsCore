@@ -1463,7 +1463,8 @@ public sealed class MainWindowViewModel : ViewModelBase
                 CurrentStepSubtitle = ManagedDistroDetected
                     ? "Your NymphsCore is already set up. Click to manage it."
                     : "Set up the local NymphsCore pipeline for Blender.";
-                PrimaryButtonText = ManagedDistroDetected ? "Manage existing install" : "Continue";
+                // Keep short enough to fit the 180px primary button; "Manage existing install" clipped.
+                PrimaryButtonText = ManagedDistroDetected ? "Manage Install" : "Continue";
                 break;
             case 1:
                 CurrentStepTitle = "System Check";
