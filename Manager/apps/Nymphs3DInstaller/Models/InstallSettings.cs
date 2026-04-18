@@ -14,6 +14,16 @@ public sealed class InstallSettings
 
     public bool RepairExistingDistro { get; set; }
 
+    /// <summary>
+    /// When true, the installer only runs lightweight module/add-on work
+    /// (e.g. <c>install_nymphs_brain.sh</c>, optional model prefetch) and
+    /// skips the heavy finalize + backend venv resync pass. Used by the
+    /// "Add optional modules" action on an already-installed system so
+    /// users can add Nymphs-Brain (or similar) without triggering a full
+    /// 10-30 minute repair.
+    /// </summary>
+    public bool ModuleOnlyRun { get; set; }
+
     public string HuggingFaceToken { get; set; } = string.Empty;
 
     public WslConfigMode WslConfigMode { get; set; } = WslConfigMode.Recommended;

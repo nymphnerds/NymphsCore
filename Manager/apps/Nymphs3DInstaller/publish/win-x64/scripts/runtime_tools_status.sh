@@ -124,7 +124,7 @@ check_hunyuan() {
   fi
 
   if probe_hunyuan_models; then
-    emit_status "2mv" "Hunyuan 2mv" "yes" "yes" "yes" "Runtime env and required models are present. Ready for smoke test."
+    emit_status "2mv" "Hunyuan 2mv" "yes" "yes" "yes" "All components present. Ready for smoke test."
   else
     emit_status "2mv" "Hunyuan 2mv" "yes" "no" "no" "Runtime env is ready, but required models are missing. Fetch models before testing."
   fi
@@ -142,7 +142,7 @@ check_zimage() {
   fi
 
   if probe_zimage_models; then
-    emit_status "zimage" "Z-Image" "yes" "yes" "yes" "Runtime env and required models are present. Ready for smoke test."
+    emit_status "zimage" "Z-Image" "yes" "yes" "yes" "All components present. Ready for smoke test."
   else
     emit_status "zimage" "Z-Image" "yes" "no" "no" "Runtime env is ready, but required models are missing. Fetch models before testing."
   fi
@@ -165,7 +165,7 @@ check_trellis() {
   fi
 
   if probe_trellis_models; then
-    emit_status "trellis" "TRELLIS.2" "yes" "yes" "yes" "Runtime env, adapter scripts, and required models are present. Ready for smoke test."
+    emit_status "trellis" "TRELLIS.2" "yes" "yes" "yes" "All components present. Ready for smoke test."
   else
     emit_status "trellis" "TRELLIS.2" "yes" "no" "no" "Runtime env is ready, but required models are missing. Fetch models before testing."
   fi
