@@ -301,6 +301,70 @@ public sealed class InstallerWorkflowService
         }
     }
 
+    public async Task RunNymphsBrainInstallAsync(
+        InstallSettings settings,
+        IProgress<string> progress,
+        CancellationToken cancellationToken)
+    {
+        if (!settings.InstallNymphsBrain)
+        {
+            progress.Report("Nymphs-Brain: skipped. Experimental local LLM stack was not selected.");
+            return;
+        }
+
+        var brainScript = RequireScript("install_nymphs_brain.sh");
+        var wslBrainScriptPath = ConvertWindowsPathToWsl(brainScript)
+            ?? throw new InvalidOperationException($"Could not convert script path for WSL: {brainScript}");
+
+        var scriptArguments = new List<string>
+        {
+            "--install-root", settings.BrainInstallRoot,
+            "--model", settings.BrainModelId,
+            "--quant", settings.BrainQuantization,
+            "--context", settings.BrainContextLength.ToString(),
+            "--quiet",
+        };
+
+        if (settings.DownloadBrainModelNow)
+        {
+            scriptArguments.Add("--download-model");
+        }
+
+        var bashCommand =
+            "set -euo pipefail; " +
+            $"export HOME={ToBashSingleQuoted($"/home/{settings.LinuxUser}")}; " +
+            $"export USER={ToBashSingleQuoted(settings.LinuxUser)}; " +
+            $"export LOGNAME={ToBashSingleQuoted(settings.LinuxUser)}; " +
+            "export NYMPHS3D_RUNTIME_ROOT=\"$HOME\"; " +
+            $"bash {ToBashSingleQuoted(wslBrainScriptPath)} {string.Join(" ", scriptArguments.Select(ToBashSingleQuoted))}";
+
+        var arguments = new List<string>
+        {
+            "-d", settings.DistroName,
+            "--user", settings.LinuxUser,
+            "--",
+            "/bin/bash", "-lc", bashCommand,
+        };
+
+        progress.Report($"Nymphs-Brain: installing experimental local LLM stack to {settings.BrainInstallRoot}.");
+        progress.Report(settings.DownloadBrainModelNow
+            ? $"Nymphs-Brain: selected model will be downloaded now ({settings.BrainModelId})."
+            : $"Nymphs-Brain: tools will be installed now; model download is deferred ({settings.BrainModelId}).");
+
+        var result = await _processRunner.RunAsync(
+            fileName: "wsl.exe",
+            arguments,
+            workingDirectory: Environment.SystemDirectory,
+            progress,
+            environmentVariables: null,
+            cancellationToken).ConfigureAwait(false);
+
+        if (result.ExitCode != 0)
+        {
+            throw new InvalidOperationException("Nymphs-Brain install failed.");
+        }
+    }
+
     public async Task RunModelPrefetchOnlyAsync(
         InstallSettings settings,
         IProgress<string> progress,

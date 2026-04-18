@@ -19,6 +19,7 @@ public sealed class MainWindowViewModel : ViewModelBase
         "- Hunyuan 2mv Python .venv: about 6.1 GB\n" +
         "- Z-Image Turbo via Nunchaku Python .venv: about 5.4 GB\n" +
         "- CUDA 13.0 in WSL: about 4.9 GB";
+    private const string BrainInstallRoot = "/home/nymph/Nymphs-Brain";
 
     private readonly InstallerWorkflowService _workflowService;
     private readonly AsyncRelayCommand _primaryCommand;
@@ -66,6 +67,11 @@ public sealed class MainWindowViewModel : ViewModelBase
     private int _wslCustomMemoryGb;
     private int _wslCustomProcessors;
     private int _wslCustomSwapGb;
+    private bool _installNymphsBrain;
+    private bool _downloadBrainModelNow;
+    private BrainModelOption? _selectedBrainModelOption;
+    private string _customBrainModelId = string.Empty;
+    private int _brainContextLength = 16384;
     private RuntimeBackendStatus _hunyuanRuntimeStatus = RuntimeBackendStatus.Unknown("2mv", "Hunyuan 2mv", "Open Runtime Tools to check status.");
     private RuntimeBackendStatus _zImageRuntimeStatus = RuntimeBackendStatus.Unknown("zimage", "Z-Image", "Open Runtime Tools to check status.");
     private RuntimeBackendStatus _trellisRuntimeStatus = RuntimeBackendStatus.Unknown("trellis", "TRELLIS.2", "Open Runtime Tools to check status.");
@@ -78,6 +84,7 @@ public sealed class MainWindowViewModel : ViewModelBase
         SystemChecks = new ObservableCollection<SystemCheckItem>();
         LogLines = new ObservableCollection<string>();
         WslConfigOptions = new ObservableCollection<WslConfigModeOption>();
+        BrainModelOptions = new ObservableCollection<BrainModelOption>();
 
         _primaryCommand = new AsyncRelayCommand(ExecutePrimaryActionAsync, CanExecutePrimaryAction);
         _checkForUpdatesCommand = new AsyncRelayCommand(RunManagedRepoUpdateCheckAsync, CanRunManagedRepoUpdateCheck);
@@ -99,6 +106,7 @@ public sealed class MainWindowViewModel : ViewModelBase
             .FirstOrDefault();
 
         InitializeWslConfigChoices();
+        InitializeBrainChoices();
 
         RecomputeStepState();
     }
@@ -112,6 +120,8 @@ public sealed class MainWindowViewModel : ViewModelBase
     public ObservableCollection<string> LogLines { get; }
 
     public ObservableCollection<WslConfigModeOption> WslConfigOptions { get; }
+
+    public ObservableCollection<BrainModelOption> BrainModelOptions { get; }
 
     public AsyncRelayCommand PrimaryCommand => _primaryCommand;
 
@@ -332,6 +342,107 @@ public sealed class MainWindowViewModel : ViewModelBase
 
     public string RuntimeDownloadDetailsText => RuntimeDownloadDetails;
 
+    public bool InstallNymphsBrain
+    {
+        get => _installNymphsBrain;
+        set
+        {
+            if (SetProperty(ref _installNymphsBrain, value))
+            {
+                OnPropertyChanged(nameof(BrainInstallSummary));
+                OnPropertyChanged(nameof(BrainOptionsEnabled));
+                RaiseCommandStateChanged();
+            }
+        }
+    }
+
+    public bool BrainOptionsEnabled => InstallNymphsBrain;
+
+    public bool DownloadBrainModelNow
+    {
+        get => _downloadBrainModelNow;
+        set
+        {
+            if (SetProperty(ref _downloadBrainModelNow, value))
+            {
+                OnPropertyChanged(nameof(BrainInstallSummary));
+                RaiseCommandStateChanged();
+            }
+        }
+    }
+
+    public BrainModelOption? SelectedBrainModelOption
+    {
+        get => _selectedBrainModelOption;
+        set
+        {
+            if (SetProperty(ref _selectedBrainModelOption, value))
+            {
+                if (value is not null && !value.IsCustom)
+                {
+                    BrainContextLength = value.ContextLength;
+                }
+
+                OnPropertyChanged(nameof(IsCustomBrainModel));
+                OnPropertyChanged(nameof(BrainSelectedModelDescription));
+                OnPropertyChanged(nameof(BrainInstallSummary));
+                RaiseCommandStateChanged();
+            }
+        }
+    }
+
+    public bool IsCustomBrainModel => SelectedBrainModelOption?.IsCustom == true;
+
+    public string CustomBrainModelId
+    {
+        get => _customBrainModelId;
+        set
+        {
+            var normalized = value?.Trim() ?? string.Empty;
+            if (SetProperty(ref _customBrainModelId, normalized))
+            {
+                OnPropertyChanged(nameof(BrainInstallSummary));
+                RaiseCommandStateChanged();
+            }
+        }
+    }
+
+    public int BrainContextLength
+    {
+        get => _brainContextLength;
+        set
+        {
+            if (SetProperty(ref _brainContextLength, value))
+            {
+                OnPropertyChanged(nameof(BrainInstallSummary));
+                RaiseCommandStateChanged();
+            }
+        }
+    }
+
+    public string BrainInstallPath => BrainInstallRoot;
+
+    public string BrainSelectedModelDescription =>
+        SelectedBrainModelOption?.Description ?? "Choose a model preset for the experimental local LLM stack.";
+
+    public string BrainInstallSummary
+    {
+        get
+        {
+            if (!InstallNymphsBrain)
+            {
+                return "Nymphs-Brain is optional and will not be installed. Core Blender/backend features are unaffected.";
+            }
+
+            var modelId = ResolveBrainModelId();
+            var download = DownloadBrainModelNow
+                ? "The selected model will download during install."
+                : "Model download is deferred; tools and wrappers are installed now.";
+
+            return $"Experimental Nymphs-Brain will install to {BrainInstallRoot}. Model: {modelId}, context={BrainContextLength}. {download}";
+        }
+    }
+
     public string RecommendedWslConfigSummary
     {
         get => _recommendedWslConfigSummary;
@@ -513,7 +624,7 @@ public sealed class MainWindowViewModel : ViewModelBase
             0 => true,
             1 => true,
             2 => SelectedDrive is not null,
-            3 => SelectedDrive is not null && HasValidWslConfigSelection(),
+            3 => SelectedDrive is not null && HasValidWslConfigSelection() && HasValidBrainSelection(),
             4 => _installCompleted,
             5 => true,
             6 => true,
@@ -1023,6 +1134,12 @@ public sealed class MainWindowViewModel : ViewModelBase
                 WslMemoryGb = WslCustomMemoryGb,
                 WslProcessors = WslCustomProcessors,
                 WslSwapGb = WslCustomSwapGb,
+                InstallNymphsBrain = InstallNymphsBrain,
+                DownloadBrainModelNow = DownloadBrainModelNow,
+                BrainInstallRoot = BrainInstallRoot,
+                BrainModelId = ResolveBrainModelId(),
+                BrainQuantization = ResolveBrainQuantization(),
+                BrainContextLength = BrainContextLength,
             };
 
             if (settings.RepairExistingDistro)
@@ -1047,6 +1164,7 @@ public sealed class MainWindowViewModel : ViewModelBase
                     ? "Model prefetch: enabled"
                     : "Model prefetch: disabled");
             AppendInstallLog(BuildWslConfigLogLine(settings));
+            AppendInstallLog(BuildBrainInstallLogLine(settings));
 
             var progress = new Progress<string>(line =>
             {
@@ -1072,7 +1190,21 @@ public sealed class MainWindowViewModel : ViewModelBase
             LogLines.Add("Running the selected runtime setup...");
             AppendInstallLog("Running the selected runtime setup...");
             await _workflowService.RunRuntimeSetupAsync(settings, progress, CancellationToken.None).ConfigureAwait(true);
-            ProgressValue = 90;
+            ProgressValue = 85;
+
+            if (settings.InstallNymphsBrain)
+            {
+                LogLines.Add("Installing experimental Nymphs-Brain module...");
+                AppendInstallLog("Installing experimental Nymphs-Brain module...");
+                await _workflowService.RunNymphsBrainInstallAsync(settings, progress, CancellationToken.None).ConfigureAwait(true);
+            }
+            else
+            {
+                LogLines.Add("Skipping experimental Nymphs-Brain module.");
+                AppendInstallLog("Skipping experimental Nymphs-Brain module.");
+            }
+
+            ProgressValue = 95;
 
             _installSucceeded = true;
             _installCompleted = true;
@@ -1233,13 +1365,16 @@ public sealed class MainWindowViewModel : ViewModelBase
         var runtimeTail = settings.PrefetchModelsNow
             ? "Required models were prefetched during setup."
             : "Runtime environments were prepared. The manager or Blender addon will download required models later on first real use.";
+        var brainTail = settings.InstallNymphsBrain
+            ? $" Experimental Nymphs-Brain was installed to {settings.BrainInstallRoot}."
+            : " Experimental Nymphs-Brain was skipped.";
 
         if (settings.RepairExistingDistro)
         {
-            return $"Your existing NymphsCore runtime was repaired and refreshed in place. Default Linux user: {settings.LinuxUser}. Managed repos were checked during this run. {runtimeTail}";
+            return $"Your existing NymphsCore runtime was repaired and refreshed in place. Default Linux user: {settings.LinuxUser}. Managed repos were checked during this run. {runtimeTail}{brainTail}";
         }
 
-        return $"NymphsCore was installed to {settings.InstallLocation}. Default Linux user: {settings.LinuxUser}. {runtimeTail}";
+        return $"NymphsCore was installed to {settings.InstallLocation}. Default Linux user: {settings.LinuxUser}. {runtimeTail}{brainTail}";
     }
 
     private static bool ShouldShowUpdateCheckLine(string line)
@@ -1294,6 +1429,54 @@ public sealed class MainWindowViewModel : ViewModelBase
             option.Mode == (current.Exists ? WslConfigMode.KeepExisting : WslConfigMode.Recommended));
     }
 
+    private void InitializeBrainChoices()
+    {
+        BrainModelOptions.Add(new BrainModelOption(
+            "auto",
+            "Auto recommended",
+            "Detect GPU VRAM in WSL and choose a sensible experimental default.",
+            "auto",
+            "q4_k_m",
+            16384));
+        BrainModelOptions.Add(new BrainModelOption(
+            "small",
+            "Small / safe",
+            "Smallest default for low VRAM or quick smoke testing. Good for proving the stack works.",
+            "qwen/qwen3-1.7b",
+            "q4_k_m",
+            8192));
+        BrainModelOptions.Add(new BrainModelOption(
+            "balanced",
+            "Balanced coder",
+            "Good first serious coding-agent preset for 16GB+ VRAM systems.",
+            "qwen/qwen2.5-coder-14b",
+            "q4_k_m",
+            16384));
+        BrainModelOptions.Add(new BrainModelOption(
+            "high-end",
+            "High-end coder",
+            "Larger coding model preset for 24GB to 32GB+ VRAM machines.",
+            "qwen/qwen2.5-coder-32b",
+            "q4_k_m",
+            32768));
+        BrainModelOptions.Add(new BrainModelOption(
+            "large-experimental",
+            "Large experimental",
+            "Bigger experimental MoE-style preset for roomy 4080/4090/5090-class setups.",
+            "qwen/qwen3-30b-a3b",
+            "q4_k_m",
+            32768));
+        BrainModelOptions.Add(new BrainModelOption(
+            "custom",
+            "Custom model id",
+            "Enter a model id manually. The Manager passes it to LM Studio CLI without validation.",
+            string.Empty,
+            "q4_k_m",
+            16384));
+
+        SelectedBrainModelOption = BrainModelOptions.FirstOrDefault(option => option.Id == "auto");
+    }
+
     private bool HasValidWslConfigSelection()
     {
         if (SelectedWslConfigOption is null)
@@ -1311,6 +1494,36 @@ public sealed class MainWindowViewModel : ViewModelBase
                WslCustomSwapGb >= 0;
     }
 
+    private bool HasValidBrainSelection()
+    {
+        if (!InstallNymphsBrain)
+        {
+            return true;
+        }
+
+        if (SelectedBrainModelOption is null || BrainContextLength < 1024)
+        {
+            return false;
+        }
+
+        return !SelectedBrainModelOption.IsCustom || !string.IsNullOrWhiteSpace(CustomBrainModelId);
+    }
+
+    private string ResolveBrainModelId()
+    {
+        if (SelectedBrainModelOption?.IsCustom == true)
+        {
+            return CustomBrainModelId;
+        }
+
+        return SelectedBrainModelOption?.ModelId ?? "auto";
+    }
+
+    private string ResolveBrainQuantization()
+    {
+        return SelectedBrainModelOption?.Quantization ?? "q4_k_m";
+    }
+
     private static string FormatNullableValue(int? value, string suffix = "")
     {
         return value.HasValue ? $"{value.Value}{suffix}" : "not set";
@@ -1324,6 +1537,18 @@ public sealed class MainWindowViewModel : ViewModelBase
             WslConfigMode.Custom => $"WSL resource settings: custom memory={settings.WslMemoryGb}GB, processors={settings.WslProcessors}, swap={settings.WslSwapGb}GB.",
             _ => "WSL resource settings: using recommended values for this PC.",
         };
+    }
+
+    private static string BuildBrainInstallLogLine(InstallSettings settings)
+    {
+        if (!settings.InstallNymphsBrain)
+        {
+            return "Nymphs-Brain: skipped.";
+        }
+
+        return settings.DownloadBrainModelNow
+            ? $"Nymphs-Brain: enabled, install root={settings.BrainInstallRoot}, model={settings.BrainModelId}, context={settings.BrainContextLength}, download now."
+            : $"Nymphs-Brain: enabled, install root={settings.BrainInstallRoot}, model={settings.BrainModelId}, context={settings.BrainContextLength}, model download deferred.";
     }
 
     private static UpdateCheckPresentation BuildFriendlyUpdateCheckSummary(IEnumerable<string> lines)

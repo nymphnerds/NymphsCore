@@ -23,4 +23,16 @@ public sealed class InstallSettings
     public int WslProcessors { get; set; }
 
     public int WslSwapGb { get; set; }
+
+    public bool InstallNymphsBrain { get; set; }
+
+    public bool DownloadBrainModelNow { get; set; }
+
+    public string BrainInstallRoot { get; set; } = "/home/nymph/Nymphs-Brain";
+
+    public string BrainModelId { get; set; } = "auto";
+
+    public string BrainQuantization { get; set; } = "q4_k_m";
+
+    public int BrainContextLength { get; set; } = 16384;
 }
