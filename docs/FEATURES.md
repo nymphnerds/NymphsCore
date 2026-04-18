@@ -1,4 +1,3 @@
-# NymphsCore - Features & Strengths
 
 ## Why NymphsCore Changes the Game
 
