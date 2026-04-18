@@ -77,7 +77,7 @@ Use the Windows manager app.
 
 Recommended download:
 
-- [Download NymphsCoreManager-win-x64.zip](https://github.com/nymphnerds/NymphsCore/raw/main/apps/Nymphs3DInstaller/publish/NymphsCoreManager-win-x64.zip)
+- [Download NymphsCoreManager-win-x64.zip](https://github.com/nymphnerds/NymphsCore/raw/main/Manager/apps/Nymphs3DInstaller/publish/NymphsCoreManager-win-x64.zip)
 - [Download NymphsCore.tar](https://drive.google.com/file/d/1PIE9LJCcb06MCQ9G4T5ywrBJ8DWeqR5a/view?usp=drive_link)
 
 Beginner path:

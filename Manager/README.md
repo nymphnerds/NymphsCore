@@ -33,7 +33,7 @@ Old `exp/2mv-remake` download URLs are obsolete.
 
 Download these two files:
 
-- [NymphsCoreManager-win-x64.zip](https://github.com/nymphnerds/NymphsCore/raw/main/apps/Nymphs3DInstaller/publish/NymphsCoreManager-win-x64.zip)
+- [NymphsCoreManager-win-x64.zip](https://github.com/nymphnerds/NymphsCore/raw/main/Manager/apps/Nymphs3DInstaller/publish/NymphsCoreManager-win-x64.zip)
 - [NymphsCore.tar](https://drive.google.com/file/d/1PIE9LJCcb06MCQ9G4T5ywrBJ8DWeqR5a/view?usp=drive_link)
 
 ## What To Do

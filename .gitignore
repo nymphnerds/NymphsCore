@@ -21,3 +21,6 @@
 Thumbs.db
 *:Zone.Identifier
 
+# Local planning/handoff notes
+**/handoff_*.md
+**/HANDOFF*.md

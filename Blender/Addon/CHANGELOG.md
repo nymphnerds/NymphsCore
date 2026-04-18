@@ -21,6 +21,17 @@ Across the full documented history, the project moved through eight phases:
 
 Newest entries first.
 
+### 2026-04-18 prompt preset folder consolidation and public docs cleanup
+Source: commercial-readiness cleanup before pushing the remote repo.
+
+Documented changes:
+
+- consolidated packaged subject and style prompt preset JSON into one `prompt_presets/` source folder
+- updated the addon release package list so extension zips ship `prompt_presets/` instead of a separate `style_presets/` folder
+- expanded the customer-facing addon user guide
+- removed local handoff notes from tracked public docs
+- added ignore rules so future handoff notes stay local
+
 ### 2026-04-17 clear stale part plans on source change
 Source: follow-up after testing showed the planned parts list could remain from an older source image.
 

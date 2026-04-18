@@ -3,6 +3,8 @@
 
 Nymphs is the Blender frontend for the NymphsCore runtime. It creates image references, turns them into textured meshes, and can retexture selected meshes when a result needs another pass.
 
+For the full customer-facing walkthrough, see [`docs/USER_GUIDE.md`](docs/USER_GUIDE.md).
+
 ## Install From Blender
 
 Use the public extension feed:
@@ -47,7 +49,7 @@ For OpenRouter, paste an API key in the addon field or set `OPENROUTER_API_KEY` 
 Useful image tools:
 
 - subject/style prompt presets plus manual prompt editing
-- editable JSON prompt presets in `prompt_presets/`
+- editable subject, style, and saved-prompt JSON presets in one `prompt_presets/` folder
 - `Image Part Extraction` for planning and extracting separate parts from one master image
 - optional face, eyes-in-base, eyeball-only, style lock, and symmetry controls for extraction passes
 - generation profiles for size, steps, seed, guidance, and variant count
@@ -117,7 +119,7 @@ The retired Hunyuan Parts / P3-SAM / X-Part workflow is no longer included.
 - `Nymphs.py` is the live addon implementation.
 - `__init__.py` is the Blender package entrypoint.
 - `blender_manifest.toml` defines the Blender extension metadata.
-- `prompt_presets/` contains editable packaged prompt presets.
+- `prompt_presets/` contains editable packaged subject and style prompt presets.
 - `scripts/addon_release.py` builds extension zips and refreshes extension feed metadata.
 
 ## Build A Test Zip

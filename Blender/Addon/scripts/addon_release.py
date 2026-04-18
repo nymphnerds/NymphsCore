@@ -20,7 +20,6 @@ PACKAGE_PATHS = (
     "__init__.py",
     "blender_manifest.toml",
     "prompt_presets",
-    "style_presets",
 )
 
 

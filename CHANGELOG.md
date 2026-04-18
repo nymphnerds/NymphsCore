@@ -21,6 +21,17 @@ Across the full documented history, the project moved through eight phases:
 
 Newest entries first.
 
+### 2026-04-18 commercial docs and addon preset cleanup
+Source: remote repository cleanup for the planned commercial Blender addon product.
+
+Documented changes:
+
+- expanded the customer-facing Blender addon user guide
+- removed local handoff notes from tracked public docs
+- added ignore rules so future handoff notes stay local
+- corrected public Manager download links to the current `Manager/apps/...` path
+- consolidated packaged addon subject and style prompt preset JSON under one `prompt_presets/` source folder
+
 ### 2026-04-17 moved Unity packages to `nymphnerds/unity-packages`
 Source: repository structure cleanup after deciding Unity packages should live outside the NymphsCore runtime/addon repo.
 

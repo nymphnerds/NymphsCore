@@ -112,7 +112,6 @@ DEFAULT_IMAGEGEN_PROMPT_TEXT_NAME = "Nymphs Image Prompt"
 DEFAULT_PART_EXTRACTION_GUIDANCE_TEXT_NAME = "Nymphs Part Extraction Guidance"
 PACKAGED_IMAGEGEN_PROMPT_PRESET_DIR = "prompt_presets"
 DEFAULT_IMAGEGEN_STYLE_PRESET = "__none__"
-PACKAGED_IMAGEGEN_STYLE_PRESET_DIR = "style_presets"
 PROMPT_KIND_SUBJECT = "subject"
 PROMPT_KIND_STYLE = "style"
 PROMPT_KIND_SAVED = "saved"
@@ -238,7 +237,10 @@ def _packaged_imagegen_prompt_preset_dir():
 
 def _load_packaged_imagegen_prompt_presets():
     preset_dir = _packaged_imagegen_prompt_preset_dir()
-    presets = {}
+    presets = {
+        PROMPT_KIND_SUBJECT: {},
+        PROMPT_KIND_STYLE: {},
+    }
     if not os.path.isdir(preset_dir):
         return presets
     for filename in sorted(os.listdir(preset_dir)):
@@ -251,20 +253,31 @@ def _load_packaged_imagegen_prompt_presets():
                 data = json.load(handle)
         except Exception:
             continue
+        raw_kind = str(data.get("kind") or data.get("type") or "").strip().lower()
+        if raw_kind in {PROMPT_KIND_SUBJECT, PROMPT_KIND_STYLE}:
+            kind = raw_kind
+        elif data.get("style") and not data.get("prompt"):
+            kind = PROMPT_KIND_STYLE
+        else:
+            kind = PROMPT_KIND_SUBJECT
+        if kind == PROMPT_KIND_STYLE and key.endswith("_style"):
+            key = key[: -len("_style")]
         label = str(data.get("name") or data.get("label") or key.replace("_", " ").title()).strip()
-        description = str(data.get("description") or f"Packaged prompt preset: {filename}").strip()
-        prompt = str(data.get("prompt") or "").strip()
-        if not prompt:
+        description = str(data.get("description") or f"Packaged {PROMPT_KIND_LABELS[kind].lower()} preset: {filename}").strip()
+        text = str(data.get("prompt") or data.get("style") or "").strip()
+        if not text:
             continue
-        presets[key] = {
-            "label": label,
-            "description": description,
-            "prompt": prompt,
-        }
+        entry = {"label": label, "description": description}
+        if kind == PROMPT_KIND_STYLE:
+            entry["style"] = text
+        else:
+            entry["prompt"] = text
+        presets[kind][key] = entry
     return presets
 
 
-IMAGEGEN_PROMPT_PRESETS.update(_load_packaged_imagegen_prompt_presets())
+PACKAGED_IMAGEGEN_PROMPT_PRESETS = _load_packaged_imagegen_prompt_presets()
+IMAGEGEN_PROMPT_PRESETS.update(PACKAGED_IMAGEGEN_PROMPT_PRESETS.get(PROMPT_KIND_SUBJECT, {}))
 IMAGEGEN_STYLE_PRESETS = {
     "painterly_fantasy": {
         "label": "Painterly Fantasy",
@@ -318,41 +331,7 @@ IMAGEGEN_STYLE_PRESETS = {
         ),
     },
 }
-
-
-def _packaged_imagegen_style_preset_dir():
-    return os.path.join(os.path.dirname(os.path.abspath(__file__)), PACKAGED_IMAGEGEN_STYLE_PRESET_DIR)
-
-
-def _load_packaged_imagegen_style_presets():
-    preset_dir = _packaged_imagegen_style_preset_dir()
-    presets = {}
-    if not os.path.isdir(preset_dir):
-        return presets
-    for filename in sorted(os.listdir(preset_dir)):
-        if not filename.lower().endswith(".json"):
-            continue
-        key = os.path.splitext(filename)[0]
-        path = os.path.join(preset_dir, filename)
-        try:
-            with open(path, "r", encoding="utf-8") as handle:
-                data = json.load(handle)
-        except Exception:
-            continue
-        label = str(data.get("name") or data.get("label") or key.replace("_", " ").title()).strip()
-        description = str(data.get("description") or f"Packaged style preset: {filename}").strip()
-        style = str(data.get("style") or data.get("prompt") or "").strip()
-        if not style:
-            continue
-        presets[key] = {
-            "label": label,
-            "description": description,
-            "style": style,
-        }
-    return presets
-
-
-IMAGEGEN_STYLE_PRESETS.update(_load_packaged_imagegen_style_presets())
+IMAGEGEN_STYLE_PRESETS.update(PACKAGED_IMAGEGEN_PROMPT_PRESETS.get(PROMPT_KIND_STYLE, {}))
 IMAGEGEN_PROMPT_PRESET_ITEMS = tuple(
     (key, data["label"], data["description"]) for key, data in IMAGEGEN_PROMPT_PRESETS.items()
 )
