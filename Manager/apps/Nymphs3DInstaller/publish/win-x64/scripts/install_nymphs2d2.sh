@@ -102,6 +102,23 @@ if [[ -d "${LIVE_VENV_DIR}" ]]; then
   mv "${LIVE_VENV_DIR}" "${BACKUP_VENV_DIR}"
 fi
 mv "${STAGING_VENV_DIR}" "${LIVE_VENV_DIR}"
+
+# Python's venv bakes the absolute path of the venv into its activate scripts
+# and its pyvenv.cfg. After renaming the staging dir into the live location we
+# must rewrite those references so `source .venv-nunchaku/bin/activate` places
+# the correct bin directory on PATH (otherwise `python` is not found).
+echo "Rewriting staged venv paths to point at ${LIVE_VENV_DIR}"
+for activate_file in \
+  "${LIVE_VENV_DIR}/bin/activate" \
+  "${LIVE_VENV_DIR}/bin/activate.csh" \
+  "${LIVE_VENV_DIR}/bin/activate.fish" \
+  "${LIVE_VENV_DIR}/bin/Activate.ps1" \
+  "${LIVE_VENV_DIR}/pyvenv.cfg"; do
+  if [[ -f "${activate_file}" ]]; then
+    sed -i "s|${STAGING_VENV_DIR}|${LIVE_VENV_DIR}|g; s|\\.venv-nunchaku\\.staging|.venv-nunchaku|g" "${activate_file}"
+  fi
+done
+
 rm -rf "${BACKUP_VENV_DIR}"
 rm -f "${FILTERED_LOCK_FILE}"
 trap - EXIT
