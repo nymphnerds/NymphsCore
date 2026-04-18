@@ -97,6 +97,13 @@ add_lmstudio_paths() {
 }
 
 detect_vram_mb() {
+  # Check if Manager passed the actual GPU VRAM from Windows
+  if [[ -n "${NYMPHS3D_GPU_VRAM_MB}" && "${NYMPHS3D_GPU_VRAM_MB}" =~ ^[0-9]+$ ]]; then
+    echo "${NYMPHS3D_GPU_VRAM_MB}"
+    return
+  fi
+
+  # Fall back to local nvidia-smi detection (may be limited by WSL memory config)
   local smi_cmd=""
   if command -v nvidia-smi >/dev/null 2>&1; then
     smi_cmd="nvidia-smi"

@@ -157,6 +157,40 @@ public sealed class InstallerWorkflowService
         return new WslConfigValues(memoryGb, processors, swapGb);
     }
 
+    public int GetDetectedGpuVramMb()
+    {
+        try
+        {
+            var result = _processRunner.RunAsync(
+                fileName: "nvidia-smi.exe",
+                arguments:
+                [
+                    "--query-gpu=memory.total",
+                    "--format=csv,noheader,nounits",
+                ],
+                workingDirectory: Environment.SystemDirectory,
+                progress: null,
+                environmentVariables: null,
+                cancellationToken: CancellationToken.None).GetAwaiter().GetResult();
+
+            if (result.ExitCode == 0)
+            {
+                var output = result.CombinedOutput.Trim();
+                var lines = output.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries);
+                if (lines.Length > 0 && int.TryParse(lines[0].Trim(), out var vramMb))
+                {
+                    return vramMb;
+                }
+            }
+        }
+        catch
+        {
+            // Fall back to 0 if detection fails
+        }
+
+        return 0;
+    }
+
     public WslConfigFileState GetCurrentWslConfig()
     {
         var path = WslConfigPath;
@@ -330,12 +364,16 @@ public sealed class InstallerWorkflowService
             scriptArguments.Add("--download-model");
         }
 
+        // Detect actual GPU VRAM from Windows (not WSL) for correct LLM recommendations
+        var gpuVramMb = GetDetectedGpuVramMb();
+
         var bashCommand =
             "set -euo pipefail; " +
             $"export HOME={ToBashSingleQuoted($"/home/{settings.LinuxUser}")}; " +
             $"export USER={ToBashSingleQuoted(settings.LinuxUser)}; " +
             $"export LOGNAME={ToBashSingleQuoted(settings.LinuxUser)}; " +
             "export NYMPHS3D_RUNTIME_ROOT=\"$HOME\"; " +
+            $"export NYMPHS3D_GPU_VRAM_MB=\"{gpuVramMb}\"; " +
             $"bash {ToBashSingleQuoted(wslBrainScriptPath)} {string.Join(" ", scriptArguments.Select(ToBashSingleQuoted))}";
 
         var arguments = new List<string>
@@ -347,6 +385,9 @@ public sealed class InstallerWorkflowService
         };
 
         progress.Report($"Nymphs-Brain: installing experimental local LLM stack to {settings.BrainInstallRoot}.");
+        progress.Report(gpuVramMb > 0
+            ? $"Nymphs-Brain: detected {gpuVramMb} MB GPU VRAM from Windows for model recommendations."
+            : "Nymphs-Brain: GPU VRAM detection failed, using WSL fallback.");
         progress.Report(settings.DownloadBrainModelNow
             ? $"Nymphs-Brain: selected model will be downloaded now ({settings.BrainModelId})."
             : $"Nymphs-Brain: tools will be installed now; model download is deferred ({settings.BrainModelId}).");
