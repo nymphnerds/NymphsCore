@@ -24,6 +24,8 @@ public sealed class MainWindowViewModel : ViewModelBase
     private readonly InstallerWorkflowService _workflowService;
     private readonly AsyncRelayCommand _primaryCommand;
     private readonly AsyncRelayCommand _checkForUpdatesCommand;
+    private readonly RelayCommand _addOptionalModulesCommand;
+    private readonly RelayCommand _repairRuntimeCommand;
     private readonly AsyncRelayCommand _openRuntimeToolsCommand;
     private readonly AsyncRelayCommand _refreshRuntimeStatusCommand;
     private readonly AsyncRelayCommand _fetchModelsNowCommand;
@@ -47,6 +49,7 @@ public sealed class MainWindowViewModel : ViewModelBase
     private bool _updatesAvailableFromCheck;
     private bool _lastRunUsedExistingInstall;
     private bool _lastRunAppliedUpdates;
+    private bool _moduleOnlyRun;
     private int _runtimeToolsReturnStep = 5;
     private string _currentStepTitle = string.Empty;
     private string _currentStepSubtitle = string.Empty;
@@ -89,6 +92,8 @@ public sealed class MainWindowViewModel : ViewModelBase
 
         _primaryCommand = new AsyncRelayCommand(ExecutePrimaryActionAsync, CanExecutePrimaryAction);
         _checkForUpdatesCommand = new AsyncRelayCommand(RunManagedRepoUpdateCheckAsync, CanRunManagedRepoUpdateCheck);
+        _addOptionalModulesCommand = new RelayCommand(StartAddOptionalModules, CanStartAddOptionalModules);
+        _repairRuntimeCommand = new RelayCommand(StartRepairRuntime, CanStartRepairRuntime);
         _openRuntimeToolsCommand = new AsyncRelayCommand(OpenRuntimeToolsAsync, CanRunManagedRuntimeAction);
         _refreshRuntimeStatusCommand = new AsyncRelayCommand(RefreshRuntimeStatusAsync, CanRunManagedRuntimeAction);
         _fetchModelsNowCommand = new AsyncRelayCommand(RunFetchModelsNowAsync, CanRunManagedRuntimeAction);
@@ -129,6 +134,10 @@ public sealed class MainWindowViewModel : ViewModelBase
     public RelayCommand BackCommand => _backCommand;
 
     public AsyncRelayCommand CheckForUpdatesCommand => _checkForUpdatesCommand;
+
+    public RelayCommand AddOptionalModulesCommand => _addOptionalModulesCommand;
+
+    public RelayCommand RepairRuntimeCommand => _repairRuntimeCommand;
 
     public AsyncRelayCommand OpenRuntimeToolsCommand => _openRuntimeToolsCommand;
 
@@ -277,9 +286,12 @@ public sealed class MainWindowViewModel : ViewModelBase
                 OnPropertyChanged(nameof(StepCounterText));
                 OnPropertyChanged(nameof(ShowExistingInstallActions));
                 OnPropertyChanged(nameof(ShowPostInstallActions));
+                OnPropertyChanged(nameof(WelcomeHeadline));
+                OnPropertyChanged(nameof(WelcomeLead));
                 OnPropertyChanged(nameof(HunyuanRuntimeActionCommand));
                 OnPropertyChanged(nameof(ZImageRuntimeActionCommand));
                 OnPropertyChanged(nameof(TrellisRuntimeActionCommand));
+                RecomputeStepState();
                 RaiseCommandStateChanged();
             }
         }
@@ -299,6 +311,21 @@ public sealed class MainWindowViewModel : ViewModelBase
     }
 
     public string SelectedInstallPath => SelectedDrive?.InstallPath ?? "Choose a drive to continue.";
+
+    // Context-aware Welcome card text. On first runs we show the marketing
+    // headline; on reruns against an existing managed install we show a
+    // friendly "welcome back" so returning users know the app sees their
+    // install and the Continue button is still an explicit one-click action.
+    public string WelcomeHeadline =>
+        ManagedDistroDetected
+            ? "Welcome back"
+            : "Install and configure NymphsCore";
+
+    public string WelcomeLead =>
+        ManagedDistroDetected
+            ? "Your NymphsCore install is already set up on this PC. Click Manage existing install to check for updates, add optional modules (like Nymphs-Brain), or repair the runtime."
+            : "The central hub for the Nymph Nerds game development backend. NymphsCore is the Brains behind the system";
+
 
     public bool PrefetchModelsNow
     {
@@ -951,6 +978,13 @@ public sealed class MainWindowViewModel : ViewModelBase
     public async Task InitializeAsync()
     {
         await DetectExistingManagedDistroAsync(logDetection: false).ConfigureAwait(true);
+
+        // We deliberately do NOT auto-skip Welcome here. When an existing install
+        // is detected, the Welcome card re-themes itself (see WelcomeHeadline /
+        // WelcomeLead / primary button "Manage existing install") so returning
+        // users get an explicit one-click entry into System Check rather than
+        // a silent jump that could feel like the app lost their state.
+        RecomputeStepState();
         RaiseCommandStateChanged();
     }
 
@@ -1194,9 +1228,15 @@ public sealed class MainWindowViewModel : ViewModelBase
                 BrainModelId = ResolveBrainModelId(),
                 BrainQuantization = ResolveBrainQuantization(),
                 BrainContextLength = BrainContextLength,
+                ModuleOnlyRun = _moduleOnlyRun,
             };
 
-            if (settings.RepairExistingDistro)
+            if (settings.ModuleOnlyRun)
+            {
+                _lastRunUsedExistingInstall = true;
+                AppendInstallLog($"Add optional modules: running against existing {settings.DistroName} distro without a full repair pass.");
+            }
+            else if (settings.RepairExistingDistro)
             {
                 _lastRunUsedExistingInstall = true;
                 _lastRunAppliedUpdates = _updateCheckCompleted && _updatesAvailableFromCheck;
@@ -1231,9 +1271,11 @@ public sealed class MainWindowViewModel : ViewModelBase
                 }
             });
 
-            var baseStepMessage = settings.RepairExistingDistro
-                ? "Continuing with the existing NymphsCore base environment..."
-                : "Importing the NymphsCore base environment...";
+            var baseStepMessage = settings.ModuleOnlyRun
+                ? "Reusing the existing NymphsCore environment to add optional modules..."
+                : settings.RepairExistingDistro
+                    ? "Continuing with the existing NymphsCore base environment..."
+                    : "Importing the NymphsCore base environment...";
             LogLines.Add(baseStepMessage);
             AppendInstallLog(baseStepMessage);
             await _workflowService.ApplyWslConfigAsync(settings, progress, CancellationToken.None).ConfigureAwait(true);
@@ -1241,9 +1283,30 @@ public sealed class MainWindowViewModel : ViewModelBase
             await _workflowService.ImportBaseDistroAsync(settings, progress, CancellationToken.None).ConfigureAwait(true);
             ProgressValue = 45;
 
-            LogLines.Add("Running the selected runtime setup...");
-            AppendInstallLog("Running the selected runtime setup...");
-            await _workflowService.RunRuntimeSetupAsync(settings, progress, CancellationToken.None).ConfigureAwait(true);
+            if (settings.ModuleOnlyRun)
+            {
+                var skipMsg = "Skipping full runtime setup (finalize + backend venv resync) because this is an 'Add optional modules' run.";
+                LogLines.Add(skipMsg);
+                AppendInstallLog(skipMsg);
+
+                if (settings.PrefetchModelsNow)
+                {
+                    LogLines.Add("Running model prefetch against the existing runtime...");
+                    AppendInstallLog("Running model prefetch against the existing runtime...");
+                    await _workflowService.RunModelPrefetchOnlyAsync(settings, progress, CancellationToken.None).ConfigureAwait(true);
+                }
+                else
+                {
+                    LogLines.Add("Skipping model prefetch (not selected).");
+                    AppendInstallLog("Skipping model prefetch (not selected).");
+                }
+            }
+            else
+            {
+                LogLines.Add("Running the selected runtime setup...");
+                AppendInstallLog("Running the selected runtime setup...");
+                await _workflowService.RunRuntimeSetupAsync(settings, progress, CancellationToken.None).ConfigureAwait(true);
+            }
             ProgressValue = 85;
 
             if (settings.InstallNymphsBrain)
@@ -1309,11 +1372,62 @@ public sealed class MainWindowViewModel : ViewModelBase
 
         if (ManagedDistroDetected && IsRuntimeSetupStep)
         {
+            // Leaving the module-only screen cancels the "Add optional modules" intent.
+            _moduleOnlyRun = false;
             MoveToStep(1);
             return;
         }
 
         MoveToStep(_currentStepIndex - 1);
+    }
+
+    private bool CanStartAddOptionalModules()
+    {
+        return !IsBusy && ManagedDistroDetected && IsSystemCheckStep && !HasSystemCheckFailures;
+    }
+
+    private bool CanStartRepairRuntime()
+    {
+        return !IsBusy && ManagedDistroDetected && IsSystemCheckStep && !HasSystemCheckFailures;
+    }
+
+    private void StartRepairRuntime()
+    {
+        // Explicit "Repair Runtime..." action from the existing-install card.
+        // This is the full repair pass (WSL config + runtime finalize + backend venv resync).
+        // It's the same code path as the primary "Repair Runtime" button, just invoked
+        // from a clearly labelled side button so it sits as a peer of the other actions.
+        _moduleOnlyRun = false;
+        AppendInstallLog("User chose 'Repair Runtime...' on existing install. Running full repair pass.");
+        MoveToStep(3);
+    }
+
+    private void StartAddOptionalModules()
+    {
+        // Enter a lightweight "add optional modules" run. RunInstallAsync will honor
+        // InstallSettings.ModuleOnlyRun and skip the heavy RunRuntimeSetupAsync pass.
+        _moduleOnlyRun = true;
+
+        // Sensible defaults so the user sees Nymphs-Brain pre-selected (their usual reason
+        // for choosing this action) but is still free to change or untick it on step 3.
+        if (!InstallNymphsBrain)
+        {
+            InstallNymphsBrain = true;
+        }
+
+        // The user is explicitly doing an add-on run against an existing install; do not
+        // churn .wslconfig unless they ask for it.
+        var keepExistingOption = WslConfigOptions.FirstOrDefault(o => o.Mode == WslConfigMode.KeepExisting);
+        if (keepExistingOption is not null)
+        {
+            SelectedWslConfigOption = keepExistingOption;
+        }
+
+        // Don't force a massive model prefetch by default on an add-on run.
+        PrefetchModelsNow = false;
+
+        AppendInstallLog("User chose 'Add optional modules' on existing install. Step 3 will run module-only install (no full repair).");
+        MoveToStep(3);
     }
 
     private void MoveToRuntimeTools()
@@ -1345,10 +1459,11 @@ public sealed class MainWindowViewModel : ViewModelBase
         switch (_currentStepIndex)
         {
             case 0:
-                CurrentStepTitle = "Welcome";
-                CurrentStepSubtitle =
-                    "Set up the local NymphsCore pipeline for Blender.";
-                PrimaryButtonText = "Continue";
+                CurrentStepTitle = ManagedDistroDetected ? "Welcome back" : "Welcome";
+                CurrentStepSubtitle = ManagedDistroDetected
+                    ? "Your NymphsCore is already set up. Click to manage it."
+                    : "Set up the local NymphsCore pipeline for Blender.";
+                PrimaryButtonText = ManagedDistroDetected ? "Manage existing install" : "Continue";
                 break;
             case 1:
                 CurrentStepTitle = "System Check";
@@ -1374,12 +1489,22 @@ public sealed class MainWindowViewModel : ViewModelBase
                 PrimaryButtonText = "Continue";
                 break;
             case 3:
-                CurrentStepTitle = ManagedDistroDetected ? "Repair Runtime Settings" : "WSL Resources And Models";
-                CurrentStepSubtitle =
-                    ManagedDistroDetected
-                        ? "Choose how the manager should handle .wslconfig and model downloads while repairing the existing runtime in place."
-                        : "Choose how the installer should handle .wslconfig, then decide whether to prefetch models now.";
-                PrimaryButtonText = ManagedDistroDetected ? "Run Repair" : "Start Install";
+                if (_moduleOnlyRun)
+                {
+                    CurrentStepTitle = "Add Optional Modules";
+                    CurrentStepSubtitle =
+                        "Add optional modules to the existing NymphsCore install without running a full repair. Tick Nymphs-Brain below (and set your preferred model preset). Backend runtimes and models will be left untouched unless you also tick model prefetch.";
+                    PrimaryButtonText = "Install Modules";
+                }
+                else
+                {
+                    CurrentStepTitle = ManagedDistroDetected ? "Repair Runtime Settings" : "WSL Resources And Models";
+                    CurrentStepSubtitle =
+                        ManagedDistroDetected
+                            ? "Choose how the manager should handle .wslconfig and model downloads while repairing the existing runtime in place."
+                            : "Choose how the installer should handle .wslconfig, then decide whether to prefetch models now.";
+                    PrimaryButtonText = ManagedDistroDetected ? "Run Repair" : "Start Install";
+                }
                 break;
             case 4:
                 CurrentStepTitle = ManagedDistroDetected || _lastRunUsedExistingInstall ? "Repair Progress" : "Installation Progress";
@@ -1417,6 +1542,8 @@ public sealed class MainWindowViewModel : ViewModelBase
     {
         _primaryCommand.RaiseCanExecuteChanged();
         _checkForUpdatesCommand.RaiseCanExecuteChanged();
+        _addOptionalModulesCommand.RaiseCanExecuteChanged();
+        _repairRuntimeCommand.RaiseCanExecuteChanged();
         _openRuntimeToolsCommand.RaiseCanExecuteChanged();
         _refreshRuntimeStatusCommand.RaiseCanExecuteChanged();
         _fetchModelsNowCommand.RaiseCanExecuteChanged();
@@ -1722,35 +1849,24 @@ public sealed class MainWindowViewModel : ViewModelBase
             }
         }
 
+        // Keep the end-user-visible summary as short, plain English. The long
+        // per-repo technical detail goes into the session log for power users.
         if (updatesAvailable > 0)
         {
-            summary.AppendLine("Managed repo updates are available.");
-            summary.AppendLine("Rerun the latest manager to apply them during repair / refresh.");
+            var word = updatesAvailable == 1 ? "update" : "updates";
+            summary.Append($"✓ {updatesAvailable} {word} available. Click \"Repair Runtime...\" to apply.");
         }
         else if (attentionNeeded > 0)
         {
-            summary.AppendLine("Some managed repo updates need manual attention.");
-            summary.AppendLine("The installer left those folders unchanged to avoid overwriting real code changes.");
+            summary.Append("⚠ One or two things need a manual look. See the log for details; nothing was changed.");
         }
         else if (upToDate > 0 || leftAlone > 0)
         {
-            summary.AppendLine("Managed repo check completed.");
-            summary.AppendLine("No action is required from this screen. Local generated files were left alone.");
+            summary.Append("✓ You're up to date. No updates are available right now.");
         }
         else
         {
-            summary.AppendLine("The installer could not check managed repo status.");
-        }
-
-        if (details.Count > 0)
-        {
-            summary.AppendLine();
-            summary.AppendLine("What this means:");
-            foreach (var detail in details)
-            {
-                summary.AppendLine($"- {detail}");
-            }
-            summary.AppendLine("- To test backend health, use Runtime Tools smoke tests.");
+            summary.Append("Could not check for updates (no network, or the managed repos were not found).");
         }
 
         return new UpdateCheckPresentation(

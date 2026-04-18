@@ -42,6 +42,44 @@
       <Setter Property="BorderBrush" Value="#C7BCAE" />
       <Setter Property="BorderThickness" Value="1" />
     </Style>
+    <Style TargetType="Button" x:Key="ActionCardButton">
+      <Setter Property="Background" Value="#FFFDFC" />
+      <Setter Property="BorderBrush" Value="#E5DAC8" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="Foreground" Value="#1E1C18" />
+      <Setter Property="Padding" Value="14,12" />
+      <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+      <Setter Property="Cursor" Value="Hand" />
+      <Setter Property="Margin" Value="0,0,0,0" />
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <Border x:Name="Card"
+                    Background="{TemplateBinding Background}"
+                    BorderBrush="{TemplateBinding BorderBrush}"
+                    BorderThickness="{TemplateBinding BorderThickness}"
+                    CornerRadius="14"
+                    Padding="{TemplateBinding Padding}"
+                    SnapsToDevicePixels="True">
+              <ContentPresenter HorizontalAlignment="Stretch" VerticalAlignment="Center" />
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="Card" Property="Background" Value="#F8F3EA" />
+                <Setter TargetName="Card" Property="BorderBrush" Value="#B74322" />
+              </Trigger>
+              <Trigger Property="IsPressed" Value="True">
+                <Setter TargetName="Card" Property="Background" Value="#EFE7D6" />
+              </Trigger>
+              <Trigger Property="IsEnabled" Value="False">
+                <Setter TargetName="Card" Property="Opacity" Value="0.5" />
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
 	    <Style TargetType="TextBlock" x:Key="MutedText">
 	      <Setter Property="Foreground" Value="#6B6259" />
 	    </Style>
@@ -178,13 +216,13 @@
         <Border Style="{StaticResource CardStyle}"
                 Visibility="{Binding IsWelcomeStep, Converter={StaticResource BoolToVisibilityConverter}}">
           <StackPanel>
-            <TextBlock Text="Install and configure NymphsCore"
+            <TextBlock Text="{Binding WelcomeHeadline}"
                        FontSize="28"
                        FontWeight="Bold"
                        Foreground="#1E1C18"
                        TextWrapping="Wrap" />
             <TextBlock Margin="0,18,0,0"
-                       Text="The central hub for the Nymph Nerds game development backend. NymphsCore is the Brains behind the system"
+                       Text="{Binding WelcomeLead}"
                        TextWrapping="Wrap"
                        FontSize="16"
                        Foreground="#3E3A34" />
@@ -262,28 +300,105 @@
               <StackPanel>
                 <TextBlock Text="Existing install detected"
                            FontWeight="SemiBold"
-                           FontSize="16" />
-                <TextBlock Margin="0,10,0,0"
-                           Text="{Binding ManagedDistroStatusText}"
-                           TextWrapping="Wrap"
+                           FontSize="18" />
+                <TextBlock Margin="0,6,0,0"
+                           Text="Pick an action below — nothing runs until you click."
+                           FontSize="13"
                            Style="{StaticResource MutedText}" />
-                <WrapPanel Margin="0,14,0,0">
-                  <Button Width="170"
-                          Style="{StaticResource SecondaryActionButton}"
-                          HorizontalAlignment="Left"
+                <Grid Margin="0,14,0,0">
+                  <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="12" />
+                    <RowDefinition Height="Auto" />
+                  </Grid.RowDefinitions>
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="12" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="12" />
+                    <ColumnDefinition Width="*" />
+                  </Grid.ColumnDefinitions>
+
+                  <!-- Row 1 -->
+                  <Button Grid.Row="0" Grid.Column="0"
+                          Style="{StaticResource ActionCardButton}"
+                          Command="{Binding AddOptionalModulesCommand}"
+                          ToolTip="Add optional modules (e.g. Nymphs-Brain) without running a full repair.">
+                    <DockPanel LastChildFill="True">
+                      <TextBlock DockPanel.Dock="Left" Text="🧩" FontSize="22" Margin="0,0,10,0" VerticalAlignment="Center" />
+                      <StackPanel VerticalAlignment="Center">
+                        <TextBlock Text="Add Modules" FontSize="15" FontWeight="SemiBold" TextWrapping="Wrap" />
+                        <TextBlock Text="Extras like Nymphs-Brain." FontSize="12" Foreground="#6B6259" TextWrapping="Wrap" Margin="0,2,0,0" />
+                      </StackPanel>
+                    </DockPanel>
+                  </Button>
+
+                  <Button Grid.Row="0" Grid.Column="2"
+                          Style="{StaticResource ActionCardButton}"
                           Command="{Binding CheckForUpdatesCommand}"
-                          Content="Check Repo Updates" />
-                  <Button Width="170"
-                          Style="{StaticResource SecondaryActionButton}"
-                          HorizontalAlignment="Left"
-                          Command="{Binding OpenRuntimeToolsCommand}"
-                          Content="Runtime Tools" />
-                  <Button Width="170"
-                          Style="{StaticResource SecondaryActionButton}"
-                          HorizontalAlignment="Left"
+                          ToolTip="Check the managed repo checkouts for available updates. Does not modify anything.">
+                    <DockPanel LastChildFill="True">
+                      <TextBlock DockPanel.Dock="Left" Text="🔄" FontSize="22" Margin="0,0,10,0" VerticalAlignment="Center" />
+                      <StackPanel VerticalAlignment="Center">
+                        <TextBlock Text="Check Updates" FontSize="15" FontWeight="SemiBold" TextWrapping="Wrap" />
+                        <TextBlock Text="Any new code available?" FontSize="12" Foreground="#6B6259" TextWrapping="Wrap" Margin="0,2,0,0" />
+                      </StackPanel>
+                    </DockPanel>
+                  </Button>
+
+                  <Button Grid.Row="0" Grid.Column="4"
+                          Style="{StaticResource ActionCardButton}"
+                          Command="{Binding RepairRuntimeCommand}"
+                          ToolTip="Full repair pass: apply WSL config, re-run finalize, resync backend venvs. Takes longer.">
+                    <DockPanel LastChildFill="True">
+                      <TextBlock DockPanel.Dock="Left" Text="🛠" FontSize="22" Margin="0,0,10,0" VerticalAlignment="Center" />
+                      <StackPanel VerticalAlignment="Center">
+                        <TextBlock Text="Repair Runtime" FontSize="15" FontWeight="SemiBold" TextWrapping="Wrap" />
+                        <TextBlock Text="Full rebuild · 10–30 min." FontSize="12" Foreground="#6B6259" TextWrapping="Wrap" Margin="0,2,0,0" />
+                      </StackPanel>
+                    </DockPanel>
+                  </Button>
+
+                  <!-- Row 2 -->
+                  <Button Grid.Row="2" Grid.Column="0"
+                          Style="{StaticResource ActionCardButton}"
                           Command="{Binding FetchModelsNowCommand}"
-                          Content="Fetch Models Now" />
-                </WrapPanel>
+                          ToolTip="Run the model prefetch against the existing runtime only.">
+                    <DockPanel LastChildFill="True">
+                      <TextBlock DockPanel.Dock="Left" Text="⬇" FontSize="22" Margin="0,0,10,0" VerticalAlignment="Center" />
+                      <StackPanel VerticalAlignment="Center">
+                        <TextBlock Text="Fetch Models" FontSize="15" FontWeight="SemiBold" TextWrapping="Wrap" />
+                        <TextBlock Text="Download missing models." FontSize="12" Foreground="#6B6259" TextWrapping="Wrap" Margin="0,2,0,0" />
+                      </StackPanel>
+                    </DockPanel>
+                  </Button>
+
+                  <Button Grid.Row="2" Grid.Column="2"
+                          Style="{StaticResource ActionCardButton}"
+                          Command="{Binding OpenRuntimeToolsCommand}"
+                          ToolTip="Open the Runtime Tools screen: backend status, smoke tests, fetch models.">
+                    <DockPanel LastChildFill="True">
+                      <TextBlock DockPanel.Dock="Left" Text="⚙" FontSize="22" Margin="0,0,10,0" VerticalAlignment="Center" />
+                      <StackPanel VerticalAlignment="Center">
+                        <TextBlock Text="Runtime Tools" FontSize="15" FontWeight="SemiBold" TextWrapping="Wrap" />
+                        <TextBlock Text="Status &amp; smoke tests." FontSize="12" Foreground="#6B6259" TextWrapping="Wrap" Margin="0,2,0,0" />
+                      </StackPanel>
+                    </DockPanel>
+                  </Button>
+
+                  <Button Grid.Row="2" Grid.Column="4"
+                          Style="{StaticResource ActionCardButton}"
+                          Command="{Binding OpenLogFolderCommand}"
+                          ToolTip="Open the folder containing installer and runtime logs.">
+                    <DockPanel LastChildFill="True">
+                      <TextBlock DockPanel.Dock="Left" Text="📄" FontSize="22" Margin="0,0,10,0" VerticalAlignment="Center" />
+                      <StackPanel VerticalAlignment="Center">
+                        <TextBlock Text="Open Logs" FontSize="15" FontWeight="SemiBold" TextWrapping="Wrap" />
+                        <TextBlock Text="For troubleshooting." FontSize="12" Foreground="#6B6259" TextWrapping="Wrap" Margin="0,2,0,0" />
+                      </StackPanel>
+                    </DockPanel>
+                  </Button>
+                </Grid>
                 <Border Margin="0,14,0,0"
                         Padding="12"
                         Background="#FFFDFC"
