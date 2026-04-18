@@ -645,11 +645,15 @@ public sealed class MainWindowViewModel : ViewModelBase
         }
     }
 
-    public string HunyuanTestButtonText => HunyuanRuntimeStatus.ModelsReady ? "Test Hunyuan 2mv" : "Fetch Models First";
+    // Button label is intentionally short ("Test") — the backend name is already
+    // the card title above the button, so repeating it just made the label clip
+    // inside the narrow 3-column card. When models aren't ready we tell the user
+    // to fetch first instead.
+    public string HunyuanTestButtonText => HunyuanRuntimeStatus.ModelsReady ? "Test" : "Fetch First";
 
-    public string ZImageTestButtonText => ZImageRuntimeStatus.ModelsReady ? "Test Z-Image" : "Fetch Models First";
+    public string ZImageTestButtonText => ZImageRuntimeStatus.ModelsReady ? "Test" : "Fetch First";
 
-    public string TrellisTestButtonText => TrellisRuntimeStatus.ModelsReady ? "Test TRELLIS.2" : "Fetch Models First";
+    public string TrellisTestButtonText => TrellisRuntimeStatus.ModelsReady ? "Test" : "Fetch First";
 
     private bool CanGoBack()
     {

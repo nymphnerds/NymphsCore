@@ -1066,12 +1066,19 @@
                              Text="{Binding HunyuanRuntimeStatus.Detail}"
                              TextWrapping="Wrap" FontSize="13"
                              Style="{StaticResource MutedText}" />
-                  <StackPanel Orientation="Horizontal" Margin="0,14,0,0">
-                    <Button Style="{StaticResource SecondaryActionButton}" MinWidth="110"
+                  <Grid Margin="0,14,0,0">
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="*" />
+                      <ColumnDefinition Width="8" />
+                      <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <Button Grid.Column="0" Style="{StaticResource SecondaryActionButton}" Margin="0"
+                            HorizontalAlignment="Stretch"
                             Command="{Binding FetchModelsNowCommand}" Content="Fetch" />
-                    <Button Style="{StaticResource SecondaryActionButton}" MinWidth="120" Margin="0"
+                    <Button Grid.Column="2" Style="{StaticResource SecondaryActionButton}" Margin="0"
+                            HorizontalAlignment="Stretch"
                             Command="{Binding TestHunyuanCommand}" Content="{Binding HunyuanTestButtonText}" />
-                  </StackPanel>
+                  </Grid>
                 </StackPanel>
               </Border>
 
@@ -1099,12 +1106,19 @@
                              Text="{Binding ZImageRuntimeStatus.Detail}"
                              TextWrapping="Wrap" FontSize="13"
                              Style="{StaticResource MutedText}" />
-                  <StackPanel Orientation="Horizontal" Margin="0,14,0,0">
-                    <Button Style="{StaticResource SecondaryActionButton}" MinWidth="110"
+                  <Grid Margin="0,14,0,0">
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="*" />
+                      <ColumnDefinition Width="8" />
+                      <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <Button Grid.Column="0" Style="{StaticResource SecondaryActionButton}" Margin="0"
+                            HorizontalAlignment="Stretch"
                             Command="{Binding FetchModelsNowCommand}" Content="Fetch" />
-                    <Button Style="{StaticResource SecondaryActionButton}" MinWidth="120" Margin="0"
+                    <Button Grid.Column="2" Style="{StaticResource SecondaryActionButton}" Margin="0"
+                            HorizontalAlignment="Stretch"
                             Command="{Binding TestZImageCommand}" Content="{Binding ZImageTestButtonText}" />
-                  </StackPanel>
+                  </Grid>
                 </StackPanel>
               </Border>
 
@@ -1132,12 +1146,19 @@
                              Text="{Binding TrellisRuntimeStatus.Detail}"
                              TextWrapping="Wrap" FontSize="13"
                              Style="{StaticResource MutedText}" />
-                  <StackPanel Orientation="Horizontal" Margin="0,14,0,0">
-                    <Button Style="{StaticResource SecondaryActionButton}" MinWidth="110"
+                  <Grid Margin="0,14,0,0">
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="*" />
+                      <ColumnDefinition Width="8" />
+                      <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <Button Grid.Column="0" Style="{StaticResource SecondaryActionButton}" Margin="0"
+                            HorizontalAlignment="Stretch"
                             Command="{Binding FetchModelsNowCommand}" Content="Fetch" />
-                    <Button Style="{StaticResource SecondaryActionButton}" MinWidth="120" Margin="0"
+                    <Button Grid.Column="2" Style="{StaticResource SecondaryActionButton}" Margin="0"
+                            HorizontalAlignment="Stretch"
                             Command="{Binding TestTrellisCommand}" Content="{Binding TrellisTestButtonText}" />
-                  </StackPanel>
+                  </Grid>
                 </StackPanel>
               </Border>
             </Grid>
