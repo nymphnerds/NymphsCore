@@ -1661,6 +1661,7 @@ public sealed class MainWindowViewModel : ViewModelBase
         var updatesAvailable = 0;
         var attentionNeeded = 0;
         var upToDate = 0;
+        var leftAlone = 0;
 
         foreach (var repo in managedRepos)
         {
@@ -1670,6 +1671,13 @@ public sealed class MainWindowViewModel : ViewModelBase
             }
 
             var repoLabel = FriendlyManagedRepoLabel(repo);
+            if (repo.Equals("Nymphs3D helper repo", StringComparison.OrdinalIgnoreCase) &&
+                state is not "up_to_date" and not "ahead_local" and not "behind_clean" and not "missing")
+            {
+                leftAlone++;
+                details.Add($"{repoLabel}: The installer is using the packaged manager scripts for this run, so this checkout does not block install or repair.");
+                continue;
+            }
 
             switch (state)
             {
@@ -1684,16 +1692,16 @@ public sealed class MainWindowViewModel : ViewModelBase
                     details.Add($"{repoLabel}: Repo update available.");
                     break;
                 case "dirty":
-                    attentionNeeded++;
-                    details.Add($"{repoLabel}: The installer found extra local files in this backend folder, so it did not change anything automatically. This is often generated output, not something you did wrong.");
+                    leftAlone++;
+                    details.Add($"{repoLabel}: Local/generated files were found and left alone. This is common for generated images, models, caches, or experiment output.");
                     break;
                 case "fetch_timed_out":
-                    attentionNeeded++;
-                    details.Add($"{repoLabel}: The update check took too long to get a response from GitHub.");
+                    leftAlone++;
+                    details.Add($"{repoLabel}: GitHub did not respond quickly enough, so this checkout was left unchanged.");
                     break;
                 case "fetch_failed":
-                    attentionNeeded++;
-                    details.Add($"{repoLabel}: The update check could not be completed right now.");
+                    leftAlone++;
+                    details.Add($"{repoLabel}: The update check could not be completed right now, so this checkout was left unchanged.");
                     break;
                 case "branch_mismatch":
                     attentionNeeded++;
@@ -1721,13 +1729,13 @@ public sealed class MainWindowViewModel : ViewModelBase
         }
         else if (attentionNeeded > 0)
         {
-            summary.AppendLine("No managed repo updates can be installed automatically right now.");
-            summary.AppendLine("The installer found something it did not want to overwrite.");
+            summary.AppendLine("Some managed repo updates need manual attention.");
+            summary.AppendLine("The installer left those folders unchanged to avoid overwriting real code changes.");
         }
-        else if (upToDate > 0)
+        else if (upToDate > 0 || leftAlone > 0)
         {
             summary.AppendLine("Managed repo check completed.");
-            summary.AppendLine("The tracked repo checkouts look current.");
+            summary.AppendLine("No action is required from this screen. Local generated files were left alone.");
         }
         else
         {
@@ -1742,7 +1750,7 @@ public sealed class MainWindowViewModel : ViewModelBase
             {
                 summary.AppendLine($"- {detail}");
             }
-            summary.AppendLine("- This screen does not prove that every backend env or model is installed correctly. Use Fetch Models Now, repair/update, or the smoke tests for that.");
+            summary.AppendLine("- To test backend health, use Runtime Tools smoke tests.");
         }
 
         return new UpdateCheckPresentation(

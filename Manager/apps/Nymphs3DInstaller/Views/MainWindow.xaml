@@ -76,27 +76,31 @@
             <RowDefinition Height="Auto" />
           </Grid.RowDefinitions>
 
-          <Image Source="/Assets/splash.png"
+          <Image Grid.Row="2"
+                 Panel.ZIndex="0"
+                 Source="/Assets/splash.png"
                  Width="276"
-                 Margin="0,36,0,0"
+                 Margin="0,-38,0,0"
                  VerticalAlignment="Top"
                  HorizontalAlignment="Center"
                  Opacity="0.28"
                  Stretch="Uniform"
                  IsHitTestVisible="False" />
 
-        <TextBlock Text="{Binding SidebarTitle}"
+        <TextBlock Panel.ZIndex="1"
+                   Text="{Binding SidebarTitle}"
                    FontSize="26"
                    FontWeight="Bold"
                    Foreground="#F8F3EA" />
 
         <TextBlock Grid.Row="1"
+                   Panel.ZIndex="1"
                    Margin="0,10,0,0"
                    Text="{Binding StepCounterText}"
                    FontSize="16"
                    Foreground="#C1D7D1" />
 
-        <Grid Grid.Row="2" Margin="0,32,0,0">
+        <Grid Grid.Row="2" Panel.ZIndex="1" Margin="0,32,0,0">
           <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="12" />
