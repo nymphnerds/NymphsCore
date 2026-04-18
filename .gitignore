@@ -26,8 +26,21 @@ Thumbs.db
 **/HANDOFF*.md
 **/*roadmap*.md
 **/ROADMAP.md
+!/Manager/ROADMAP.md
 
 # Local addon notes; keep only customer-facing docs tracked
 /Blender/Addon/docs/*
 !/Blender/Addon/docs/USER_GUIDE.md
 !/Blender/Addon/docs/image_to_mesh_repos.pdf
+
+# Local manager notes; keep only customer-facing docs tracked
+/Manager/*.md
+!/Manager/README.md
+!/Manager/ROADMAP.md
+/Manager/apps/**/*.md
+/Manager/dev/**/*.md
+/Manager/legacy/**/*.md
+/Manager/docs/**
+!/Manager/docs/
+!/Manager/docs/absolute_beginner_local_install_guide.md
+!/Manager/docs/install_disk_and_model_footprint.md
