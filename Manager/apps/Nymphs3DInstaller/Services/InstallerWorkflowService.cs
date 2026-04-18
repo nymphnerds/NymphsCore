@@ -1,5 +1,7 @@
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Security.Principal;
+using System.Text;
 using Nymphs3DInstaller.Models;
 
 namespace Nymphs3DInstaller.Services;
@@ -36,6 +38,9 @@ public sealed class InstallerWorkflowService
     public string BaseTarPath { get; }
 
     public string LogFolderPath { get; }
+
+    public string WslConfigPath =>
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".wslconfig");
 
     public string CreateInstallSessionLogPath()
     {
@@ -113,6 +118,133 @@ public sealed class InstallerWorkflowService
         }
 
         throw new InvalidOperationException("Base distro import failed.");
+    }
+
+    public WslConfigValues GetRecommendedWslConfig()
+    {
+        var totalMemoryGb = (int)Math.Floor(GetTotalPhysicalMemoryBytes() / (double)(1024L * 1024L * 1024L));
+        var logicalProcessors = Environment.ProcessorCount;
+
+        int memoryGb;
+        if (totalMemoryGb >= 96)
+        {
+            memoryGb = 48;
+        }
+        else if (totalMemoryGb >= 64)
+        {
+            memoryGb = 32;
+        }
+        else if (totalMemoryGb >= 48)
+        {
+            memoryGb = 24;
+        }
+        else if (totalMemoryGb >= 32)
+        {
+            memoryGb = 16;
+        }
+        else if (totalMemoryGb >= 24)
+        {
+            memoryGb = 12;
+        }
+        else
+        {
+            memoryGb = Math.Max(8, totalMemoryGb - 4);
+        }
+
+        var processors = Math.Max(4, Math.Min(16, logicalProcessors - 2));
+        var swapGb = Math.Max(8, Math.Min(16, memoryGb / 2));
+
+        return new WslConfigValues(memoryGb, processors, swapGb);
+    }
+
+    public WslConfigFileState GetCurrentWslConfig()
+    {
+        var path = WslConfigPath;
+        if (!File.Exists(path))
+        {
+            return new WslConfigFileState(path, exists: false, memoryGb: null, processors: null, swapGb: null);
+        }
+
+        var lines = File.ReadAllLines(path);
+        var memoryGb = ParseIniSizeGb(lines, "wsl2", "memory");
+        var processors = ParseIniInt(lines, "wsl2", "processors");
+        var swapGb = ParseIniSizeGb(lines, "wsl2", "swap");
+        return new WslConfigFileState(path, exists: true, memoryGb, processors, swapGb);
+    }
+
+    public async Task ApplyWslConfigAsync(
+        InstallSettings settings,
+        IProgress<string> progress,
+        CancellationToken cancellationToken)
+    {
+        if (settings.WslConfigMode == WslConfigMode.KeepExisting && File.Exists(WslConfigPath))
+        {
+            progress.Report("WSL resource settings: keeping the current .wslconfig values.");
+            return;
+        }
+
+        var config = settings.WslConfigMode switch
+        {
+            WslConfigMode.Custom => new WslConfigValues(
+                settings.WslMemoryGb,
+                settings.WslProcessors,
+                settings.WslSwapGb),
+            _ => GetRecommendedWslConfig(),
+        };
+
+        var updatedContent = BuildUpdatedWslConfigContent(config);
+        var existingContent = File.Exists(WslConfigPath)
+            ? File.ReadAllText(WslConfigPath)
+            : string.Empty;
+
+        if (string.Equals(existingContent, updatedContent, StringComparison.Ordinal))
+        {
+            progress.Report("WSL resource settings: .wslconfig already matches the selected values.");
+            return;
+        }
+
+        Directory.CreateDirectory(Path.GetDirectoryName(WslConfigPath)!);
+
+        if (File.Exists(WslConfigPath))
+        {
+            var backupPath = Path.Combine(
+                Path.GetDirectoryName(WslConfigPath)!,
+                $".wslconfig.backup-{DateTime.Now:yyyyMMdd-HHmmss}");
+            File.Copy(WslConfigPath, backupPath, overwrite: true);
+            progress.Report($"WSL resource settings: backed up the current .wslconfig to {backupPath}.");
+        }
+
+        File.WriteAllText(WslConfigPath, updatedContent, Encoding.ASCII);
+        progress.Report($"WSL resource settings: wrote memory={config.MemoryGb}GB, processors={config.Processors}, swap={config.SwapGb}GB to {WslConfigPath}.");
+
+        var wslStatus = await _processRunner.RunAsync(
+            fileName: "wsl.exe",
+            arguments: ["--status"],
+            workingDirectory: Environment.SystemDirectory,
+            progress: null,
+            environmentVariables: null,
+            cancellationToken: cancellationToken).ConfigureAwait(false);
+
+        if (wslStatus.ExitCode == 0)
+        {
+            progress.Report("WSL resource settings: shutting down WSL so the new values can apply.");
+            var shutdownResult = await _processRunner.RunAsync(
+                fileName: "wsl.exe",
+                arguments: ["--shutdown"],
+                workingDirectory: Environment.SystemDirectory,
+                progress: null,
+                environmentVariables: null,
+                cancellationToken: cancellationToken).ConfigureAwait(false);
+
+            if (shutdownResult.ExitCode != 0)
+            {
+                throw new InvalidOperationException("Failed to shut down WSL after writing .wslconfig.");
+            }
+        }
+        else
+        {
+            progress.Report("WSL resource settings: WSL is not ready yet, so the new .wslconfig will apply after WSL is available.");
+        }
     }
 
     public async Task RunRuntimeSetupAsync(
@@ -1022,4 +1154,198 @@ public sealed class InstallerWorkflowService
         status = new RuntimeBackendStatus(backendId, displayName, envReady, modelsReady, testReady, detail);
         return true;
     }
+
+    private string BuildUpdatedWslConfigContent(WslConfigValues config)
+    {
+        var lines = File.Exists(WslConfigPath)
+            ? File.ReadAllLines(WslConfigPath).ToList()
+            : new List<string>();
+
+        UpsertIniKey(lines, "wsl2", "memory", $"{config.MemoryGb}GB");
+        UpsertIniKey(lines, "wsl2", "processors", config.Processors.ToString());
+        UpsertIniKey(lines, "wsl2", "swap", $"{config.SwapGb}GB");
+
+        var content = string.Join(Environment.NewLine, lines).TrimEnd();
+        return content + Environment.NewLine;
+    }
+
+    private static void UpsertIniKey(List<string> lines, string sectionName, string key, string value)
+    {
+        var sectionHeader = $"[{sectionName}]";
+        var sectionStart = -1;
+        var sectionEnd = lines.Count;
+
+        for (var i = 0; i < lines.Count; i++)
+        {
+            var trimmed = lines[i].Trim();
+            if (!trimmed.StartsWith("[", StringComparison.Ordinal) || !trimmed.EndsWith("]", StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            if (string.Equals(trimmed, sectionHeader, StringComparison.OrdinalIgnoreCase))
+            {
+                sectionStart = i;
+                continue;
+            }
+
+            if (sectionStart >= 0)
+            {
+                sectionEnd = i;
+                break;
+            }
+        }
+
+        if (sectionStart < 0)
+        {
+            if (lines.Count > 0 && !string.IsNullOrWhiteSpace(lines[^1]))
+            {
+                lines.Add(string.Empty);
+            }
+
+            lines.Add(sectionHeader);
+            lines.Add($"{key}={value}");
+            return;
+        }
+
+        for (var i = sectionStart + 1; i < sectionEnd; i++)
+        {
+            var trimmed = lines[i].Trim();
+            if (trimmed.StartsWith("#", StringComparison.Ordinal) || trimmed.StartsWith(";", StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            var equalsIndex = trimmed.IndexOf('=');
+            if (equalsIndex < 0)
+            {
+                continue;
+            }
+
+            var existingKey = trimmed[..equalsIndex].Trim();
+            if (string.Equals(existingKey, key, StringComparison.OrdinalIgnoreCase))
+            {
+                lines[i] = $"{key}={value}";
+                return;
+            }
+        }
+
+        lines.Insert(sectionEnd, $"{key}={value}");
+    }
+
+    private static int? ParseIniInt(IReadOnlyList<string> lines, string sectionName, string key)
+    {
+        var raw = GetIniValue(lines, sectionName, key);
+        if (int.TryParse(raw, out var value) && value > 0)
+        {
+            return value;
+        }
+
+        return null;
+    }
+
+    private static int? ParseIniSizeGb(IReadOnlyList<string> lines, string sectionName, string key)
+    {
+        var raw = GetIniValue(lines, sectionName, key);
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return null;
+        }
+
+        var trimmed = raw.Trim();
+        if (trimmed.EndsWith("GB", StringComparison.OrdinalIgnoreCase))
+        {
+            trimmed = trimmed[..^2];
+        }
+        else if (trimmed.EndsWith("MB", StringComparison.OrdinalIgnoreCase))
+        {
+            trimmed = trimmed[..^2];
+            if (int.TryParse(trimmed, out var mb) && mb > 0)
+            {
+                return Math.Max(1, (int)Math.Ceiling(mb / 1024d));
+            }
+        }
+
+        if (int.TryParse(trimmed, out var gb) && gb > 0)
+        {
+            return gb;
+        }
+
+        return null;
+    }
+
+    private static string? GetIniValue(IReadOnlyList<string> lines, string sectionName, string key)
+    {
+        var inSection = false;
+        foreach (var line in lines)
+        {
+            var trimmed = line.Trim();
+            if (trimmed.StartsWith("[", StringComparison.Ordinal) && trimmed.EndsWith("]", StringComparison.Ordinal))
+            {
+                inSection = string.Equals(trimmed, $"[{sectionName}]", StringComparison.OrdinalIgnoreCase);
+                continue;
+            }
+
+            if (!inSection || trimmed.StartsWith("#", StringComparison.Ordinal) || trimmed.StartsWith(";", StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            var equalsIndex = trimmed.IndexOf('=');
+            if (equalsIndex < 0)
+            {
+                continue;
+            }
+
+            var existingKey = trimmed[..equalsIndex].Trim();
+            if (string.Equals(existingKey, key, StringComparison.OrdinalIgnoreCase))
+            {
+                return trimmed[(equalsIndex + 1)..].Trim();
+            }
+        }
+
+        return null;
+    }
+
+    private static ulong GetTotalPhysicalMemoryBytes()
+    {
+        var memoryStatus = new MemoryStatusEx();
+        if (!GlobalMemoryStatusEx(memoryStatus))
+        {
+            throw new InvalidOperationException("Could not read total physical memory from Windows.");
+        }
+
+        return memoryStatus.TotalPhys;
+    }
+
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Auto)]
+    private sealed class MemoryStatusEx
+    {
+        public MemoryStatusEx()
+        {
+            Length = (uint)Marshal.SizeOf(typeof(MemoryStatusEx));
+        }
+
+        public uint Length;
+
+        public uint MemoryLoad;
+
+        public ulong TotalPhys;
+
+        public ulong AvailPhys;
+
+        public ulong TotalPageFile;
+
+        public ulong AvailPageFile;
+
+        public ulong TotalVirtual;
+
+        public ulong AvailVirtual;
+
+        public ulong AvailExtendedVirtual;
+    }
+
+    [DllImport("kernel32.dll", CharSet = CharSet.Auto, SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool GlobalMemoryStatusEx([In, Out] MemoryStatusEx lpBuffer);
 }

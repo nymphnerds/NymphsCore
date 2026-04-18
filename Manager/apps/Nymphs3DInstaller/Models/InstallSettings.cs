@@ -15,4 +15,12 @@ public sealed class InstallSettings
     public bool RepairExistingDistro { get; set; }
 
     public string HuggingFaceToken { get; set; } = string.Empty;
+
+    public WslConfigMode WslConfigMode { get; set; } = WslConfigMode.Recommended;
+
+    public int WslMemoryGb { get; set; }
+
+    public int WslProcessors { get; set; }
+
+    public int WslSwapGb { get; set; }
 }

@@ -54,11 +54,18 @@ public sealed class MainWindowViewModel : ViewModelBase
     private string _postInstallActionSummary = string.Empty;
     private string _runtimeToolsSummary = string.Empty;
     private string _updateCheckSummary = string.Empty;
+    private string _recommendedWslConfigSummary = string.Empty;
+    private string _currentWslConfigSummary = string.Empty;
     private double _progressValue;
     private bool _prefetchModelsNow = true;
+    private bool _hasExistingWslConfig;
     private string _huggingFaceToken = string.Empty;
     private string _managedDistroName = InstallerWorkflowService.ManagedDistroName;
     private DriveChoice? _selectedDrive;
+    private WslConfigModeOption? _selectedWslConfigOption;
+    private int _wslCustomMemoryGb;
+    private int _wslCustomProcessors;
+    private int _wslCustomSwapGb;
     private RuntimeBackendStatus _hunyuanRuntimeStatus = RuntimeBackendStatus.Unknown("2mv", "Hunyuan 2mv", "Open Runtime Tools to check status.");
     private RuntimeBackendStatus _zImageRuntimeStatus = RuntimeBackendStatus.Unknown("zimage", "Z-Image", "Open Runtime Tools to check status.");
     private RuntimeBackendStatus _trellisRuntimeStatus = RuntimeBackendStatus.Unknown("trellis", "TRELLIS.2", "Open Runtime Tools to check status.");
@@ -70,6 +77,7 @@ public sealed class MainWindowViewModel : ViewModelBase
 
         SystemChecks = new ObservableCollection<SystemCheckItem>();
         LogLines = new ObservableCollection<string>();
+        WslConfigOptions = new ObservableCollection<WslConfigModeOption>();
 
         _primaryCommand = new AsyncRelayCommand(ExecutePrimaryActionAsync, CanExecutePrimaryAction);
         _checkForUpdatesCommand = new AsyncRelayCommand(RunManagedRepoUpdateCheckAsync, CanRunManagedRepoUpdateCheck);
@@ -90,6 +98,8 @@ public sealed class MainWindowViewModel : ViewModelBase
             .OrderByDescending(drive => drive.FreeBytes)
             .FirstOrDefault();
 
+        InitializeWslConfigChoices();
+
         RecomputeStepState();
     }
 
@@ -100,6 +110,8 @@ public sealed class MainWindowViewModel : ViewModelBase
     public ObservableCollection<DriveChoice> AvailableDrives { get; }
 
     public ObservableCollection<string> LogLines { get; }
+
+    public ObservableCollection<WslConfigModeOption> WslConfigOptions { get; }
 
     public AsyncRelayCommand PrimaryCommand => _primaryCommand;
 
@@ -320,6 +332,95 @@ public sealed class MainWindowViewModel : ViewModelBase
 
     public string RuntimeDownloadDetailsText => RuntimeDownloadDetails;
 
+    public string RecommendedWslConfigSummary
+    {
+        get => _recommendedWslConfigSummary;
+        private set => SetProperty(ref _recommendedWslConfigSummary, value);
+    }
+
+    public string CurrentWslConfigSummary
+    {
+        get => _currentWslConfigSummary;
+        private set => SetProperty(ref _currentWslConfigSummary, value);
+    }
+
+    public bool HasExistingWslConfig
+    {
+        get => _hasExistingWslConfig;
+        private set
+        {
+            if (SetProperty(ref _hasExistingWslConfig, value))
+            {
+                OnPropertyChanged(nameof(ShowCurrentWslConfigSummary));
+            }
+        }
+    }
+
+    public bool ShowCurrentWslConfigSummary => HasExistingWslConfig;
+
+    public WslConfigModeOption? SelectedWslConfigOption
+    {
+        get => _selectedWslConfigOption;
+        set
+        {
+            if (SetProperty(ref _selectedWslConfigOption, value))
+            {
+                OnPropertyChanged(nameof(IsCustomWslConfigMode));
+                OnPropertyChanged(nameof(WslConfigChoiceSummary));
+                RaiseCommandStateChanged();
+            }
+        }
+    }
+
+    public bool IsCustomWslConfigMode => SelectedWslConfigOption?.Mode == WslConfigMode.Custom;
+
+    public int WslCustomMemoryGb
+    {
+        get => _wslCustomMemoryGb;
+        set
+        {
+            if (SetProperty(ref _wslCustomMemoryGb, value))
+            {
+                OnPropertyChanged(nameof(WslConfigChoiceSummary));
+                RaiseCommandStateChanged();
+            }
+        }
+    }
+
+    public int WslCustomProcessors
+    {
+        get => _wslCustomProcessors;
+        set
+        {
+            if (SetProperty(ref _wslCustomProcessors, value))
+            {
+                OnPropertyChanged(nameof(WslConfigChoiceSummary));
+                RaiseCommandStateChanged();
+            }
+        }
+    }
+
+    public int WslCustomSwapGb
+    {
+        get => _wslCustomSwapGb;
+        set
+        {
+            if (SetProperty(ref _wslCustomSwapGb, value))
+            {
+                OnPropertyChanged(nameof(WslConfigChoiceSummary));
+                RaiseCommandStateChanged();
+            }
+        }
+    }
+
+    public string WslConfigChoiceSummary =>
+        SelectedWslConfigOption?.Mode switch
+        {
+            WslConfigMode.KeepExisting => "The installer will leave your current .wslconfig in place.",
+            WslConfigMode.Custom => $"Custom values to write: memory={WslCustomMemoryGb}GB, processors={WslCustomProcessors}, swap={WslCustomSwapGb}GB.",
+            _ => RecommendedWslConfigSummary,
+        };
+
     public string ManagedDistroStatusText =>
         ManagedDistroDetected
             ? $"Existing managed {_managedDistroName} distro detected. Rerun the latest manager to repair or refresh it in place. You can preview managed repo git status first if you want."
@@ -412,7 +513,7 @@ public sealed class MainWindowViewModel : ViewModelBase
             0 => true,
             1 => true,
             2 => SelectedDrive is not null,
-            3 => SelectedDrive is not null,
+            3 => SelectedDrive is not null && HasValidWslConfigSelection(),
             4 => _installCompleted,
             5 => true,
             6 => true,
@@ -639,6 +740,7 @@ public sealed class MainWindowViewModel : ViewModelBase
             PrefetchModelsNow = true,
             RepairExistingDistro = true,
             HuggingFaceToken = HuggingFaceToken,
+            WslConfigMode = WslConfigMode.KeepExisting,
         };
     }
 
@@ -917,6 +1019,10 @@ public sealed class MainWindowViewModel : ViewModelBase
                 PrefetchModelsNow = PrefetchModelsNow,
                 RepairExistingDistro = repairExistingDistro,
                 HuggingFaceToken = HuggingFaceToken,
+                WslConfigMode = SelectedWslConfigOption?.Mode ?? WslConfigMode.Recommended,
+                WslMemoryGb = WslCustomMemoryGb,
+                WslProcessors = WslCustomProcessors,
+                WslSwapGb = WslCustomSwapGb,
             };
 
             if (settings.RepairExistingDistro)
@@ -940,6 +1046,7 @@ public sealed class MainWindowViewModel : ViewModelBase
                 settings.PrefetchModelsNow
                     ? "Model prefetch: enabled"
                     : "Model prefetch: disabled");
+            AppendInstallLog(BuildWslConfigLogLine(settings));
 
             var progress = new Progress<string>(line =>
             {
@@ -957,6 +1064,8 @@ public sealed class MainWindowViewModel : ViewModelBase
                 : "Importing the NymphsCore base environment...";
             LogLines.Add(baseStepMessage);
             AppendInstallLog(baseStepMessage);
+            await _workflowService.ApplyWslConfigAsync(settings, progress, CancellationToken.None).ConfigureAwait(true);
+            ProgressValue = 20;
             await _workflowService.ImportBaseDistroAsync(settings, progress, CancellationToken.None).ConfigureAwait(true);
             ProgressValue = 45;
 
@@ -1055,9 +1164,9 @@ public sealed class MainWindowViewModel : ViewModelBase
                 PrimaryButtonText = "Continue";
                 break;
             case 3:
-                CurrentStepTitle = "Model Prefetch";
+                CurrentStepTitle = "WSL Resources And Models";
                 CurrentStepSubtitle =
-                    "Base import and required runtime environments will be installed automatically. Choose whether to prefetch models now.";
+                    "Choose how the installer should handle .wslconfig, then decide whether to prefetch models now.";
                 PrimaryButtonText = ManagedDistroDetected ? "Repair / Refresh" : "Start Install";
                 break;
             case 4:
@@ -1145,6 +1254,76 @@ public sealed class MainWindowViewModel : ViewModelBase
                  line.StartsWith("- Nymphs3D helper repo is checked here", StringComparison.Ordinal) ||
                  line.StartsWith("- The current installer run still uses", StringComparison.Ordinal) ||
                  line.StartsWith("- Backend repos are safe to fast-forward", StringComparison.Ordinal));
+    }
+
+    private void InitializeWslConfigChoices()
+    {
+        var recommended = _workflowService.GetRecommendedWslConfig();
+        var current = _workflowService.GetCurrentWslConfig();
+
+        HasExistingWslConfig = current.Exists;
+        RecommendedWslConfigSummary =
+            $"Recommended for this PC: memory={recommended.MemoryGb}GB, processors={recommended.Processors}, swap={recommended.SwapGb}GB. This is a good fit for the backend on higher-end 4080/5090-class systems when the PC has enough host RAM.";
+        CurrentWslConfigSummary = current.Exists
+            ? $"Current {current.Path}: memory={FormatNullableValue(current.MemoryGb, "GB")}, processors={FormatNullableValue(current.Processors)}, swap={FormatNullableValue(current.SwapGb, "GB")}."
+            : $"No existing {_workflowService.WslConfigPath} was detected.";
+
+        WslCustomMemoryGb = current.MemoryGb ?? recommended.MemoryGb;
+        WslCustomProcessors = current.Processors ?? recommended.Processors;
+        WslCustomSwapGb = current.SwapGb ?? recommended.SwapGb;
+
+        WslConfigOptions.Add(new WslConfigModeOption(
+            WslConfigMode.Recommended,
+            "Use recommended values",
+            "Best default for most users. Keeps strong WSL headroom for the backend while leaving room for Windows, Blender, and the GPU driver stack."));
+
+        if (current.Exists)
+        {
+            WslConfigOptions.Add(new WslConfigModeOption(
+                WslConfigMode.KeepExisting,
+                "Keep current .wslconfig",
+                "Leave the current WSL memory, processor, and swap settings unchanged."));
+        }
+
+        WslConfigOptions.Add(new WslConfigModeOption(
+            WslConfigMode.Custom,
+            "Use custom values",
+            "Write your own memory, processor, and swap values into .wslconfig."));
+
+        SelectedWslConfigOption = WslConfigOptions.FirstOrDefault(option =>
+            option.Mode == (current.Exists ? WslConfigMode.KeepExisting : WslConfigMode.Recommended));
+    }
+
+    private bool HasValidWslConfigSelection()
+    {
+        if (SelectedWslConfigOption is null)
+        {
+            return false;
+        }
+
+        if (SelectedWslConfigOption.Mode != WslConfigMode.Custom)
+        {
+            return true;
+        }
+
+        return WslCustomMemoryGb >= 8 &&
+               WslCustomProcessors >= 4 &&
+               WslCustomSwapGb >= 0;
+    }
+
+    private static string FormatNullableValue(int? value, string suffix = "")
+    {
+        return value.HasValue ? $"{value.Value}{suffix}" : "not set";
+    }
+
+    private static string BuildWslConfigLogLine(InstallSettings settings)
+    {
+        return settings.WslConfigMode switch
+        {
+            WslConfigMode.KeepExisting => "WSL resource settings: keeping current .wslconfig values.",
+            WslConfigMode.Custom => $"WSL resource settings: custom memory={settings.WslMemoryGb}GB, processors={settings.WslProcessors}, swap={settings.WslSwapGb}GB.",
+            _ => "WSL resource settings: using recommended values for this PC.",
+        };
     }
 
     private static UpdateCheckPresentation BuildFriendlyUpdateCheckSummary(IEnumerable<string> lines)
