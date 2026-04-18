@@ -1055,7 +1055,7 @@ public sealed class MainWindowViewModel : ViewModelBase
             {
                 ModelsReady = true,
                 TestReady = true,
-                Detail = "Runtime env and required models are present. Ready for smoke test.",
+                Detail = "All components present. Ready for smoke test.",
             };
         }
 
@@ -1065,7 +1065,7 @@ public sealed class MainWindowViewModel : ViewModelBase
             {
                 ModelsReady = true,
                 TestReady = true,
-                Detail = "Runtime env and required models are present. Ready for smoke test.",
+                Detail = "All components present. Ready for smoke test.",
             };
         }
 
@@ -1075,7 +1075,7 @@ public sealed class MainWindowViewModel : ViewModelBase
             {
                 ModelsReady = true,
                 TestReady = true,
-                Detail = "Runtime env and required models are present. Ready for smoke test.",
+                Detail = "All components present. Ready for smoke test.",
             };
         }
 
