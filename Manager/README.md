@@ -1,50 +1,40 @@
-# Nymphs3D
+# NymphsCore Manager
 
-Nymphs3D sets up the local Nymphs backend runtime on a Windows PC with WSL.
+NymphsCore Manager is the Windows setup and repair app for the local backend runtime used by the Nymphs Blender addon.
 
-If you are a normal user, start with `NymphsCore Manager`. Do not build it from source unless you are working on the installer itself.
+Use it when you want the Nymphs backend on your own Windows PC, without manually building WSL, CUDA, Python environments, or model caches.
 
-## What This Repo Is
+## What It Installs
 
-This repo is the Windows-first setup layer for running the local `NymphsCore` backend runtime used by the `Nymphs` Blender addon.
+The manager imports and maintains a dedicated WSL distro named `NymphsCore`.
 
-It is mainly for:
+Inside that distro, it prepares the supported local backend stack:
 
-- installing the local backend runtime on Windows with WSL
-- packaging the Windows manager app
-- keeping the helper scripts and managed runtime tooling together
+- `TRELLIS.2` for single-image image-to-3D and texture/retexture workflows
+- `Hunyuan 2mv` for multiview-guided 3D workflows
+- `Z-Image` / Nunchaku for local image generation
+- CUDA 13.0, Python environments, helper scripts, and runtime checks
 
-It is not the Blender addon itself.
+The managed Linux user inside the distro is:
 
-The Blender addon is separate:
+```text
+nymph
+```
 
-- [Nymphs3D Blender Addon](https://github.com/nymphnerds/NymphsCore/tree/main/Blender/Addon)
+The usual local API address is:
 
-The backend model/runtime repos used by this setup are:
+```text
+http://localhost:8080
+```
 
-- `Babyjawz/Hunyuan3D-2`
-- `Babyjawz/Z-Image` for the `Z-Image` backend
-- `microsoft/TRELLIS.2`
+## Download
 
-Published GitHub artifact links now use `main`.
-Old `exp/2mv-remake` download URLs are obsolete.
-
-## Quick Start
-
-Download these two files:
+Download both files:
 
 - [NymphsCoreManager-win-x64.zip](https://github.com/nymphnerds/NymphsCore/raw/main/Manager/apps/Nymphs3DInstaller/publish/NymphsCoreManager-win-x64.zip)
 - [NymphsCore.tar](https://drive.google.com/file/d/1PIE9LJCcb06MCQ9G4T5ywrBJ8DWeqR5a/view?usp=drive_link)
 
-## What To Do
-
-1. Download `NymphsCoreManager-win-x64.zip`.
-2. Extract it to a normal folder on Windows.
-3. Download `NymphsCore.tar` from the Google Drive link above.
-4. Put `NymphsCore.tar` in the same extracted folder as `NymphsCoreManager.exe`.
-5. Run `NymphsCoreManager.exe`.
-6. If Windows asks for administrator permission, click `Yes`.
-7. To repair, refresh, or add optional Parts later, rerun the latest manager package again.
+Put `NymphsCore.tar` next to `NymphsCoreManager.exe` after extracting the zip.
 
 Your folder should look like this:
 
@@ -56,90 +46,104 @@ NymphsCoreManager-win-x64/
     ...
 ```
 
-## Important Notes
+Do not run the manager from inside the zip. Extract it first.
 
-- Do not run the manager from inside the zip.
-- Extract it first.
-- This manager build is unsigned, so Windows may warn about it.
-- If Windows shows `Windows protected your PC`, click `More info`, then `Run anyway`.
-- If Windows shows `Unknown publisher`, that is expected for this test build.
+## Quick Start
 
-## What The Manager Does
+1. Download `NymphsCoreManager-win-x64.zip`.
+2. Extract it to a normal folder on Windows.
+3. Download `NymphsCore.tar`.
+4. Put `NymphsCore.tar` in the extracted manager folder.
+5. Run `NymphsCoreManager.exe`.
+6. Approve the Windows administrator prompt.
+7. Leave model prefetch turned on unless you need a shorter first install.
+8. Use `Runtime Tools` after install to check backend readiness or run smoke tests.
 
-The manager:
+The manager build is currently unsigned. If Windows SmartScreen appears, choose `More info`, then `Run anyway`.
 
-- checks your Windows machine
-- checks WSL and NVIDIA visibility
-- warns if an existing WSL distro is already present
-- imports a dedicated `NymphsCore` WSL distro
-- prepares the backend runtime
-- can optionally include experimental `Hunyuan Parts`
-- optionally prefetches models now instead of on first real use
-- can be rerun later to repair or refresh the existing `NymphsCore` install
+## Requirements
 
-The managed Linux user inside the new distro is:
+Recommended baseline:
 
-- `nymph`
+- Windows 10 or Windows 11
+- NVIDIA GPU with current drivers
+- WSL available on the machine
+- reliable internet connection
+- about `120 GB` free before install
+- `150 GB` free if you want comfortable headroom
 
-The runtime layout inside the distro uses:
+The ready-to-run backend footprint is currently about `92 GB` installed. The model prefetch stage can download about `72 GB` of required model and helper files.
 
-- `~/Hunyuan3D-2`
-- `~/Z-Image`
-- `~/TRELLIS.2`
-- `~/Hunyuan3D-Part` when experimental Parts is enabled
+For the detailed disk story, read:
 
-## Runtime And Export Notes
+- [Install Disk And Model Footprint](docs/install_disk_and_model_footprint.md)
 
-- The exported base distro tar is not intended to ship backend Python virtual environments.
-- That means machine-specific compiled extension builds are normally created after install on the target machine, not baked into `NymphsCore.tar`.
-- TRELLIS `flash-attn` is currently treated as an optional optimization, not a hard requirement.
-- The stable TRELLIS fallback is `sdpa`.
-- If `flash-attn` is enabled during install, it may compile locally on the user machine.
-- Those local compiled artifacts are not meant to be part of the base distro export unless prebuilt venvs are deliberately shipped later.
-- User-generated backend outputs should also not be baked into the export tar; the builder cleanup path removes output contents before export.
+## Manager Flow
 
-## If Something Fails
+The manager walks through these steps:
 
-- Use the `Show Logs` button in the manager.
-- Logs are written under:
+- `Welcome`: explains the local runtime and links to docs
+- `System Check`: checks administrator access, WSL, NVIDIA visibility, install files, and existing distros
+- `Install Location`: chooses the Windows drive/folder for the managed distro
+- `Model Prefetch`: chooses whether to download large model files now
+- `Installation Progress`: imports the distro and prepares runtime environments
+- `Finish`: summarizes the install
+- `Runtime Tools`: checks backend status, fetches missing models, and runs smoke tests
+
+Model prefetch is recommended for non-technical users. Turning it off only skips the large model downloads; the manager still prepares the runtime stack. Missing models can be fetched later from `Runtime Tools` or during first real use from the addon.
+
+## Runtime Tools
+
+Use `Runtime Tools` to:
+
+- check whether `Hunyuan 2mv`, `Z-Image`, and `TRELLIS.2` are ready
+- fetch missing model files into an existing install
+- run backend smoke tests
+- confirm the local API can start
+
+Smoke tests are slower than normal status checks because they actually start a backend and wait for a response.
+
+## Logs And Troubleshooting
+
+Logs are written under:
 
 ```text
 %LOCALAPPDATA%\NymphsCore\
 ```
 
-- If you need help, send:
-  - the newest `installer-run-*.log`
-  - a screenshot of the manager window
+If something fails, send the newest `installer-run-*.log` and a screenshot of the manager window.
+
+Common causes:
+
+- `NymphsCore.tar` is missing or not beside `NymphsCoreManager.exe`
+- the manager was launched from inside the zip
+- not enough free disk space
+- WSL is disabled or unhealthy
+- NVIDIA is not visible inside WSL
+- the model download is still running or was interrupted
+
+Rerunning the latest manager is the intended repair path for interrupted installs, missing packages, missing models, or refreshed runtime scripts.
 
 ## After Install
 
-After the backend install completes:
+Install the Blender addon separately:
 
-1. install the Blender addon separately
-2. point the addon at the managed `NymphsCore` runtime
-3. if install skipped model prefetch, let the manager or addon download missing models on first real use
-4. rerun the latest manager later if you want to repair/refresh the install or enable optional Parts
+- [Nymphs Blender Addon](https://github.com/nymphnerds/NymphsCore/tree/main/Blender/Addon)
 
-Addon link:
+Most local installs should not need a custom API URL. The addon is designed to target the managed local runtime.
 
-- [Nymphs3D Blender Addon](https://github.com/nymphnerds/NymphsCore/tree/main/Blender/Addon)
-
-Default local API URL:
-
-- `http://localhost:8080`
-
-## Help Docs
+Useful docs:
 
 - [Absolute Beginner Local Backend Install Guide](docs/absolute_beginner_local_install_guide.md)
 - [Install Disk And Model Footprint](docs/install_disk_and_model_footprint.md)
-- [Goblin Single Image to 3D Example](docs/goblin_single_image_to_3d_example.md)
+- [Blender Addon User Guide](../Blender/Addon/docs/USER_GUIDE.md)
 
-## Developer Note
+## Developer Notes
 
-If you are trying to work on the manager itself, the source lives under:
+The current manager app source lives under:
 
 - `apps/Nymphs3DInstaller`
 
-The old bootstrap installer path is archived under:
+The legacy batch/PowerShell installer is archived under:
 
 - `legacy/`

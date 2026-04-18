@@ -1,319 +1,284 @@
 # Absolute Beginner Local Backend Install Guide
 
-This guide is for a user who:
+This guide is for someone who wants the Nymphs backend running locally on one Windows PC.
 
-- has never used WSL
-- has never used Linux
-- wants the system on one Windows PC
-- wants a local backend server running on the same machine as Blender or another compatible client
+You do not need to know Linux or WSL. The manager app handles the WSL distro, CUDA setup, Python environments, runtime repos, and model downloads.
 
-This guide covers the backend/helper repo only.
+The Blender addon is installed separately after the backend is ready:
 
-The Blender addon/frontend is part of the NymphsCore monorepo. Install it separately after the backend is working.
-
-Addon link:
-
-- [Nymphs3D Blender Addon](https://github.com/nymphnerds/NymphsCore/tree/main/Blender/Addon)
+- [Nymphs Blender Addon](https://github.com/nymphnerds/NymphsCore/tree/main/Blender/Addon)
 
 ## What You Are Installing
 
-This helper flow installs the managed local runtime used by the addon, including:
+NymphsCore Manager installs a dedicated WSL distro named `NymphsCore`.
 
-- `Hunyuan3D-2`
-  - used for `Hunyuan 2mv`
-  - multiview and image-guided shape generation
-  - multiview texture guidance
-- `Z-Image`
-  - used for image generation
-  - can later supply images to the 3D backends
-- `TRELLIS.2`
-  - used for single-image shape generation
-  - used for single-image texture / retexture workflows
-- optional experimental `Hunyuan3D-Part`
-  - only if you enable the Parts option during install or a later rerun
+Inside it, the manager prepares:
 
-You are also installing:
+- `TRELLIS.2` for single-image image-to-3D and texture/retexture workflows
+- `Hunyuan 2mv` for multiview-guided shape and texture workflows
+- `Z-Image` / Nunchaku for local image generation
+- CUDA 13.0 inside WSL
+- Python virtual environments for the supported runtimes
+- model caches used by the local backend
+- status checks and smoke tests
 
-- WSL Ubuntu
-- Python environments
-- CUDA toolkit inside WSL
-- the main model files used by the supported local backend flows
+The local API normally runs at:
 
-This guide assumes a local baseline:
-
-- Windows PC
-- `NymphsCore` WSL runtime on that PC
-- local backend runtimes on that PC
-- Blender addon or another compatible client on that PC
+```text
+http://localhost:8080
+```
 
 ## Before You Start
 
 You need:
 
-- a Windows PC
+- a Windows 10 or Windows 11 PC
 - an NVIDIA GPU
+- current NVIDIA drivers
 - internet access
-- a `.7z` extractor such as `7-Zip`
-- at least `120G` free space
+- enough time for large downloads
+- about `120 GB` free before install
 
 Safer recommendation:
 
-- `150G` free space
+- `150 GB` free before install
 
 Why so much space:
 
-- AI Python environments are very large
-- model downloads are very large
-- CUDA in WSL takes space
-- temporary install files and generated assets also take space
+- the ready-to-run runtime is currently about `92 GB`
+- model prefetch can download about `72 GB`
+- Python AI environments are large
+- CUDA in WSL is large
+- generated meshes, textures, logs, and future updates need room
 
 More detail:
 
-- [install_disk_and_model_footprint.md](install_disk_and_model_footprint.md)
+- [Install Disk And Model Footprint](install_disk_and_model_footprint.md)
 
-## Install This First
+## Download The Manager
 
-Use the Windows manager app.
+Download both files:
 
-Recommended download:
+- [NymphsCoreManager-win-x64.zip](https://github.com/nymphnerds/NymphsCore/raw/main/Manager/apps/Nymphs3DInstaller/publish/NymphsCoreManager-win-x64.zip)
+- [NymphsCore.tar](https://drive.google.com/file/d/1PIE9LJCcb06MCQ9G4T5ywrBJ8DWeqR5a/view?usp=drive_link)
 
-- [Download NymphsCoreManager-win-x64.zip](https://github.com/nymphnerds/NymphsCore/raw/main/Manager/apps/Nymphs3DInstaller/publish/NymphsCoreManager-win-x64.zip)
-- [Download NymphsCore.tar](https://drive.google.com/file/d/1PIE9LJCcb06MCQ9G4T5ywrBJ8DWeqR5a/view?usp=drive_link)
+Then:
 
-Beginner path:
+1. Extract `NymphsCoreManager-win-x64.zip` to a normal Windows folder.
+2. Put `NymphsCore.tar` in that extracted folder.
+3. Confirm `NymphsCore.tar` is next to `NymphsCoreManager.exe`.
+4. Run `NymphsCoreManager.exe`.
 
-1. download the manager `.zip`
-2. extract it to a normal Windows folder
-3. download `NymphsCore.tar`
-4. place `NymphsCore.tar` in that extracted manager folder next to `NymphsCoreManager.exe`
-5. run `NymphsCoreManager.exe`
-
-This app is the main beginner installer/manager for the backend/helper side.
-
-What it does:
-
-- checks that Windows, WSL, and NVIDIA access look usable
-- imports the dedicated `NymphsCore` runtime
-- lets you choose the install drive/location for that managed runtime
-- installs the supported backend environments
-- can optionally install experimental Parts support
-- can optionally prefetch models now instead of on first use
-- verifies the local backend install
-
-## What Happens During Install
-
-The manager will try to do all of this for you:
-
-- check basic Windows requirements
-- check whether the base distro tar is present next to the manager
-- import the managed `NymphsCore` WSL distro
-- ask which Windows drive/location to use for that managed runtime
-- write a machine-specific `.wslconfig`
-- install system packages in WSL
-- install CUDA 13.0 in WSL
-- clone the backend repos
-- create the Python virtual environments
-- install the locked Python packages
-- predownload the main model weights
-- verify that the install is usable
-
-What to expect on screen:
-
-- Windows will ask for Administrator approval
-- the manager writes logs under `%LOCALAPPDATA%\NymphsCore\`
-- the installer keeps a managed repair/update checkout inside WSL at `~/.nymphs3d-installer/Nymphs3D`
-
-## If You Rerun The Manager Later
-
-Rerunning the latest manager is the intended repair path for:
-
-- interrupted installs
-- missing Python packages
-- missing compiled extensions
-- missing model downloads
-- an out-of-date managed installer checkout in WSL
-- enabling optional experimental Parts later
-
-Rerunning is not a guaranteed fix for:
-
-- broken Windows GPU drivers
-- a damaged WSL installation outside this setup flow
-- Blender not being installed yet
-- any separately distributed addon/frontend package
-
-## What To Do After Install
-
-If the manager finishes successfully:
-
-1. install your separately distributed Blender addon/frontend or other compatible client
-2. follow that product's own install instructions
-3. point the client at the local backend if needed
-4. start the backend you want from the addon or use the manager runtime tools / smoke tests
-5. if you skipped model prefetch during install, let the manager or addon download the missing models now
-6. run one simple generation
-
-Important:
-
-- if models were not prefetched during install, the first real manager/addon model download can take a long time
-- this is normal for the first real use
-
-Addon link:
-
-- [Nymphs3D Blender Addon](https://github.com/nymphnerds/NymphsCore/tree/main/Blender/Addon)
-
-If you want a deeper proof that the local API can really boot, open Ubuntu and run:
+The folder should look like this:
 
 ```text
-~/.nymphs3d-installer/Nymphs3D/scripts/verify_install.sh --smoke-test trellis
+NymphsCoreManager-win-x64/
+  NymphsCoreManager.exe
+  NymphsCore.tar
+  scripts/
+    ...
 ```
 
-You can also use:
+Do not run the manager from inside the zip.
+
+This build is currently unsigned. If Windows says `Windows protected your PC`, click `More info`, then `Run anyway`. If Windows says `Unknown publisher`, that is expected for this build.
+
+## Step 1: Welcome
+
+The welcome screen explains that the manager will create and maintain the local runtime.
+
+Use the side buttons if you need:
+
+- `README`
+- `Footprint`
+- `Addon Guide`
+- `Show Logs`
+
+## Step 2: System Check
+
+The manager checks:
+
+- administrator access
+- whether `NymphsCore.tar` is in the correct folder
+- available install drives
+- WSL availability
+- existing WSL distros
+- NVIDIA visibility
+
+If a check fails, read the message on screen before continuing.
+
+Most common fixes:
+
+- move `NymphsCore.tar` beside `NymphsCoreManager.exe`
+- extract the zip instead of running from inside it
+- free more disk space
+- update NVIDIA drivers
+- enable or repair WSL
+
+If you already have a `NymphsCore` WSL distro, the manager will treat this as an existing install and can repair or refresh it.
+
+## Step 3: Install Location
+
+Choose where the managed WSL distro should live.
+
+Pick a drive with enough space. The manager uses the fixed distro name:
 
 ```text
-~/.nymphs3d-installer/Nymphs3D/scripts/verify_install.sh --smoke-test 2mv
+NymphsCore
 ```
 
-Those checks are slower than the default verification because they actually start a local backend and wait for `/server_info`.
+The Linux user inside the distro is:
 
-## Which Backend To Start
+```text
+nymph
+```
 
-Use `TRELLIS.2` if:
+## Step 4: Model Prefetch
 
-- you want the current default single-image shape path
-- you want the current default single-image texture / retexture path
+Model prefetch decides whether the manager downloads the large model files during setup.
 
-Use `Hunyuan 2mv` if:
+Recommended beginner choice:
 
-- you want the multiview workflow
-- you want image-guided multiview shape generation
-- you want multiview texture guidance
+- leave model prefetch on
 
-Use `Z-Image` if:
+With prefetch on:
 
-- you want to generate a concept/reference image first
-- you want to feed that image into the 3D workflows later
+- the first install takes longer
+- the manager downloads about `72 GB` of model and helper files
+- first use from Blender is smoother
 
-## Which Options To Use As A Beginner
+With prefetch off:
 
-If you are not sure, use these defaults:
+- setup finishes sooner
+- large model downloads happen later
+- the first backend launch from the manager or addon can feel slow
 
-### For `TRELLIS.2`
+The optional Hugging Face token box is only for downloads that need your Hugging Face account access. The manager uses it for the current run and does not write it permanently into the distro.
 
-- backend: `TRELLIS.2`
-- use a single clean source image
-- start with shape first
-- add texture if you want a textured result
+## Step 5: Installation Progress
 
-### For `Hunyuan 2mv`
+During install, the manager:
 
-- backend: `Hunyuan 2mv`
-- use multiview guidance if you have front/left/right/back views
-- use image-guided shape if you only have one image
-- add texture if you want a textured result
-- `Turbo model`: on
-- `Enable FlashVDM`: on
+- imports the `NymphsCore` WSL distro from `NymphsCore.tar`
+- prepares Linux system packages
+- installs CUDA 13.0 inside WSL
+- clones or refreshes runtime repos
+- creates Python environments
+- installs backend dependencies
+- downloads model files if prefetch is on
+- verifies the install
 
-## Client Connection Notes
+This can take a long time. On a normal home connection, the download-heavy stage can take 1 to 2 hours or more.
 
-For the normal local setup:
+Logs are written to:
 
-- let the addon use its managed-runtime defaults
-- the addon is already set up to target the managed `NymphsCore` runtime
-- most local setups should not need manual API URL changes
+```text
+%LOCALAPPDATA%\NymphsCore\
+```
 
-Only advanced or remote setups should need a different API URL.
+Use `Show Logs` if the app appears stuck. If the log is still changing, the install is still working.
 
-## If You Want The Simplest First Test
+## Step 6: Finish
 
-Do this:
+The finish screen summarizes the install.
 
-1. finish the backend install in `NymphsCore Manager`
-2. install your separate addon/frontend package
-3. let it target the managed `NymphsCore` runtime
-4. start `TRELLIS.2` or `Hunyuan 2mv` from the addon
-5. let it finish any first-time model downloads if needed
-6. choose one simple image-to-3D task
-7. turn on texture only if you want a textured result
-8. run one simple generation
+If setup completed, open `Runtime Tools`.
 
-This is the most important real-world test because it proves the backend and client can actually talk to each other.
+If setup failed:
+
+1. click `Show Logs`
+2. look for the newest `installer-run-*.log`
+3. rerun the manager after fixing the issue
+
+Rerunning the latest manager is the intended repair path for interrupted installs.
+
+## Step 7: Runtime Tools
+
+Runtime Tools can:
+
+- check whether `Hunyuan 2mv`, `Z-Image`, and `TRELLIS.2` are ready
+- fetch missing models into an existing install
+- run backend smoke tests
+
+Status checks are quick.
+
+Smoke tests are slower because they start a backend and wait for the local API to answer.
+
+Use `Fetch Models Now` if you skipped prefetch or if a model download was interrupted.
+
+## Which Backend Should I Use?
+
+Use `TRELLIS.2` for:
+
+- single-image image-to-3D
+- single-image texture/retexture workflows
+- the simplest first real test
+
+Use `Hunyuan 2mv` for:
+
+- multiview guidance
+- front/left/right/back reference workflows
+- multiview texture guidance
+
+Use `Z-Image` for:
+
+- generating concept or reference images locally
+- creating images that can later feed the 3D backends
+
+## After The Backend Works
+
+Install the Blender addon:
+
+- [Nymphs Blender Addon](https://github.com/nymphnerds/NymphsCore/tree/main/Blender/Addon)
+
+Then:
+
+1. open Blender
+2. enable the addon
+3. use the managed local runtime defaults
+4. start a backend from the addon or from Runtime Tools
+5. run one simple image-to-3D test
+
+Most local users should not need to change the API URL.
+
+## Simple First Test
+
+The simplest useful proof is:
+
+1. finish the manager install
+2. open `Runtime Tools`
+3. check backend status
+4. run a `TRELLIS.2` smoke test
+5. install and enable the Blender addon
+6. run one simple single-image 3D job
+
+If model prefetch was off, expect the first real run to spend time downloading missing models.
 
 ## If Something Goes Wrong
 
 The most common issues are:
 
-- `NymphsCore.tar` was not placed next to the extracted manager
-- not enough disk space
-- NVIDIA GPU / WSL CUDA is not healthy
-- first-time downloads are still happening
-- the manager log in `%LOCALAPPDATA%\NymphsCore\` points at the exact failing step
+- `NymphsCore.tar` is not next to `NymphsCoreManager.exe`
+- the manager was run from inside the zip
+- disk space is too low
+- WSL is disabled or unhealthy
+- NVIDIA is not visible inside WSL
+- a model download was interrupted
+- the first model download is still running
 
-## What This Guide Is Not Trying To Cover
+Send these when asking for help:
 
-This guide does not try to explain:
+- the newest `installer-run-*.log`
+- a screenshot of the manager window
+- whether model prefetch was on or off
+- how much free disk space is left on the install drive
 
+## What This Guide Does Not Cover
+
+This guide does not cover:
+
+- Blender basics
 - Linux basics
-- WSL internals
-- how to install the paid addon/frontend package
-- remote API setups in full detail
-- advanced experimental texture-helper paths
-
-## Optional: Basic Remote Server Setup
-
-This is not the main beginner path.
-
-Only use this if:
-
-- one PC is running the local backend server
-- a different PC is running Blender or another client
-
-In that setup:
-
-- PC A = WSL + NymphsCore runtimes
-- PC B = Blender + separate addon/frontend
-
-### Basic Idea
-
-Instead of the client talking to:
-
-- `http://localhost:8080`
-
-it talks to the LAN address of the server machine:
-
-- `http://SERVER-PC-IP:8080`
-
-### Basic Steps
-
-1. Install the backend system normally on the server PC.
-2. Start the backend on the server PC.
-3. Find the server PC local IP address.
-4. Make sure Windows Firewall allows port `8080`.
-5. On the client PC, install the separately distributed addon/frontend.
-6. In that client, change the API URL from `http://localhost:8080` to:
-
-```text
-http://SERVER-PC-IP:8080
-```
-
-7. Test connection from the client.
-
-### Example
-
-If the server PC address is:
-
-```text
-192.168.1.50
-```
-
-then the client API URL becomes:
-
-```text
-http://192.168.1.50:8080
-```
-
-### Important Notes
-
-- both PCs must be on the same network unless you set up more advanced routing
-- the backend/server machine must stay on while the client uses it
-- if the firewall blocks the port, the client will not connect
-- this is an advanced setup compared with the normal local workflow
+- paid addon licensing or distribution
+- remote server deployment
+- manual backend development

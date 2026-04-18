@@ -41,6 +41,17 @@ if (-not (Test-Path $scriptsSource)) {
 $scriptsDestination = Join-Path $publishRoot "scripts"
 Copy-Item -Path $scriptsSource -Destination $scriptsDestination -Recurse -Force
 
+Get-ChildItem -Path $scriptsDestination -Recurse -Directory -Filter "__pycache__" |
+    Remove-Item -Recurse -Force
+
+Get-ChildItem -Path $scriptsDestination -Recurse -File -Include "*.pyc", "*.pyo" |
+    Remove-Item -Force
+
+$legacyPartsWrappers = Join-Path $scriptsDestination "hunyuan_parts_wrappers"
+if (Test-Path $legacyPartsWrappers) {
+    Remove-Item -Path $legacyPartsWrappers -Recurse -Force
+}
+
 $payloadTarPath = $payloadTarCandidates | Where-Object { Test-Path $_ } | Select-Object -First 1
 if ($payloadTarPath) {
     Copy-Item -Path $payloadTarPath -Destination (Join-Path $publishRoot "NymphsCore.tar") -Force
