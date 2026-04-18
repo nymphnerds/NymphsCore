@@ -33,14 +33,17 @@ Thumbs.db
 !/Blender/Addon/docs/USER_GUIDE.md
 !/Blender/Addon/docs/image_to_mesh_repos.pdf
 
-# Local manager notes; keep only customer-facing docs tracked
+# Local manager notes; keep customer-facing and maintainer docs trackable
 /Manager/*.md
 !/Manager/README.md
 !/Manager/ROADMAP.md
 /Manager/apps/**/*.md
+!/Manager/apps/**/README.md
 /Manager/dev/**/*.md
 /Manager/legacy/**/*.md
 /Manager/docs/**
 !/Manager/docs/
 !/Manager/docs/absolute_beginner_local_install_guide.md
 !/Manager/docs/install_disk_and_model_footprint.md
+!/Manager/docs/manager_release_publish_notes.md
+/Manager/docs/archive/**

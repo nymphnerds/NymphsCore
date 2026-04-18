@@ -14,10 +14,13 @@ The committed manager archive is intentionally a **no-tar zip**.
 ## Expected Tracked Release Files
 
 ```text
+Manager/apps/Nymphs3DInstaller/publish/NymphsCoreManager-win-x64.zip
 Manager/apps/Nymphs3DInstaller/publish/win-x64/NymphsCoreManager.exe
-Manager/apps/Nymphs3DInstaller/publish/win-x64/NymphsCoreManager-win-x64.zip
 Manager/apps/Nymphs3DInstaller/publish/win-x64/scripts/
 ```
+
+Do not commit a second copy of the zip under `publish/win-x64/`. The top-level
+`publish/NymphsCoreManager-win-x64.zip` is the download archive shown in GitHub.
 
 If new installer helper scripts are added under `Manager/scripts`, make sure the published
 `scripts/` folder and the zip include them. For example, the optional Nymphs-Brain module
@@ -49,14 +52,14 @@ accidentally committing the base distro tar into the zip.
 From WSL, verify the zip includes the executable and required scripts:
 
 ```bash
-unzip -l Manager/apps/Nymphs3DInstaller/publish/win-x64/NymphsCoreManager-win-x64.zip \
+unzip -l Manager/apps/Nymphs3DInstaller/publish/NymphsCoreManager-win-x64.zip \
   | rg 'NymphsCoreManager\.exe|scripts/install_nymphs_brain\.sh'
 ```
 
 Verify the zip does not contain tar payloads:
 
 ```bash
-unzip -l Manager/apps/Nymphs3DInstaller/publish/win-x64/NymphsCoreManager-win-x64.zip \
+unzip -l Manager/apps/Nymphs3DInstaller/publish/NymphsCoreManager-win-x64.zip \
   | rg 'NymphsCore\.tar|Nymphs3D2\.tar'
 ```
 
@@ -76,8 +79,8 @@ script/documentation changes:
 
 ```bash
 git add \
+  Manager/apps/Nymphs3DInstaller/publish/NymphsCoreManager-win-x64.zip \
   Manager/apps/Nymphs3DInstaller/publish/win-x64/NymphsCoreManager.exe \
-  Manager/apps/Nymphs3DInstaller/publish/win-x64/NymphsCoreManager-win-x64.zip \
   Manager/apps/Nymphs3DInstaller/publish/win-x64/scripts
 
 git commit -m "Update published manager release"

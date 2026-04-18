@@ -29,9 +29,12 @@ http://localhost:8080
 
 ## Download
 
-Download both files:
+Download the manager zip from the repo:
 
 - [NymphsCoreManager-win-x64.zip](https://github.com/nymphnerds/NymphsCore/raw/main/Manager/apps/Nymphs3DInstaller/publish/NymphsCoreManager-win-x64.zip)
+
+Download the base distro tar separately:
+
 - [NymphsCore.tar](https://drive.google.com/file/d/1PIE9LJCcb06MCQ9G4T5ywrBJ8DWeqR5a/view?usp=drive_link)
 
 Put `NymphsCore.tar` next to `NymphsCoreManager.exe` after extracting the zip.
@@ -47,6 +50,8 @@ NymphsCoreManager-win-x64/
 ```
 
 Do not run the manager from inside the zip. Extract it first.
+
+The release zip is intentionally a no-tar archive. It contains the manager exe and helper scripts only; `NymphsCore.tar` stays separate so the GitHub download remains small.
 
 ## Quick Start
 
@@ -85,12 +90,14 @@ The manager walks through these steps:
 - `Welcome`: explains the local runtime and links to docs
 - `System Check`: checks administrator access, WSL, NVIDIA visibility, install files, and existing distros
 - `Install Location`: chooses the Windows drive/folder for the managed distro
-- `Model Prefetch`: chooses whether to download large model files now
+- `WSL Resources And Models`: chooses WSL resource settings, model prefetch, and optional experimental modules
 - `Installation Progress`: imports the distro and prepares runtime environments
 - `Finish`: summarizes the install
 - `Runtime Tools`: checks backend status, fetches missing models, and runs smoke tests
 
 Model prefetch is recommended for non-technical users. Turning it off only skips the large model downloads; the manager still prepares the runtime stack. Missing models can be fetched later from `Runtime Tools` or during first real use from the addon.
+
+The installer can also offer an experimental optional `Nymphs-Brain` local LLM stack. It installs under `/home/nymph/Nymphs-Brain` inside WSL when selected, is not required for the Blender backend, and can be skipped safely.
 
 ## Runtime Tools
 

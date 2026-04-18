@@ -8,6 +8,7 @@ Add-Type -AssemblyName System.IO.Compression.FileSystem
 
 $scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $repoRoot = Split-Path -Parent (Split-Path -Parent $scriptRoot)
+$publishBase = Join-Path $scriptRoot "publish"
 $publishRoot = Join-Path $scriptRoot ("publish\" + $Runtime)
 $scriptsSource = Join-Path $repoRoot "scripts"
 $payloadTarCandidates = @(
@@ -16,7 +17,7 @@ $payloadTarCandidates = @(
     (Join-Path $scriptRoot "payload\Nymphs3D2.tar"),
     (Join-Path $repoRoot "payload\Nymphs3D2.tar")
 )
-$zipPath = Join-Path $publishRoot ("NymphsCoreManager-" + $Runtime + ".zip")
+$zipPath = Join-Path $publishBase ("NymphsCoreManager-" + $Runtime + ".zip")
 $tempZipPath = Join-Path ([System.IO.Path]::GetTempPath()) ([System.IO.Path]::GetRandomFileName() + ".zip")
 
 Write-Host "Publishing NymphsCore Manager for $Runtime..."

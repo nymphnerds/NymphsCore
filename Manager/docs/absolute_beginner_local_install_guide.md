@@ -57,9 +57,12 @@ More detail:
 
 ## Download The Manager
 
-Download both files:
+Download the manager zip:
 
 - [NymphsCoreManager-win-x64.zip](https://github.com/nymphnerds/NymphsCore/raw/main/Manager/apps/Nymphs3DInstaller/publish/NymphsCoreManager-win-x64.zip)
+
+Download the base distro tar separately:
+
 - [NymphsCore.tar](https://drive.google.com/file/d/1PIE9LJCcb06MCQ9G4T5ywrBJ8DWeqR5a/view?usp=drive_link)
 
 Then:
@@ -80,6 +83,8 @@ NymphsCoreManager-win-x64/
 ```
 
 Do not run the manager from inside the zip.
+
+The zip intentionally does not include `NymphsCore.tar`. Keeping the tar separate keeps the GitHub download small and makes it clearer which file is the app and which file is the base WSL distro.
 
 This build is currently unsigned. If Windows says `Windows protected your PC`, click `More info`, then `Run anyway`. If Windows says `Unknown publisher`, that is expected for this build.
 
@@ -133,7 +138,17 @@ The Linux user inside the distro is:
 nymph
 ```
 
-## Step 4: Model Prefetch
+## Step 4: WSL Resources And Models
+
+This page lets you choose WSL resource settings, model download timing, and optional experimental modules.
+
+For most beginners:
+
+- use the recommended WSL resource settings
+- leave model prefetch on
+- skip experimental Nymphs-Brain unless you specifically want to test the local LLM stack
+
+### Model Prefetch
 
 Model prefetch decides whether the manager downloads the large model files during setup.
 
@@ -154,6 +169,18 @@ With prefetch off:
 - the first backend launch from the manager or addon can feel slow
 
 The optional Hugging Face token box is only for downloads that need your Hugging Face account access. The manager uses it for the current run and does not write it permanently into the distro.
+
+### Experimental Nymphs-Brain
+
+`Nymphs-Brain` is an optional experimental local LLM stack. It is not required for the Blender backend and can be skipped safely.
+
+If selected, it installs inside WSL at:
+
+```text
+/home/nymph/Nymphs-Brain
+```
+
+It keeps its Python environment, npm tools, model cache, and wrappers under that folder where possible. LM Studio CLI itself may still use its normal home-managed location.
 
 ## Step 5: Installation Progress
 
