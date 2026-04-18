@@ -171,6 +171,22 @@ PY
   )
 }
 
+prefetch_rembg_u2net() {
+  local u2net_cache_dir="${HOME}/.u2net"
+  local u2net_file="${u2net_cache_dir}/u2net.onnx"
+  local u2net_url="https://github.com/danielgatis/rembg/releases/download/v0.0.0/u2net.onnx"
+
+  if [[ -f "${u2net_file}" ]]; then
+    echo "rembg u2net model already present at ${u2net_file}"
+  else
+    echo "Prefetching rembg u2net model..."
+    mkdir -p "${u2net_cache_dir}"
+    curl -L -o "${u2net_file}.tmp" "${u2net_url}"
+    mv "${u2net_file}.tmp" "${u2net_file}"
+    echo "rembg u2net model downloaded to ${u2net_file}"
+  fi
+}
+
 echo "Prefetching core backend model weights..."
 
 prefetch_repo_models "${H2_DIR}" '[
@@ -198,6 +214,8 @@ prefetch_nymphs2d2_model
 echo "Prefetching TRELLIS.2 model bundle..."
 prefetch_trellis_model_bundle
 
+echo "Prefetching rembg u2net model..."
+prefetch_rembg_u2net
+
 echo
 echo "Core backend model prefetch complete."
-echo "Note: rembg/u2net and some third-party helper models may still download lazily on first advanced pipeline use."
