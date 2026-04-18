@@ -4,6 +4,40 @@ Local-only planning note. Do not publish this until the commercial install story
 
 Last updated: 2026-04-18
 
+## Requested Work Queue
+
+Ordering rule:
+
+- newest requested work goes at the top of this section
+- older requested work stays lower down
+
+### User-configurable `.wslconfig` in the installer
+
+Goal:
+
+- let users choose WSL memory and swap settings in the installer so the local backend can fit a wider range of PC specs
+
+Work:
+
+- add a Manager screen or advanced settings section for `.wslconfig`
+- explain the settings in normal-user language:
+  - memory cap
+  - swap size
+  - what these mean for slower vs stronger PCs
+- ship safe presets for common machine tiers
+- allow a custom/manual mode for advanced users
+- validate values before writing `C:\Users\<user>\.wslconfig`
+- clearly warn when changes require `wsl --shutdown` or a Windows restart to fully apply
+- show the current detected `.wslconfig` values when present
+- provide a restore/recommended-default option
+- make it clear that bad values can hurt performance or stability
+- document recommended ranges by RAM tier in the install docs
+
+Exit condition:
+
+- a user with a low-memory or high-memory PC can tune WSL from the installer without editing `.wslconfig` by hand
+- support can ask users which preset or values they chose during troubleshooting
+
 ## Current Product Shape
 
 NymphsCore Manager is the Windows setup, repair, and diagnostics app for the local backend runtime used by the Nymphs Blender addon.
