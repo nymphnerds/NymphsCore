@@ -960,58 +960,80 @@
           </StackPanel>
         </Border>
 
+        <!-- Runtime Tools: reworked so everything fits on-screen without scrolling.
+             Reading order top-to-bottom:
+               1. Title + one-line status summary
+               2. HF token strip (kept prominent: label + field + status on one row)
+               3. Three backend "hero" cards (DisplayName, coloured pill, detail, two actions)
+               4. Post-run summary (only visible when we have one)
+               5. Compact (140px) live log at the bottom
+             Global action buttons (Refresh / Fetch / Open Logs) moved inline next to
+             title so they don't steal a whole row. -->
         <Border Style="{StaticResource CardStyle}"
                 Visibility="{Binding IsRuntimeToolsStep, Converter={StaticResource BoolToVisibilityConverter}}">
           <StackPanel>
-            <TextBlock Text="Runtime Tools" FontSize="28" FontWeight="Bold" />
-            <TextBlock Margin="0,10,0,0"
-                       Text="{Binding RuntimeToolsSummary}"
-                       TextWrapping="Wrap"
-                       FontSize="15"
-                       Style="{StaticResource MutedText}" />
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+              </Grid.ColumnDefinitions>
+              <StackPanel Grid.Column="0">
+                <TextBlock Text="Runtime Tools" FontSize="26" FontWeight="Bold" />
+                <TextBlock Margin="0,6,0,0"
+                           Text="{Binding RuntimeToolsSummary}"
+                           TextWrapping="Wrap"
+                           FontSize="14"
+                           Style="{StaticResource MutedText}" />
+              </StackPanel>
+              <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top">
+                <Button Width="130" Style="{StaticResource SecondaryActionButton}"
+                        Command="{Binding RefreshRuntimeStatusCommand}" Content="Refresh" />
+                <Button Width="150" Style="{StaticResource SecondaryActionButton}"
+                        Command="{Binding FetchModelsNowCommand}" Content="Fetch Models" />
+                <Button Width="130" Style="{StaticResource SecondaryActionButton}"
+                        Margin="0"
+                        Command="{Binding OpenLogFolderCommand}" Content="Open Logs" />
+              </StackPanel>
+            </Grid>
 
-            <WrapPanel Margin="0,18,0,0">
-              <Button Width="150"
-                      Style="{StaticResource SecondaryActionButton}"
-                      Command="{Binding RefreshRuntimeStatusCommand}"
-                      Content="Refresh Status" />
-              <Button Width="170"
-                      Style="{StaticResource SecondaryActionButton}"
-                      Command="{Binding FetchModelsNowCommand}"
-                      Content="Fetch Models Now" />
-              <Button Width="150"
-                      Style="{StaticResource SecondaryActionButton}"
-                      Command="{Binding OpenLogFolderCommand}"
-                      Content="Open Log Folder" />
-            </WrapPanel>
-
-            <Border Margin="0,18,0,0"
-                    Padding="16"
+            <!-- HF token strip. Kept prominent (not collapsed) because authenticated
+                 downloads matter for model-gated repos. One-row layout: label |
+                 password field | status next to it. -->
+            <Border Margin="0,14,0,0"
+                    Padding="14,10"
                     Background="#F8F3EA"
                     BorderBrush="#E7DDCF"
                     BorderThickness="1"
-                    CornerRadius="12">
-              <StackPanel>
-                <TextBlock Text="Optional Hugging Face token"
+                    CornerRadius="10">
+              <Grid>
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="Auto" />
+                  <ColumnDefinition Width="12" />
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="12" />
+                  <ColumnDefinition Width="2*" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0"
+                           Text="🤗  Hugging Face token"
                            FontWeight="SemiBold"
-                           FontSize="15" />
-                <TextBlock Margin="0,8,0,0"
-                           Text="Use a token here if you want manager-driven model downloads to use authenticated Hugging Face access."
-                           TextWrapping="Wrap"
-                           Style="{StaticResource MutedText}" />
-                <PasswordBox Margin="0,10,0,0"
-                             Padding="10"
-                             FontSize="14"
+                           FontSize="14"
+                           VerticalAlignment="Center" />
+                <PasswordBox Grid.Column="2"
+                             Padding="8"
+                             FontSize="13"
+                             VerticalContentAlignment="Center"
                              PasswordChanged="OnHuggingFaceTokenChanged" />
-                <TextBlock Margin="0,8,0,0"
+                <TextBlock Grid.Column="4"
                            Text="{Binding HuggingFaceTokenStatus}"
                            TextWrapping="Wrap"
-                           FontSize="13"
+                           FontSize="12"
+                           VerticalAlignment="Center"
                            Style="{StaticResource MutedText}" />
-              </StackPanel>
+              </Grid>
             </Border>
 
-            <Grid Margin="0,18,0,0">
+            <!-- Backend "hero" cards. Now the real focus of the page. -->
+            <Grid Margin="0,14,0,0">
               <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="12" />
@@ -1019,48 +1041,108 @@
                 <ColumnDefinition Width="12" />
                 <ColumnDefinition Width="*" />
               </Grid.ColumnDefinitions>
-              <Border Grid.Column="0" Style="{StaticResource CardStyle}" Margin="0">
+
+              <Border Grid.Column="0"
+                      Background="#FFFDFC"
+                      BorderBrush="#E5DAC8"
+                      BorderThickness="1"
+                      CornerRadius="14"
+                      Padding="14"
+                      Margin="0">
                 <StackPanel>
-                  <TextBlock Text="{Binding HunyuanRuntimeStatus.DisplayName}" FontWeight="SemiBold" FontSize="18" />
-                  <TextBlock Margin="0,8,0,0" Text="{Binding HunyuanRuntimeStatus.ReadinessLabel}" FontWeight="SemiBold" Foreground="#1C4A49" />
-                  <TextBlock Margin="0,10,0,0" Text="{Binding HunyuanRuntimeStatus.Detail}" TextWrapping="Wrap" Style="{StaticResource MutedText}" />
-                  <Button Margin="0,16,0,0"
-                          Style="{StaticResource SecondaryActionButton}"
-                          Width="170"
-                          HorizontalAlignment="Left"
-                          Command="{Binding HunyuanRuntimeActionCommand}"
-                          Content="{Binding HunyuanTestButtonText}" />
+                  <DockPanel LastChildFill="True">
+                    <Border DockPanel.Dock="Right"
+                            Background="#1C4A49"
+                            CornerRadius="10"
+                            Padding="8,2"
+                            VerticalAlignment="Center">
+                      <TextBlock Text="{Binding HunyuanRuntimeStatus.ReadinessLabel}"
+                                 Foreground="White" FontSize="11" FontWeight="SemiBold" />
+                    </Border>
+                    <TextBlock Text="{Binding HunyuanRuntimeStatus.DisplayName}"
+                               FontWeight="SemiBold" FontSize="17" VerticalAlignment="Center" />
+                  </DockPanel>
+                  <TextBlock Margin="0,10,0,0"
+                             Text="{Binding HunyuanRuntimeStatus.Detail}"
+                             TextWrapping="Wrap" FontSize="13"
+                             Style="{StaticResource MutedText}" />
+                  <StackPanel Orientation="Horizontal" Margin="0,14,0,0">
+                    <Button Style="{StaticResource SecondaryActionButton}" MinWidth="110"
+                            Command="{Binding FetchModelsNowCommand}" Content="Fetch" />
+                    <Button Style="{StaticResource SecondaryActionButton}" MinWidth="120" Margin="0"
+                            Command="{Binding TestHunyuanCommand}" Content="{Binding HunyuanTestButtonText}" />
+                  </StackPanel>
                 </StackPanel>
               </Border>
-              <Border Grid.Column="2" Style="{StaticResource CardStyle}" Margin="0">
+
+              <Border Grid.Column="2"
+                      Background="#FFFDFC"
+                      BorderBrush="#E5DAC8"
+                      BorderThickness="1"
+                      CornerRadius="14"
+                      Padding="14"
+                      Margin="0">
                 <StackPanel>
-                  <TextBlock Text="{Binding ZImageRuntimeStatus.DisplayName}" FontWeight="SemiBold" FontSize="18" />
-                  <TextBlock Margin="0,8,0,0" Text="{Binding ZImageRuntimeStatus.ReadinessLabel}" FontWeight="SemiBold" Foreground="#1C4A49" />
-                  <TextBlock Margin="0,10,0,0" Text="{Binding ZImageRuntimeStatus.Detail}" TextWrapping="Wrap" Style="{StaticResource MutedText}" />
-                  <Button Margin="0,16,0,0"
-                          Style="{StaticResource SecondaryActionButton}"
-                          Width="170"
-                          HorizontalAlignment="Left"
-                          Command="{Binding ZImageRuntimeActionCommand}"
-                          Content="{Binding ZImageTestButtonText}" />
+                  <DockPanel LastChildFill="True">
+                    <Border DockPanel.Dock="Right"
+                            Background="#1C4A49"
+                            CornerRadius="10"
+                            Padding="8,2"
+                            VerticalAlignment="Center">
+                      <TextBlock Text="{Binding ZImageRuntimeStatus.ReadinessLabel}"
+                                 Foreground="White" FontSize="11" FontWeight="SemiBold" />
+                    </Border>
+                    <TextBlock Text="{Binding ZImageRuntimeStatus.DisplayName}"
+                               FontWeight="SemiBold" FontSize="17" VerticalAlignment="Center" />
+                  </DockPanel>
+                  <TextBlock Margin="0,10,0,0"
+                             Text="{Binding ZImageRuntimeStatus.Detail}"
+                             TextWrapping="Wrap" FontSize="13"
+                             Style="{StaticResource MutedText}" />
+                  <StackPanel Orientation="Horizontal" Margin="0,14,0,0">
+                    <Button Style="{StaticResource SecondaryActionButton}" MinWidth="110"
+                            Command="{Binding FetchModelsNowCommand}" Content="Fetch" />
+                    <Button Style="{StaticResource SecondaryActionButton}" MinWidth="120" Margin="0"
+                            Command="{Binding TestZImageCommand}" Content="{Binding ZImageTestButtonText}" />
+                  </StackPanel>
                 </StackPanel>
               </Border>
-              <Border Grid.Column="4" Style="{StaticResource CardStyle}" Margin="0">
+
+              <Border Grid.Column="4"
+                      Background="#FFFDFC"
+                      BorderBrush="#E5DAC8"
+                      BorderThickness="1"
+                      CornerRadius="14"
+                      Padding="14"
+                      Margin="0">
                 <StackPanel>
-                  <TextBlock Text="{Binding TrellisRuntimeStatus.DisplayName}" FontWeight="SemiBold" FontSize="18" />
-                  <TextBlock Margin="0,8,0,0" Text="{Binding TrellisRuntimeStatus.ReadinessLabel}" FontWeight="SemiBold" Foreground="#1C4A49" />
-                  <TextBlock Margin="0,10,0,0" Text="{Binding TrellisRuntimeStatus.Detail}" TextWrapping="Wrap" Style="{StaticResource MutedText}" />
-                  <Button Margin="0,16,0,0"
-                          Style="{StaticResource SecondaryActionButton}"
-                          Width="170"
-                          HorizontalAlignment="Left"
-                          Command="{Binding TrellisRuntimeActionCommand}"
-                          Content="{Binding TrellisTestButtonText}" />
+                  <DockPanel LastChildFill="True">
+                    <Border DockPanel.Dock="Right"
+                            Background="#1C4A49"
+                            CornerRadius="10"
+                            Padding="8,2"
+                            VerticalAlignment="Center">
+                      <TextBlock Text="{Binding TrellisRuntimeStatus.ReadinessLabel}"
+                                 Foreground="White" FontSize="11" FontWeight="SemiBold" />
+                    </Border>
+                    <TextBlock Text="{Binding TrellisRuntimeStatus.DisplayName}"
+                               FontWeight="SemiBold" FontSize="17" VerticalAlignment="Center" />
+                  </DockPanel>
+                  <TextBlock Margin="0,10,0,0"
+                             Text="{Binding TrellisRuntimeStatus.Detail}"
+                             TextWrapping="Wrap" FontSize="13"
+                             Style="{StaticResource MutedText}" />
+                  <StackPanel Orientation="Horizontal" Margin="0,14,0,0">
+                    <Button Style="{StaticResource SecondaryActionButton}" MinWidth="110"
+                            Command="{Binding FetchModelsNowCommand}" Content="Fetch" />
+                    <Button Style="{StaticResource SecondaryActionButton}" MinWidth="120" Margin="0"
+                            Command="{Binding TestTrellisCommand}" Content="{Binding TrellisTestButtonText}" />
+                  </StackPanel>
                 </StackPanel>
               </Border>
             </Grid>
 
-            <Border Margin="0,18,0,0"
+            <Border Margin="0,14,0,0"
                     Padding="12"
                     Background="#FFFDFC"
                     BorderBrush="#E7DDCF"
@@ -1068,25 +1150,25 @@
                     CornerRadius="10"
                     Visibility="{Binding HasPostInstallActionSummary, Converter={StaticResource BoolToVisibilityConverter}}">
               <TextBlock Text="{Binding PostInstallActionSummary}"
-                         FontSize="14"
-                         Foreground="#3E3A34"
-                         TextWrapping="Wrap" />
+                         FontSize="14" Foreground="#3E3A34" TextWrapping="Wrap" />
             </Border>
 
-            <Border Margin="0,18,0,0"
+            <!-- Compact live log at the bottom. 140px so it sits on-screen next to
+                 the backend cards without dominating the page. -->
+            <Border Margin="0,14,0,0"
                     Background="#121212"
-                    CornerRadius="14"
+                    CornerRadius="12"
                     Padding="10">
               <StackPanel>
-                <TextBlock Margin="0,0,0,8"
+                <TextBlock Margin="0,0,0,6"
                            Text="Live log"
                            FontWeight="SemiBold"
-                           FontSize="16"
+                           FontSize="14"
                            Foreground="#E8E8E8" />
                 <ListBox ItemsSource="{Binding LogLines}"
-                         Height="260"
+                         Height="140"
                          FontFamily="Consolas"
-                         FontSize="13"
+                         FontSize="12"
                          Background="Transparent"
                          BorderThickness="0"
                          Foreground="#E8E8E8" />
