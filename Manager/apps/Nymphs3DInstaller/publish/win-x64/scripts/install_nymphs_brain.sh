@@ -318,7 +318,6 @@ ensure_python_venv "${OPEN_WEBUI_VENV_DIR}" "Open WebUI"
 "${OPEN_WEBUI_VENV_DIR}/bin/pip" install --upgrade pip open-webui
 
 export npm_config_prefix="${NPM_GLOBAL}"
-export LMSTUDIO_MODEL_PATH="${CACHE_DIR}"
 
 echo "Installing/updating LM Studio CLI in the user profile."
 curl -fsSL https://lmstudio.ai/install.sh | bash
@@ -469,7 +468,25 @@ for candidate in "${HOME}/.lmstudio/bin" "${HOME}/.cache/lm-studio/bin" "${HOME}
     export PATH="${candidate}:${PATH}"
   fi
 done
-export LMSTUDIO_MODEL_PATH="${INSTALL_ROOT}/models"
+if [[ -f "${HOME}/.lmstudio/settings.json" ]]; then
+  LMSTUDIO_MODEL_PATH_FROM_SETTINGS="$(python3 - <<'PYEOF'
+import json
+from pathlib import Path
+
+try:
+    data = json.loads(Path.home().joinpath(".lmstudio/settings.json").read_text(encoding="utf-8"))
+except Exception:
+    data = {}
+
+downloads = data.get("downloadsFolder")
+if isinstance(downloads, str) and downloads.strip():
+    print(downloads.strip())
+PYEOF
+)"
+  if [[ -n "${LMSTUDIO_MODEL_PATH_FROM_SETTINGS:-}" ]]; then
+    export LMSTUDIO_MODEL_PATH="${LMSTUDIO_MODEL_PATH_FROM_SETTINGS}"
+  fi
+fi
 lms server stop >/dev/null 2>&1 || true
 lms server start >/dev/null 2>&1 &
 until curl -fsS http://localhost:1234/v1/models >/dev/null 2>&1; do
@@ -515,8 +532,25 @@ for candidate in "${HOME}/.lmstudio/bin" "${HOME}/.cache/lm-studio/bin" "${HOME}
     export PATH="${candidate}:${PATH}"
   fi
 done
+if [[ -f "${HOME}/.lmstudio/settings.json" ]]; then
+  LMSTUDIO_MODEL_PATH_FROM_SETTINGS="$(python_json - <<'PYEOF'
+import json
+from pathlib import Path
 
-export LMSTUDIO_MODEL_PATH="${INSTALL_ROOT}/models"
+try:
+    data = json.loads(Path.home().joinpath(".lmstudio/settings.json").read_text(encoding="utf-8"))
+except Exception:
+    data = {}
+
+downloads = data.get("downloadsFolder")
+if isinstance(downloads, str) and downloads.strip():
+    print(downloads.strip())
+PYEOF
+)"
+  if [[ -n "${LMSTUDIO_MODEL_PATH_FROM_SETTINGS:-}" ]]; then
+    export LMSTUDIO_MODEL_PATH="${LMSTUDIO_MODEL_PATH_FROM_SETTINGS}"
+  fi
+fi
 
 declare -A CONTEXT_SIZES=(
   ["1"]="4096"
@@ -1104,7 +1138,6 @@ WRAPEOF
 cat > "${BIN_DIR}/brain-env" <<WRAPEOF
 #!/usr/bin/env bash
 export NYMPHS_BRAIN_ROOT="${INSTALL_ROOT}"
-export LMSTUDIO_MODEL_PATH="${CACHE_DIR}"
 export NYMPHS_BRAIN_OPEN_WEBUI_URL="http://localhost:${OPEN_WEBUI_PORT}"
 export NYMPHS_BRAIN_MCP_URL="http://localhost:${MCP_PORT}"
 export PATH="${BIN_DIR}:${LOCAL_BIN_DIR}:${LOCAL_NODE_DIR}/bin:${NPM_GLOBAL}/bin:\${PATH}"
