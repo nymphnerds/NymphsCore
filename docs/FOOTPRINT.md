@@ -10,6 +10,8 @@ The current public runtime stack is:
 
 Older experimental lanes and local development experiments are not part of this baseline.
 
+`Nymphs-Brain` is now available as an optional experimental module, but it is not part of the baseline footprint numbers below unless you explicitly choose it.
+
 ## Headline Numbers
 
 Plan for:
@@ -77,6 +79,37 @@ With prefetch off:
 
 Turning prefetch off is useful when you want to get the base runtime installed first, but it does not remove the need for those models.
 
+## Optional Nymphs-Brain Footprint
+
+`Nymphs-Brain` is optional. If you do not enable it, you do not need to budget for its extra Python/npm/helper files.
+
+If enabled, it installs under:
+
+```text
+/home/nymph/Nymphs-Brain
+```
+
+That optional module can add:
+
+- a Brain Python venv
+- an MCP Python venv
+- an Open WebUI Python venv
+- local Node/npm tools
+- LM Studio model cache growth
+- Open WebUI data, logs, and Hugging Face helper cache
+
+Important:
+
+- the big Brain disk usage comes mostly from the selected local LLM model
+- Open WebUI can also pull supporting embedding/helper assets on first startup
+- these optional Brain downloads are separate from the core 3D backend model-prefetch numbers above
+
+Practical advice:
+
+- if you only want the Blender 3D workflows, leave Brain off and use the baseline numbers
+- if you enable Brain, leave extra headroom beyond the normal `120-150 GB` recommendation
+- if you select a larger coding model, expect additional multi-GB growth under the optional Brain install
+
 ## Current Runtime Breakdown
 
 The current product baseline should be read like this:
@@ -128,6 +161,7 @@ The headline footprint does not include:
 - old local experiments
 - archived legacy installer work
 - optional developer checkouts outside the managed distro
+- optional `Nymphs-Brain` model growth unless you explicitly install that module
 
 It also does not include older removed model experiments that may exist on a development machine from previous testing.
 
