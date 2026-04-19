@@ -406,6 +406,135 @@ public sealed class InstallerWorkflowService
         }
     }
 
+    public async Task<string> GetNymphsBrainStatusAsync(
+        InstallSettings settings,
+        CancellationToken cancellationToken)
+    {
+        var result = await RunNymphsBrainCommandAsync(
+            settings,
+            "brain-status",
+            progress: null,
+            cancellationToken).ConfigureAwait(false);
+
+        if (result.ExitCode != 0)
+        {
+            throw new InvalidOperationException("Nymphs-Brain status check failed.");
+        }
+
+        return result.CombinedOutput;
+    }
+
+    public async Task RunNymphsBrainToolAsync(
+        InstallSettings settings,
+        string toolName,
+        IProgress<string> progress,
+        CancellationToken cancellationToken)
+    {
+        if (!IsAllowedNymphsBrainTool(toolName))
+        {
+            throw new ArgumentException($"Unsupported Nymphs-Brain tool: {toolName}", nameof(toolName));
+        }
+
+        progress.Report($"Nymphs-Brain: running {toolName}...");
+        var result = await RunNymphsBrainCommandAsync(
+            settings,
+            toolName,
+            progress,
+            cancellationToken).ConfigureAwait(false);
+
+        if (result.ExitCode != 0)
+        {
+            throw new InvalidOperationException($"Nymphs-Brain {toolName} failed.");
+        }
+    }
+
+    public void OpenNymphsBrainModelManager(InstallSettings settings)
+    {
+        var bashCommand =
+            "set -euo pipefail; " +
+            $"export HOME={ToBashSingleQuoted($"/home/{settings.LinuxUser}")}; " +
+            $"export USER={ToBashSingleQuoted(settings.LinuxUser)}; " +
+            $"export LOGNAME={ToBashSingleQuoted(settings.LinuxUser)}; " +
+            $"{ToBashSingleQuoted($"{settings.BrainInstallRoot}/bin/lms-model")}; " +
+            "echo; read -rp 'Press Enter to close this window...' _";
+
+        try
+        {
+            var startInfo = new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = "wt.exe",
+                UseShellExecute = false,
+            };
+            startInfo.ArgumentList.Add("new-tab");
+            startInfo.ArgumentList.Add("--title");
+            startInfo.ArgumentList.Add("Nymphs-Brain Model Manager");
+            startInfo.ArgumentList.Add("wsl.exe");
+            startInfo.ArgumentList.Add("-d");
+            startInfo.ArgumentList.Add(settings.DistroName);
+            startInfo.ArgumentList.Add("--user");
+            startInfo.ArgumentList.Add(settings.LinuxUser);
+            startInfo.ArgumentList.Add("--");
+            startInfo.ArgumentList.Add("/bin/bash");
+            startInfo.ArgumentList.Add("-lc");
+            startInfo.ArgumentList.Add(bashCommand);
+            System.Diagnostics.Process.Start(startInfo);
+        }
+        catch
+        {
+            var fallbackCommand =
+                "start \"Nymphs-Brain Model Manager\" wsl.exe " +
+                $"-d {QuoteWindowsCommandArgument(settings.DistroName)} " +
+                $"--user {QuoteWindowsCommandArgument(settings.LinuxUser)} " +
+                "-- /bin/bash -lc " +
+                QuoteWindowsCommandArgument(bashCommand);
+
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = "cmd.exe",
+                Arguments = $"/c {fallbackCommand}",
+                UseShellExecute = false,
+            });
+        }
+    }
+
+    public void OpenNymphsBrainWebUi()
+    {
+        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+        {
+            FileName = "http://localhost:8080",
+            UseShellExecute = true,
+        });
+    }
+
+    public async Task RunSystemDependenciesOnlyAsync(
+        InstallSettings settings,
+        IProgress<string> progress,
+        CancellationToken cancellationToken)
+    {
+        var runtimeScript = RequireScript("run_finalize_in_distro.ps1");
+        var arguments = new List<string>
+        {
+            "-DistroName", settings.DistroName,
+            "-LinuxUser", settings.LinuxUser,
+            "-SystemOnly",
+        };
+
+        progress.Report("System dependencies: checking base Linux packages needed by optional modules.");
+        progress.Report("System dependencies note: this may run apt briefly if the existing distro was created from an older base tar.");
+
+        var result = await RunPowerShellScriptAsync(
+            runtimeScript,
+            arguments,
+            progress,
+            environmentVariables: null,
+            cancellationToken).ConfigureAwait(false);
+
+        if (result.ExitCode != 0)
+        {
+            throw new InvalidOperationException("System dependency setup failed.");
+        }
+    }
+
     public async Task RunModelPrefetchOnlyAsync(
         InstallSettings settings,
         IProgress<string> progress,
@@ -993,6 +1122,38 @@ public sealed class InstallerWorkflowService
             cancellationToken: cancellationToken).ConfigureAwait(false);
     }
 
+    private async Task<CommandResult> RunNymphsBrainCommandAsync(
+        InstallSettings settings,
+        string toolName,
+        IProgress<string>? progress,
+        CancellationToken cancellationToken)
+    {
+        var toolPath = $"{settings.BrainInstallRoot}/bin/{toolName}";
+        var bashCommand =
+            "set -euo pipefail; " +
+            $"export HOME={ToBashSingleQuoted($"/home/{settings.LinuxUser}")}; " +
+            $"export USER={ToBashSingleQuoted(settings.LinuxUser)}; " +
+            $"export LOGNAME={ToBashSingleQuoted(settings.LinuxUser)}; " +
+            $"if [[ ! -x {ToBashSingleQuoted(toolPath)} ]]; then echo 'Nymphs-Brain tool missing: {toolPath}'; exit 1; fi; " +
+            $"{ToBashSingleQuoted(toolPath)}";
+
+        var arguments = new List<string>
+        {
+            "-d", settings.DistroName,
+            "--user", settings.LinuxUser,
+            "--",
+            "/bin/bash", "-lc", bashCommand,
+        };
+
+        return await _processRunner.RunAsync(
+            fileName: "wsl.exe",
+            arguments,
+            workingDirectory: Environment.SystemDirectory,
+            progress,
+            environmentVariables: null,
+            cancellationToken).ConfigureAwait(false);
+    }
+
     private async Task<IReadOnlyList<string>> GetWslDistroNamesAsync(CancellationToken cancellationToken)
     {
         var result = await _processRunner.RunAsync(
@@ -1032,6 +1193,25 @@ public sealed class InstallerWorkflowService
     private static string ToBashSingleQuoted(string value)
     {
         return "'" + value.Replace("'", "'\\''") + "'";
+    }
+
+    private static string QuoteWindowsCommandArgument(string value)
+    {
+        return "\"" + value.Replace("\"", "\\\"") + "\"";
+    }
+
+    private static bool IsAllowedNymphsBrainTool(string toolName)
+    {
+        return toolName is
+            "lms-start" or
+            "lms-stop" or
+            "mcp-start" or
+            "mcp-stop" or
+            "mcp-status" or
+            "open-webui-start" or
+            "open-webui-stop" or
+            "open-webui-status" or
+            "brain-status";
     }
 
     private static string? ConvertWindowsPathToWsl(string windowsPath)

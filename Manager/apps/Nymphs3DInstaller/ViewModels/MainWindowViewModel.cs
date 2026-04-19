@@ -32,6 +32,10 @@ public sealed class MainWindowViewModel : ViewModelBase
     private readonly AsyncRelayCommand _testHunyuanCommand;
     private readonly AsyncRelayCommand _testZImageCommand;
     private readonly AsyncRelayCommand _testTrellisCommand;
+    private readonly AsyncRelayCommand _startBrainLlmCommand;
+    private readonly AsyncRelayCommand _openBrainWebUiCommand;
+    private readonly RelayCommand _changeBrainModelCommand;
+    private readonly AsyncRelayCommand _stopBrainLlmCommand;
     private readonly RelayCommand _backCommand;
     private readonly RelayCommand _openLogFolderCommand;
     private readonly RelayCommand _openReadmeCommand;
@@ -79,6 +83,8 @@ public sealed class MainWindowViewModel : ViewModelBase
     private RuntimeBackendStatus _hunyuanRuntimeStatus = RuntimeBackendStatus.Unknown("2mv", "Hunyuan 2mv", "Open Runtime Tools to check status.");
     private RuntimeBackendStatus _zImageRuntimeStatus = RuntimeBackendStatus.Unknown("zimage", "Z-Image", "Open Runtime Tools to check status.");
     private RuntimeBackendStatus _trellisRuntimeStatus = RuntimeBackendStatus.Unknown("trellis", "TRELLIS.2", "Open Runtime Tools to check status.");
+    private string _brainRuntimeStatusText = "Status: Not checked";
+    private string _brainRuntimeModelText = "Model: Not checked";
 
     public MainWindowViewModel(InstallerWorkflowService workflowService)
     {
@@ -100,6 +106,10 @@ public sealed class MainWindowViewModel : ViewModelBase
         _testHunyuanCommand = new AsyncRelayCommand(() => RunSmokeTestAsync("2mv"), CanRunHunyuanSmokeTest);
         _testZImageCommand = new AsyncRelayCommand(() => RunSmokeTestAsync("zimage"), CanRunZImageSmokeTest);
         _testTrellisCommand = new AsyncRelayCommand(() => RunSmokeTestAsync("trellis"), CanRunTrellisSmokeTest);
+        _startBrainLlmCommand = new AsyncRelayCommand(StartBrainLlmAsync, CanRunManagedRuntimeAction);
+        _openBrainWebUiCommand = new AsyncRelayCommand(OpenBrainWebUiAsync, CanRunManagedRuntimeAction);
+        _changeBrainModelCommand = new RelayCommand(OpenBrainModelManager, CanRunManagedRuntimeAction);
+        _stopBrainLlmCommand = new AsyncRelayCommand(StopBrainLlmAsync, CanRunManagedRuntimeAction);
         _backCommand = new RelayCommand(GoBack, CanGoBack);
         _openLogFolderCommand = new RelayCommand(_workflowService.OpenLogFolder);
         _openReadmeCommand = new RelayCommand(_workflowService.OpenReadme);
@@ -150,6 +160,14 @@ public sealed class MainWindowViewModel : ViewModelBase
     public AsyncRelayCommand TestZImageCommand => _testZImageCommand;
 
     public AsyncRelayCommand TestTrellisCommand => _testTrellisCommand;
+
+    public AsyncRelayCommand StartBrainLlmCommand => _startBrainLlmCommand;
+
+    public AsyncRelayCommand OpenBrainWebUiCommand => _openBrainWebUiCommand;
+
+    public RelayCommand ChangeBrainModelCommand => _changeBrainModelCommand;
+
+    public AsyncRelayCommand StopBrainLlmCommand => _stopBrainLlmCommand;
 
     public System.Windows.Input.ICommand HunyuanRuntimeActionCommand => HunyuanRuntimeStatus.TestReady ? _testHunyuanCommand : _fetchModelsNowCommand;
 
@@ -603,6 +621,18 @@ public sealed class MainWindowViewModel : ViewModelBase
         private set => SetProperty(ref _runtimeToolsSummary, value);
     }
 
+    public string BrainRuntimeStatusText
+    {
+        get => _brainRuntimeStatusText;
+        private set => SetProperty(ref _brainRuntimeStatusText, value);
+    }
+
+    public string BrainRuntimeModelText
+    {
+        get => _brainRuntimeModelText;
+        private set => SetProperty(ref _brainRuntimeModelText, value);
+    }
+
     public RuntimeBackendStatus HunyuanRuntimeStatus
     {
         get => _hunyuanRuntimeStatus;
@@ -893,6 +923,7 @@ public sealed class MainWindowViewModel : ViewModelBase
             RepairExistingDistro = true,
             HuggingFaceToken = HuggingFaceToken,
             WslConfigMode = WslConfigMode.KeepExisting,
+            BrainInstallRoot = BrainInstallRoot,
         };
     }
 
@@ -912,6 +943,8 @@ public sealed class MainWindowViewModel : ViewModelBase
             StatusMessage = "No managed runtime install detected yet.";
             AppendInstallLog(StatusMessage);
             ApplyRuntimeBackendStatuses(new Dictionary<string, RuntimeBackendStatus>());
+            BrainRuntimeStatusText = "Status: No managed runtime";
+            BrainRuntimeModelText = "Model: Not available";
             RaiseCommandStateChanged();
             return;
         }
@@ -945,6 +978,7 @@ public sealed class MainWindowViewModel : ViewModelBase
         {
             var statuses = await _workflowService.GetRuntimeBackendStatusesAsync(settings, progress, CancellationToken.None).ConfigureAwait(true);
             ApplyRuntimeBackendStatuses(statuses);
+            await RefreshBrainRuntimeStatusSnapshotAsync(settings).ConfigureAwait(true);
             RuntimeToolsSummary = BuildRuntimeToolsSummary(statuses);
             StatusMessage = "Runtime tool status check completed.";
             AppendInstallLog(StatusMessage);
@@ -952,6 +986,8 @@ public sealed class MainWindowViewModel : ViewModelBase
         catch (Exception ex)
         {
             RuntimeToolsSummary = "Runtime tool status check failed. Use the log panel and log folder to see what failed.";
+            BrainRuntimeStatusText = "Status: Not checked";
+            BrainRuntimeModelText = "Model: Not checked";
             StatusMessage = "Runtime tool status check failed.";
             LogLines.Add($"ERROR: {ex.Message}");
             AppendInstallLog($"ERROR: {ex}");
@@ -977,6 +1013,51 @@ public sealed class MainWindowViewModel : ViewModelBase
         OnPropertyChanged(nameof(HunyuanRuntimeActionCommand));
         OnPropertyChanged(nameof(ZImageRuntimeActionCommand));
         OnPropertyChanged(nameof(TrellisRuntimeActionCommand));
+    }
+
+    private async Task RefreshBrainRuntimeStatusSnapshotAsync(InstallSettings settings)
+    {
+        try
+        {
+            var output = await _workflowService.GetNymphsBrainStatusAsync(settings, CancellationToken.None).ConfigureAwait(true);
+            ApplyBrainRuntimeStatus(output);
+            AppendInstallLog("Nymphs-Brain status checked.");
+        }
+        catch (Exception ex)
+        {
+            BrainRuntimeStatusText = "Status: Not installed or not reachable";
+            BrainRuntimeModelText = "Model: Not available";
+            AppendInstallLog($"Nymphs-Brain status check warning: {ex.Message}");
+        }
+    }
+
+    private void ApplyBrainRuntimeStatus(string statusOutput)
+    {
+        var lines = statusOutput
+            .Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .ToList();
+
+        var install = FindStatusValue(lines, "Brain install:") ?? "unknown";
+        var llm = FindStatusValue(lines, "LLM server:") ?? "unknown";
+        var model = FindStatusValue(lines, "Model loaded:") ?? "unknown";
+        var mcp = FindStatusValue(lines, "MCP proxy:") ?? "unknown";
+        var webUi = FindStatusValue(lines, "Open WebUI:") ?? "unknown";
+
+        BrainRuntimeStatusText = $"Status: {CapitalizeStatus(install)} / LLM {llm} / WebUI {webUi} / MCP {mcp}";
+        BrainRuntimeModelText = $"Model: {model}";
+    }
+
+    private static string? FindStatusValue(IEnumerable<string> lines, string prefix)
+    {
+        var line = lines.FirstOrDefault(item => item.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
+        return line is null ? null : line[prefix.Length..].Trim();
+    }
+
+    private static string CapitalizeStatus(string value)
+    {
+        return string.IsNullOrWhiteSpace(value)
+            ? value
+            : char.ToUpperInvariant(value[0]) + value[1..];
     }
 
     public async Task InitializeAsync()
@@ -1177,6 +1258,104 @@ public sealed class MainWindowViewModel : ViewModelBase
         }
     }
 
+    private async Task StartBrainLlmAsync()
+    {
+        await RunNymphsBrainToolActionAsync(
+            "lms-start",
+            "Starting Nymphs-Brain LLM server...",
+            "Nymphs-Brain LLM server started.",
+            "Nymphs-Brain LLM server failed to start.").ConfigureAwait(true);
+    }
+
+    private async Task OpenBrainWebUiAsync()
+    {
+        var started = await RunNymphsBrainToolActionAsync(
+            "open-webui-start",
+            "Starting Nymphs-Brain Open WebUI...",
+            "Open WebUI is ready.",
+            "Open WebUI failed to start.").ConfigureAwait(true);
+
+        if (started)
+        {
+            _workflowService.OpenNymphsBrainWebUi();
+        }
+    }
+
+    private void OpenBrainModelManager()
+    {
+        var settings = BuildManagedActionSettings();
+        try
+        {
+            _workflowService.OpenNymphsBrainModelManager(settings);
+            StatusMessage = "Opened Nymphs-Brain model manager in a terminal.";
+            PostInstallActionSummary = "Use the terminal window to add, change, or remove the active Brain model.";
+            AppendInstallLog("Opened Nymphs-Brain model manager terminal.");
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = "Could not open Nymphs-Brain model manager.";
+            PostInstallActionSummary = "Could not open the model manager terminal.";
+            LogLines.Add($"ERROR: {ex.Message}");
+            AppendInstallLog($"ERROR: {ex}");
+        }
+    }
+
+    private async Task StopBrainLlmAsync()
+    {
+        await RunNymphsBrainToolActionAsync(
+            "lms-stop",
+            "Stopping Nymphs-Brain LLM server...",
+            "Nymphs-Brain LLM server stopped.",
+            "Nymphs-Brain LLM server failed to stop cleanly.").ConfigureAwait(true);
+    }
+
+    private async Task<bool> RunNymphsBrainToolActionAsync(
+        string toolName,
+        string runningSummary,
+        string successSummary,
+        string failureSummary)
+    {
+        var settings = BuildManagedActionSettings();
+        PrepareManagedActionRun(runningSummary, $"Starting Nymphs-Brain tool: {toolName}");
+        IsBusy = true;
+
+        var progress = new Progress<string>(line =>
+        {
+            var sanitizedLine = line.Replace("\0", string.Empty);
+            if (!string.IsNullOrWhiteSpace(sanitizedLine))
+            {
+                LogLines.Add(sanitizedLine);
+                StatusMessage = sanitizedLine;
+                AppendInstallLog(sanitizedLine);
+            }
+        });
+
+        try
+        {
+            await _workflowService.RunNymphsBrainToolAsync(settings, toolName, progress, CancellationToken.None).ConfigureAwait(true);
+            await RefreshBrainRuntimeStatusSnapshotAsync(settings).ConfigureAwait(true);
+            PostInstallActionSummary = successSummary;
+            RuntimeToolsSummary = successSummary;
+            StatusMessage = successSummary;
+            AppendInstallLog(successSummary);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            PostInstallActionSummary = $"{failureSummary} Check the live log and log folder.";
+            RuntimeToolsSummary = failureSummary;
+            StatusMessage = failureSummary;
+            LogLines.Add($"ERROR: {ex.Message}");
+            AppendInstallLog($"ERROR: {ex}");
+            return false;
+        }
+        finally
+        {
+            IsBusy = false;
+            RaiseCommandStateChanged();
+        }
+    }
+
     private void PrepareManagedActionRun(string summary, string initialLogLine)
     {
         LogLines.Clear();
@@ -1315,6 +1494,13 @@ public sealed class MainWindowViewModel : ViewModelBase
 
             if (settings.InstallNymphsBrain)
             {
+                if (settings.ModuleOnlyRun)
+                {
+                    LogLines.Add("Preparing system dependencies for optional modules...");
+                    AppendInstallLog("Preparing system dependencies for optional modules...");
+                    await _workflowService.RunSystemDependenciesOnlyAsync(settings, progress, CancellationToken.None).ConfigureAwait(true);
+                }
+
                 LogLines.Add("Installing experimental Nymphs-Brain module...");
                 AppendInstallLog("Installing experimental Nymphs-Brain module...");
                 await _workflowService.RunNymphsBrainInstallAsync(settings, progress, CancellationToken.None).ConfigureAwait(true);
@@ -1555,6 +1741,10 @@ public sealed class MainWindowViewModel : ViewModelBase
         _testHunyuanCommand.RaiseCanExecuteChanged();
         _testZImageCommand.RaiseCanExecuteChanged();
         _testTrellisCommand.RaiseCanExecuteChanged();
+        _startBrainLlmCommand.RaiseCanExecuteChanged();
+        _openBrainWebUiCommand.RaiseCanExecuteChanged();
+        _changeBrainModelCommand.RaiseCanExecuteChanged();
+        _stopBrainLlmCommand.RaiseCanExecuteChanged();
         _backCommand.RaiseCanExecuteChanged();
     }
 
