@@ -336,14 +336,19 @@ cat > "${MCP_CONFIG_DIR}/mcp-proxy-servers.json" <<EOF
 {
   "mcpServers": {
     "filesystem": {
-      "command": "${NPM_GLOBAL}/bin/mcp-server-filesystem",
+      "command": "${LOCAL_NODE_DIR}/bin/node",
       "args": [
-        "${HOME}/NymphsCore",
-        "${INSTALL_ROOT}"
+        "${NPM_GLOBAL}/lib/node_modules/@modelcontextprotocol/server-filesystem/dist/index.js",
+        "${HOME}",
+        "${INSTALL_ROOT}",
+        "/opt/nymphs3d/Nymphs3D"
       ]
     },
     "memory": {
-      "command": "${NPM_GLOBAL}/bin/mcp-server-memory",
+      "command": "${LOCAL_NODE_DIR}/bin/node",
+      "args": [
+        "${NPM_GLOBAL}/lib/node_modules/@modelcontextprotocol/server-memory/dist/index.js"
+      ],
       "env": {
         "MEMORY_FILE_PATH": "${MCP_DATA_DIR}/memory.jsonl"
       }
@@ -1066,22 +1071,12 @@ echo "Brain install: $([[ -x "${SCRIPT_DIR}/lms-start" ]] && echo installed || e
 
 if curl "${CURL_CHECK_ARGS[@]}" "http://127.0.0.1:1234/v1/models" >/tmp/nymphs-brain-models.json 2>/dev/null; then
   echo "LLM server: running"
-  "${INSTALL_ROOT}/venv/bin/python3" - <<'PYEOF' || true
-import json
-from pathlib import Path
-
-try:
-    data = json.loads(Path("/tmp/nymphs-brain-models.json").read_text(encoding="utf-8"))
-    models = data.get("data", [])
-    loaded = [item.get("id") for item in models if isinstance(item, dict) and item.get("id")]
-    print("Model loaded: " + (", ".join(loaded) if loaded else "none reported"))
-except Exception:
-    print("Model loaded: unknown")
-PYEOF
+  MODEL_OUTPUT="$("${INSTALL_ROOT}/venv/bin/python3" -c "import json; from pathlib import Path; data=json.loads(Path('/tmp/nymphs-brain-models.json').read_text(encoding='utf-8')); models=data.get('data', []); loaded=[item.get('id') for item in models if isinstance(item, dict) and item.get('id')]; print(', '.join(loaded) if loaded else 'none reported')" 2>/dev/null || echo unknown)"
+  echo "Model loaded: ${MODEL_OUTPUT}"
 else
   echo "LLM server: stopped"
-  model="$(awk '/^lms load / { gsub(/"/, "", $3); print $3; exit }' "${SCRIPT_DIR}/lms-start" 2>/dev/null || true)"
-  echo "Model loaded: ${model:-none}"
+  MODEL_NAME="$(sed -n 's/^lms load \"\(.*\)\" --gpu.*/\1/p' "${SCRIPT_DIR}/lms-start" | head -n 1)"
+  echo "Model loaded: ${MODEL_NAME:-none}"
 fi
 
 if curl "${CURL_CHECK_ARGS[@]}" "http://${MCP_HOST}:${MCP_PORT}/status" >/dev/null 2>&1; then
