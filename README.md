@@ -109,6 +109,13 @@ Model prefetch is recommended for non-technical users. Turning it off only skips
 
 The installer can also offer an experimental optional `Nymphs-Brain` local LLM stack. It installs under `/home/nymph/Nymphs-Brain` inside WSL when selected, is not required for the Blender backend, and can be skipped safely.
 
+If selected, `Nymphs-Brain` now includes:
+
+- an LM Studio-backed local LLM runtime
+- Open WebUI on `http://localhost:8081`
+- a local MCP gateway for tool access from Cline/Open WebUI
+- helper commands under `/home/nymph/Nymphs-Brain/bin`
+
 ### Runtime Tools
 
 Use `Runtime Tools` to:
@@ -117,6 +124,10 @@ Use `Runtime Tools` to:
 - fetch missing model files into an existing install
 - run backend smoke tests
 - confirm the local API can start
+- check optional `Nymphs-Brain` status
+- start/stop the local LLM
+- open the local WebUI
+- change the selected local LLM model
 
 Smoke tests are slower than normal status checks because they actually start a backend and wait for a response.
 

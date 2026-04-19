@@ -21,6 +21,32 @@ Across the full documented history, the project moved through eight phases:
 
 Newest entries first.
 
+### 2026-04-19 optional Nymphs-Brain module integrated into Manager
+Source: fresh Windows installer testing of the optional local LLM stack and the follow-up source fixes needed to make it behave like a real supported module.
+
+Documented changes:
+
+- added optional `Nymphs-Brain` install flow to the Manager under `/home/nymph/Nymphs-Brain`
+- added Runtime Tools controls for Brain:
+  - `Start LLM`
+  - `Open WebUI`
+  - `Change Model`
+  - `Stop LLM`
+- documented Brain in the Manager README and beginner install guides
+- documented Brain as optional and safe to skip for Blender-only users
+- added the local Open WebUI / MCP / LM Studio runtime story behind the Brain module
+- corrected the Brain runtime wiring after fresh-user testing:
+  - fixed status checks that could hang the Runtime Tools page
+  - fixed MCP gateway startup
+  - fixed packaged-script sync and publish artifacts
+  - cleaned manager live-log output
+
+Why it matters:
+
+- the NymphsCore system now includes an optional local LLM/WebUI/tooling layer instead of only the 3D backends
+- the Brain module is now part of the user-facing docs and not just an internal experimental thread
+- Blender-first users can still ignore it completely without affecting the main backend install
+
 ### 2026-04-18 commercial docs and addon preset cleanup
 Source: remote repository cleanup for the planned commercial Blender addon product.
 

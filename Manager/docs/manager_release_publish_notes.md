@@ -30,6 +30,22 @@ requires:
 Manager/apps/Nymphs3DInstaller/publish/win-x64/scripts/install_nymphs_brain.sh
 ```
 
+The current optional `Nymphs-Brain` module also depends on the published manager build
+including the C# Runtime Tools UI/service changes that drive:
+
+- the under-log `Nymphs-Brain` section
+- `Start LLM`
+- `Open WebUI`
+- `Change Model`
+- `Stop LLM`
+
+So when Brain-related source changes land, rebuild and recommit both:
+
+```text
+Manager/apps/Nymphs3DInstaller/publish/win-x64/NymphsCoreManager.exe
+Manager/apps/Nymphs3DInstaller/publish/NymphsCoreManager-win-x64.zip
+```
+
 ## Preferred Build Command
 
 Run from Windows PowerShell in:

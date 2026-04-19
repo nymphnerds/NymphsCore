@@ -60,6 +60,12 @@ NymphsCoreManager-win-x64/
   - smoke tests
   - repair / refresh reruns
 - `Nymphs-Brain` is optional and experimental. If selected, it installs inside WSL at `/home/nymph/Nymphs-Brain`; it is not required for the Blender backend.
+- if `Nymphs-Brain` is selected, Runtime Tools also exposes:
+  - `Start LLM`
+  - `Open WebUI`
+  - `Change Model`
+  - `Stop LLM`
+- Open WebUI is intended to open on `http://localhost:8081`
 
 ## If Something Fails
 

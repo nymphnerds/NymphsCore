@@ -182,6 +182,18 @@ If selected, it installs inside WSL at:
 
 It keeps its Python environment, npm tools, model cache, and wrappers under that folder where possible. LM Studio CLI itself may still use its normal home-managed location.
 
+If you enable it, the manager also prepares:
+
+- local LLM start/stop/model helper commands
+- a local MCP gateway for tool access
+- Open WebUI on:
+
+```text
+http://localhost:8081
+```
+
+This is optional. If you only want Blender backend workflows, leave it off.
+
 ## Step 5: Installation Progress
 
 During install, the manager:
@@ -226,12 +238,24 @@ Runtime Tools can:
 - check whether `Hunyuan 2mv`, `Z-Image`, and `TRELLIS.2` are ready
 - fetch missing models into an existing install
 - run backend smoke tests
+- show `Nymphs-Brain` status when that optional module was installed
+- start the local LLM
+- stop the local LLM
+- open the local WebUI
+- open the model selector for the local LLM
 
 Status checks are quick.
 
 Smoke tests are slower because they start a backend and wait for the local API to answer.
 
 Use `Fetch Models Now` if you skipped prefetch or if a model download was interrupted.
+
+If `Nymphs-Brain` was installed, the Runtime Tools page is also where you can:
+
+- start the LLM
+- open WebUI
+- change the selected model
+- confirm whether the Brain MCP gateway is running
 
 ## Which Backend Should I Use?
 
