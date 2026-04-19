@@ -9,11 +9,16 @@ $scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $repoRoot = Split-Path -Parent (Split-Path -Parent $scriptRoot)
 $publishBase = Join-Path $scriptRoot "publish"
 $publishRoot = Join-Path $scriptRoot ("publish\" + $Runtime)
+$projectPath = Join-Path $scriptRoot "Nymphs3DInstaller.csproj"
 
 Write-Host "Publishing NymphsCore Manager for $Runtime..."
 
 # Build the project
-dotnet publish . -c Release -r $Runtime -o $publishRoot
+if (-not (Test-Path $projectPath)) {
+    throw "Project file not found: $projectPath"
+}
+
+dotnet publish $projectPath -c Release -r $Runtime -o $publishRoot
 if ($LASTEXITCODE -ne 0) {
     throw "dotnet publish failed."
 }

@@ -87,9 +87,9 @@ OPEN_WEBUI_DATA_DIR="${INSTALL_ROOT}/open-webui-data"
 OPEN_WEBUI_LOG_DIR="${OPEN_WEBUI_DATA_DIR}/logs"
 SECRET_DIR="${INSTALL_ROOT}/secrets"
 OPEN_WEBUI_HOST="${NYMPHS_BRAIN_OPEN_WEBUI_HOST:-127.0.0.1}"
-OPEN_WEBUI_PORT="${NYMPHS_BRAIN_OPEN_WEBUI_PORT:-8080}"
-MCPO_HOST="${NYMPHS_BRAIN_MCPO_HOST:-127.0.0.1}"
-MCPO_PORT="${NYMPHS_BRAIN_MCPO_PORT:-8100}"
+OPEN_WEBUI_PORT="${NYMPHS_BRAIN_OPEN_WEBUI_PORT:-8081}"
+MCP_HOST="${NYMPHS_BRAIN_MCP_HOST:-${NYMPHS_BRAIN_MCPO_HOST:-127.0.0.1}}"
+MCP_PORT="${NYMPHS_BRAIN_MCP_PORT:-${NYMPHS_BRAIN_MCPO_PORT:-8100}}"
 LMSTUDIO_API_BASE_URL="${NYMPHS_BRAIN_LMSTUDIO_API_BASE_URL:-http://127.0.0.1:1234/v1}"
 
 export PATH="${BIN_DIR}:${LOCAL_BIN_DIR}:${LOCAL_NODE_DIR}/bin:${NPM_GLOBAL}/bin:${PATH}"
@@ -312,7 +312,7 @@ ensure_python_venv "${VENV_DIR}" "Nymphs-Brain"
 "${VENV_DIR}/bin/pip" install --upgrade pip requests huggingface_hub
 
 ensure_python_venv "${MCP_VENV_DIR}" "Nymphs-Brain MCP"
-"${MCP_VENV_DIR}/bin/pip" install --upgrade pip mcpo web-forager
+"${MCP_VENV_DIR}/bin/pip" install --upgrade pip mcp-proxy web-forager
 
 ensure_python_venv "${OPEN_WEBUI_VENV_DIR}" "Open WebUI"
 "${OPEN_WEBUI_VENV_DIR}/bin/pip" install --upgrade pip open-webui
@@ -330,11 +330,9 @@ npm install -g --prefix="${NPM_GLOBAL}" \
   @modelcontextprotocol/server-memory
 
 ensure_secret_file "${SECRET_DIR}/webui-secret-key" 32
-ensure_secret_file "${SECRET_DIR}/mcpo-api-key" 24
 WEBUI_SECRET_KEY="$(tr -d '\r\n' < "${SECRET_DIR}/webui-secret-key")"
-MCPO_API_KEY="$(tr -d '\r\n' < "${SECRET_DIR}/mcpo-api-key")"
 
-cat > "${MCP_CONFIG_DIR}/mcpo.json" <<EOF
+cat > "${MCP_CONFIG_DIR}/mcp-proxy-servers.json" <<EOF
 {
   "mcpServers": {
     "filesystem": {
@@ -358,54 +356,46 @@ cat > "${MCP_CONFIG_DIR}/mcpo.json" <<EOF
 }
 EOF
 
-cat > "${MCP_CONFIG_DIR}/open-webui-tool-connections.json" <<EOF
-[
-  {
-    "type": "openapi",
-    "url": "http://${MCPO_HOST}:${MCPO_PORT}/filesystem",
-    "spec_type": "url",
-    "spec": "",
-    "path": "openapi.json",
-    "auth_type": "bearer",
-    "key": "${MCPO_API_KEY}",
-    "config": { "enable": true },
-    "info": {
-      "id": "nymphs-brain-filesystem",
-      "name": "Nymphs-Brain Filesystem",
-      "description": "Restricted filesystem tools for the NymphsCore and Nymphs-Brain folders."
-    }
-  },
-  {
-    "type": "openapi",
-    "url": "http://${MCPO_HOST}:${MCPO_PORT}/memory",
-    "spec_type": "url",
-    "spec": "",
-    "path": "openapi.json",
-    "auth_type": "bearer",
-    "key": "${MCPO_API_KEY}",
-    "config": { "enable": true },
-    "info": {
-      "id": "nymphs-brain-memory",
-      "name": "Nymphs-Brain Memory",
-      "description": "Persistent local memory tools for Nymphs-Brain."
-    }
-  },
-  {
-    "type": "openapi",
-    "url": "http://${MCPO_HOST}:${MCPO_PORT}/web-forager",
-    "spec_type": "url",
-    "spec": "",
-    "path": "openapi.json",
-    "auth_type": "bearer",
-    "key": "${MCPO_API_KEY}",
-    "config": { "enable": true },
-    "info": {
-      "id": "nymphs-brain-web-forager",
-      "name": "Nymphs-Brain Web Forager",
-      "description": "DuckDuckGo search and URL fetch tools exposed through mcpo."
+cat > "${MCP_CONFIG_DIR}/cline-mcp-settings.json" <<EOF
+{
+  "mcpServers": {
+    "filesystem": {
+      "url": "http://${MCP_HOST}:${MCP_PORT}/servers/filesystem/mcp",
+      "type": "streamableHttp",
+      "disabled": false,
+      "timeout": 60
+    },
+    "memory": {
+      "url": "http://${MCP_HOST}:${MCP_PORT}/servers/memory/mcp",
+      "type": "streamableHttp",
+      "disabled": false,
+      "timeout": 60
+    },
+    "web-forager": {
+      "url": "http://${MCP_HOST}:${MCP_PORT}/servers/web-forager/mcp",
+      "type": "streamableHttp",
+      "disabled": false,
+      "timeout": 60
     }
   }
-]
+}
+EOF
+
+cat > "${MCP_CONFIG_DIR}/open-webui-mcp-servers.md" <<EOF
+Nymphs-Brain MCP servers for Open WebUI
+
+Add these in Admin Settings -> External Tools
+Type: MCP (Streamable HTTP)
+Auth: None
+
+- Filesystem: http://${MCP_HOST}:${MCP_PORT}/servers/filesystem/mcp
+- Memory: http://${MCP_HOST}:${MCP_PORT}/servers/memory/mcp
+- Web Forager: http://${MCP_HOST}:${MCP_PORT}/servers/web-forager/mcp
+
+Notes
+- Open WebUI default URL: http://localhost:${OPEN_WEBUI_PORT}
+- These endpoints bind to localhost only.
+- Cline can use the same endpoints with transport type streamableHttp.
 EOF
 
 if [[ "${DOWNLOAD_MODEL}" == "1" ]]; then
@@ -849,11 +839,11 @@ MCP_VENV_DIR="${INSTALL_ROOT}/mcp-venv"
 MCP_CONFIG_DIR="${INSTALL_ROOT}/mcp/config"
 MCP_LOG_DIR="${INSTALL_ROOT}/mcp/logs"
 SECRET_DIR="${INSTALL_ROOT}/secrets"
-MCPO_HOST="${NYMPHS_BRAIN_MCPO_HOST:-__MCPO_HOST__}"
-MCPO_PORT="${NYMPHS_BRAIN_MCPO_PORT:-__MCPO_PORT__}"
-PID_FILE="${MCP_LOG_DIR}/mcpo.pid"
-LOG_FILE="${MCP_LOG_DIR}/mcpo.log"
-KEY_FILE="${SECRET_DIR}/mcpo-api-key"
+MCP_HOST="${NYMPHS_BRAIN_MCP_HOST:-${NYMPHS_BRAIN_MCPO_HOST:-__MCP_HOST__}}"
+MCP_PORT="${NYMPHS_BRAIN_MCP_PORT:-${NYMPHS_BRAIN_MCPO_PORT:-__MCP_PORT__}}"
+OPEN_WEBUI_PORT="${NYMPHS_BRAIN_OPEN_WEBUI_PORT:-__OPEN_WEBUI_PORT__}"
+PID_FILE="${MCP_LOG_DIR}/mcp-proxy.pid"
+LOG_FILE="${MCP_LOG_DIR}/mcp-proxy.log"
 
 is_running() {
   [[ -f "${PID_FILE}" ]] && kill -0 "$(cat "${PID_FILE}")" >/dev/null 2>&1
@@ -862,42 +852,35 @@ is_running() {
 mkdir -p "${MCP_LOG_DIR}"
 
 if is_running; then
-  echo "Nymphs-Brain MCP proxy is already running at http://${MCPO_HOST}:${MCPO_PORT}"
+  echo "Nymphs-Brain MCP gateway is already running at http://${MCP_HOST}:${MCP_PORT}"
   exit 0
 fi
 
-if [[ ! -x "${MCP_VENV_DIR}/bin/mcpo" ]]; then
-  echo "mcpo is not installed at ${MCP_VENV_DIR}/bin/mcpo. Rerun install_nymphs_brain.sh." >&2
+if [[ ! -x "${MCP_VENV_DIR}/bin/mcp-proxy" ]]; then
+  echo "mcp-proxy is not installed at ${MCP_VENV_DIR}/bin/mcp-proxy. Rerun install_nymphs_brain.sh." >&2
   exit 1
 fi
 
-if [[ ! -s "${KEY_FILE}" ]]; then
-  echo "MCP API key file is missing at ${KEY_FILE}. Rerun install_nymphs_brain.sh." >&2
-  exit 1
-fi
-
-MCPO_API_KEY="$(tr -d '\r\n' < "${KEY_FILE}")"
-
-echo "Starting Nymphs-Brain MCP proxy at http://${MCPO_HOST}:${MCPO_PORT}"
-nohup "${MCP_VENV_DIR}/bin/mcpo" \
-  --host "${MCPO_HOST}" \
-  --port "${MCPO_PORT}" \
-  --api-key "${MCPO_API_KEY}" \
-  --config "${MCP_CONFIG_DIR}/mcpo.json" \
-  --hot-reload \
+echo "Starting Nymphs-Brain MCP gateway at http://${MCP_HOST}:${MCP_PORT}"
+nohup "${MCP_VENV_DIR}/bin/mcp-proxy" \
+  --host "${MCP_HOST}" \
+  --port "${MCP_PORT}" \
+  --allow-origin "http://localhost:${OPEN_WEBUI_PORT}" \
+  --allow-origin "http://127.0.0.1:${OPEN_WEBUI_PORT}" \
+  --named-server-config "${MCP_CONFIG_DIR}/mcp-proxy-servers.json" \
   > "${LOG_FILE}" 2>&1 &
 
 echo "$!" > "${PID_FILE}"
 
 for _ in $(seq 1 60); do
-  if curl -fsS "http://${MCPO_HOST}:${MCPO_PORT}/docs" >/dev/null 2>&1; then
-    echo "Nymphs-Brain MCP proxy is ready."
+  if curl -fsS "http://${MCP_HOST}:${MCP_PORT}/status" >/dev/null 2>&1; then
+    echo "Nymphs-Brain MCP gateway is ready."
     exit 0
   fi
   sleep 1
 done
 
-echo "MCP proxy did not become ready in time. See ${LOG_FILE}" >&2
+echo "MCP gateway did not become ready in time. See ${LOG_FILE}" >&2
 exit 1
 WRAPEOF
 
@@ -907,16 +890,16 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 INSTALL_ROOT="$(dirname "${SCRIPT_DIR}")"
-PID_FILE="${INSTALL_ROOT}/mcp/logs/mcpo.pid"
+PID_FILE="${INSTALL_ROOT}/mcp/logs/mcp-proxy.pid"
 
 if [[ -f "${PID_FILE}" ]] && kill -0 "$(cat "${PID_FILE}")" >/dev/null 2>&1; then
-  echo "Stopping Nymphs-Brain MCP proxy..."
+  echo "Stopping Nymphs-Brain MCP gateway..."
   kill "$(cat "${PID_FILE}")" >/dev/null 2>&1 || true
   rm -f "${PID_FILE}"
-  echo "Nymphs-Brain MCP proxy stopped."
+  echo "Nymphs-Brain MCP gateway stopped."
 else
   rm -f "${PID_FILE}"
-  echo "Nymphs-Brain MCP proxy is not running."
+  echo "Nymphs-Brain MCP gateway is not running."
 fi
 WRAPEOF
 
@@ -926,9 +909,9 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 INSTALL_ROOT="$(dirname "${SCRIPT_DIR}")"
-MCPO_HOST="${NYMPHS_BRAIN_MCPO_HOST:-__MCPO_HOST__}"
-MCPO_PORT="${NYMPHS_BRAIN_MCPO_PORT:-__MCPO_PORT__}"
-PID_FILE="${INSTALL_ROOT}/mcp/logs/mcpo.pid"
+MCP_HOST="${NYMPHS_BRAIN_MCP_HOST:-${NYMPHS_BRAIN_MCPO_HOST:-__MCP_HOST__}}"
+MCP_PORT="${NYMPHS_BRAIN_MCP_PORT:-${NYMPHS_BRAIN_MCPO_PORT:-__MCP_PORT__}}"
+PID_FILE="${INSTALL_ROOT}/mcp/logs/mcp-proxy.pid"
 
 if [[ -f "${PID_FILE}" ]] && kill -0 "$(cat "${PID_FILE}")" >/dev/null 2>&1; then
   echo "MCP proxy: running"
@@ -936,13 +919,19 @@ else
   echo "MCP proxy: stopped"
 fi
 
-echo "MCP URL: http://${MCPO_HOST}:${MCPO_PORT}"
-echo "MCP docs:"
-echo "- filesystem: http://${MCPO_HOST}:${MCPO_PORT}/filesystem/docs"
-echo "- memory: http://${MCPO_HOST}:${MCPO_PORT}/memory/docs"
-echo "- web-forager: http://${MCPO_HOST}:${MCPO_PORT}/web-forager/docs"
-echo "MCP config: ${INSTALL_ROOT}/mcp/config/mcpo.json"
-echo "MCP API key file: ${INSTALL_ROOT}/secrets/mcpo-api-key"
+echo "MCP gateway URL: http://${MCP_HOST}:${MCP_PORT}"
+echo "MCP status URL: http://${MCP_HOST}:${MCP_PORT}/status"
+echo "Streamable HTTP endpoints:"
+echo "- filesystem: http://${MCP_HOST}:${MCP_PORT}/servers/filesystem/mcp"
+echo "- memory: http://${MCP_HOST}:${MCP_PORT}/servers/memory/mcp"
+echo "- web-forager: http://${MCP_HOST}:${MCP_PORT}/servers/web-forager/mcp"
+echo "Legacy SSE endpoints:"
+echo "- filesystem: http://${MCP_HOST}:${MCP_PORT}/servers/filesystem/sse"
+echo "- memory: http://${MCP_HOST}:${MCP_PORT}/servers/memory/sse"
+echo "- web-forager: http://${MCP_HOST}:${MCP_PORT}/servers/web-forager/sse"
+echo "MCP config: ${INSTALL_ROOT}/mcp/config/mcp-proxy-servers.json"
+echo "Cline config template: ${INSTALL_ROOT}/mcp/config/cline-mcp-settings.json"
+echo "Open WebUI setup note: ${INSTALL_ROOT}/mcp/config/open-webui-mcp-servers.md"
 WRAPEOF
 
 cat > "${BIN_DIR}/open-webui-start" <<'WRAPEOF'
@@ -954,10 +943,11 @@ INSTALL_ROOT="$(dirname "${SCRIPT_DIR}")"
 OPEN_WEBUI_VENV_DIR="${INSTALL_ROOT}/open-webui-venv"
 OPEN_WEBUI_DATA_DIR="${INSTALL_ROOT}/open-webui-data"
 OPEN_WEBUI_LOG_DIR="${OPEN_WEBUI_DATA_DIR}/logs"
-MCP_CONFIG_DIR="${INSTALL_ROOT}/mcp/config"
 SECRET_DIR="${INSTALL_ROOT}/secrets"
 OPEN_WEBUI_HOST="${NYMPHS_BRAIN_OPEN_WEBUI_HOST:-__OPEN_WEBUI_HOST__}"
 OPEN_WEBUI_PORT="${NYMPHS_BRAIN_OPEN_WEBUI_PORT:-__OPEN_WEBUI_PORT__}"
+MCP_HOST="${NYMPHS_BRAIN_MCP_HOST:-${NYMPHS_BRAIN_MCPO_HOST:-__MCP_HOST__}}"
+MCP_PORT="${NYMPHS_BRAIN_MCP_PORT:-${NYMPHS_BRAIN_MCPO_PORT:-__MCP_PORT__}}"
 LMSTUDIO_API_BASE_URL="${NYMPHS_BRAIN_LMSTUDIO_API_BASE_URL:-__LMSTUDIO_API_BASE_URL__}"
 PID_FILE="${OPEN_WEBUI_LOG_DIR}/open-webui.pid"
 LOG_FILE="${OPEN_WEBUI_LOG_DIR}/open-webui.log"
@@ -987,14 +977,6 @@ fi
 "${SCRIPT_DIR}/mcp-start"
 
 WEBUI_SECRET_KEY="$(tr -d '\r\n' < "${WEBUI_SECRET_KEY_FILE}")"
-TOOL_SERVER_CONNECTIONS="$("${OPEN_WEBUI_VENV_DIR}/bin/python3" - "${MCP_CONFIG_DIR}/open-webui-tool-connections.json" <<'PYEOF'
-import json
-import sys
-from pathlib import Path
-
-print(json.dumps(json.loads(Path(sys.argv[1]).read_text(encoding="utf-8")), separators=(",", ":")))
-PYEOF
-)"
 
 echo "Starting Open WebUI at http://${OPEN_WEBUI_HOST}:${OPEN_WEBUI_PORT}"
 nohup env \
@@ -1002,8 +984,6 @@ nohup env \
   WEBUI_SECRET_KEY="${WEBUI_SECRET_KEY}" \
   OPENAI_API_BASE_URL="${LMSTUDIO_API_BASE_URL}" \
   OPENAI_API_KEY="lm-studio" \
-  ENABLE_DIRECT_CONNECTIONS="True" \
-  TOOL_SERVER_CONNECTIONS="${TOOL_SERVER_CONNECTIONS}" \
   UVICORN_WORKERS="1" \
   "${OPEN_WEBUI_VENV_DIR}/bin/open-webui" serve \
     --host "${OPEN_WEBUI_HOST}" \
@@ -1016,6 +996,9 @@ for _ in $(seq 1 90); do
   if curl -fsS "http://${OPEN_WEBUI_HOST}:${OPEN_WEBUI_PORT}" >/dev/null 2>&1; then
     echo "Open WebUI is ready."
     echo "Open this URL from Windows: http://localhost:${OPEN_WEBUI_PORT}"
+    echo "Then add MCP (Streamable HTTP) servers from:"
+    echo "${INSTALL_ROOT}/mcp/config/open-webui-mcp-servers.md"
+    echo "Recommended first URL: http://${MCP_HOST}:${MCP_PORT}/servers/filesystem/mcp"
     exit 0
   fi
   sleep 1
@@ -1064,6 +1047,7 @@ echo "Open WebUI URL: http://${OPEN_WEBUI_HOST}:${OPEN_WEBUI_PORT}"
 echo "Windows URL: http://localhost:${OPEN_WEBUI_PORT}"
 echo "Open WebUI data: ${INSTALL_ROOT}/open-webui-data"
 echo "Open WebUI log: ${INSTALL_ROOT}/open-webui-data/logs/open-webui.log"
+echo "Open WebUI MCP setup note: ${INSTALL_ROOT}/mcp/config/open-webui-mcp-servers.md"
 WRAPEOF
 
 cat > "${BIN_DIR}/brain-status" <<'WRAPEOF'
@@ -1074,8 +1058,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 INSTALL_ROOT="$(dirname "${SCRIPT_DIR}")"
 OPEN_WEBUI_HOST="${NYMPHS_BRAIN_OPEN_WEBUI_HOST:-__OPEN_WEBUI_HOST__}"
 OPEN_WEBUI_PORT="${NYMPHS_BRAIN_OPEN_WEBUI_PORT:-__OPEN_WEBUI_PORT__}"
-MCPO_HOST="${NYMPHS_BRAIN_MCPO_HOST:-__MCPO_HOST__}"
-MCPO_PORT="${NYMPHS_BRAIN_MCPO_PORT:-__MCPO_PORT__}"
+MCP_HOST="${NYMPHS_BRAIN_MCP_HOST:-${NYMPHS_BRAIN_MCPO_HOST:-__MCP_HOST__}}"
+MCP_PORT="${NYMPHS_BRAIN_MCP_PORT:-${NYMPHS_BRAIN_MCPO_PORT:-__MCP_PORT__}}"
 
 echo "Brain install: $([[ -x "${SCRIPT_DIR}/lms-start" ]] && echo installed || echo missing)"
 
@@ -1099,7 +1083,7 @@ else
   echo "Model loaded: ${model:-none}"
 fi
 
-if curl -fsS "http://${MCPO_HOST}:${MCPO_PORT}/docs" >/dev/null 2>&1; then
+if curl -fsS "http://${MCP_HOST}:${MCP_PORT}/status" >/dev/null 2>&1; then
   echo "MCP proxy: running"
 else
   echo "MCP proxy: stopped"
@@ -1126,14 +1110,14 @@ cat > "${BIN_DIR}/brain-env" <<WRAPEOF
 export NYMPHS_BRAIN_ROOT="${INSTALL_ROOT}"
 export LMSTUDIO_MODEL_PATH="${CACHE_DIR}"
 export NYMPHS_BRAIN_OPEN_WEBUI_URL="http://localhost:${OPEN_WEBUI_PORT}"
-export NYMPHS_BRAIN_MCPO_URL="http://localhost:${MCPO_PORT}"
+export NYMPHS_BRAIN_MCP_URL="http://localhost:${MCP_PORT}"
 export PATH="${BIN_DIR}:${LOCAL_BIN_DIR}:${LOCAL_NODE_DIR}/bin:${NPM_GLOBAL}/bin:\${PATH}"
 WRAPEOF
 
 sed -i "s|__SERVED_NAME__|${SERVED_NAME}|g" "${BIN_DIR}/lms-start"
 sed -i "s|__CONTEXT_LENGTH__|${CONTEXT_LENGTH}|g" "${BIN_DIR}/lms-start"
-sed -i "s|__MCPO_HOST__|${MCPO_HOST}|g" "${BIN_DIR}/mcp-start" "${BIN_DIR}/mcp-status" "${BIN_DIR}/brain-status"
-sed -i "s|__MCPO_PORT__|${MCPO_PORT}|g" "${BIN_DIR}/mcp-start" "${BIN_DIR}/mcp-status" "${BIN_DIR}/brain-status"
+sed -i "s|__MCP_HOST__|${MCP_HOST}|g" "${BIN_DIR}/mcp-start" "${BIN_DIR}/mcp-status" "${BIN_DIR}/open-webui-start" "${BIN_DIR}/brain-status"
+sed -i "s|__MCP_PORT__|${MCP_PORT}|g" "${BIN_DIR}/mcp-start" "${BIN_DIR}/mcp-status" "${BIN_DIR}/open-webui-start" "${BIN_DIR}/brain-status"
 sed -i "s|__OPEN_WEBUI_HOST__|${OPEN_WEBUI_HOST}|g" "${BIN_DIR}/open-webui-start" "${BIN_DIR}/open-webui-status" "${BIN_DIR}/brain-status"
 sed -i "s|__OPEN_WEBUI_PORT__|${OPEN_WEBUI_PORT}|g" "${BIN_DIR}/open-webui-start" "${BIN_DIR}/open-webui-status" "${BIN_DIR}/brain-status"
 sed -i "s|__LMSTUDIO_API_BASE_URL__|${LMSTUDIO_API_BASE_URL}|g" "${BIN_DIR}/open-webui-start"
@@ -1172,7 +1156,11 @@ Commands:
 - ${BIN_DIR}/open-webui-stop
 - ${BIN_DIR}/brain-status
 Open WebUI URL: http://localhost:${OPEN_WEBUI_PORT}
-MCP proxy URL: http://localhost:${MCPO_PORT}
+MCP gateway URL: http://localhost:${MCP_PORT}
+Primary Streamable HTTP endpoints:
+- http://localhost:${MCP_PORT}/servers/filesystem/mcp
+- http://localhost:${MCP_PORT}/servers/memory/mcp
+- http://localhost:${MCP_PORT}/servers/web-forager/mcp
 EOF
 
 echo "Nymphs-Brain setup complete."

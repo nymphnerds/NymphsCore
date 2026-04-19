@@ -26,6 +26,28 @@ Current working tree status:
 - The Windows Manager executable still needs to be rebuilt on Windows.
 - `NymphsCore.tar` rebuild is still optional but recommended.
 
+## MCP Direction Update
+
+The newer preferred MCP shape is now:
+
+- one Brain-managed MCP stack
+- one shared client transport
+- Streamable HTTP for both Cline and Open WebUI
+
+That means the older `mcpo` / OpenAPI bridge idea in this handoff is now superseded by a single `mcp-proxy` gateway that exposes named MCP servers over native MCP HTTP endpoints.
+
+Current intended local endpoints:
+
+- `http://localhost:8100/servers/filesystem/mcp`
+- `http://localhost:8100/servers/memory/mcp`
+- `http://localhost:8100/servers/web-forager/mcp`
+
+Cline should use those URLs with transport type `streamableHttp`.
+
+Open WebUI should use those same URLs with connection type `MCP (Streamable HTTP)`.
+
+Also note the Open WebUI default Brain port was moved from `8080` to `8081`, because `Hunyuan 2mv` already uses `127.0.0.1:8080`.
+
 ## What Was Fixed
 
 ### Brain Installer

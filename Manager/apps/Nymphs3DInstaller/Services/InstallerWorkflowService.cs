@@ -501,7 +501,7 @@ public sealed class InstallerWorkflowService
     {
         System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
         {
-            FileName = "http://localhost:8080",
+            FileName = "http://localhost:8081",
             UseShellExecute = true,
         });
     }

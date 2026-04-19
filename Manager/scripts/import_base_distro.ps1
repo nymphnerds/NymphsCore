@@ -116,6 +116,36 @@ function Restart-DistroForDefaultUser {
     Start-Sleep -Milliseconds 750
 }
 
+function Remove-InstallLocationWithRetries {
+    param(
+        [Parameter(Mandatory = $true)] [string] $Path
+    )
+
+    if (-not (Test-Path $Path)) {
+        return
+    }
+
+    $attempts = 6
+    for ($attempt = 1; $attempt -le $attempts; $attempt++) {
+        try {
+            Remove-Item -Recurse -Force $Path -ErrorAction Stop
+            return
+        }
+        catch {
+            if ($attempt -eq 1) {
+                Write-Host "Install location is still busy. Shutting down WSL and retrying cleanup..."
+                & wsl --shutdown 2>$null
+            }
+
+            if ($attempt -ge $attempts) {
+                throw
+            }
+
+            Start-Sleep -Milliseconds (750 * $attempt)
+        }
+    }
+}
+
 $fullInstallLocation = [System.IO.Path]::GetFullPath($InstallLocation)
 $parentDir = Split-Path -Parent $fullInstallLocation
 $existingDistros = @(Get-WslDistroNames)
@@ -135,6 +165,12 @@ if ($existingDistros -contains $DistroName) {
         if ($LASTEXITCODE -ne 0) {
             throw "Failed to unregister existing distro '$DistroName'."
         }
+
+        # Windows can keep the exported VHD mounted for a moment after unregister.
+        # Force a global WSL shutdown here so ext4.vhdx releases before we delete
+        # the previous install folder and import the fresh base tar.
+        & wsl --shutdown 2>$null
+        Start-Sleep -Milliseconds 1000
     }
 }
 
@@ -155,7 +191,7 @@ if (-not $reuseExisting) {
             throw "Install location already exists: $fullInstallLocation"
         }
 
-        Remove-Item -Recurse -Force $fullInstallLocation
+        Remove-InstallLocationWithRetries -Path $fullInstallLocation
     }
 
     New-Item -ItemType Directory -Path $fullInstallLocation -Force | Out-Null
