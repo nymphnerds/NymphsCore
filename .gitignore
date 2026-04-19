@@ -44,6 +44,7 @@ Thumbs.db
 /Manager/docs/**
 !/Manager/docs/
 !/Manager/docs/absolute_beginner_local_install_guide.md
+!/Manager/docs/cline_with_nymphs_brain_quickstart.md
 !/Manager/docs/install_disk_and_model_footprint.md
 !/Manager/docs/manager_release_publish_notes.md
 !/Manager/docs/nymphs_brain_installer_webui_mcp_handoff.md

@@ -257,6 +257,12 @@ If `Nymphs-Brain` was installed, the Runtime Tools page is also where you can:
 - change the selected model
 - confirm whether the Brain MCP gateway is running
 
+If you want to connect VS Code Cline to the optional local Brain model and MCP tools after install, use:
+
+```text
+Manager/docs/cline_with_nymphs_brain_quickstart.md
+```
+
 ## Which Backend Should I Use?
 
 Use `TRELLIS.2` for:

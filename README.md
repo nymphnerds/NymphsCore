@@ -116,6 +116,12 @@ If selected, `Nymphs-Brain` now includes:
 - a local MCP gateway for tool access from Cline/Open WebUI
 - helper commands under `/home/nymph/Nymphs-Brain/bin`
 
+For connecting Cline to the local Brain model and MCP tools, see:
+
+```text
+Manager/docs/cline_with_nymphs_brain_quickstart.md
+```
+
 ### Runtime Tools
 
 Use `Runtime Tools` to:
