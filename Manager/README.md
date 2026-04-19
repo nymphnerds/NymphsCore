@@ -81,7 +81,7 @@ The ready-to-run backend footprint is currently about `92 GB` installed. The mod
 
 For the detailed disk story, read:
 
-- [Install Disk And Model Footprint](docs/install_disk_and_model_footprint.md)
+- [Install Disk And Model Footprint](../docs/FOOTPRINT.md)
 
 ## Manager Flow
 
@@ -109,7 +109,7 @@ If selected, `Nymphs-Brain` now includes:
 For connecting Cline to the local Brain model and MCP tools, see:
 
 ```text
-docs/cline_with_nymphs_brain_quickstart.md
+../docs/CLINE_WITH_NYMPHS_BRAIN_QUICKSTART.md
 ```
 
 Useful Brain commands:
@@ -171,9 +171,11 @@ Most local installs should not need a custom API URL. The addon is designed to t
 
 Useful docs:
 
-- [Absolute Beginner Local Backend Install Guide](docs/absolute_beginner_local_install_guide.md)
-- [Install Disk And Model Footprint](docs/install_disk_and_model_footprint.md)
-- [Blender Addon User Guide](../Blender/Addon/docs/USER_GUIDE.md)
+- [Absolute Beginner Local Backend Install Guide](../docs/ABSOLUTE_BEGINNER_INSTALL_GUIDE.md)
+- [Install Disk And Model Footprint](../docs/FOOTPRINT.md)
+- [Blender Addon User Guide](../docs/BLENDER_ADDON_USER_GUIDE.md)
+- [Retexturing Guide](../docs/BLENDER_RETEXTURING_GUIDE.md)
+- [Cline With Nymphs-Brain Quickstart](../docs/CLINE_WITH_NYMPHS_BRAIN_QUICKSTART.md)
 
 ## Developer Notes
 

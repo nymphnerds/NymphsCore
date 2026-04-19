@@ -3,7 +3,7 @@
 
 Nymphs is the Blender frontend for the NymphsCore runtime. It creates image references, turns them into textured meshes, and can retexture selected meshes when a result needs another pass.
 
-For the full customer-facing walkthrough, see [`docs/USER_GUIDE.md`](docs/USER_GUIDE.md).
+For the full customer-facing walkthrough, see [`../../docs/BLENDER_ADDON_USER_GUIDE.md`](../../docs/BLENDER_ADDON_USER_GUIDE.md).
 
 ## Install From Blender
 
