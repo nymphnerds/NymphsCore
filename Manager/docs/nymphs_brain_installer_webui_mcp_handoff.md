@@ -78,8 +78,9 @@ python3-pip
 
 This means a rebuilt `NymphsCore.tar` should already have Python venv support available.
 
-The base tar should not include legacy `Hunyuan3D-Part` or a baked `TRELLIS.2`
-checkout. TRELLIS is installed/fetched later by the normal runtime finalize pass.
+The base tar should include source checkouts for active managed backends,
+including `Hunyuan3D-2`, `Z-Image`, and `TRELLIS.2`. It should not include the
+legacy `Hunyuan3D-Part` checkout.
 
 ### System Dependency Install
 

@@ -10,9 +10,11 @@ NYMPHS3D_HELPER_ROOT="${NYMPHS3D_HELPER_ROOT:-/opt/nymphs3d/Nymphs3D}"
 NYMPHS3D_RUNTIME_ROOT="${NYMPHS3D_RUNTIME_ROOT:-/opt/nymphs3d/runtime}"
 NYMPHS3D_H2_REPO_URL="${NYMPHS3D_H2_REPO_URL:-https://github.com/Tencent-Hunyuan/Hunyuan3D-2.git}"
 NYMPHS3D_N2D2_REPO_URL="${NYMPHS3D_N2D2_REPO_URL:-https://github.com/Babyjawz/Nymphs2D2.git}"
+NYMPHS3D_TRELLIS_REPO_URL="${NYMPHS3D_TRELLIS_REPO_URL:-https://github.com/microsoft/TRELLIS.2.git}"
 
 H2_DIR="${NYMPHS3D_RUNTIME_ROOT}/Hunyuan3D-2"
 Z_IMAGE_DIR="${NYMPHS3D_RUNTIME_ROOT}/Z-Image"
+TRELLIS_DIR="${NYMPHS3D_RUNTIME_ROOT}/TRELLIS.2"
 
 echo "Preparing fresh Nymphs3D builder distro..."
 echo "Helper root: ${NYMPHS3D_HELPER_ROOT}"
@@ -44,12 +46,10 @@ clone_or_refresh_repo() {
 
 clone_or_refresh_repo "${NYMPHS3D_H2_REPO_URL}" "${H2_DIR}"
 clone_or_refresh_repo "${NYMPHS3D_N2D2_REPO_URL}" "${Z_IMAGE_DIR}"
+clone_or_refresh_repo "${NYMPHS3D_TRELLIS_REPO_URL}" "${TRELLIS_DIR}"
 
-# TRELLIS.2 is intentionally installed during the post-import runtime finalize
-# pass, not baked into the base tar. Hunyuan3D-Part is legacy and is not part of
-# the managed runtime anymore.
-rm -rf "${NYMPHS3D_RUNTIME_ROOT}/TRELLIS.2" \
-       "${NYMPHS3D_RUNTIME_ROOT}/Hunyuan3D-Part"
+# Hunyuan3D-Part is legacy and is not part of the managed runtime anymore.
+rm -rf "${NYMPHS3D_RUNTIME_ROOT}/Hunyuan3D-Part"
 
 rm -rf "${HOME}/.cache/huggingface" \
        "${HOME}/.cache/pip" \
