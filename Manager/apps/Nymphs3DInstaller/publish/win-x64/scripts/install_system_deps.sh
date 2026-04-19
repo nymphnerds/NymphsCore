@@ -24,6 +24,8 @@ sudo apt install -y \
   build-essential \
   pkg-config \
   software-properties-common \
+  python3 \
+  python3-venv \
   python3-pip \
   libegl1-mesa-dev \
   libgl1 \

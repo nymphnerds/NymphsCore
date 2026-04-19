@@ -33,18 +33,23 @@ clone_or_refresh_repo() {
 
   if [[ ! -d "${repo_dir}/.git" ]]; then
     echo "Cloning ${repo_url} into ${repo_dir}"
-    git clone "${repo_url}" "${repo_dir}"
+    git clone --depth 1 --single-branch "${repo_url}" "${repo_dir}"
   else
     echo "Repo already exists at ${repo_dir}, refreshing"
     git -C "${repo_dir}" fetch --all --prune || true
   fi
 
   rm -rf "${repo_dir}/.venv" "${repo_dir}/.venv-nunchaku" "${repo_dir}/.venv-official"
+  git -C "${repo_dir}" reflog expire --expire=now --all || true
+  git -C "${repo_dir}" gc --prune=now --aggressive || true
 }
 
 clone_or_refresh_repo "${NYMPHS3D_H2_REPO_URL}" "${H2_DIR}"
 clone_or_refresh_repo "${NYMPHS3D_N2D2_REPO_URL}" "${Z_IMAGE_DIR}"
 clone_or_refresh_repo "${NYMPHS3D_TRELLIS_REPO_URL}" "${TRELLIS_DIR}"
+
+# Hunyuan3D-Part is legacy and is not part of the managed runtime anymore.
+rm -rf "${NYMPHS3D_RUNTIME_ROOT}/Hunyuan3D-Part"
 
 rm -rf "${HOME}/.cache/huggingface" \
        "${HOME}/.cache/pip" \
@@ -52,6 +57,18 @@ rm -rf "${HOME}/.cache/huggingface" \
        "${HOME}/.cache/torch_extensions" \
        "${HOME}/.cache/triton" \
        "${HOME}/.u2net"
+
+apt-get clean
+rm -rf /var/lib/apt/lists/* \
+       /var/cache/apt/* \
+       /var/tmp/* \
+       /tmp/* \
+       /root/.cache \
+       /root/.npm \
+       /root/.local/share/Trash \
+       /var/log/*.log \
+       /var/log/apt/* \
+       /var/log/journal/*
 
 cat >/etc/profile.d/nymphscore.sh <<'EOF'
 export NYMPHS3D_HELPER_ROOT=/opt/nymphs3d/Nymphs3D

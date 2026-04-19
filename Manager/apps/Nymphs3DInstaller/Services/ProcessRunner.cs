@@ -1,13 +1,16 @@
 using System.Diagnostics;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace Nymphs3DInstaller.Services;
 
 public sealed class ProcessRunner
 {
+    private static readonly Regex AnsiSequenceRegex = new(@"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])", RegexOptions.Compiled);
+
     private static string FormatOutput(string value, bool isErrorStream)
     {
-        var sanitized = value.Replace("\0", string.Empty);
+        var sanitized = AnsiSequenceRegex.Replace(value.Replace("\0", string.Empty), string.Empty).TrimEnd();
         if (!isErrorStream || string.IsNullOrWhiteSpace(sanitized))
         {
             return sanitized;

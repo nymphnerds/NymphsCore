@@ -74,7 +74,7 @@ $bootstrapCommand = @'
 set -euo pipefail
 export DEBIAN_FRONTEND=noninteractive
 apt-get update
-apt-get install -y git ca-certificates curl wget sudo
+apt-get install -y git ca-certificates curl wget sudo python3 python3-venv python3-pip
 mkdir -p /opt/nymphs3d /opt/nymphs3d/runtime
 rm -rf /opt/nymphs3d/Nymphs3D
 git clone --branch "__REPO_BRANCH__" --single-branch "__HELPER_REPO_URL__" /opt/nymphs3d/Nymphs3D
