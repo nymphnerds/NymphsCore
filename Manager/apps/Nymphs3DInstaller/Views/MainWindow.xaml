@@ -1251,7 +1251,7 @@
                   <TextBlock Text="  /  " Foreground="#8A8178" VerticalAlignment="Center" />
                   <Button Style="{StaticResource TextLinkButton}"
                           Command="{Binding ChangeBrainModelCommand}"
-                          Content="Change Model" />
+                          Content="Manage Models" />
                   <TextBlock Text="  /  " Foreground="#8A8178" VerticalAlignment="Center" />
                   <Button Style="{StaticResource TextLinkButton}"
                           Command="{Binding StopBrainLlmCommand}"

@@ -451,12 +451,13 @@ public sealed class InstallerWorkflowService
     public void OpenNymphsBrainModelManager(InstallSettings settings)
     {
         var bashCommand =
-            "set -euo pipefail; " +
-            $"export HOME={ToBashSingleQuoted($"/home/{settings.LinuxUser}")}; " +
-            $"export USER={ToBashSingleQuoted(settings.LinuxUser)}; " +
-            $"export LOGNAME={ToBashSingleQuoted(settings.LinuxUser)}; " +
-            $"{ToBashSingleQuoted($"{settings.BrainInstallRoot}/bin/lms-model")}; " +
-            "echo; read -rp 'Press Enter to close this window...' _";
+            "set -euo pipefail\n" +
+            $"export HOME={ToBashSingleQuoted($"/home/{settings.LinuxUser}")}\n" +
+            $"export USER={ToBashSingleQuoted(settings.LinuxUser)}\n" +
+            $"export LOGNAME={ToBashSingleQuoted(settings.LinuxUser)}\n" +
+            $"{ToBashSingleQuoted($"{settings.BrainInstallRoot}/bin/lms-model")}\n" +
+            "echo\n" +
+            "read -rp 'Press Enter to close this window...' _";
 
         try
         {
@@ -703,6 +704,8 @@ public sealed class InstallerWorkflowService
         {
             throw new InvalidOperationException("Runtime tool status check failed.");
         }
+
+        progress.Report("Managed runtime tool status checked.");
 
         var statuses = new Dictionary<string, RuntimeBackendStatus>(StringComparer.OrdinalIgnoreCase);
         var lines = result.CombinedOutput

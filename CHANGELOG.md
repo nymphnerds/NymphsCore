@@ -30,7 +30,7 @@ Documented changes:
 - added Runtime Tools controls for Brain:
   - `Start LLM`
   - `Open WebUI`
-  - `Change Model`
+  - `Manage Models`
   - `Stop LLM`
 - documented Brain in the Manager README and beginner install guides
 - documented Brain as optional and safe to skip for Blender-only users

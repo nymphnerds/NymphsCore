@@ -978,9 +978,11 @@ public sealed class MainWindowViewModel : ViewModelBase
         {
             var statuses = await _workflowService.GetRuntimeBackendStatusesAsync(settings, progress, CancellationToken.None).ConfigureAwait(true);
             ApplyRuntimeBackendStatuses(statuses);
+            AppendInstallLog("Core backend runtime status checked.");
             await RefreshBrainRuntimeStatusSnapshotAsync(settings).ConfigureAwait(true);
             RuntimeToolsSummary = BuildRuntimeToolsSummary(statuses);
             StatusMessage = "Runtime tool status check completed.";
+            LogLines.Add(StatusMessage);
             AppendInstallLog(StatusMessage);
         }
         catch (Exception ex)
@@ -1288,7 +1290,7 @@ public sealed class MainWindowViewModel : ViewModelBase
         {
             _workflowService.OpenNymphsBrainModelManager(settings);
             StatusMessage = "Opened Nymphs-Brain model manager in a terminal.";
-            PostInstallActionSummary = "Use the terminal window to add, change, or remove the active Brain model.";
+            PostInstallActionSummary = "Use the terminal window to download, switch, or remove Brain models.";
             AppendInstallLog("Opened Nymphs-Brain model manager terminal.");
         }
         catch (Exception ex)

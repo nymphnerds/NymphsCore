@@ -63,7 +63,7 @@ NymphsCoreManager-win-x64/
 - if `Nymphs-Brain` is selected, Runtime Tools also exposes:
   - `Start LLM`
   - `Open WebUI`
-  - `Change Model`
+  - `Manage Models`
   - `Stop LLM`
 - Open WebUI is intended to open on `http://localhost:8081`
 
