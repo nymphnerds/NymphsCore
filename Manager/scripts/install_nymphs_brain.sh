@@ -1060,10 +1060,11 @@ OPEN_WEBUI_HOST="${NYMPHS_BRAIN_OPEN_WEBUI_HOST:-__OPEN_WEBUI_HOST__}"
 OPEN_WEBUI_PORT="${NYMPHS_BRAIN_OPEN_WEBUI_PORT:-__OPEN_WEBUI_PORT__}"
 MCP_HOST="${NYMPHS_BRAIN_MCP_HOST:-${NYMPHS_BRAIN_MCPO_HOST:-__MCP_HOST__}}"
 MCP_PORT="${NYMPHS_BRAIN_MCP_PORT:-${NYMPHS_BRAIN_MCPO_PORT:-__MCP_PORT__}}"
+CURL_CHECK_ARGS=(--silent --show-error --fail --connect-timeout 2 --max-time 5)
 
 echo "Brain install: $([[ -x "${SCRIPT_DIR}/lms-start" ]] && echo installed || echo missing)"
 
-if curl -fsS "http://127.0.0.1:1234/v1/models" >/tmp/nymphs-brain-models.json 2>/dev/null; then
+if curl "${CURL_CHECK_ARGS[@]}" "http://127.0.0.1:1234/v1/models" >/tmp/nymphs-brain-models.json 2>/dev/null; then
   echo "LLM server: running"
   "${INSTALL_ROOT}/venv/bin/python3" - <<'PYEOF' || true
 import json
@@ -1083,13 +1084,13 @@ else
   echo "Model loaded: ${model:-none}"
 fi
 
-if curl -fsS "http://${MCP_HOST}:${MCP_PORT}/status" >/dev/null 2>&1; then
+if curl "${CURL_CHECK_ARGS[@]}" "http://${MCP_HOST}:${MCP_PORT}/status" >/dev/null 2>&1; then
   echo "MCP proxy: running"
 else
   echo "MCP proxy: stopped"
 fi
 
-if curl -fsS "http://${OPEN_WEBUI_HOST}:${OPEN_WEBUI_PORT}" >/dev/null 2>&1; then
+if curl "${CURL_CHECK_ARGS[@]}" "http://${OPEN_WEBUI_HOST}:${OPEN_WEBUI_PORT}" >/dev/null 2>&1; then
   echo "Open WebUI: running"
 else
   echo "Open WebUI: stopped"
