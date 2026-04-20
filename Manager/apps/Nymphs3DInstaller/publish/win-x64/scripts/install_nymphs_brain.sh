@@ -73,7 +73,6 @@ fi
 BIN_DIR="${INSTALL_ROOT}/bin"
 VENV_DIR="${INSTALL_ROOT}/venv"
 NPM_GLOBAL="${INSTALL_ROOT}/npm-global"
-CACHE_DIR="${INSTALL_ROOT}/models"
 LOCAL_TOOLS_DIR="${INSTALL_ROOT}/local-tools"
 LOCAL_BIN_DIR="${LOCAL_TOOLS_DIR}/bin"
 LOCAL_NODE_DIR="${LOCAL_TOOLS_DIR}/node"
@@ -220,10 +219,6 @@ choose_auto_model() {
   fi
 }
 
-model_served_name() {
-  basename "$1"
-}
-
 ensure_secret_file() {
   local path="$1"
   local bytes="$2"
@@ -267,7 +262,6 @@ mkdir -p \
   "${BIN_DIR}" \
   "${VENV_DIR}" \
   "${NPM_GLOBAL}" \
-  "${CACHE_DIR}" \
   "${LOCAL_TOOLS_DIR}" \
   "${LOCAL_BIN_DIR}" \
   "${MCP_CONFIG_DIR}" \
@@ -283,7 +277,6 @@ if [[ "${MODEL_ID}" == "auto" ]]; then
   echo "Auto model selected from detected VRAM (${VRAM_MB:-0} MB): ${MODEL_ID}"
 fi
 
-SERVED_NAME="$(model_served_name "${MODEL_ID}")"
 DL_TARGET="${MODEL_ID}@${QUANTIZATION}"
 
 export DEBIAN_FRONTEND=noninteractive
@@ -418,7 +411,7 @@ cat > "${INSTALL_ROOT}/nymph-agent.py" <<'PYEOF'
 import requests
 
 URL = "http://127.0.0.1:1234/v1/chat/completions"
-MODEL = "__SERVED_NAME__"
+MODEL = "__MODEL_ID__"
 
 
 def call(messages):
@@ -455,7 +448,7 @@ while True:
         break
 PYEOF
 
-sed -i "s|__SERVED_NAME__|${SERVED_NAME}|g" "${INSTALL_ROOT}/nymph-agent.py"
+sed -i "s|__MODEL_ID__|${MODEL_ID}|g" "${INSTALL_ROOT}/nymph-agent.py"
 
 cat > "${BIN_DIR}/lms-start" <<'WRAPEOF'
 #!/usr/bin/env bash
@@ -468,31 +461,12 @@ for candidate in "${HOME}/.lmstudio/bin" "${HOME}/.cache/lm-studio/bin" "${HOME}
     export PATH="${candidate}:${PATH}"
   fi
 done
-if [[ -f "${HOME}/.lmstudio/settings.json" ]]; then
-  LMSTUDIO_MODEL_PATH_FROM_SETTINGS="$(python3 - <<'PYEOF'
-import json
-from pathlib import Path
-
-try:
-    data = json.loads(Path.home().joinpath(".lmstudio/settings.json").read_text(encoding="utf-8"))
-except Exception:
-    data = {}
-
-downloads = data.get("downloadsFolder")
-if isinstance(downloads, str) and downloads.strip():
-    print(downloads.strip())
-PYEOF
-)"
-  if [[ -n "${LMSTUDIO_MODEL_PATH_FROM_SETTINGS:-}" ]]; then
-    export LMSTUDIO_MODEL_PATH="${LMSTUDIO_MODEL_PATH_FROM_SETTINGS}"
-  fi
-fi
 lms server stop >/dev/null 2>&1 || true
 lms server start >/dev/null 2>&1 &
 until curl -fsS http://localhost:1234/v1/models >/dev/null 2>&1; do
   sleep 1
 done
-lms load "__SERVED_NAME__" --gpu "max" --context-length "__CONTEXT_LENGTH__"
+lms load "__MODEL_ID__" --gpu "max" --context-length "__CONTEXT_LENGTH__"
 WRAPEOF
 
 cat > "${BIN_DIR}/lms-stop" <<'WRAPEOF'
@@ -526,31 +500,22 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 INSTALL_ROOT="$(dirname "${SCRIPT_DIR}")"
 
+python_json() {
+  if [[ -x "${INSTALL_ROOT}/venv/bin/python3" ]]; then
+    "${INSTALL_ROOT}/venv/bin/python3" "$@"
+  else
+    python3 "$@"
+  fi
+}
+
 export PATH="${INSTALL_ROOT}/bin:${INSTALL_ROOT}/local-tools/bin:${INSTALL_ROOT}/local-tools/node/bin:${INSTALL_ROOT}/npm-global/bin:${PATH}"
 for candidate in "${HOME}/.lmstudio/bin" "${HOME}/.cache/lm-studio/bin" "${HOME}/.local/bin"; do
   if [[ -d "${candidate}" ]]; then
     export PATH="${candidate}:${PATH}"
   fi
 done
-if [[ -f "${HOME}/.lmstudio/settings.json" ]]; then
-  LMSTUDIO_MODEL_PATH_FROM_SETTINGS="$(python_json - <<'PYEOF'
-import json
-from pathlib import Path
 
-try:
-    data = json.loads(Path.home().joinpath(".lmstudio/settings.json").read_text(encoding="utf-8"))
-except Exception:
-    data = {}
-
-downloads = data.get("downloadsFolder")
-if isinstance(downloads, str) and downloads.strip():
-    print(downloads.strip())
-PYEOF
-)"
-  if [[ -n "${LMSTUDIO_MODEL_PATH_FROM_SETTINGS:-}" ]]; then
-    export LMSTUDIO_MODEL_PATH="${LMSTUDIO_MODEL_PATH_FROM_SETTINGS}"
-  fi
-fi
+LMS_BIN="$(command -v lms || true)"
 
 declare -A CONTEXT_SIZES=(
   ["1"]="4096"
@@ -573,16 +538,8 @@ CONTEXT_LABELS=(
 SELECTED_CONTEXT_SIZE=""
 SELECTED_MODEL_KEY=""
 
-python_json() {
-  if [[ -x "${INSTALL_ROOT}/venv/bin/python3" ]]; then
-    "${INSTALL_ROOT}/venv/bin/python3" "$@"
-  else
-    python3 "$@"
-  fi
-}
-
 json_model_keys() {
-  python_json - <<'PYEOF'
+  python_json -c '
 import json
 import sys
 
@@ -604,17 +561,17 @@ for item in data if isinstance(data, list) else []:
         model_key = item.get("modelKey") or item.get("key") or item.get("id")
         if model_key:
             print(model_key)
-PYEOF
+'
 }
 
 lms_model_keys() {
   local model_json
-  model_json="$(lms ls --llm --json 2>/dev/null || printf '[]')"
+  model_json="$("${LMS_BIN}" ls --llm --json 2>/dev/null || printf '[]')"
   printf '%s' "${model_json}" | json_model_keys
 }
 
 ensure_lms() {
-  if ! command -v lms >/dev/null 2>&1; then
+  if [[ -z "${LMS_BIN:-}" ]] || [[ ! -x "${LMS_BIN}" ]]; then
     echo "LM Studio CLI command 'lms' was not found." >&2
     echo "Rerun install_nymphs_brain.sh or check the LM Studio CLI installation." >&2
     exit 1
@@ -623,10 +580,10 @@ ensure_lms() {
 
 start_server() {
   echo "Stopping any existing LM Studio server..."
-  lms server stop >/dev/null 2>&1 || true
+  "${LMS_BIN}" server stop >/dev/null 2>&1 || true
 
   echo "Starting LM Studio server..."
-  lms server start >/dev/null 2>&1 &
+  "${LMS_BIN}" server start >/dev/null 2>&1 &
 
   echo "Waiting for server to be ready..."
   until curl -fsS http://localhost:1234/v1/models >/dev/null 2>&1; do
@@ -638,7 +595,7 @@ start_server() {
 
 unload_models() {
   echo "Unloading currently loaded models..."
-  lms unload --all 2>/dev/null || true
+  "${LMS_BIN}" unload --all 2>/dev/null || true
 }
 
 select_context_size() {
@@ -717,10 +674,10 @@ capture_selected_model() {
 
   if [[ -n "${search_query}" ]]; then
     echo "Searching for models matching: ${search_query}"
-    lms get "${search_query}" --select
+    "${LMS_BIN}" get "${search_query}" --select
   else
     echo "Showing available models..."
-    lms get --select
+    "${LMS_BIN}" get --select
   fi
 
   after_keys="$(lms_model_keys | sort || true)"
@@ -777,6 +734,43 @@ update_agent_script() {
   echo "Updated nymph-chat to request the selected model."
 }
 
+finalize_selected_model() {
+  select_context_size
+  start_server
+  unload_models
+
+  echo
+  echo "Loading model:"
+  echo "  model: ${SELECTED_MODEL_KEY}"
+  echo "  context: ${SELECTED_CONTEXT_SIZE}"
+
+  "${LMS_BIN}" load --yes "${SELECTED_MODEL_KEY}" --gpu "max" --context-length "${SELECTED_CONTEXT_SIZE}"
+
+  update_lms_start_script "${SELECTED_MODEL_KEY}" "${SELECTED_CONTEXT_SIZE}"
+  update_agent_script "${SELECTED_MODEL_KEY}"
+  echo "Model loaded successfully."
+}
+
+use_downloaded_model_menu() {
+  local retry=true
+
+  echo
+  echo "Use Downloaded Model"
+
+  while "${retry}"; do
+    if ! choose_downloaded_model "Select a downloaded model to use:"; then
+      return
+    fi
+    if ! confirm_model; then
+      retry=true
+      continue
+    fi
+    retry=false
+  done
+
+  finalize_selected_model
+}
+
 remove_models_menu() {
   while true; do
     echo
@@ -796,7 +790,7 @@ remove_models_menu() {
       if [[ -n "${model_choice}" ]]; then
         read -rp "Remove '${model_choice}'? (y/n): " response
         if [[ "${response}" =~ ^[Yy]$ ]]; then
-          lms rm "${model_choice}"
+          "${LMS_BIN}" rm "${model_choice}"
           echo "Removed ${model_choice}."
         fi
         break
@@ -812,8 +806,7 @@ run_add_change_model() {
   local retry=true
 
   echo
-  echo "LM Studio Interactive Model Selector"
-  start_server
+  echo "Download New Model"
 
   while "${retry}"; do
     capture_selected_model "${search_query}"
@@ -824,19 +817,7 @@ run_add_change_model() {
     retry=false
   done
 
-  select_context_size
-  unload_models
-
-  echo
-  echo "Loading model:"
-  echo "  model: ${SELECTED_MODEL_KEY}"
-  echo "  context: ${SELECTED_CONTEXT_SIZE}"
-
-  lms load --yes "${SELECTED_MODEL_KEY}" --gpu "max" --context-length "${SELECTED_CONTEXT_SIZE}"
-
-  update_lms_start_script "${SELECTED_MODEL_KEY}" "${SELECTED_CONTEXT_SIZE}"
-  update_agent_script "${SELECTED_MODEL_KEY}"
-  echo "Model loaded successfully."
+  finalize_selected_model
 }
 
 main() {
@@ -850,16 +831,18 @@ main() {
   while true; do
     echo
     echo "LM Studio Model Manager"
-    echo "1) Add/Change Model"
-    echo "2) Remove Models"
-    echo "3) Exit"
+    echo "1) Use Downloaded Model"
+    echo "2) Download New Model"
+    echo "3) Remove Models"
+    echo "4) Exit"
     echo
-    read -rp "Enter your choice (1-3): " choice
+    read -rp "Enter your choice (1-4): " choice
 
     case "${choice}" in
-      1) run_add_change_model "" ;;
-      2) remove_models_menu ;;
-      3) return ;;
+      1) use_downloaded_model_menu ;;
+      2) run_add_change_model "" ;;
+      3) remove_models_menu ;;
+      4) return ;;
       *) echo "Invalid choice. Please try again." ;;
     esac
   done
@@ -1143,7 +1126,7 @@ export NYMPHS_BRAIN_MCP_URL="http://localhost:${MCP_PORT}"
 export PATH="${BIN_DIR}:${LOCAL_BIN_DIR}:${LOCAL_NODE_DIR}/bin:${NPM_GLOBAL}/bin:\${PATH}"
 WRAPEOF
 
-sed -i "s|__SERVED_NAME__|${SERVED_NAME}|g" "${BIN_DIR}/lms-start"
+sed -i "s|__MODEL_ID__|${MODEL_ID}|g" "${BIN_DIR}/lms-start"
 sed -i "s|__CONTEXT_LENGTH__|${CONTEXT_LENGTH}|g" "${BIN_DIR}/lms-start"
 sed -i "s|__MCP_HOST__|${MCP_HOST}|g" "${BIN_DIR}/mcp-start" "${BIN_DIR}/mcp-status" "${BIN_DIR}/open-webui-start" "${BIN_DIR}/brain-status"
 sed -i "s|__MCP_PORT__|${MCP_PORT}|g" "${BIN_DIR}/mcp-start" "${BIN_DIR}/mcp-status" "${BIN_DIR}/open-webui-start" "${BIN_DIR}/brain-status"
