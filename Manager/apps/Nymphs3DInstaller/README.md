@@ -65,6 +65,7 @@ NymphsCoreManager-win-x64/
   - `Open WebUI`
   - `Manage Models`
   - `Stop LLM`
+- the Brain install and Runtime Tools actions use LM Studio's normal CLI behavior for model fetch and server start, so no separate manual daemon bootstrap step should be needed
 - Open WebUI is intended to open on `http://localhost:8081`
 
 ## If Something Fails

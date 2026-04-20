@@ -106,6 +106,8 @@ If selected, `Nymphs-Brain` now includes:
 - a local MCP gateway for Cline/Open WebUI tool access
 - helper commands under `/home/nymph/Nymphs-Brain/bin`
 
+The installer and runtime wrappers use LM Studio's standard CLI flow for model download and server start. No separate manual daemon bootstrap step should be needed.
+
 For connecting Cline to the local Brain model and MCP tools, see:
 
 ```text
@@ -159,7 +161,7 @@ Common causes:
 - NVIDIA is not visible inside WSL
 - the model download is still running or was interrupted
 
-Rerunning the latest manager is the intended repair path for interrupted installs, missing packages, missing models, or refreshed runtime scripts.
+Rerunning the latest manager is the intended repair path for interrupted installs, missing packages, missing models, or refreshed runtime scripts. The optional Nymphs-Brain install should not require a separate LM Studio initialization step outside the manager.
 
 ## After Install
 
