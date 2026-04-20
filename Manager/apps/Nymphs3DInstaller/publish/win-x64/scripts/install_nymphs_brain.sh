@@ -135,17 +135,6 @@ add_lmstudio_paths() {
   done
 }
 
-ensure_lmstudio_daemon() {
-  if ! command -v lms >/dev/null 2>&1; then
-    echo "LM Studio CLI command 'lms' was not found after install." >&2
-    echo "Open a new shell or check the LM Studio CLI install output, then rerun this script." >&2
-    exit 1
-  fi
-
-  echo "Initializing LM Studio daemon..."
-  lms daemon up
-}
-
 detect_node_arch() {
   case "$(uname -m)" in
     x86_64) echo "linux-x64" ;;
@@ -407,7 +396,11 @@ Notes
 EOF
 
 if [[ "${DOWNLOAD_MODEL}" == "1" ]]; then
-  ensure_lmstudio_daemon
+  if ! command -v lms >/dev/null 2>&1; then
+    echo "LM Studio CLI command 'lms' was not found after install." >&2
+    echo "Open a new shell or check the LM Studio CLI install output, then rerun this script." >&2
+    exit 1
+  fi
   echo "Downloading model: ${DL_TARGET}"
   lms get "${DL_TARGET}" --yes
 else
@@ -468,7 +461,6 @@ for candidate in "${HOME}/.lmstudio/bin" "${HOME}/.cache/lm-studio/bin" "${HOME}
     export PATH="${candidate}:${PATH}"
   fi
 done
-lms daemon up >/dev/null 2>&1 || true
 lms server stop >/dev/null 2>&1 || true
 lms server start >/dev/null 2>&1 &
 until curl -fsS http://localhost:1234/v1/models >/dev/null 2>&1; do
@@ -587,9 +579,6 @@ ensure_lms() {
 }
 
 start_server() {
-  echo "Ensuring LM Studio daemon is running..."
-  "${LMS_BIN}" daemon up >/dev/null 2>&1 || true
-
   echo "Stopping any existing LM Studio server..."
   "${LMS_BIN}" server stop >/dev/null 2>&1 || true
 
