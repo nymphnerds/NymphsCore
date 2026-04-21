@@ -21,6 +21,45 @@ Across the full documented history, the project moved through eight phases:
 
 Newest entries first.
 
+### 2026-04-21 reworked the Brain page and added role-aware `Act` / `Plan` model profiles
+Source: iterative Manager UI work on the `brain-activity` branch, plus Linux-side Brain script refactors to support separate Cline planning and execution models cleanly.
+
+Documented changes:
+
+- moved `Nymphs-Brain` out of `Runtime Tools` and into its own dedicated Manager sidebar page
+- reworked the Brain page UI:
+  - added Brain-specific status cards for `LLM Server`, `MCP Gateway`, `Open WebUI`, and `Current Model`
+  - added a dedicated Brain activity log panel
+  - replaced the old inline Brain footer/actions with a dedicated Brain control surface
+  - added Brain-specific sidebar artwork using `NymphBrain.png`
+- improved Brain page controls and behavior:
+  - Brain actions now stay on the Brain page instead of bouncing to `Runtime Tools`
+  - WebUI now uses a true start/stop toggle instead of only an open action
+  - added stack update support for the Linux-side Brain components
+  - improved log auto-follow behavior for long model-load output
+- refactored the Brain model-loading flow from a single mutable `lms-start` selection into saved role profiles:
+  - added one primary `Act` model profile
+  - added one optional `Plan` model profile
+  - made `lms-start` load `Act`, then `Plan` if configured
+  - kept single-model behavior by allowing `Plan` to remain blank
+- made the Brain model manager role-aware:
+  - `Set Act Model From Downloaded`
+  - `Set Plan Model From Downloaded`
+  - `Download New Model For Act`
+  - `Download New Model For Plan`
+  - `Clear Act Model`
+  - `Clear Plan Model`
+- added Brain profile helper commands:
+  - `lms-get-profile`
+  - `lms-set-profile`
+- updated `brain-status`, the Brain page model card, READMEs, and Cline quickstart docs to report and explain the new role-aware model setup
+
+Why it matters:
+
+- the Manager now treats Brain as a first-class subsystem instead of a bolted-on runtime footer
+- the local Brain stack can now support separate Cline `Plan` and `Act` models without forcing a second unrelated server design
+- users can safely configure one model or two models, depending on hardware and workflow, while keeping the Linux Brain runtime understandable
+
 ### 2026-04-21 moved active managed repos to `nymphnerds` and validated installer repair flow
 Source: repo-owner migration, Manager script/default URL cleanup, rebuilt Manager artifacts, and repair-log validation on the live WSL runtime.
 
