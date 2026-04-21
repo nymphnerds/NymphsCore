@@ -14,7 +14,7 @@ The safer fix is:
 2. Ensure the Brain installer selects a Python interpreter that can create venvs.
 3. Optionally rebuild `NymphsCore.tar` so the base distro already includes Python venv support.
 4. Install Open WebUI and MCP bridge tooling inside `/home/nymph/Nymphs-Brain`.
-5. Add simple Nymphs-Brain controls to the Runtime Tools page under the live log.
+5. Add simple first-pass Nymphs-Brain controls in Manager.
 
 The Manager app must be rebuilt on Windows for the C# flow changes to ship. Rebuilding the tar is recommended, but not strictly required.
 
@@ -22,7 +22,7 @@ Current working tree status:
 
 - Python/system dependency fixes are implemented.
 - Open WebUI + MCP install script generation is implemented.
-- Runtime Tools under-log Nymphs-Brain controls are implemented in source.
+- First-pass Manager Brain controls were implemented in source and later evolved into a dedicated Brain page.
 - The Windows Manager executable still needs to be rebuilt on Windows.
 - `NymphsCore.tar` rebuild is still optional but recommended.
 
@@ -199,6 +199,11 @@ python3-pip
 
 ## Runtime Tools UI Direction
 
+Historical note:
+
+- this section describes the earlier Brain-in-Runtime-Tools direction from the first implementation pass
+- the current product direction is a dedicated `Brain` page with its own status cards, activity log, and Brain-specific controls
+
 Do not add a fourth large backend card for Nymphs-Brain.
 
 The existing three-card layout should remain:
@@ -211,31 +216,12 @@ Instead, add a simple Nymphs-Brain section underneath the live log.
 
 Target layout:
 
-```text
-Runtime Tools
+This was the original lightweight `Runtime Tools` concept. It has since been superseded by the dedicated `Brain` page with:
 
-[Hunyuan 2mv] [Z-Image] [TRELLIS.2]
-
-Live log
-------------------------------------------------
-...
-
-Nymphs-Brain
-------------------------------------------------
-Status: Installed / Server stopped / Model loaded
-Model: qwen3-1.7b
-
-Start LLM  /  Open WebUI  /  Change Model  /  Stop LLM
-```
-
-The actions can be text-link style, separated by `/`, rather than large buttons. This keeps the page lighter and avoids disrupting the existing card design.
-
-Suggested actions:
-
-- `Start LLM`: run `~/Nymphs-Brain/bin/lms-start`
-- `Stop LLM`: run `~/Nymphs-Brain/bin/lms-stop`
-- `Change Model`: open a terminal running `~/Nymphs-Brain/bin/lms-model`
-- `Open WebUI`: start or open Open WebUI in the Windows browser
+- Brain-specific status cards
+- a Brain activity log panel
+- direct Brain stack controls
+- role-aware model management
 
 ## Open WebUI Implementation
 
@@ -400,15 +386,7 @@ to add:
 - `open-webui-status`
 - generated MCP config under `/home/nymph/Nymphs-Brain/mcp/config/`
 
-The Manager Runtime Tools UI now has the under-log Nymphs-Brain status/action section:
-
-```text
-Nymphs-Brain
-Status: Installed / LLM stopped / WebUI stopped / MCP stopped
-Model: qwen3-1.7b
-
-Start LLM  /  Open WebUI  /  Change Model  /  Stop LLM
-```
+The original under-log Runtime Tools Brain section was a valid first implementation step, but it has since been replaced by the dedicated Brain page.
 
 Manager files touched for UI work:
 

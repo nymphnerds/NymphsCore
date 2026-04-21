@@ -2,20 +2,7 @@
 
 This changelog tracks `NymphsCore`, the full local system made up of the Blender addon, managed runtime, backend helper scripts, and Windows Manager.
 
-This file covers the project from the earliest local Hunyuan handoffs through the current NymphsCore runtime and Manager state, not just the history of one package or repo path.
-
-## High-Level Project Arc
-
-Across the full documented history, the project moved through eight phases:
-
-1. official Tencent WSL baseline, CUDA repair, and `2.0 MV` addon patching
-2. personal forks, custom API behavior, and a repeatable local machine setup
-3. Windows launcher work, text-bridge support, and Blender handoff stabilization
-4. one-click installer, lockfile installs, and backend progress/texture recovery work
-5. `Nymphs3D2`, Blender-first workflow positioning, and texture-path/product-surface audit
-6. repo split into a backend/helper repo and a separate Blender addon repo
-7. packaging `Nymphs3D2` as a proper Blender extension with bundled dependencies and GitHub-friendly install flow
-8. consolidating the addon, Manager, managed distro, and supported backends under the `NymphsCore` system name
+This file focuses on user-facing and system-level changes rather than package-by-package release notes.
 
 ## Detailed Timeline
 

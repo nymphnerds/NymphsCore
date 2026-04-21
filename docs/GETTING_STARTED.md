@@ -238,11 +238,7 @@ Runtime Tools can:
 - check whether `Hunyuan 2mv`, `Z-Image`, and `TRELLIS.2` are ready
 - fetch missing models into an existing install
 - run backend smoke tests
-- show `Nymphs-Brain` status when that optional module was installed
-- start the local LLM
-- stop the local LLM
-- open the local WebUI
-- open the model selector for the local LLM
+- confirm whether the optional Brain module was installed
 
 Status checks are quick.
 
@@ -250,12 +246,13 @@ Smoke tests are slower because they start a backend and wait for the local API t
 
 Use `Fetch Models Now` if you skipped prefetch or if a model download was interrupted.
 
-If `Nymphs-Brain` was installed, the Runtime Tools page is also where you can:
+If `Nymphs-Brain` was installed, use the dedicated `Brain` page to:
 
-- start the LLM
-- open WebUI
-- change the selected model
-- confirm whether the Brain MCP gateway is running
+- start or stop the Brain stack
+- start or stop Open WebUI
+- check Brain `LLM`, `MCP`, and model status
+- open the role-aware `Manage Models` flow for `Act` / `Plan` model assignment
+- inspect the Brain activity log
 
 ## Which Backend Should I Use?
 

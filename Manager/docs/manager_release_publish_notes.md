@@ -31,13 +31,13 @@ Manager/apps/Nymphs3DInstaller/publish/win-x64/scripts/install_nymphs_brain.sh
 ```
 
 The current optional `Nymphs-Brain` module also depends on the published manager build
-including the C# Runtime Tools UI/service changes that drive:
+including the C# Brain page UI/service changes that drive:
 
-- the under-log `Nymphs-Brain` section
-- `Start LLM`
-- `Open WebUI`
-- `Change Model`
-- `Stop LLM`
+- the dedicated `Brain` page
+- Brain stack start/stop controls
+- WebUI start/stop controls
+- role-aware `Manage Models`
+- Brain status cards and Brain activity log
 
 So when Brain-related source changes land, rebuild and recommit both:
 

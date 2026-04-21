@@ -141,14 +141,22 @@ Use `Runtime Tools` to:
 - fetch missing model files into an existing install
 - run backend smoke tests
 - confirm the local API can start
-- check optional `Nymphs-Brain` status
-- start/stop the local LLM
-- open the local WebUI
-- change the selected local LLM model
+- check whether the optional Brain module is installed
 
 Smoke tests are slower than normal status checks because they actually start a backend and wait for a response.
 
-The `Nymphs-Brain` section in Runtime Tools is optional. If the module was not selected during install, the main backend setup still works normally without it.
+## Brain
+
+Use the dedicated `Brain` page to:
+
+- check Brain `LLM`, `MCP`, `Open WebUI`, and model status
+- start or stop the Brain stack
+- start or stop Open WebUI
+- open the role-aware `Manage Models` terminal flow
+- update the Linux-side Brain stack components
+- inspect the Brain activity log
+
+The Brain page is optional. If the module was not selected during install, the main backend setup still works normally without it.
 
 ## Logs And Troubleshooting
 
