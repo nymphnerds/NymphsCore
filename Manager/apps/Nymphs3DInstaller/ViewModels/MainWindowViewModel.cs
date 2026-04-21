@@ -88,6 +88,8 @@ public sealed class MainWindowViewModel : ViewModelBase
     private string _brainMcpState = "unknown";
     private string _brainWebUiState = "unknown";
     private string _brainLoadedModel = "Not checked";
+    private string _brainActModel = "unknown";
+    private string _brainPlanModel = "unknown";
     private RuntimeBackendStatus _hunyuanRuntimeStatus = RuntimeBackendStatus.Unknown("2mv", "Hunyuan 2mv", "Open Runtime Tools to check status.");
     private RuntimeBackendStatus _zImageRuntimeStatus = RuntimeBackendStatus.Unknown("zimage", "Z-Image", "Open Runtime Tools to check status.");
     private RuntimeBackendStatus _trellisRuntimeStatus = RuntimeBackendStatus.Unknown("trellis", "TRELLIS.2", "Open Runtime Tools to check status.");
@@ -720,7 +722,7 @@ public sealed class MainWindowViewModel : ViewModelBase
     public string BrainModelDetailText => !IsBrainInstalled
         ? "Install the Brain module to manage and load local LLM models."
         : HasReportedBrainModel()
-            ? _brainLoadedModel
+            ? BuildBrainModelDetailText()
             : "No model has been reported yet. Refresh after starting the LLM if needed.";
 
     public RuntimeBackendStatus HunyuanRuntimeStatus
@@ -1066,7 +1068,7 @@ public sealed class MainWindowViewModel : ViewModelBase
             StatusMessage = "No managed runtime install detected yet.";
             AppendInstallLog(StatusMessage);
             ApplyRuntimeBackendStatuses(new Dictionary<string, RuntimeBackendStatus>());
-            SetBrainRuntimeSnapshot("missing", "stopped", "Not available", "stopped", "stopped");
+            SetBrainRuntimeSnapshot("missing", "stopped", "Not available", null, null, "stopped", "stopped");
             RaiseCommandStateChanged();
             return;
         }
@@ -1110,7 +1112,7 @@ public sealed class MainWindowViewModel : ViewModelBase
         catch (Exception ex)
         {
             RuntimeToolsSummary = "Runtime tool status check failed. Use the log panel and log folder to see what failed.";
-            SetBrainRuntimeSnapshot("unknown", "unknown", "Not checked", "unknown", "unknown");
+            SetBrainRuntimeSnapshot("unknown", "unknown", "Not checked", null, null, "unknown", "unknown");
             StatusMessage = "Runtime tool status check failed.";
             LogLines.Add($"ERROR: {ex.Message}");
             AppendInstallLog($"ERROR: {ex}");
@@ -1130,7 +1132,7 @@ public sealed class MainWindowViewModel : ViewModelBase
             PostInstallActionSummary = string.Empty;
             StatusMessage = "No managed runtime install detected yet.";
             AppendInstallLog(StatusMessage);
-            SetBrainRuntimeSnapshot("missing", "stopped", "Not available", "stopped", "stopped");
+            SetBrainRuntimeSnapshot("missing", "stopped", "Not available", null, null, "stopped", "stopped");
             RaiseCommandStateChanged();
             return;
         }
@@ -1182,7 +1184,7 @@ public sealed class MainWindowViewModel : ViewModelBase
         }
         catch (Exception ex)
         {
-            SetBrainRuntimeSnapshot("unknown", "unknown", "Not available", "unknown", "unknown");
+            SetBrainRuntimeSnapshot("unknown", "unknown", "Not available", null, null, "unknown", "unknown");
             AppendInstallLog($"Nymphs-Brain status check warning: {ex.Message}");
         }
     }
@@ -1196,10 +1198,12 @@ public sealed class MainWindowViewModel : ViewModelBase
         var install = FindStatusValue(lines, "Brain install:") ?? "unknown";
         var llm = FindStatusValue(lines, "LLM server:") ?? "unknown";
         var model = FindStatusValue(lines, "Model loaded:") ?? "unknown";
+        var actModel = FindStatusValue(lines, "Act model:");
+        var planModel = FindStatusValue(lines, "Plan model:");
         var mcp = FindStatusValue(lines, "MCP proxy:") ?? "unknown";
         var webUi = FindStatusValue(lines, "Open WebUI:") ?? "unknown";
 
-        SetBrainRuntimeSnapshot(install, llm, model, mcp, webUi);
+        SetBrainRuntimeSnapshot(install, llm, model, actModel, planModel, mcp, webUi);
     }
 
     private static string? FindStatusValue(IEnumerable<string> lines, string prefix)
@@ -1215,6 +1219,48 @@ public sealed class MainWindowViewModel : ViewModelBase
             : char.ToUpperInvariant(value[0]) + value[1..];
     }
 
+    private static string NormalizeBrainRoleModel(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return "unknown";
+        }
+
+        var normalized = value.Trim();
+        var contextMarker = " (context ";
+        var markerIndex = normalized.IndexOf(contextMarker, StringComparison.OrdinalIgnoreCase);
+        if (markerIndex >= 0)
+        {
+            normalized = normalized[..markerIndex].Trim();
+        }
+
+        return string.IsNullOrWhiteSpace(normalized) ? "unknown" : normalized;
+    }
+
+    private string BuildBrainModelDetailText()
+    {
+        var hasAct = HasUsableBrainRoleModel(_brainActModel);
+        var hasPlan = HasUsableBrainRoleModel(_brainPlanModel);
+
+        if (hasAct || hasPlan)
+        {
+            var actText = hasAct ? _brainActModel : "none";
+            var planText = hasPlan ? _brainPlanModel : "none";
+            return $"Act: {actText}\nPlan: {planText}";
+        }
+
+        return _brainLoadedModel;
+    }
+
+    private static bool HasUsableBrainRoleModel(string? value)
+    {
+        return !string.IsNullOrWhiteSpace(value) &&
+               value is not "unknown" &&
+               value is not "none" &&
+               value is not "not checked" &&
+               value is not "not available";
+    }
+
     private bool IsBrainInstalled => string.Equals(_brainInstallState, "installed", StringComparison.OrdinalIgnoreCase);
 
     private bool IsBrainLlmRunning => string.Equals(_brainLlmState, "running", StringComparison.OrdinalIgnoreCase);
@@ -1225,13 +1271,15 @@ public sealed class MainWindowViewModel : ViewModelBase
 
     private bool IsAnyBrainServiceRunning => IsBrainLlmRunning || IsBrainMcpRunning || IsBrainWebUiRunning;
 
-    private void SetBrainRuntimeSnapshot(string install, string llm, string model, string mcp, string webUi)
+    private void SetBrainRuntimeSnapshot(string install, string llm, string model, string? actModel, string? planModel, string mcp, string webUi)
     {
         _brainInstallState = NormalizeBrainStatus(install);
         _brainLlmState = NormalizeBrainStatus(llm);
         _brainMcpState = NormalizeBrainStatus(mcp);
         _brainWebUiState = NormalizeBrainStatus(webUi);
         _brainLoadedModel = string.IsNullOrWhiteSpace(model) ? "unknown" : model.Trim();
+        _brainActModel = NormalizeBrainRoleModel(actModel);
+        _brainPlanModel = NormalizeBrainRoleModel(planModel);
 
         BrainRuntimeStatusText = $"Status: {CapitalizeStatus(_brainInstallState)} / LLM {_brainLlmState} / WebUI {_brainWebUiState} / MCP {_brainMcpState}";
         BrainRuntimeModelText = $"Model: {_brainLoadedModel}";
@@ -1282,6 +1330,11 @@ public sealed class MainWindowViewModel : ViewModelBase
 
     private bool HasReportedBrainModel()
     {
+        if (HasUsableBrainRoleModel(_brainActModel) || HasUsableBrainRoleModel(_brainPlanModel))
+        {
+            return true;
+        }
+
         if (string.IsNullOrWhiteSpace(_brainLoadedModel))
         {
             return false;

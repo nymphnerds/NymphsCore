@@ -85,6 +85,7 @@ OPEN_WEBUI_VENV_DIR="${INSTALL_ROOT}/open-webui-venv"
 OPEN_WEBUI_DATA_DIR="${INSTALL_ROOT}/open-webui-data"
 OPEN_WEBUI_LOG_DIR="${OPEN_WEBUI_DATA_DIR}/logs"
 SECRET_DIR="${INSTALL_ROOT}/secrets"
+CONFIG_DIR="${INSTALL_ROOT}/config"
 OPEN_WEBUI_HOST="${NYMPHS_BRAIN_OPEN_WEBUI_HOST:-127.0.0.1}"
 OPEN_WEBUI_PORT="${NYMPHS_BRAIN_OPEN_WEBUI_PORT:-8081}"
 MCP_HOST="${NYMPHS_BRAIN_MCP_HOST:-${NYMPHS_BRAIN_MCPO_HOST:-127.0.0.1}}"
@@ -450,23 +451,67 @@ PYEOF
 
 sed -i "s|__MODEL_ID__|${MODEL_ID}|g" "${INSTALL_ROOT}/nymph-agent.py"
 
+mkdir -p "${CONFIG_DIR}"
+cat > "${CONFIG_DIR}/lms-model-profiles.env" <<EOF
+PLAN_MODEL_ID=""
+PLAN_CONTEXT_LENGTH=""
+ACT_MODEL_ID="${MODEL_ID}"
+ACT_CONTEXT_LENGTH="${CONTEXT_LENGTH}"
+PRIMARY_MODEL_ROLE="act"
+EOF
+
 cat > "${BIN_DIR}/lms-start" <<'WRAPEOF'
 #!/usr/bin/env bash
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 INSTALL_ROOT="$(dirname "${SCRIPT_DIR}")"
+PROFILE_CONFIG_FILE="${INSTALL_ROOT}/config/lms-model-profiles.env"
 export PATH="${INSTALL_ROOT}/bin:${INSTALL_ROOT}/local-tools/bin:${INSTALL_ROOT}/local-tools/node/bin:${INSTALL_ROOT}/npm-global/bin:${PATH}"
 for candidate in "${HOME}/.lmstudio/bin" "${HOME}/.cache/lm-studio/bin" "${HOME}/.local/bin"; do
   if [[ -d "${candidate}" ]]; then
     export PATH="${candidate}:${PATH}"
   fi
 done
+
+PLAN_MODEL_ID=""
+PLAN_CONTEXT_LENGTH=""
+ACT_MODEL_ID="__MODEL_ID__"
+ACT_CONTEXT_LENGTH="__CONTEXT_LENGTH__"
+
+if [[ -f "${PROFILE_CONFIG_FILE}" ]]; then
+  # shellcheck disable=SC1090
+  source "${PROFILE_CONFIG_FILE}"
+fi
+
+declare -A LOADED_MODEL_KEYS=()
+
+load_profile() {
+  local role="$1"
+  local model_id="$2"
+  local context_length="$3"
+  local model_key
+
+  [[ -n "${model_id}" ]] || return 0
+  context_length="${context_length:-16384}"
+  model_key="${model_id}|${context_length}"
+
+  if [[ -n "${LOADED_MODEL_KEYS[${model_key}]:-}" ]]; then
+    echo "Skipping ${role} model because it matches ${LOADED_MODEL_KEYS[${model_key}]}. (${model_id}, context ${context_length})"
+    return 0
+  fi
+
+  echo "Loading ${role} model: ${model_id} (context ${context_length})"
+  lms load "${model_id}" --gpu "max" --context-length "${context_length}"
+  LOADED_MODEL_KEYS["${model_key}"]="${role}"
+}
+
 lms server stop >/dev/null 2>&1 || true
 lms server start >/dev/null 2>&1 &
 until curl -fsS http://localhost:1234/v1/models >/dev/null 2>&1; do
   sleep 1
 done
-lms load "__MODEL_ID__" --gpu "max" --context-length "__CONTEXT_LENGTH__"
+load_profile "act" "${ACT_MODEL_ID}" "${ACT_CONTEXT_LENGTH}"
+load_profile "plan" "${PLAN_MODEL_ID}" "${PLAN_CONTEXT_LENGTH}"
 WRAPEOF
 
 cat > "${BIN_DIR}/lms-stop" <<'WRAPEOF'
@@ -580,6 +625,7 @@ CONTEXT_LABELS=(
 
 SELECTED_CONTEXT_SIZE=""
 SELECTED_MODEL_KEY=""
+SELECTED_ROLE="act"
 
 json_model_keys() {
   python_json -c '
@@ -688,6 +734,38 @@ confirm_model() {
   done
 }
 
+select_role() {
+  local choice
+  local default_role="${1:-act}"
+
+  while true; do
+    echo
+    echo "Assign this model to which role?"
+    echo "  1) Act"
+    echo "  2) Plan"
+    echo
+    read -rp "Enter your choice (1-2) [default: ${default_role}]: " choice
+
+    case "${choice}" in
+      1)
+        SELECTED_ROLE="act"
+        return 0
+        ;;
+      2)
+        SELECTED_ROLE="plan"
+        return 0
+        ;;
+      "")
+        SELECTED_ROLE="${default_role}"
+        return 0
+        ;;
+      *)
+        echo "Invalid choice. Please enter 1 or 2."
+        ;;
+    esac
+  done
+}
+
 choose_downloaded_model() {
   local prompt="$1"
   mapfile -t model_keys < <(lms_model_keys)
@@ -738,25 +816,38 @@ capture_selected_model() {
 }
 
 update_lms_start_script() {
-  local model_key="$1"
-  local context_size="$2"
-  local lms_start_path="${INSTALL_ROOT}/bin/lms-start"
-  local new_load_line
+  local role="$1"
+  local model_key="$2"
+  local context_size="$3"
+  local profile_config_path="${INSTALL_ROOT}/config/lms-model-profiles.env"
+  local plan_model_id=""
+  local plan_context_length=""
+  local act_model_id=""
+  local act_context_length=""
+  local primary_model_role="act"
 
-  new_load_line=$(printf 'lms load "%s" --gpu "max" --context-length "%s"' "${model_key}" "${context_size}")
-
-  if [[ ! -f "${lms_start_path}" ]]; then
-    echo "Warning: lms-start was not found at ${lms_start_path}."
-    return 0
+  if [[ -f "${profile_config_path}" ]]; then
+    # shellcheck disable=SC1090
+    source "${profile_config_path}"
   fi
 
-  awk -v new_line="${new_load_line}" '
-    /^lms load / { print new_line; next }
-    { print }
-  ' "${lms_start_path}" > "${lms_start_path}.tmp"
-  mv "${lms_start_path}.tmp" "${lms_start_path}"
-  chmod +x "${lms_start_path}"
-  echo "Updated lms-start with the selected model and context size."
+  if [[ "${role}" == "plan" ]]; then
+    plan_model_id="${model_key}"
+    plan_context_length="${context_size}"
+  else
+    act_model_id="${model_key}"
+    act_context_length="${context_size}"
+  fi
+
+  mkdir -p "$(dirname "${profile_config_path}")"
+  cat > "${profile_config_path}" <<EOF
+PLAN_MODEL_ID="${plan_model_id}"
+PLAN_CONTEXT_LENGTH="${plan_context_length}"
+ACT_MODEL_ID="${act_model_id}"
+ACT_CONTEXT_LENGTH="${act_context_length}"
+PRIMARY_MODEL_ROLE="${primary_model_role}"
+EOF
+  echo "Updated ${role} model profile."
 }
 
 update_agent_script() {
@@ -778,29 +869,33 @@ update_agent_script() {
 }
 
 finalize_selected_model() {
+  local role="${1:-act}"
+
   select_context_size
-  start_server
-  unload_models
 
   echo
-  echo "Loading model:"
+  echo "Saving model profile:"
+  echo "  role: ${role}"
   echo "  model: ${SELECTED_MODEL_KEY}"
   echo "  context: ${SELECTED_CONTEXT_SIZE}"
 
-  "${LMS_BIN}" load --yes "${SELECTED_MODEL_KEY}" --gpu "max" --context-length "${SELECTED_CONTEXT_SIZE}"
-
-  update_lms_start_script "${SELECTED_MODEL_KEY}" "${SELECTED_CONTEXT_SIZE}"
-  update_agent_script "${SELECTED_MODEL_KEY}"
-  echo "Model loaded successfully."
+  update_lms_start_script "${role}" "${SELECTED_MODEL_KEY}" "${SELECTED_CONTEXT_SIZE}"
+  if [[ "${role}" == "act" ]]; then
+    update_agent_script "${SELECTED_MODEL_KEY}"
+  fi
+  echo "Model profile saved for ${role}."
+  echo "Restart Nymphs-Brain LLM to apply the updated plan/act model set."
 }
 
 use_downloaded_model_menu() {
+  local role="${1:-act}"
   local retry=true
 
   echo
-  echo "Use Downloaded Model"
+  echo "Use Downloaded Model (${role^})"
 
   while "${retry}"; do
+    SELECTED_ROLE="${role}"
     if ! choose_downloaded_model "Select a downloaded model to use:"; then
       return
     fi
@@ -811,7 +906,7 @@ use_downloaded_model_menu() {
     retry=false
   done
 
-  finalize_selected_model
+  finalize_selected_model "${role}"
 }
 
 remove_models_menu() {
@@ -845,13 +940,15 @@ remove_models_menu() {
 }
 
 run_add_change_model() {
-  local search_query="$1"
+  local role="$1"
+  local search_query="$2"
   local retry=true
 
   echo
-  echo "Download New Model"
+  echo "Download New Model (${role^})"
 
   while "${retry}"; do
+    SELECTED_ROLE="${role}"
     capture_selected_model "${search_query}"
     if ! confirm_model; then
       retry=true
@@ -860,38 +957,206 @@ run_add_change_model() {
     retry=false
   done
 
-  finalize_selected_model
+  finalize_selected_model "${role}"
+}
+
+clear_plan_model() {
+  "${INSTALL_ROOT}/bin/lms-set-profile" plan clear
+  echo "Plan model cleared."
+}
+
+clear_act_model() {
+  "${INSTALL_ROOT}/bin/lms-set-profile" act clear
+  echo "Act model cleared."
 }
 
 main() {
   ensure_lms
 
   if [[ "$#" -gt 0 ]]; then
-    run_add_change_model "$*"
+    run_add_change_model "act" "$*"
     return
   fi
 
   while true; do
     echo
     echo "LM Studio Model Manager"
-    echo "1) Use Downloaded Model"
-    echo "2) Download New Model"
-    echo "3) Remove Models"
-    echo "4) Exit"
+    echo "1) Set Act Model From Downloaded"
+    echo "2) Set Plan Model From Downloaded"
+    echo "3) Download New Model For Act"
+    echo "4) Download New Model For Plan"
+    echo "5) Clear Act Model"
+    echo "6) Clear Plan Model"
+    echo "7) Remove Models"
+    echo "8) Exit"
     echo
-    read -rp "Enter your choice (1-4): " choice
+    read -rp "Enter your choice (1-8): " choice
 
     case "${choice}" in
-      1) use_downloaded_model_menu ;;
-      2) run_add_change_model "" ;;
-      3) remove_models_menu ;;
-      4) return ;;
+      1) use_downloaded_model_menu "act" ;;
+      2) use_downloaded_model_menu "plan" ;;
+      3) run_add_change_model "act" "" ;;
+      4) run_add_change_model "plan" "" ;;
+      5) clear_act_model ;;
+      6) clear_plan_model ;;
+      7) remove_models_menu ;;
+      8) return ;;
       *) echo "Invalid choice. Please try again." ;;
     esac
   done
 }
 
 main "$@"
+WRAPEOF
+
+cat > "${BIN_DIR}/lms-get-profile" <<'WRAPEOF'
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+INSTALL_ROOT="$(dirname "${SCRIPT_DIR}")"
+PROFILE_CONFIG_FILE="${INSTALL_ROOT}/config/lms-model-profiles.env"
+
+PLAN_MODEL_ID=""
+PLAN_CONTEXT_LENGTH=""
+ACT_MODEL_ID=""
+ACT_CONTEXT_LENGTH=""
+
+if [[ -f "${PROFILE_CONFIG_FILE}" ]]; then
+  # shellcheck disable=SC1090
+  source "${PROFILE_CONFIG_FILE}"
+fi
+
+role="${1:-all}"
+case "${role}" in
+  plan)
+    printf '%s\n' "${PLAN_MODEL_ID}"
+    ;;
+  act)
+    printf '%s\n' "${ACT_MODEL_ID}"
+    ;;
+  all)
+    printf 'act: %s (context %s)\n' "${ACT_MODEL_ID:-none}" "${ACT_CONTEXT_LENGTH:-none}"
+    printf 'plan: %s (context %s)\n' "${PLAN_MODEL_ID:-none}" "${PLAN_CONTEXT_LENGTH:-none}"
+    ;;
+  *)
+    echo "Usage: lms-get-profile [plan|act]" >&2
+    exit 1
+    ;;
+esac
+WRAPEOF
+
+cat > "${BIN_DIR}/lms-set-profile" <<'WRAPEOF'
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ $# -lt 2 ]]; then
+  echo "Usage: lms-set-profile ROLE MODEL_KEY [CONTEXT_LENGTH]" >&2
+  echo "Use MODEL_KEY=clear to clear a role." >&2
+  exit 1
+fi
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+INSTALL_ROOT="$(dirname "${SCRIPT_DIR}")"
+PROFILE_CONFIG_FILE="${INSTALL_ROOT}/config/lms-model-profiles.env"
+ROLE="${1,,}"
+MODEL_KEY="$2"
+CONTEXT_LENGTH="${3:-}"
+
+python_json() {
+  if [[ -x "${INSTALL_ROOT}/venv/bin/python3" ]]; then
+    "${INSTALL_ROOT}/venv/bin/python3" "$@"
+  else
+    python3 "$@"
+  fi
+}
+
+update_agent_script() {
+  local model_key="$1"
+  local agent_path="${INSTALL_ROOT}/nymph-agent.py"
+  local model_literal
+
+  if [[ ! -f "${agent_path}" ]]; then
+    return 0
+  fi
+
+  model_literal="$(python_json -c 'import json, sys; print(json.dumps(sys.argv[1]))' "${model_key}")"
+  awk -v model_literal="${model_literal}" '
+    /^MODEL = / { print "MODEL = " model_literal; next }
+    { print }
+  ' "${agent_path}" > "${agent_path}.tmp"
+  mv "${agent_path}.tmp" "${agent_path}"
+}
+
+PLAN_MODEL_ID=""
+PLAN_CONTEXT_LENGTH=""
+ACT_MODEL_ID=""
+ACT_CONTEXT_LENGTH=""
+PRIMARY_MODEL_ROLE="act"
+
+if [[ -f "${PROFILE_CONFIG_FILE}" ]]; then
+  # shellcheck disable=SC1090
+  source "${PROFILE_CONFIG_FILE}"
+fi
+
+case "${ROLE}" in
+  plan|act) ;;
+  *)
+    echo "Role must be 'plan' or 'act'." >&2
+    exit 1
+    ;;
+esac
+
+if [[ "${MODEL_KEY}" == "clear" || "${MODEL_KEY}" == "none" || "${MODEL_KEY}" == "-" ]]; then
+  MODEL_KEY=""
+fi
+
+if [[ -z "${CONTEXT_LENGTH}" ]]; then
+  if [[ "${ROLE}" == "plan" ]]; then
+    CONTEXT_LENGTH="${PLAN_CONTEXT_LENGTH:-16384}"
+  else
+    CONTEXT_LENGTH="${ACT_CONTEXT_LENGTH:-16384}"
+  fi
+fi
+
+if [[ "${ROLE}" == "plan" ]]; then
+  PLAN_MODEL_ID="${MODEL_KEY}"
+  PLAN_CONTEXT_LENGTH="${MODEL_KEY:+${CONTEXT_LENGTH}}"
+else
+  ACT_MODEL_ID="${MODEL_KEY}"
+  ACT_CONTEXT_LENGTH="${MODEL_KEY:+${CONTEXT_LENGTH}}"
+fi
+
+mkdir -p "$(dirname "${PROFILE_CONFIG_FILE}")"
+cat > "${PROFILE_CONFIG_FILE}" <<EOF
+PLAN_MODEL_ID="${PLAN_MODEL_ID}"
+PLAN_CONTEXT_LENGTH="${PLAN_CONTEXT_LENGTH}"
+ACT_MODEL_ID="${ACT_MODEL_ID}"
+ACT_CONTEXT_LENGTH="${ACT_CONTEXT_LENGTH}"
+PRIMARY_MODEL_ROLE="${PRIMARY_MODEL_ROLE}"
+EOF
+
+if [[ "${ROLE}" == "act" && -n "${ACT_MODEL_ID}" ]]; then
+  update_agent_script "${ACT_MODEL_ID}"
+fi
+
+if [[ -n "${MODEL_KEY}" ]]; then
+  echo "Updated ${ROLE} profile: ${MODEL_KEY} (context ${CONTEXT_LENGTH})"
+else
+  echo "Cleared ${ROLE} profile."
+fi
+WRAPEOF
+
+cat > "${BIN_DIR}/lms-get-selected" <<'WRAPEOF'
+#!/usr/bin/env bash
+set -euo pipefail
+"$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lms-get-profile" act
+WRAPEOF
+
+cat > "${BIN_DIR}/lms-set-selected" <<'WRAPEOF'
+#!/usr/bin/env bash
+set -euo pipefail
+"$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lms-set-profile" act "$@"
 WRAPEOF
 
 cat > "${BIN_DIR}/mcp-start" <<'WRAPEOF'
@@ -1211,11 +1476,22 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 INSTALL_ROOT="$(dirname "${SCRIPT_DIR}")"
+PROFILE_CONFIG_FILE="${INSTALL_ROOT}/config/lms-model-profiles.env"
 OPEN_WEBUI_HOST="${NYMPHS_BRAIN_OPEN_WEBUI_HOST:-__OPEN_WEBUI_HOST__}"
 OPEN_WEBUI_PORT="${NYMPHS_BRAIN_OPEN_WEBUI_PORT:-__OPEN_WEBUI_PORT__}"
 MCP_HOST="${NYMPHS_BRAIN_MCP_HOST:-${NYMPHS_BRAIN_MCPO_HOST:-__MCP_HOST__}}"
 MCP_PORT="${NYMPHS_BRAIN_MCP_PORT:-${NYMPHS_BRAIN_MCPO_PORT:-__MCP_PORT__}}"
 CURL_CHECK_ARGS=(--silent --show-error --fail --connect-timeout 2 --max-time 5)
+
+PLAN_MODEL_ID=""
+PLAN_CONTEXT_LENGTH=""
+ACT_MODEL_ID="__MODEL_ID__"
+ACT_CONTEXT_LENGTH="__CONTEXT_LENGTH__"
+
+if [[ -f "${PROFILE_CONFIG_FILE}" ]]; then
+  # shellcheck disable=SC1090
+  source "${PROFILE_CONFIG_FILE}"
+fi
 
 echo "Brain install: $([[ -x "${SCRIPT_DIR}/lms-start" ]] && echo installed || echo missing)"
 
@@ -1225,9 +1501,11 @@ if curl "${CURL_CHECK_ARGS[@]}" "http://127.0.0.1:1234/v1/models" >/tmp/nymphs-b
   echo "Model loaded: ${MODEL_OUTPUT}"
 else
   echo "LLM server: stopped"
-  MODEL_NAME="$(sed -n 's/^lms load \"\(.*\)\" --gpu.*/\1/p' "${SCRIPT_DIR}/lms-start" | head -n 1)"
-  echo "Model loaded: ${MODEL_NAME:-none}"
+  echo "Model loaded: act=${ACT_MODEL_ID:-none}; plan=${PLAN_MODEL_ID:-none}"
 fi
+
+echo "Act model: ${ACT_MODEL_ID:-none} (context ${ACT_CONTEXT_LENGTH:-none})"
+echo "Plan model: ${PLAN_MODEL_ID:-none} (context ${PLAN_CONTEXT_LENGTH:-none})"
 
 if curl "${CURL_CHECK_ARGS[@]}" "http://${MCP_HOST}:${MCP_PORT}/status" >/dev/null 2>&1; then
   echo "MCP proxy: running"
@@ -1261,6 +1539,8 @@ WRAPEOF
 
 sed -i "s|__MODEL_ID__|${MODEL_ID}|g" "${BIN_DIR}/lms-start"
 sed -i "s|__CONTEXT_LENGTH__|${CONTEXT_LENGTH}|g" "${BIN_DIR}/lms-start"
+sed -i "s|__MODEL_ID__|${MODEL_ID}|g" "${BIN_DIR}/brain-status"
+sed -i "s|__CONTEXT_LENGTH__|${CONTEXT_LENGTH}|g" "${BIN_DIR}/brain-status"
 sed -i "s|__MCP_HOST__|${MCP_HOST}|g" "${BIN_DIR}/mcp-start" "${BIN_DIR}/mcp-status" "${BIN_DIR}/open-webui-start" "${BIN_DIR}/brain-status"
 sed -i "s|__MCP_PORT__|${MCP_PORT}|g" "${BIN_DIR}/mcp-start" "${BIN_DIR}/mcp-status" "${BIN_DIR}/open-webui-start" "${BIN_DIR}/brain-status"
 sed -i "s|__OPEN_WEBUI_HOST__|${OPEN_WEBUI_HOST}|g" "${BIN_DIR}/open-webui-start" "${BIN_DIR}/open-webui-status" "${BIN_DIR}/brain-status"
@@ -1269,6 +1549,10 @@ sed -i "s|__LMSTUDIO_API_BASE_URL__|${LMSTUDIO_API_BASE_URL}|g" "${BIN_DIR}/open
 chmod +x \
   "${BIN_DIR}/lms-start" \
   "${BIN_DIR}/lms-model" \
+  "${BIN_DIR}/lms-get-profile" \
+  "${BIN_DIR}/lms-set-profile" \
+  "${BIN_DIR}/lms-get-selected" \
+  "${BIN_DIR}/lms-set-selected" \
   "${BIN_DIR}/lms-update" \
   "${BIN_DIR}/lms-stop" \
   "${BIN_DIR}/mcp-start" \
@@ -1285,7 +1569,8 @@ chmod +x \
 cat > "${INSTALL_ROOT}/install-summary.txt" <<EOF
 Nymphs-Brain experimental local LLM stack
 Install root: ${INSTALL_ROOT}
-Model: ${MODEL_ID}
+Act model: ${MODEL_ID}
+Plan model: not configured
 Quantization: ${QUANTIZATION}
 Context length: ${CONTEXT_LENGTH}
 Model download during install: ${DOWNLOAD_MODEL}
@@ -1293,6 +1578,8 @@ LM Studio CLI location: user profile managed by LM Studio
 Commands:
 - ${BIN_DIR}/lms-start
 - ${BIN_DIR}/lms-model
+- ${BIN_DIR}/lms-get-profile
+- ${BIN_DIR}/lms-set-profile
 - ${BIN_DIR}/lms-update
 - ${BIN_DIR}/lms-stop
 - ${BIN_DIR}/nymph-chat
@@ -1315,6 +1602,7 @@ EOF
 echo "Nymphs-Brain setup complete."
 echo "Start LM Studio model server: ${BIN_DIR}/lms-start"
 echo "Change/download/remove LM Studio models: ${BIN_DIR}/lms-model"
+echo "Set plan/act model profiles: ${BIN_DIR}/lms-set-profile"
 echo "Update LM Studio CLI/runtime: ${BIN_DIR}/lms-update"
 echo "Stop LM Studio cleanly: ${BIN_DIR}/lms-stop"
 echo "Start MCP proxy: ${BIN_DIR}/mcp-start"
