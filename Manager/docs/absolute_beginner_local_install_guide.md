@@ -257,7 +257,7 @@ If `Nymphs-Brain` was installed, use the dedicated `Brain` page to:
 If you installed the optional Brain stack and want the full local LLM, WebUI, MCP, and Cline guide after install, use:
 
 ```text
-Manager/docs/nymphs_brain_guide.md
+docs/NYMPHS_BRAIN_GUIDE.md
 ```
 
 ## Which Backend Should I Use?
