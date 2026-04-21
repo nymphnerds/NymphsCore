@@ -65,6 +65,37 @@ You can inspect the current Brain-side role config with:
 wsl -d NymphsCore --user nymph -- bash -lc "/home/nymph/Nymphs-Brain/bin/lms-get-profile"
 ```
 
+### Example: Set `Plan` To Qwen 3 9B And `Act` To Qwen 2.5 Coder 14B
+
+From Windows PowerShell:
+
+```powershell
+wsl -d NymphsCore --user nymph -- bash -lc "/home/nymph/Nymphs-Brain/bin/lms-set-profile plan qwen3.5-9b 16384"
+wsl -d NymphsCore --user nymph -- bash -lc "/home/nymph/Nymphs-Brain/bin/lms-set-profile act qwen/qwen2.5-coder-14b 65536"
+wsl -d NymphsCore --user nymph -- bash -lc "/home/nymph/Nymphs-Brain/bin/lms-get-profile"
+```
+
+Expected output shape:
+
+```text
+act: qwen/qwen2.5-coder-14b (context 65536)
+plan: qwen3.5-9b (context 16384)
+```
+
+Then restart the Brain LLM so both saved roles are applied:
+
+```powershell
+wsl -d NymphsCore --user nymph -- bash -lc "/home/nymph/Nymphs-Brain/bin/lms-stop"
+wsl -d NymphsCore --user nymph -- bash -lc "/home/nymph/Nymphs-Brain/bin/lms-start"
+wsl -d NymphsCore --user nymph -- bash -lc "/home/nymph/Nymphs-Brain/bin/brain-status"
+```
+
+If you only want one model loaded, clear `Plan`:
+
+```powershell
+wsl -d NymphsCore --user nymph -- bash -lc "/home/nymph/Nymphs-Brain/bin/lms-set-profile plan clear"
+```
+
 In Cline settings:
 
 1. open `API Configuration`
