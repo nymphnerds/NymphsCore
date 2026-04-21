@@ -354,7 +354,7 @@ Exit condition:
 
 - Rename source project/namespace from `Nymphs3DInstaller` when convenient.
 - Remove stale `2.1` wording from non-archive docs and UI if any remains.
-- Keep old `Babyjawz` repo references only where they are still required by scripts.
+- Remove remaining legacy repo references from scripts as they are cleaned up.
 - Move dev-only docs deeper under ignored local docs or archive.
 - Consider excluding binary release artifacts from source control after a better release-hosting path exists.
 - Add a package manifest describing what the zip should contain.

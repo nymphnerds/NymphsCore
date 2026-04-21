@@ -60,7 +60,7 @@ echo "This report is intended to help define a distributable base WSL image."
 
 print_group "Core repos and runtime weight" \
   "Hunyuan3D-2" "$repo_h2" \
-  "Nymphs3D helper repo" "$repo_nymph" \
+  "NymphsCore helper repo" "$repo_nymph" \
   "CUDA 13.0" "$cuda_dir" \
   "Hunyuan3D-2 .venv" "$venv_h2"
 

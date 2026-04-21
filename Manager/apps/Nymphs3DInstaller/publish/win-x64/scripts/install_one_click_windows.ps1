@@ -587,7 +587,7 @@ function Invoke-WslInstall {
         [Parameter(Mandatory = $true)] [string] $DistroName
     )
 
-    $repoUrl = "https://github.com/Babyjawz/Nymphs3D.git"
+    $repoUrl = "https://github.com/nymphnerds/NymphsCore.git"
     $repoBranch = $RepoBranch
     $command = @'
 set -euo pipefail

@@ -1797,6 +1797,7 @@ public sealed class MainWindowViewModel : ViewModelBase
                  line.StartsWith("Managed repo update check completed.", StringComparison.Ordinal) ||
                  line.StartsWith("Managed repo update policy:", StringComparison.Ordinal) ||
                  line.StartsWith("- Nymphs3D helper repo is checked here", StringComparison.Ordinal) ||
+                 line.StartsWith("- NymphsCore helper repo is checked here", StringComparison.Ordinal) ||
                  line.StartsWith("- The current installer run still uses", StringComparison.Ordinal) ||
                  line.StartsWith("- Backend repos are safe to fast-forward", StringComparison.Ordinal));
     }
@@ -1978,6 +1979,7 @@ public sealed class MainWindowViewModel : ViewModelBase
         var managedRepos = new[]
         {
             "Nymphs3D helper repo",
+            "NymphsCore helper repo",
             "Hunyuan3D-2",
             "Z-Image backend",
             "TRELLIS.2",
@@ -1995,7 +1997,8 @@ public sealed class MainWindowViewModel : ViewModelBase
             }
 
             var repoLabel = FriendlyManagedRepoLabel(repo);
-            if (repo.Equals("Nymphs3D helper repo", StringComparison.OrdinalIgnoreCase) &&
+            if ((repo.Equals("Nymphs3D helper repo", StringComparison.OrdinalIgnoreCase) ||
+                 repo.Equals("NymphsCore helper repo", StringComparison.OrdinalIgnoreCase)) &&
                 state is not "up_to_date" and not "ahead_local" and not "behind_clean" and not "missing")
             {
                 leftAlone++;
@@ -2077,6 +2080,7 @@ public sealed class MainWindowViewModel : ViewModelBase
         return repoName switch
         {
             "Nymphs3D helper repo" => "Manager helper repo",
+            "NymphsCore helper repo" => "Manager helper repo",
             "Hunyuan3D-2" => "Hunyuan 2mv",
             "Z-Image backend" => "Z-Image Turbo via Nunchaku",
             _ => repoName,

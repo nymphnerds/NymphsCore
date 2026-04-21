@@ -38,9 +38,9 @@ echo "Checking managed repo update state..."
 echo "This can take a short while while contacting GitHub for repo status."
 echo
 
-inspect_repo "Nymphs3D helper repo" "${NYMPHS3D_HELPER_ROOT}" "https://github.com/Babyjawz/Nymphs3D.git" "main"
+inspect_repo "NymphsCore helper repo" "${NYMPHS3D_HELPER_ROOT}" "https://github.com/nymphnerds/NymphsCore.git" "main"
 inspect_repo "Hunyuan3D-2" "${NYMPHS3D_H2_DIR}" "${NYMPHS3D_H2_REPO_URL}" "${NYMPHS3D_H2_REPO_BRANCH}"
-inspect_repo "Z-Image backend" "${NYMPHS3D_N2D2_DIR}" "${NYMPHS3D_N2D2_REPO_URL:-https://github.com/Babyjawz/Nymphs2D2.git}" "${NYMPHS3D_N2D2_REPO_BRANCH}"
+inspect_repo "Z-Image backend" "${NYMPHS3D_N2D2_DIR}" "${NYMPHS3D_N2D2_REPO_URL:-https://github.com/nymphnerds/Nymphs2D2.git}" "${NYMPHS3D_N2D2_REPO_BRANCH}"
 inspect_repo "TRELLIS.2" "${NYMPHS3D_TRELLIS_DIR}" "${NYMPHS3D_TRELLIS_REPO_URL}" "${NYMPHS3D_TRELLIS_REPO_BRANCH}"
 
 echo
@@ -61,10 +61,10 @@ fi
 
 echo
 echo "Managed repo update policy:"
-echo "- Nymphs3D helper repo is checked here so the installer can report whether the managed helper checkout is current."
+echo "- NymphsCore helper repo is checked here so the installer can report whether the managed helper checkout is current."
 echo "- The current installer run still uses the packaged helper scripts as its execution source of truth."
 echo "- Backend repos are safe to fast-forward during repair/update when they are clean and on the expected branch."
-echo "- The current default branch policy is main for the managed Babyjawz forks."
+echo "- The current default branch policy is main for the managed backend repos."
 echo "- Hunyuan3D-2 uses NYMPHS3D_H2_REPO_URL and NYMPHS3D_H2_REPO_BRANCH if you need to point the installer at a different repo or branch during experimentation."
 echo "- The Z-Image backend uses NYMPHS3D_N2D2_REPO_URL and NYMPHS3D_N2D2_REPO_BRANCH if you need to point the installer at a different repo or branch during experimentation."
 echo "- TRELLIS.2 uses NYMPHS3D_TRELLIS_REPO_URL and NYMPHS3D_TRELLIS_REPO_BRANCH if you need to point the installer at a different repo or branch during experimentation."

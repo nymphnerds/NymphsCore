@@ -189,9 +189,9 @@ NymphsCore/
 
 ## Why This Structure?
 
-Previously the codebase was split across several repos under the `Babyjawz` account with confusing names. NymphsCore now keeps the local runtime, Manager, and Blender addon source together under `nymphnerds`.
+Previously the codebase was split across several repos with confusing names. NymphsCore now keeps the local runtime, Manager, and Blender addon source together under `nymphnerds`.
 
-The old `Babyjawz` repos are kept alive as backups and because the installer references some of their URLs — don't rename or delete them.
+The active managed backend defaults should point at `nymphnerds`. Legacy helper-path naming still exists in some installer/bootstrap internals and should be cleaned up separately from repo ownership.
 
 ### Why is the Blender Extension a separate repo?
 Blender Extensions (Blender 4.2+) must have `blender_manifest.toml` at the **root** of a repo to support direct Git URL installs from inside Blender. So each Blender Extension needs its own repo — see [`NymphsExt`](https://github.com/nymphnerds/NymphsExt).
@@ -229,5 +229,6 @@ See [`CHANGELOG.md`](CHANGELOG.md) for the full NymphsCore change history across
 | Repo | Purpose |
 |---|---|
 | [NymphsExt](https://raw.githubusercontent.com/nymphnerds/NymphsExt/main/index.json) | Blender Extensions (install via repository URL) |
-| [Nymphs3D](https://github.com/Babyjawz/Nymphs3D) | Original Manager repo (backup) |
-| [Nymphs3D-Blender-Addon](https://github.com/Babyjawz/Nymphs3D-Blender-Addon) | Original Addon repo (backup) |
+| [NymphsCore](https://github.com/nymphnerds/NymphsCore) | Current Manager, runtime, and addon monorepo |
+| [Nymphs2D2](https://github.com/nymphnerds/Nymphs2D2) | 2D backend repo used for the `Z-Image` runtime |
+| [Hunyuan3D-2](https://github.com/nymphnerds/Hunyuan3D-2) | Managed multiview/texture backend fork |

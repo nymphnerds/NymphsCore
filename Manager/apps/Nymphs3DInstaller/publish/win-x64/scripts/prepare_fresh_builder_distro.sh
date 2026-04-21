@@ -8,8 +8,8 @@ fi
 
 NYMPHS3D_HELPER_ROOT="${NYMPHS3D_HELPER_ROOT:-/opt/nymphs3d/Nymphs3D}"
 NYMPHS3D_RUNTIME_ROOT="${NYMPHS3D_RUNTIME_ROOT:-/opt/nymphs3d/runtime}"
-NYMPHS3D_H2_REPO_URL="${NYMPHS3D_H2_REPO_URL:-https://github.com/Tencent-Hunyuan/Hunyuan3D-2.git}"
-NYMPHS3D_N2D2_REPO_URL="${NYMPHS3D_N2D2_REPO_URL:-https://github.com/Babyjawz/Nymphs2D2.git}"
+NYMPHS3D_H2_REPO_URL="${NYMPHS3D_H2_REPO_URL:-https://github.com/nymphnerds/Hunyuan3D-2.git}"
+NYMPHS3D_N2D2_REPO_URL="${NYMPHS3D_N2D2_REPO_URL:-https://github.com/nymphnerds/Nymphs2D2.git}"
 NYMPHS3D_TRELLIS_REPO_URL="${NYMPHS3D_TRELLIS_REPO_URL:-https://github.com/microsoft/TRELLIS.2.git}"
 
 H2_DIR="${NYMPHS3D_RUNTIME_ROOT}/Hunyuan3D-2"

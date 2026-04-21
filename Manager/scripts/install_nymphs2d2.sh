@@ -6,7 +6,7 @@ source "${ROOT_DIR}/scripts/common_paths.sh"
 source "${ROOT_DIR}/scripts/managed_repo_utils.sh"
 
 REPO_DIR="${NYMPHS3D_N2D2_DIR}"
-REPO_URL="${NYMPHS3D_N2D2_REPO_URL:-https://github.com/Babyjawz/Nymphs2D2.git}"
+REPO_URL="${NYMPHS3D_N2D2_REPO_URL:-https://github.com/nymphnerds/Nymphs2D2.git}"
 REPO_BRANCH="${NYMPHS3D_N2D2_REPO_BRANCH}"
 
 configure_nymphs3d_cuda_env

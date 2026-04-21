@@ -2,9 +2,9 @@ param(
     [Parameter(Mandatory = $true)] [string] $BuilderInstallLocation,
     [string] $BuilderDistroName = "Ubuntu-24.04",
     [string] $RepoBranch = "main",
-    [string] $HelperRepoUrl = "https://github.com/Babyjawz/Nymphs3D.git",
-    [string] $Hunyuan2RepoUrl = "https://github.com/Babyjawz/Hunyuan3D-2.git",
-    [string] $ZImageRepoUrl = "https://github.com/Babyjawz/Nymphs2D2.git",
+    [string] $HelperRepoUrl = "https://github.com/nymphnerds/NymphsCore.git",
+    [string] $Hunyuan2RepoUrl = "https://github.com/nymphnerds/Hunyuan3D-2.git",
+    [string] $ZImageRepoUrl = "https://github.com/nymphnerds/Nymphs2D2.git",
     [string] $TrellisRepoUrl = "https://github.com/microsoft/TRELLIS.2.git",
     [switch] $Force
 )

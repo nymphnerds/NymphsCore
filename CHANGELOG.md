@@ -551,7 +551,7 @@ Documented changes:
 - imported the Unity top-down camera package under `Unity/TDC-Camera/`
 - updated documentation and repo links to the `nymphnerds` organization
 - documented why Blender extension feed publishing remains in the separate `NymphsExt` repo
-- kept old `Babyjawz` repos referenced as backups where needed
+- kept old legacy repos referenced as backups where needed
 
 Why it matters:
 

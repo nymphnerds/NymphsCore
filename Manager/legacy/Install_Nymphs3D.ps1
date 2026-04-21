@@ -19,7 +19,7 @@ trap {
     exit 1
 }
 
-$RepoZipUrl = "https://github.com/Babyjawz/Nymphs3D/archive/refs/heads/$RepoBranch.zip"
+$RepoZipUrl = "https://github.com/nymphnerds/NymphsCore/archive/refs/heads/$RepoBranch.zip"
 $InstallRoot = Join-Path $env:USERPROFILE "Nymphs3DInstaller"
 $ZipPath = Join-Path $InstallRoot "Nymphs3D-$RepoBranch.zip"
 $ExtractRoot = Join-Path $InstallRoot "extracted"
