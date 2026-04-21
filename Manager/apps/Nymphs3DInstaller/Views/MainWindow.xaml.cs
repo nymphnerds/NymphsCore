@@ -2,6 +2,7 @@ using System.Collections.Specialized;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Threading;
+using System.Windows.Media;
 using Nymphs3DInstaller.Services;
 using Nymphs3DInstaller.ViewModels;
 
@@ -49,16 +50,29 @@ public partial class MainWindow : Window
 
     private void OnLogLinesChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
-        if (e.Action is not NotifyCollectionChangedAction.Add || LogListBox.Items.Count == 0)
+        if (e.Action is not NotifyCollectionChangedAction.Add)
         {
             return;
         }
 
         Dispatcher.BeginInvoke(new Action(() =>
         {
-            var lastItem = LogListBox.Items[^1];
-            LogListBox.ScrollIntoView(lastItem);
-        }), DispatcherPriority.Background);
+            var activeLogListBox = _viewModel?.IsBrainToolsStep == true
+                ? BrainLogListBox
+                : RuntimeLogListBox;
+
+            if (activeLogListBox.Items.Count == 0)
+            {
+                return;
+            }
+
+            var lastItem = activeLogListBox.Items[^1];
+            activeLogListBox.UpdateLayout();
+            activeLogListBox.ScrollIntoView(lastItem);
+
+            var scrollViewer = FindDescendant<ScrollViewer>(activeLogListBox);
+            scrollViewer?.ScrollToEnd();
+        }), DispatcherPriority.Render);
     }
 
     private void OnHuggingFaceTokenChanged(object sender, RoutedEventArgs e)
@@ -69,5 +83,26 @@ public partial class MainWindow : Window
         }
 
         _viewModel.HuggingFaceToken = passwordBox.Password;
+    }
+
+    private static T? FindDescendant<T>(DependencyObject root) where T : DependencyObject
+    {
+        for (var i = 0; i < VisualTreeHelper.GetChildrenCount(root); i++)
+        {
+            var child = VisualTreeHelper.GetChild(root, i);
+
+            if (child is T match)
+            {
+                return match;
+            }
+
+            var nestedMatch = FindDescendant<T>(child);
+            if (nestedMatch is not null)
+            {
+                return nestedMatch;
+            }
+        }
+
+        return null;
     }
 }

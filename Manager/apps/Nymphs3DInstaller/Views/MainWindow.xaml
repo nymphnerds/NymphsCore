@@ -148,7 +148,20 @@
                  HorizontalAlignment="Center"
                  Opacity="0.28"
                  Stretch="Uniform"
-                 IsHitTestVisible="False" />
+                 IsHitTestVisible="False"
+                 Visibility="{Binding ShowDefaultSidebarArt, Converter={StaticResource BoolToVisibilityConverter}}" />
+
+          <Image Grid.Row="2"
+                 Panel.ZIndex="0"
+                 Source="/Assets/NymphBrain.png"
+                 Width="250"
+                 Margin="0,-26,0,0"
+                 VerticalAlignment="Top"
+                 HorizontalAlignment="Center"
+                 Opacity="0.24"
+                 Stretch="Uniform"
+                 IsHitTestVisible="False"
+                 Visibility="{Binding ShowBrainSidebarArt, Converter={StaticResource BoolToVisibilityConverter}}" />
 
         <TextBlock Panel.ZIndex="1"
                    Text="{Binding SidebarTitle}"
@@ -214,6 +227,9 @@
 	                <Button Style="{StaticResource SidebarInfoButton}"
 	                        Command="{Binding OpenRuntimeToolsCommand}"
 	                        Content="Runtime Tools" />
+	                <Button Style="{StaticResource SidebarInfoButton}"
+	                        Command="{Binding OpenBrainToolsCommand}"
+	                        Content="Brain" />
 	                <Button Style="{StaticResource SidebarInfoButton}"
 	                        Margin="0,0,0,0"
 	                        Command="{Binding OpenLogFolderCommand}"
@@ -1199,8 +1215,6 @@
                          FontSize="14" Foreground="#3E3A34" TextWrapping="Wrap" />
             </Border>
 
-            <!-- Compact live log at the bottom. 140px so it sits on-screen next to
-                 the backend cards without dominating the page. -->
             <Border Margin="0,14,0,0"
                     Background="#121212"
                     CornerRadius="12"
@@ -1211,7 +1225,8 @@
                            FontWeight="SemiBold"
                            FontSize="14"
                            Foreground="#E8E8E8" />
-                <ListBox ItemsSource="{Binding LogLines}"
+                <ListBox x:Name="RuntimeLogListBox"
+                         ItemsSource="{Binding LogLines}"
                          Height="140"
                          FontFamily="Consolas"
                          FontSize="12"
@@ -1220,43 +1235,249 @@
                          Foreground="#E8E8E8" />
               </StackPanel>
             </Border>
+          </StackPanel>
+        </Border>
 
-            <Border Margin="0,18,0,0"
-                    BorderBrush="#D7CBBA"
-                    BorderThickness="0,1,0,0"
-                    Padding="0,14,0,0">
+        <Border Style="{StaticResource CardStyle}"
+                Visibility="{Binding IsBrainToolsStep, Converter={StaticResource BoolToVisibilityConverter}}">
+          <StackPanel>
+            <Border
+                    Padding="16"
+                    Background="#F7F0E1"
+                    BorderBrush="#D8C9B4"
+                    BorderThickness="1"
+                    CornerRadius="16">
               <StackPanel>
-                <TextBlock Text="Nymphs-Brain"
-                           FontWeight="SemiBold"
-                           FontSize="16"
-                           Foreground="#1E1C18" />
-                <TextBlock Margin="0,6,0,0"
-                           Text="{Binding BrainRuntimeStatusText}"
-                           FontSize="13"
-                           TextWrapping="Wrap"
-                           Style="{StaticResource MutedText}" />
-                <TextBlock Margin="0,3,0,0"
-                           Text="{Binding BrainRuntimeModelText}"
-                           FontSize="13"
-                           TextWrapping="Wrap"
-                           Style="{StaticResource MutedText}" />
-                <WrapPanel Margin="0,10,0,0" VerticalAlignment="Center">
-                  <Button Style="{StaticResource TextLinkButton}"
+                <DockPanel LastChildFill="True">
+                  <Border DockPanel.Dock="Right"
+                          Background="{Binding BrainHeaderBadgeBackground}"
+                          CornerRadius="10"
+                          Padding="10,4"
+                          VerticalAlignment="Top">
+                    <TextBlock Text="{Binding BrainHeaderBadgeText}"
+                               Foreground="White"
+                               FontSize="11"
+                               FontWeight="SemiBold" />
+                  </Border>
+                  <StackPanel Margin="0,0,16,0">
+                    <TextBlock Text="Nymphs-Brain"
+                               FontWeight="SemiBold"
+                               FontSize="20"
+                               Foreground="#1E1C18" />
+                    <TextBlock Margin="0,6,0,0"
+                               Text="{Binding BrainDashboardSummary}"
+                               FontSize="14"
+                               TextWrapping="Wrap"
+                               Foreground="#3F382F" />
+                  </StackPanel>
+                </DockPanel>
+
+                <TextBlock Margin="0,10,0,0"
+                           Text="{Binding BrainEndpointsText}"
+                           FontSize="12"
+                           FontFamily="Consolas"
+                           Foreground="#5B554D"
+                           TextWrapping="Wrap" />
+
+                <Grid Margin="0,12,0,0">
+                  <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                  </Grid.RowDefinitions>
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="10" />
+                    <ColumnDefinition Width="*" />
+                  </Grid.ColumnDefinitions>
+
+                  <Border Grid.Row="0"
+                          Grid.Column="0"
+                          Background="#FFFDFC"
+                          BorderBrush="#E5DAC8"
+                          BorderThickness="1"
+                          CornerRadius="14"
+                          Padding="14">
+                    <StackPanel>
+                      <DockPanel LastChildFill="True">
+                        <Border DockPanel.Dock="Right"
+                                Background="{Binding BrainLlmStatusBackground}"
+                                CornerRadius="10"
+                                Padding="8,2">
+                          <TextBlock Text="{Binding BrainLlmStatusLabel}"
+                                     Foreground="White"
+                                     FontSize="11"
+                                     FontWeight="SemiBold" />
+                        </Border>
+                        <TextBlock Text="LLM Server"
+                                   FontWeight="SemiBold"
+                                   FontSize="16"
+                                   Foreground="#1E1C18" />
+                      </DockPanel>
+                      <TextBlock Margin="0,10,0,0"
+                                 Text="{Binding BrainLlmDetailText}"
+                                 TextWrapping="Wrap"
+                                 FontSize="13"
+                                 Style="{StaticResource MutedText}" />
+                    </StackPanel>
+                  </Border>
+
+                  <Border Grid.Row="0"
+                          Grid.Column="2"
+                          Background="#FFFDFC"
+                          BorderBrush="#E5DAC8"
+                          BorderThickness="1"
+                          CornerRadius="14"
+                          Padding="14">
+                    <StackPanel>
+                      <DockPanel LastChildFill="True">
+                        <Border DockPanel.Dock="Right"
+                                Background="{Binding BrainMcpStatusBackground}"
+                                CornerRadius="10"
+                                Padding="8,2">
+                          <TextBlock Text="{Binding BrainMcpStatusLabel}"
+                                     Foreground="White"
+                                     FontSize="11"
+                                     FontWeight="SemiBold" />
+                        </Border>
+                        <TextBlock Text="MCP Gateway"
+                                   FontWeight="SemiBold"
+                                   FontSize="16"
+                                   Foreground="#1E1C18" />
+                      </DockPanel>
+                      <TextBlock Margin="0,10,0,0"
+                                 Text="{Binding BrainMcpDetailText}"
+                                 TextWrapping="Wrap"
+                                 FontSize="13"
+                                 Style="{StaticResource MutedText}" />
+                    </StackPanel>
+                  </Border>
+
+                  <Border Grid.Row="1"
+                          Grid.Column="0"
+                          Margin="0,8,0,0"
+                          Background="#FFFDFC"
+                          BorderBrush="#E5DAC8"
+                          BorderThickness="1"
+                          CornerRadius="14"
+                          Padding="14">
+                    <StackPanel>
+                      <DockPanel LastChildFill="True">
+                        <Border DockPanel.Dock="Right"
+                                Background="{Binding BrainWebUiStatusBackground}"
+                                CornerRadius="10"
+                                Padding="8,2">
+                          <TextBlock Text="{Binding BrainWebUiStatusLabel}"
+                                     Foreground="White"
+                                     FontSize="11"
+                                     FontWeight="SemiBold" />
+                        </Border>
+                        <TextBlock Text="Open WebUI"
+                                   FontWeight="SemiBold"
+                                   FontSize="16"
+                                   Foreground="#1E1C18" />
+                      </DockPanel>
+                      <TextBlock Margin="0,10,0,0"
+                                 Text="{Binding BrainWebUiDetailText}"
+                                 TextWrapping="Wrap"
+                                 FontSize="13"
+                                 Style="{StaticResource MutedText}" />
+                    </StackPanel>
+                  </Border>
+
+                  <Border Grid.Row="1"
+                          Grid.Column="2"
+                          Margin="0,8,0,0"
+                          Background="#FFFDFC"
+                          BorderBrush="#E5DAC8"
+                          BorderThickness="1"
+                          CornerRadius="14"
+                          Padding="14">
+                    <StackPanel>
+                      <DockPanel LastChildFill="True">
+                        <Border DockPanel.Dock="Right"
+                                Background="{Binding BrainModelStatusBackground}"
+                                CornerRadius="10"
+                                Padding="8,2">
+                          <TextBlock Text="{Binding BrainModelStatusLabel}"
+                                     Foreground="White"
+                                     FontSize="11"
+                                     FontWeight="SemiBold" />
+                        </Border>
+                        <TextBlock Text="Current Model"
+                                   FontWeight="SemiBold"
+                                   FontSize="16"
+                                   Foreground="#1E1C18" />
+                      </DockPanel>
+                      <TextBlock Margin="0,10,0,0"
+                                 Text="{Binding BrainModelDetailText}"
+                                 TextWrapping="Wrap"
+                                 FontSize="13"
+                                 Style="{StaticResource MutedText}" />
+                    </StackPanel>
+                  </Border>
+                </Grid>
+
+                <Grid Margin="0,12,0,0">
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="8" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="8" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="8" />
+                    <ColumnDefinition Width="*" />
+                  </Grid.ColumnDefinitions>
+
+                  <Button Grid.Column="0"
+                          Margin="0"
+                          HorizontalAlignment="Stretch"
                           Command="{Binding StartBrainLlmCommand}"
-                          Content="Start LLM" />
-                  <TextBlock Text="  /  " Foreground="#8A8178" VerticalAlignment="Center" />
-                  <Button Style="{StaticResource TextLinkButton}"
+                          Content="{Binding BrainPrimaryActionText}" />
+                  <Button Grid.Column="2"
+                          Margin="0"
+                          HorizontalAlignment="Stretch"
+                          Style="{StaticResource SecondaryActionButton}"
                           Command="{Binding OpenBrainWebUiCommand}"
-                          Content="Open WebUI" />
-                  <TextBlock Text="  /  " Foreground="#8A8178" VerticalAlignment="Center" />
-                  <Button Style="{StaticResource TextLinkButton}"
+                          Content="{Binding BrainWebUiActionText}" />
+                  <Button Grid.Column="4"
+                          Margin="0"
+                          HorizontalAlignment="Stretch"
+                          Style="{StaticResource SecondaryActionButton}"
                           Command="{Binding ChangeBrainModelCommand}"
                           Content="Manage Models" />
-                  <TextBlock Text="  /  " Foreground="#8A8178" VerticalAlignment="Center" />
-                  <Button Style="{StaticResource TextLinkButton}"
-                          Command="{Binding StopBrainLlmCommand}"
-                          Content="Stop LLM" />
-                </WrapPanel>
+                  <Button Grid.Column="6"
+                          Margin="0"
+                          HorizontalAlignment="Stretch"
+                          Style="{StaticResource SecondaryActionButton}"
+                          Command="{Binding UpdateBrainWebUiCommand}"
+                          Content="Update Stack" />
+                </Grid>
+              </StackPanel>
+            </Border>
+
+            <Border Margin="0,12,0,0"
+                    Background="#121212"
+                    CornerRadius="12"
+                    Padding="10">
+              <StackPanel>
+                <TextBlock Margin="0,0,0,2"
+                           Text="Brain activity"
+                           FontWeight="SemiBold"
+                           FontSize="14"
+                           Foreground="#E8E8E8" />
+                <TextBlock Margin="0,0,0,6"
+                           Text="Recent Brain output appears here while you refresh status or start services."
+                           FontSize="12"
+                           Foreground="#B5B5B5"
+                           TextWrapping="Wrap" />
+                <ListBox x:Name="BrainLogListBox"
+                         ItemsSource="{Binding LogLines}"
+                         Height="144"
+                         FontFamily="Consolas"
+                         FontSize="12"
+                         Background="Transparent"
+                         BorderThickness="0"
+                         Foreground="#E8E8E8" />
               </StackPanel>
             </Border>
           </StackPanel>
@@ -1274,10 +1495,11 @@
                 Command="{Binding BackCommand}"
                 Content="Back" />
 
-        <Button Width="180"
-                HorizontalAlignment="Right"
-                Command="{Binding PrimaryCommand}"
-                Content="{Binding PrimaryButtonText}" />
+	        <Button Width="180"
+	                HorizontalAlignment="Right"
+	                Visibility="{Binding ShowFooterPrimaryButton, Converter={StaticResource BoolToVisibilityConverter}}"
+	                Command="{Binding PrimaryCommand}"
+	                Content="{Binding PrimaryButtonText}" />
       </DockPanel>
     </Grid>
   </Grid>

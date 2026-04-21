@@ -493,6 +493,49 @@ lms daemon down || true
 echo "LM Studio has been stopped."
 WRAPEOF
 
+cat > "${BIN_DIR}/lms-update" <<'WRAPEOF'
+#!/usr/bin/env bash
+set -euo pipefail
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+INSTALL_ROOT="$(dirname "${SCRIPT_DIR}")"
+export PATH="${INSTALL_ROOT}/bin:${INSTALL_ROOT}/local-tools/bin:${INSTALL_ROOT}/local-tools/node/bin:${INSTALL_ROOT}/npm-global/bin:${PATH}"
+for candidate in "${HOME}/.lmstudio/bin" "${HOME}/.cache/lm-studio/bin" "${HOME}/.local/bin"; do
+  if [[ -d "${candidate}" ]]; then
+    export PATH="${candidate}:${PATH}"
+  fi
+done
+
+was_running=0
+if curl -fsS http://127.0.0.1:1234/v1/models >/dev/null 2>&1; then
+  was_running=1
+  echo "Stopping LM Studio before update..."
+  "${SCRIPT_DIR}/lms-stop"
+fi
+
+echo "Updating LM Studio CLI in the Linux user profile..."
+curl -fsSL https://lmstudio.ai/install.sh | bash
+
+for candidate in "${HOME}/.lmstudio/bin" "${HOME}/.cache/lm-studio/bin" "${HOME}/.local/bin"; do
+  if [[ -d "${candidate}" ]]; then
+    export PATH="${candidate}:${PATH}"
+  fi
+done
+
+if ! command -v lms >/dev/null 2>&1; then
+  echo "LM Studio CLI command 'lms' was not found after update." >&2
+  exit 1
+fi
+
+echo "LM Studio CLI update completed."
+
+if [[ "${was_running}" == "1" ]]; then
+  echo "Restarting LM Studio server and selected model..."
+  "${SCRIPT_DIR}/lms-start"
+else
+  echo "LM Studio remains stopped. Use lms-start when ready."
+fi
+WRAPEOF
+
 cat > "${BIN_DIR}/lms-model" <<'WRAPEOF'
 #!/usr/bin/env bash
 set -euo pipefail
@@ -912,15 +955,66 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 INSTALL_ROOT="$(dirname "${SCRIPT_DIR}")"
+MCP_HOST="${NYMPHS_BRAIN_MCP_HOST:-${NYMPHS_BRAIN_MCPO_HOST:-__MCP_HOST__}}"
+MCP_PORT="${NYMPHS_BRAIN_MCP_PORT:-${NYMPHS_BRAIN_MCPO_PORT:-__MCP_PORT__}}"
 PID_FILE="${INSTALL_ROOT}/mcp/logs/mcp-proxy.pid"
 
-if [[ -f "${PID_FILE}" ]] && kill -0 "$(cat "${PID_FILE}")" >/dev/null 2>&1; then
-  echo "Stopping Nymphs-Brain MCP gateway..."
-  kill "$(cat "${PID_FILE}")" >/dev/null 2>&1 || true
-  rm -f "${PID_FILE}"
+stop_pid() {
+  local pid="$1"
+
+  [[ -n "${pid}" ]] || return 0
+
+  if ! kill -0 "${pid}" >/dev/null 2>&1; then
+    return 0
+  fi
+
+  kill "${pid}" >/dev/null 2>&1 || true
+
+  for _ in $(seq 1 10); do
+    if ! kill -0 "${pid}" >/dev/null 2>&1; then
+      return 0
+    fi
+    sleep 1
+  done
+
+  kill -9 "${pid}" >/dev/null 2>&1 || true
+}
+
+port_pids() {
+  ss -ltnp 2>/dev/null | awk -v target=":${MCP_PORT}" '
+    index($4, target) {
+      if (match($0, /pid=[0-9]+/)) {
+        print substr($0, RSTART + 4, RLENGTH - 4)
+      }
+    }
+  ' | sort -u
+}
+
+echo "Stopping Nymphs-Brain MCP gateway..."
+
+stopped_any=0
+
+if [[ -f "${PID_FILE}" ]]; then
+  stop_pid "$(cat "${PID_FILE}" 2>/dev/null || true)"
+  stopped_any=1
+fi
+
+while read -r pid; do
+  [[ -n "${pid}" ]] || continue
+  stop_pid "${pid}"
+  stopped_any=1
+done < <(port_pids)
+
+rm -f "${PID_FILE}"
+
+if curl -fsS "http://${MCP_HOST}:${MCP_PORT}/status" >/dev/null 2>&1; then
+  echo "MCP gateway still appears to be running on port ${MCP_PORT}." >&2
+  exit 1
+fi
+
+if [[ "${stopped_any}" -eq 1 ]]; then
   echo "Nymphs-Brain MCP gateway stopped."
 else
-  rm -f "${PID_FILE}"
   echo "Nymphs-Brain MCP gateway is not running."
 fi
 WRAPEOF
@@ -1049,6 +1143,45 @@ else
 fi
 WRAPEOF
 
+cat > "${BIN_DIR}/open-webui-update" <<'WRAPEOF'
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+INSTALL_ROOT="$(dirname "${SCRIPT_DIR}")"
+OPEN_WEBUI_VENV_DIR="${INSTALL_ROOT}/open-webui-venv"
+OPEN_WEBUI_DATA_DIR="${INSTALL_ROOT}/open-webui-data"
+OPEN_WEBUI_LOG_DIR="${OPEN_WEBUI_DATA_DIR}/logs"
+PID_FILE="${OPEN_WEBUI_LOG_DIR}/open-webui.pid"
+PYTHON_BIN="${OPEN_WEBUI_VENV_DIR}/bin/python3"
+PIP_BIN="${OPEN_WEBUI_VENV_DIR}/bin/pip"
+
+was_running=0
+if [[ -f "${PID_FILE}" ]] && kill -0 "$(cat "${PID_FILE}")" >/dev/null 2>&1; then
+  was_running=1
+  echo "Stopping Open WebUI before update..."
+  "${SCRIPT_DIR}/open-webui-stop"
+fi
+
+if [[ ! -x "${PYTHON_BIN}" || ! -x "${PIP_BIN}" ]]; then
+  echo "Open WebUI virtual environment is missing at ${OPEN_WEBUI_VENV_DIR}. Rerun install_nymphs_brain.sh." >&2
+  exit 1
+fi
+
+echo "Updating pip..."
+"${PYTHON_BIN}" -m pip install --upgrade pip
+echo "Updating Open WebUI..."
+"${PIP_BIN}" install --upgrade open-webui aiosqlite
+echo "Open WebUI packages updated."
+
+if [[ "${was_running}" == "1" ]]; then
+  echo "Restarting Open WebUI..."
+  "${SCRIPT_DIR}/open-webui-start"
+else
+  echo "Open WebUI remains stopped. Use open-webui-start when ready."
+fi
+WRAPEOF
+
 cat > "${BIN_DIR}/open-webui-status" <<'WRAPEOF'
 #!/usr/bin/env bash
 set -euo pipefail
@@ -1136,12 +1269,14 @@ sed -i "s|__LMSTUDIO_API_BASE_URL__|${LMSTUDIO_API_BASE_URL}|g" "${BIN_DIR}/open
 chmod +x \
   "${BIN_DIR}/lms-start" \
   "${BIN_DIR}/lms-model" \
+  "${BIN_DIR}/lms-update" \
   "${BIN_DIR}/lms-stop" \
   "${BIN_DIR}/mcp-start" \
   "${BIN_DIR}/mcp-stop" \
   "${BIN_DIR}/mcp-status" \
   "${BIN_DIR}/open-webui-start" \
   "${BIN_DIR}/open-webui-stop" \
+  "${BIN_DIR}/open-webui-update" \
   "${BIN_DIR}/open-webui-status" \
   "${BIN_DIR}/brain-status" \
   "${BIN_DIR}/nymph-chat" \
@@ -1158,6 +1293,7 @@ LM Studio CLI location: user profile managed by LM Studio
 Commands:
 - ${BIN_DIR}/lms-start
 - ${BIN_DIR}/lms-model
+- ${BIN_DIR}/lms-update
 - ${BIN_DIR}/lms-stop
 - ${BIN_DIR}/nymph-chat
 - ${BIN_DIR}/mcp-start
@@ -1166,6 +1302,7 @@ Commands:
 - ${BIN_DIR}/open-webui-start
 - ${BIN_DIR}/open-webui-status
 - ${BIN_DIR}/open-webui-stop
+- ${BIN_DIR}/open-webui-update
 - ${BIN_DIR}/brain-status
 Open WebUI URL: http://localhost:${OPEN_WEBUI_PORT}
 MCP gateway URL: http://localhost:${MCP_PORT}
@@ -1178,7 +1315,9 @@ EOF
 echo "Nymphs-Brain setup complete."
 echo "Start LM Studio model server: ${BIN_DIR}/lms-start"
 echo "Change/download/remove LM Studio models: ${BIN_DIR}/lms-model"
+echo "Update LM Studio CLI/runtime: ${BIN_DIR}/lms-update"
 echo "Stop LM Studio cleanly: ${BIN_DIR}/lms-stop"
 echo "Start MCP proxy: ${BIN_DIR}/mcp-start"
 echo "Start Open WebUI: ${BIN_DIR}/open-webui-start"
+echo "Update Open WebUI: ${BIN_DIR}/open-webui-update"
 echo "Run chat wrapper: ${BIN_DIR}/nymph-chat"

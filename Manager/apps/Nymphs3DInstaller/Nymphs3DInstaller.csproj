@@ -34,5 +34,11 @@
     <Resource Include="../../../Graphics/splash.png">
       <Link>Views/Assets/splash.png</Link>
     </Resource>
+    <Resource Include="../../../Graphics/NymphBrain.png">
+      <Link>Assets/NymphBrain.png</Link>
+    </Resource>
+    <Resource Include="../../../Graphics/NymphBrain.png">
+      <Link>Views/Assets/NymphBrain.png</Link>
+    </Resource>
   </ItemGroup>
 </Project>

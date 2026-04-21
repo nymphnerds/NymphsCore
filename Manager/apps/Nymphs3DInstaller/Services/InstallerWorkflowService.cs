@@ -1207,11 +1207,13 @@ public sealed class InstallerWorkflowService
     {
         return toolName is
             "lms-start" or
+            "lms-update" or
             "lms-stop" or
             "mcp-start" or
             "mcp-stop" or
             "mcp-status" or
             "open-webui-start" or
+            "open-webui-update" or
             "open-webui-stop" or
             "open-webui-status" or
             "brain-status";

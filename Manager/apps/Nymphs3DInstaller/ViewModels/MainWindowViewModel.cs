@@ -8,7 +8,7 @@ namespace Nymphs3DInstaller.ViewModels;
 
 public sealed class MainWindowViewModel : ViewModelBase
 {
-    private const int TotalSteps = 7;
+    private const int TotalSteps = 8;
     private const string ModelDownloadDetails =
         "- Hunyuan 2 texture model (tencent/Hunyuan3D-2): about 28 GB\n" +
         "- Hunyuan 2mv shape model (tencent/Hunyuan3D-2mv): about 19 GB\n" +
@@ -28,12 +28,15 @@ public sealed class MainWindowViewModel : ViewModelBase
     private readonly RelayCommand _repairRuntimeCommand;
     private readonly AsyncRelayCommand _openRuntimeToolsCommand;
     private readonly AsyncRelayCommand _refreshRuntimeStatusCommand;
+    private readonly AsyncRelayCommand _openBrainToolsCommand;
+    private readonly AsyncRelayCommand _refreshBrainStatusCommand;
     private readonly AsyncRelayCommand _fetchModelsNowCommand;
     private readonly AsyncRelayCommand _testHunyuanCommand;
     private readonly AsyncRelayCommand _testZImageCommand;
     private readonly AsyncRelayCommand _testTrellisCommand;
     private readonly AsyncRelayCommand _startBrainLlmCommand;
     private readonly AsyncRelayCommand _openBrainWebUiCommand;
+    private readonly AsyncRelayCommand _updateBrainWebUiCommand;
     private readonly RelayCommand _changeBrainModelCommand;
     private readonly AsyncRelayCommand _stopBrainLlmCommand;
     private readonly RelayCommand _backCommand;
@@ -80,6 +83,11 @@ public sealed class MainWindowViewModel : ViewModelBase
     private BrainModelOption? _selectedBrainModelOption;
     private string _customBrainModelId = string.Empty;
     private int _brainContextLength = 16384;
+    private string _brainInstallState = "unknown";
+    private string _brainLlmState = "unknown";
+    private string _brainMcpState = "unknown";
+    private string _brainWebUiState = "unknown";
+    private string _brainLoadedModel = "Not checked";
     private RuntimeBackendStatus _hunyuanRuntimeStatus = RuntimeBackendStatus.Unknown("2mv", "Hunyuan 2mv", "Open Runtime Tools to check status.");
     private RuntimeBackendStatus _zImageRuntimeStatus = RuntimeBackendStatus.Unknown("zimage", "Z-Image", "Open Runtime Tools to check status.");
     private RuntimeBackendStatus _trellisRuntimeStatus = RuntimeBackendStatus.Unknown("trellis", "TRELLIS.2", "Open Runtime Tools to check status.");
@@ -102,14 +110,17 @@ public sealed class MainWindowViewModel : ViewModelBase
         _repairRuntimeCommand = new RelayCommand(StartRepairRuntime, CanStartRepairRuntime);
         _openRuntimeToolsCommand = new AsyncRelayCommand(OpenRuntimeToolsAsync, CanRunManagedRuntimeAction);
         _refreshRuntimeStatusCommand = new AsyncRelayCommand(RefreshRuntimeStatusAsync, CanRunManagedRuntimeAction);
+        _openBrainToolsCommand = new AsyncRelayCommand(OpenBrainToolsAsync, CanRunManagedRuntimeAction);
+        _refreshBrainStatusCommand = new AsyncRelayCommand(RefreshBrainStatusAsync, CanRunManagedRuntimeAction);
         _fetchModelsNowCommand = new AsyncRelayCommand(RunFetchModelsNowAsync, CanRunManagedRuntimeAction);
         _testHunyuanCommand = new AsyncRelayCommand(() => RunSmokeTestAsync("2mv"), CanRunHunyuanSmokeTest);
         _testZImageCommand = new AsyncRelayCommand(() => RunSmokeTestAsync("zimage"), CanRunZImageSmokeTest);
         _testTrellisCommand = new AsyncRelayCommand(() => RunSmokeTestAsync("trellis"), CanRunTrellisSmokeTest);
-        _startBrainLlmCommand = new AsyncRelayCommand(StartBrainLlmAsync, CanRunManagedRuntimeAction);
-        _openBrainWebUiCommand = new AsyncRelayCommand(OpenBrainWebUiAsync, CanRunManagedRuntimeAction);
-        _changeBrainModelCommand = new RelayCommand(OpenBrainModelManager, CanRunManagedRuntimeAction);
-        _stopBrainLlmCommand = new AsyncRelayCommand(StopBrainLlmAsync, CanRunManagedRuntimeAction);
+        _startBrainLlmCommand = new AsyncRelayCommand(StartBrainLlmAsync, CanStartBrainLlm);
+        _openBrainWebUiCommand = new AsyncRelayCommand(OpenBrainWebUiAsync, CanOpenBrainWebUi);
+        _updateBrainWebUiCommand = new AsyncRelayCommand(UpdateBrainWebUiAsync, CanUpdateBrainWebUi);
+        _changeBrainModelCommand = new RelayCommand(OpenBrainModelManager, CanManageBrainModels);
+        _stopBrainLlmCommand = new AsyncRelayCommand(StopBrainLlmAsync, CanStopBrainLlm);
         _backCommand = new RelayCommand(GoBack, CanGoBack);
         _openLogFolderCommand = new RelayCommand(_workflowService.OpenLogFolder);
         _openReadmeCommand = new RelayCommand(_workflowService.OpenReadme);
@@ -153,6 +164,10 @@ public sealed class MainWindowViewModel : ViewModelBase
 
     public AsyncRelayCommand RefreshRuntimeStatusCommand => _refreshRuntimeStatusCommand;
 
+    public AsyncRelayCommand OpenBrainToolsCommand => _openBrainToolsCommand;
+
+    public AsyncRelayCommand RefreshBrainStatusCommand => _refreshBrainStatusCommand;
+
     public AsyncRelayCommand FetchModelsNowCommand => _fetchModelsNowCommand;
 
     public AsyncRelayCommand TestHunyuanCommand => _testHunyuanCommand;
@@ -164,6 +179,8 @@ public sealed class MainWindowViewModel : ViewModelBase
     public AsyncRelayCommand StartBrainLlmCommand => _startBrainLlmCommand;
 
     public AsyncRelayCommand OpenBrainWebUiCommand => _openBrainWebUiCommand;
+
+    public AsyncRelayCommand UpdateBrainWebUiCommand => _updateBrainWebUiCommand;
 
     public RelayCommand ChangeBrainModelCommand => _changeBrainModelCommand;
 
@@ -187,9 +204,13 @@ public sealed class MainWindowViewModel : ViewModelBase
 
     public string SidebarTitle => "NymphsCore";
 
-    public string StepCounterText => $"Step {CurrentStepNumber} of {VisibleTotalSteps}";
+    public bool ShowDefaultSidebarArt => !IsBrainToolsStep;
 
-    private int VisibleTotalSteps => ManagedDistroDetected ? 6 : TotalSteps;
+    public bool ShowBrainSidebarArt => IsBrainToolsStep;
+
+    public string StepCounterText => IsToolStep ? "Tools" : $"Step {CurrentStepNumber} of {VisibleTotalSteps}";
+
+    private int VisibleTotalSteps => ManagedDistroDetected ? 6 : 7;
 
     private int CurrentStepNumber => ManagedDistroDetected && _currentStepIndex >= 3
         ? _currentStepIndex
@@ -281,6 +302,12 @@ public sealed class MainWindowViewModel : ViewModelBase
 
     public bool IsRuntimeToolsStep => _currentStepIndex == 6;
 
+    public bool IsBrainToolsStep => _currentStepIndex == 7;
+
+    private bool IsToolStep => IsRuntimeToolsStep || IsBrainToolsStep;
+
+    public bool ShowFooterPrimaryButton => !IsToolStep;
+
     public bool HasSystemCheckFailures => SystemChecks.Any(item => item.Status == CheckState.Fail);
 
     public bool RequiresWslSetup => SystemChecks.Any(item =>
@@ -306,6 +333,7 @@ public sealed class MainWindowViewModel : ViewModelBase
                 OnPropertyChanged(nameof(ShowPostInstallActions));
                 OnPropertyChanged(nameof(WelcomeHeadline));
                 OnPropertyChanged(nameof(WelcomeLead));
+                OnPropertyChanged(nameof(ShowFooterPrimaryButton));
                 OnPropertyChanged(nameof(HunyuanRuntimeActionCommand));
                 OnPropertyChanged(nameof(ZImageRuntimeActionCommand));
                 OnPropertyChanged(nameof(TrellisRuntimeActionCommand));
@@ -633,6 +661,68 @@ public sealed class MainWindowViewModel : ViewModelBase
         private set => SetProperty(ref _brainRuntimeModelText, value);
     }
 
+    public string BrainHeaderBadgeText => CapitalizeStatus(_brainInstallState);
+
+    public string BrainHeaderBadgeBackground => GetBrainStatusBadgeBackground(_brainInstallState);
+
+    public string BrainDashboardSummary => IsBrainInstalled
+        ? "Local coding model, MCP gateway, and WebUI controls for Cline and Brain workflows."
+        : "Install Nymphs-Brain to unlock the local coding model, MCP gateway, and browser UI.";
+
+    public string BrainPrimaryActionText => IsBrainLlmRunning
+        ? "Stop Brain"
+        : IsAnyBrainServiceRunning
+            ? "Start LLM"
+            : "Start Brain";
+
+    public string BrainWebUiActionText => IsBrainWebUiRunning ? "Stop WebUI" : "Start WebUI";
+
+    public string BrainEndpointsText => IsBrainInstalled
+        ? "LLM: http://localhost:1234/v1   MCP: http://localhost:8100   WebUI: http://localhost:8081"
+        : "Endpoints become available after the optional Brain module is installed.";
+
+    public string BrainLlmStatusLabel => CapitalizeStatus(_brainLlmState);
+
+    public string BrainLlmStatusBackground => GetBrainStatusBadgeBackground(_brainLlmState);
+
+    public string BrainLlmDetailText => IsBrainLlmRunning
+        ? "OpenAI-compatible endpoint is ready on localhost:1234/v1 for local coding chats."
+        : "Start the local coding model server before connecting tools like Cline.";
+
+    public string BrainMcpStatusLabel => CapitalizeStatus(_brainMcpState);
+
+    public string BrainMcpStatusBackground => GetBrainStatusBadgeBackground(_brainMcpState);
+
+    public string BrainMcpDetailText => IsBrainMcpRunning
+        ? "Streamable HTTP MCP tools are ready on localhost:8100."
+        : "Start the Brain MCP gateway to expose filesystem, memory, and web-forager tools.";
+
+    public string BrainWebUiStatusLabel => CapitalizeStatus(_brainWebUiState);
+
+    public string BrainWebUiStatusBackground => GetBrainStatusBadgeBackground(_brainWebUiState);
+
+    public string BrainWebUiDetailText => IsBrainWebUiRunning
+        ? "Browser chat UI is available on localhost:8081."
+        : "Launch Open WebUI when you want a local browser-based front end for the Brain stack.";
+
+    public string BrainModelStatusLabel => !IsBrainInstalled
+        ? "Missing"
+        : HasReportedBrainModel()
+            ? (IsBrainLlmRunning ? "Loaded" : "Configured")
+            : "Unknown";
+
+    public string BrainModelStatusBackground => !IsBrainInstalled
+        ? "#B74322"
+        : HasReportedBrainModel()
+            ? "#235756"
+            : "#6B6259";
+
+    public string BrainModelDetailText => !IsBrainInstalled
+        ? "Install the Brain module to manage and load local LLM models."
+        : HasReportedBrainModel()
+            ? _brainLoadedModel
+            : "No model has been reported yet. Refresh after starting the LLM if needed.";
+
     public RuntimeBackendStatus HunyuanRuntimeStatus
     {
         get => _hunyuanRuntimeStatus;
@@ -706,6 +796,7 @@ public sealed class MainWindowViewModel : ViewModelBase
             4 => _installCompleted,
             5 => true,
             6 => true,
+            7 => true,
             _ => false,
         };
     }
@@ -718,6 +809,31 @@ public sealed class MainWindowViewModel : ViewModelBase
     private bool CanRunManagedRuntimeAction()
     {
         return !IsBusy;
+    }
+
+    private bool CanStartBrainLlm()
+    {
+        return CanRunManagedRuntimeAction() && IsBrainInstalled;
+    }
+
+    private bool CanOpenBrainWebUi()
+    {
+        return CanRunManagedRuntimeAction() && IsBrainInstalled;
+    }
+
+    private bool CanManageBrainModels()
+    {
+        return CanRunManagedRuntimeAction() && IsBrainInstalled;
+    }
+
+    private bool CanUpdateBrainWebUi()
+    {
+        return CanRunManagedRuntimeAction() && IsBrainInstalled;
+    }
+
+    private bool CanStopBrainLlm()
+    {
+        return CanRunManagedRuntimeAction() && IsBrainInstalled && IsBrainLlmRunning;
     }
 
     private bool CanRunHunyuanSmokeTest()
@@ -777,6 +893,7 @@ public sealed class MainWindowViewModel : ViewModelBase
                 }
                 break;
             case 6:
+            case 7:
                 RequestClose?.Invoke();
                 break;
         }
@@ -933,6 +1050,12 @@ public sealed class MainWindowViewModel : ViewModelBase
         await RefreshRuntimeStatusAsync().ConfigureAwait(true);
     }
 
+    private async Task OpenBrainToolsAsync()
+    {
+        MoveToBrainTools();
+        await RefreshBrainStatusAsync().ConfigureAwait(true);
+    }
+
     private async Task RefreshRuntimeStatusAsync()
     {
         if (!ManagedDistroDetected && !InstallSucceeded)
@@ -943,8 +1066,7 @@ public sealed class MainWindowViewModel : ViewModelBase
             StatusMessage = "No managed runtime install detected yet.";
             AppendInstallLog(StatusMessage);
             ApplyRuntimeBackendStatuses(new Dictionary<string, RuntimeBackendStatus>());
-            BrainRuntimeStatusText = "Status: No managed runtime";
-            BrainRuntimeModelText = "Model: Not available";
+            SetBrainRuntimeSnapshot("missing", "stopped", "Not available", "stopped", "stopped");
             RaiseCommandStateChanged();
             return;
         }
@@ -988,11 +1110,44 @@ public sealed class MainWindowViewModel : ViewModelBase
         catch (Exception ex)
         {
             RuntimeToolsSummary = "Runtime tool status check failed. Use the log panel and log folder to see what failed.";
-            BrainRuntimeStatusText = "Status: Not checked";
-            BrainRuntimeModelText = "Model: Not checked";
+            SetBrainRuntimeSnapshot("unknown", "unknown", "Not checked", "unknown", "unknown");
             StatusMessage = "Runtime tool status check failed.";
             LogLines.Add($"ERROR: {ex.Message}");
             AppendInstallLog($"ERROR: {ex}");
+        }
+        finally
+        {
+            IsBusy = false;
+            RaiseCommandStateChanged();
+        }
+    }
+
+    private async Task RefreshBrainStatusAsync()
+    {
+        if (!ManagedDistroDetected && !InstallSucceeded)
+        {
+            LogLines.Clear();
+            PostInstallActionSummary = string.Empty;
+            StatusMessage = "No managed runtime install detected yet.";
+            AppendInstallLog(StatusMessage);
+            SetBrainRuntimeSnapshot("missing", "stopped", "Not available", "stopped", "stopped");
+            RaiseCommandStateChanged();
+            return;
+        }
+
+        var settings = BuildManagedActionSettings();
+        IsBusy = true;
+        LogLines.Clear();
+        PostInstallActionSummary = string.Empty;
+        StatusMessage = "Checking Nymphs-Brain status...";
+        AppendInstallLog("Starting Nymphs-Brain status check.");
+
+        try
+        {
+            await RefreshBrainRuntimeStatusSnapshotAsync(settings).ConfigureAwait(true);
+            StatusMessage = "Nymphs-Brain status check completed.";
+            LogLines.Add(StatusMessage);
+            AppendInstallLog(StatusMessage);
         }
         finally
         {
@@ -1027,8 +1182,7 @@ public sealed class MainWindowViewModel : ViewModelBase
         }
         catch (Exception ex)
         {
-            BrainRuntimeStatusText = "Status: Not installed or not reachable";
-            BrainRuntimeModelText = "Model: Not available";
+            SetBrainRuntimeSnapshot("unknown", "unknown", "Not available", "unknown", "unknown");
             AppendInstallLog($"Nymphs-Brain status check warning: {ex.Message}");
         }
     }
@@ -1045,8 +1199,7 @@ public sealed class MainWindowViewModel : ViewModelBase
         var mcp = FindStatusValue(lines, "MCP proxy:") ?? "unknown";
         var webUi = FindStatusValue(lines, "Open WebUI:") ?? "unknown";
 
-        BrainRuntimeStatusText = $"Status: {CapitalizeStatus(install)} / LLM {llm} / WebUI {webUi} / MCP {mcp}";
-        BrainRuntimeModelText = $"Model: {model}";
+        SetBrainRuntimeSnapshot(install, llm, model, mcp, webUi);
     }
 
     private static string? FindStatusValue(IEnumerable<string> lines, string prefix)
@@ -1060,6 +1213,85 @@ public sealed class MainWindowViewModel : ViewModelBase
         return string.IsNullOrWhiteSpace(value)
             ? value
             : char.ToUpperInvariant(value[0]) + value[1..];
+    }
+
+    private bool IsBrainInstalled => string.Equals(_brainInstallState, "installed", StringComparison.OrdinalIgnoreCase);
+
+    private bool IsBrainLlmRunning => string.Equals(_brainLlmState, "running", StringComparison.OrdinalIgnoreCase);
+
+    private bool IsBrainMcpRunning => string.Equals(_brainMcpState, "running", StringComparison.OrdinalIgnoreCase);
+
+    private bool IsBrainWebUiRunning => string.Equals(_brainWebUiState, "running", StringComparison.OrdinalIgnoreCase);
+
+    private bool IsAnyBrainServiceRunning => IsBrainLlmRunning || IsBrainMcpRunning || IsBrainWebUiRunning;
+
+    private void SetBrainRuntimeSnapshot(string install, string llm, string model, string mcp, string webUi)
+    {
+        _brainInstallState = NormalizeBrainStatus(install);
+        _brainLlmState = NormalizeBrainStatus(llm);
+        _brainMcpState = NormalizeBrainStatus(mcp);
+        _brainWebUiState = NormalizeBrainStatus(webUi);
+        _brainLoadedModel = string.IsNullOrWhiteSpace(model) ? "unknown" : model.Trim();
+
+        BrainRuntimeStatusText = $"Status: {CapitalizeStatus(_brainInstallState)} / LLM {_brainLlmState} / WebUI {_brainWebUiState} / MCP {_brainMcpState}";
+        BrainRuntimeModelText = $"Model: {_brainLoadedModel}";
+
+        RaiseBrainRuntimePropertyChanges();
+        RaiseCommandStateChanged();
+    }
+
+    private void RaiseBrainRuntimePropertyChanges()
+    {
+        OnPropertyChanged(nameof(BrainHeaderBadgeText));
+        OnPropertyChanged(nameof(BrainHeaderBadgeBackground));
+        OnPropertyChanged(nameof(BrainDashboardSummary));
+        OnPropertyChanged(nameof(BrainPrimaryActionText));
+        OnPropertyChanged(nameof(BrainWebUiActionText));
+        OnPropertyChanged(nameof(BrainEndpointsText));
+        OnPropertyChanged(nameof(BrainLlmStatusLabel));
+        OnPropertyChanged(nameof(BrainLlmStatusBackground));
+        OnPropertyChanged(nameof(BrainLlmDetailText));
+        OnPropertyChanged(nameof(BrainMcpStatusLabel));
+        OnPropertyChanged(nameof(BrainMcpStatusBackground));
+        OnPropertyChanged(nameof(BrainMcpDetailText));
+        OnPropertyChanged(nameof(BrainWebUiStatusLabel));
+        OnPropertyChanged(nameof(BrainWebUiStatusBackground));
+        OnPropertyChanged(nameof(BrainWebUiDetailText));
+        OnPropertyChanged(nameof(BrainModelStatusLabel));
+        OnPropertyChanged(nameof(BrainModelStatusBackground));
+        OnPropertyChanged(nameof(BrainModelDetailText));
+    }
+
+    private static string NormalizeBrainStatus(string status)
+    {
+        return string.IsNullOrWhiteSpace(status)
+            ? "unknown"
+            : status.Trim().ToLowerInvariant();
+    }
+
+    private static string GetBrainStatusBadgeBackground(string status)
+    {
+        return NormalizeBrainStatus(status) switch
+        {
+            "running" or "installed" or "loaded" => "#235756",
+            "starting" or "pending" or "warning" => "#B7791F",
+            "missing" or "failed" or "error" => "#B74322",
+            _ => "#6B6259",
+        };
+    }
+
+    private bool HasReportedBrainModel()
+    {
+        if (string.IsNullOrWhiteSpace(_brainLoadedModel))
+        {
+            return false;
+        }
+
+        return _brainLoadedModel.ToLowerInvariant() switch
+        {
+            "unknown" or "none" or "none reported" or "not checked" or "not available" => false,
+            _ => true,
+        };
     }
 
     public async Task InitializeAsync()
@@ -1262,20 +1494,71 @@ public sealed class MainWindowViewModel : ViewModelBase
 
     private async Task StartBrainLlmAsync()
     {
-        await RunNymphsBrainToolActionAsync(
-            "lms-start",
-            "Starting Nymphs-Brain LLM server...",
-            "Nymphs-Brain LLM server started.",
-            "Nymphs-Brain LLM server failed to start.").ConfigureAwait(true);
+        EnsureBrainToolsActive();
+
+        if (IsBrainLlmRunning)
+        {
+            var stopTools = new List<string>();
+
+            if (IsBrainWebUiRunning)
+            {
+                stopTools.Add("open-webui-stop");
+            }
+
+            if (IsBrainMcpRunning)
+            {
+                stopTools.Add("mcp-stop");
+            }
+
+            if (IsBrainLlmRunning)
+            {
+                stopTools.Add("lms-stop");
+            }
+
+            await RunNymphsBrainToolSequenceAsync(
+                stopTools,
+                "Stopping Nymphs-Brain services...",
+                "Nymphs-Brain services stopped.",
+                "Nymphs-Brain services failed to stop cleanly.").ConfigureAwait(true);
+            return;
+        }
+
+        if (IsAnyBrainServiceRunning)
+        {
+            await RunNymphsBrainToolActionAsync(
+                "lms-start",
+                "Starting Nymphs-Brain LLM server...",
+                "Nymphs-Brain LLM server started.",
+                "Nymphs-Brain LLM server failed to start.").ConfigureAwait(true);
+            return;
+        }
+
+        await RunNymphsBrainToolSequenceAsync(
+            ["lms-start", "mcp-start"],
+            "Starting Nymphs-Brain services...",
+            "Nymphs-Brain services started.",
+            "Nymphs-Brain services failed to start.").ConfigureAwait(true);
     }
 
     private async Task OpenBrainWebUiAsync()
     {
+        EnsureBrainToolsActive();
+
+        if (IsBrainWebUiRunning)
+        {
+            await RunNymphsBrainToolActionAsync(
+                "open-webui-stop",
+                "Stopping Nymphs-Brain Open WebUI...",
+                "Open WebUI stopped.",
+                "Open WebUI failed to stop cleanly.").ConfigureAwait(true);
+            return;
+        }
+
         var started = await RunNymphsBrainToolActionAsync(
-            "open-webui-start",
-            "Starting Nymphs-Brain Open WebUI...",
-            "Open WebUI is ready.",
-            "Open WebUI failed to start.").ConfigureAwait(true);
+                "open-webui-start",
+                "Starting Nymphs-Brain Open WebUI...",
+                "Open WebUI is ready.",
+                "Open WebUI failed to start.").ConfigureAwait(true);
 
         if (started)
         {
@@ -1285,6 +1568,7 @@ public sealed class MainWindowViewModel : ViewModelBase
 
     private void OpenBrainModelManager()
     {
+        EnsureBrainToolsActive();
         var settings = BuildManagedActionSettings();
         try
         {
@@ -1302,13 +1586,88 @@ public sealed class MainWindowViewModel : ViewModelBase
         }
     }
 
+    private async Task UpdateBrainWebUiAsync()
+    {
+        EnsureBrainToolsActive();
+        await RunNymphsBrainToolSequenceAsync(
+            ["lms-update", "open-webui-update"],
+            "Updating Nymphs-Brain stack...",
+            "Nymphs-Brain stack update completed.",
+            "Nymphs-Brain stack update failed.").ConfigureAwait(true);
+    }
+
     private async Task StopBrainLlmAsync()
     {
+        EnsureBrainToolsActive();
         await RunNymphsBrainToolActionAsync(
             "lms-stop",
             "Stopping Nymphs-Brain LLM server...",
             "Nymphs-Brain LLM server stopped.",
             "Nymphs-Brain LLM server failed to stop cleanly.").ConfigureAwait(true);
+    }
+
+    private async Task<bool> RunNymphsBrainToolSequenceAsync(
+        IReadOnlyList<string> toolNames,
+        string runningSummary,
+        string successSummary,
+        string failureSummary)
+    {
+        var tools = toolNames
+            .Where(toolName => !string.IsNullOrWhiteSpace(toolName))
+            .ToList();
+
+        if (tools.Count == 0)
+        {
+            PostInstallActionSummary = successSummary;
+            StatusMessage = successSummary;
+            AppendInstallLog(successSummary);
+            return true;
+        }
+
+        var settings = BuildManagedActionSettings();
+        PrepareManagedActionRun(runningSummary, $"Starting Nymphs-Brain tool sequence: {string.Join(", ", tools)}");
+        IsBusy = true;
+
+        var progress = new Progress<string>(line =>
+        {
+            var sanitizedLine = line.Replace("\0", string.Empty);
+            if (!string.IsNullOrWhiteSpace(sanitizedLine))
+            {
+                LogLines.Add(sanitizedLine);
+                StatusMessage = sanitizedLine;
+                AppendInstallLog(sanitizedLine);
+            }
+        });
+
+        try
+        {
+            foreach (var toolName in tools)
+            {
+                await _workflowService.RunNymphsBrainToolAsync(settings, toolName, progress, CancellationToken.None).ConfigureAwait(true);
+            }
+
+            await RefreshBrainRuntimeStatusSnapshotAsync(settings).ConfigureAwait(true);
+            PostInstallActionSummary = successSummary;
+            RuntimeToolsSummary = successSummary;
+            StatusMessage = successSummary;
+            AppendInstallLog(successSummary);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            PostInstallActionSummary = $"{failureSummary} Check the live log and log folder.";
+            RuntimeToolsSummary = failureSummary;
+            StatusMessage = failureSummary;
+            LogLines.Add($"ERROR: {ex.Message}");
+            AppendInstallLog($"ERROR: {ex}");
+            return false;
+        }
+        finally
+        {
+            EnsureBrainToolsActive();
+            IsBusy = false;
+            RaiseCommandStateChanged();
+        }
     }
 
     private async Task<bool> RunNymphsBrainToolActionAsync(
@@ -1353,8 +1712,17 @@ public sealed class MainWindowViewModel : ViewModelBase
         }
         finally
         {
+            EnsureBrainToolsActive();
             IsBusy = false;
             RaiseCommandStateChanged();
+        }
+    }
+
+    private void EnsureBrainToolsActive()
+    {
+        if (!IsBrainToolsStep)
+        {
+            MoveToBrainTools();
         }
     }
 
@@ -1364,7 +1732,7 @@ public sealed class MainWindowViewModel : ViewModelBase
         StatusMessage = summary;
         PostInstallActionSummary = summary;
         AppendInstallLog(initialLogLine);
-        if (!IsRuntimeToolsStep)
+        if (!IsToolStep)
         {
             MoveToStep(6);
         }
@@ -1556,7 +1924,7 @@ public sealed class MainWindowViewModel : ViewModelBase
             return;
         }
 
-        if (IsRuntimeToolsStep)
+        if (IsToolStep)
         {
             MoveToStep(_runtimeToolsReturnStep);
             return;
@@ -1624,12 +1992,22 @@ public sealed class MainWindowViewModel : ViewModelBase
 
     private void MoveToRuntimeTools()
     {
-        if (!IsRuntimeToolsStep)
+        if (!IsToolStep)
         {
             _runtimeToolsReturnStep = _currentStepIndex;
         }
 
         MoveToStep(6);
+    }
+
+    private void MoveToBrainTools()
+    {
+        if (!IsToolStep)
+        {
+            _runtimeToolsReturnStep = _currentStepIndex;
+        }
+
+        MoveToStep(7);
     }
 
     private void MoveToStep(int stepIndex)
@@ -1642,6 +2020,10 @@ public sealed class MainWindowViewModel : ViewModelBase
         OnPropertyChanged(nameof(IsProgressStep));
         OnPropertyChanged(nameof(IsFinishStep));
         OnPropertyChanged(nameof(IsRuntimeToolsStep));
+        OnPropertyChanged(nameof(IsBrainToolsStep));
+        OnPropertyChanged(nameof(ShowDefaultSidebarArt));
+        OnPropertyChanged(nameof(ShowBrainSidebarArt));
+        OnPropertyChanged(nameof(ShowFooterPrimaryButton));
         OnPropertyChanged(nameof(ShowExistingInstallActions));
         RecomputeStepState();
     }
@@ -1725,6 +2107,12 @@ public sealed class MainWindowViewModel : ViewModelBase
                     "Open core backend tools, fetch missing models, and run smoke tests when the required runtimes are ready.";
                 PrimaryButtonText = "Close";
                 break;
+            case 7:
+                CurrentStepTitle = "Brain";
+                CurrentStepSubtitle =
+                    "Manage the local coding model, MCP gateway, and browser UI for Nymphs-Brain.";
+                PrimaryButtonText = "Close";
+                break;
         }
 
         OnPropertyChanged(nameof(StepCounterText));
@@ -1739,12 +2127,15 @@ public sealed class MainWindowViewModel : ViewModelBase
         _repairRuntimeCommand.RaiseCanExecuteChanged();
         _openRuntimeToolsCommand.RaiseCanExecuteChanged();
         _refreshRuntimeStatusCommand.RaiseCanExecuteChanged();
+        _openBrainToolsCommand.RaiseCanExecuteChanged();
+        _refreshBrainStatusCommand.RaiseCanExecuteChanged();
         _fetchModelsNowCommand.RaiseCanExecuteChanged();
         _testHunyuanCommand.RaiseCanExecuteChanged();
         _testZImageCommand.RaiseCanExecuteChanged();
         _testTrellisCommand.RaiseCanExecuteChanged();
         _startBrainLlmCommand.RaiseCanExecuteChanged();
         _openBrainWebUiCommand.RaiseCanExecuteChanged();
+        _updateBrainWebUiCommand.RaiseCanExecuteChanged();
         _changeBrainModelCommand.RaiseCanExecuteChanged();
         _stopBrainLlmCommand.RaiseCanExecuteChanged();
         _backCommand.RaiseCanExecuteChanged();
