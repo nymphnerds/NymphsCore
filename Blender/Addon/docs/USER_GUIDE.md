@@ -39,7 +39,7 @@ Supported product target:
 
 The large disk requirement comes from AI model files, Python environments, CUDA components, generated outputs, and update headroom. See the backend footprint note for deeper planning detail:
 
-- [Install Disk And Model Footprint](../../../Manager/docs/install_disk_and_model_footprint.md)
+- [Install Disk And Model Footprint](../../../docs/FOOTPRINT.md)
 
 ## Install The Backend
 

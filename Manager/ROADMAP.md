@@ -61,8 +61,8 @@ Current public baseline:
 Current public docs:
 
 - `Manager/README.md`
-- `Manager/docs/absolute_beginner_local_install_guide.md`
-- `Manager/docs/install_disk_and_model_footprint.md`
+- `docs/ABSOLUTE_BEGINNER_INSTALL_GUIDE.md`
+- `docs/FOOTPRINT.md`
 - `Blender/Addon/docs/USER_GUIDE.md`
 
 Current public download path:
