@@ -1,6 +1,6 @@
 # NymphsCore Architecture Documentation
 
-This document provides a comprehensive overview of the NymphsCore system, covering the Blender addon, backend services, and core features.
+This document provides a comprehensive overview of the NymphsCore system, covering the Blender addon, backend services, the optional `Nymphs-Brain` local LLM stack, and core features.
 
 ---
 
@@ -22,6 +22,35 @@ This document provides a comprehensive overview of the NymphsCore system, coveri
 - **OpenRouter API** - Gemini vision & image gen via remote API
 - WSL isolation (`-d NymphsCore -u nymph`)
 - GPU monitoring via `nvidia-smi` polling
+
+---
+
+## Optional Nymphs-Brain Subsystem
+
+`Nymphs-Brain` is an optional local LLM and tool stack that installs into the same managed `NymphsCore` WSL distro, but remains separate from the Blender 3D runtime family.
+
+- Installed under `/home/nymph/Nymphs-Brain`
+- Linux-side LM Studio CLI/runtime wrappers
+- OpenAI-compatible local LLM endpoint on port `1234`
+- local MCP gateway on port `8100`
+- Open WebUI on port `8081`
+- helper scripts under `/home/nymph/Nymphs-Brain/bin`
+- role-aware `Act` model plus one optional `Plan` model
+
+Primary Brain entrypoints:
+
+- `lms-start` / `lms-stop`
+- `lms-model`
+- `lms-get-profile` / `lms-set-profile`
+- `mcp-start` / `mcp-stop`
+- `open-webui-start` / `open-webui-stop`
+- `brain-status`
+
+The Brain model profile config lives at:
+
+```text
+/home/nymph/Nymphs-Brain/config/lms-model-profiles.env
+```
 
 ---
 
@@ -93,6 +122,9 @@ This document provides a comprehensive overview of the NymphsCore system, coveri
 - CUDA installation automation
 - One-click install scripts
 - Preflight checks & verification
+- Dedicated `Runtime Tools` page for Blender backend repair/model fetch/testing
+- Dedicated `Brain` page for the optional local LLM, MCP, and Open WebUI stack
+- Role-aware `Manage Models` flow for Brain `Act` / `Plan` assignment
 - Publishes to `NymphsCoreManager.exe`
 
 ---
@@ -103,6 +135,11 @@ This document provides a comprehensive overview of the NymphsCore system, coveri
   - `preflight_wsl.sh` → system deps → CUDA 13 → Hunyuan → Z-Image → TRELLIS
   - `prefetch_models.sh` → model download
   - `verify_install.sh` → smoke tests
+- Optional Brain install path adds:
+  - Linux-side LM Studio runtime wrappers
+  - MCP proxy services
+  - Open WebUI
+  - Brain helper/config scripts
 
 ---
 

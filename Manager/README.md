@@ -108,10 +108,10 @@ If selected, `Nymphs-Brain` now includes:
 
 The installer and runtime wrappers use LM Studio's standard CLI flow for model download and server start. No separate manual daemon bootstrap step should be needed.
 
-For connecting Cline to the local Brain model and MCP tools, see:
+For the full optional Brain stack guide, see:
 
 ```text
-../docs/CLINE_WITH_NYMPHS_BRAIN_QUICKSTART.md
+../docs/NYMPHS_BRAIN_GUIDE.md
 ```
 
 Useful Brain commands:
@@ -192,8 +192,7 @@ Useful docs:
 - [Absolute Beginner Local Backend Install Guide](../docs/ABSOLUTE_BEGINNER_INSTALL_GUIDE.md)
 - [Install Disk And Model Footprint](../docs/FOOTPRINT.md)
 - [Blender Addon User Guide](../docs/BLENDER_ADDON_USER_GUIDE.md)
-- [Retexturing Guide](../docs/BLENDER_RETEXTURING_GUIDE.md)
-- [Cline With Nymphs-Brain Quickstart](../docs/CLINE_WITH_NYMPHS_BRAIN_QUICKSTART.md)
+- [Nymphs-Brain Guide](../docs/NYMPHS_BRAIN_GUIDE.md)
 
 ## Developer Notes
 

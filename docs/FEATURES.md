@@ -18,6 +18,16 @@ The entire system lives in Blender's sidebar. Generate images, create 3D meshes,
 ### Zero Configuration Backend
 The Manager app handles everything: WSL setup, CUDA installation, Python environments, model downloads. You download one zip, run one installer, and have a fully operational AI backend. Other solutions expect you to be a systems administrator.
 
+### Optional Local Brain Stack
+NymphsCore also includes an optional local AI assistant stack for coding and tool workflows.
+
+- `Nymphs-Brain` installs inside the managed WSL distro
+- local OpenAI-compatible LLM endpoint on `http://localhost:1234/v1`
+- Open WebUI on `http://localhost:8081`
+- local MCP gateway on `http://localhost:8100`
+- role-aware `Act` and optional `Plan` model setup
+- dedicated `Brain` page in Manager for start, stop, update, logs, and model management
+
 ---
 
 ## Key Features
@@ -110,6 +120,16 @@ The installation experience that respects your time.
 - Model prefetch (72GB of AI models downloaded automatically)
 - Smoke tests verify everything works
 - Runtime Tools for repair and model fetch
+- Dedicated `Brain` page for the optional local LLM, MCP, and Open WebUI stack
+
+### Nymphs-Brain
+Optional local LLM and MCP workflows without leaving the managed NymphsCore system.
+
+- local coding/chat model access through an OpenAI-compatible endpoint
+- Open WebUI for browser-based local chat
+- MCP servers for filesystem, memory, and web-forager tools
+- separate `Act` and optional `Plan` model roles
+- designed for local clients such as Cline without requiring a separate manual stack setup
 
 ---
 
@@ -122,6 +142,7 @@ The installation experience that respects your time.
 | Character part extraction | AI-guided, automatic | Manual in Photoshop |
 | 3D output | One-click from image | Import to DCC, manual modeling |
 | Texture generation | AI understands geometry | Substance Painter manual |
+| Local coding stack | Optional Brain with LLM + MCP + WebUI | Usually separate tools and manual setup |
 | Style consistency | Auto-preserved from source | Manual matching |
 | Local processing | Full privacy | Cloud dependency |
 

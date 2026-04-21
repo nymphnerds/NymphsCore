@@ -254,10 +254,10 @@ If `Nymphs-Brain` was installed, use the dedicated `Brain` page to:
 - open the role-aware `Manage Models` flow for `Act` / `Plan` model assignment
 - inspect the Brain activity log
 
-If you want to connect VS Code Cline to the optional local Brain model and MCP tools after install, use:
+If you installed the optional Brain stack and want the full local LLM, WebUI, MCP, and Cline guide after install, use:
 
 ```text
-docs/CLINE_WITH_NYMPHS_BRAIN_QUICKSTART.md
+docs/NYMPHS_BRAIN_GUIDE.md
 ```
 
 ## Which Backend Should I Use?
