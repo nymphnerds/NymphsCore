@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="Graphics/NymphsCoreLogo.png" alt="NymphsCore" width="480">
+</p>
+
 # NymphsCore
 
 The central hub for the NymphNerds game development backend. This repo contains the core runtime, Manager, and Blender addon source that power the local pipeline.
