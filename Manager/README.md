@@ -119,11 +119,19 @@ Useful Brain commands:
 ```text
 /home/nymph/Nymphs-Brain/bin/lms-start
 /home/nymph/Nymphs-Brain/bin/lms-model
+/home/nymph/Nymphs-Brain/bin/lms-get-profile
+/home/nymph/Nymphs-Brain/bin/lms-set-profile
 /home/nymph/Nymphs-Brain/bin/lms-stop
 /home/nymph/Nymphs-Brain/bin/mcp-start
 /home/nymph/Nymphs-Brain/bin/open-webui-start
 /home/nymph/Nymphs-Brain/bin/brain-status
 ```
+
+The current Brain stack supports:
+
+- one `Act` model
+- one optional `Plan` model
+- loading only `Act` or both `Act` + `Plan` from the Linux-side Brain config
 
 ## Runtime Tools
 

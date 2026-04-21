@@ -43,6 +43,8 @@ Expected healthy output looks like:
 Brain install: installed
 LLM server: running
 Model loaded: qwen/qwen2.5-coder-14b, ...
+Act model: qwen/qwen2.5-coder-14b (context 16384)
+Plan model: none (context none)
 MCP proxy: running
 Open WebUI: running|stopped
 ```
@@ -50,6 +52,18 @@ Open WebUI: running|stopped
 `Open WebUI` does not need to be running for Cline MCP to work.
 
 ## Part 1: Connect Cline To The Local Model
+
+If you are using separate Cline `Plan` and `Act` models:
+
+- point Cline `Act` at the Brain `Act` model
+- point Cline `Plan` at the Brain `Plan` model
+- if `Plan` is blank in Brain, only the `Act` model will be loaded by `lms-start`
+
+You can inspect the current Brain-side role config with:
+
+```powershell
+wsl -d NymphsCore --user nymph -- bash -lc "/home/nymph/Nymphs-Brain/bin/lms-get-profile"
+```
 
 In Cline settings:
 
@@ -202,6 +216,7 @@ The Brain install also writes reference files here:
 ```text
 /home/nymph/Nymphs-Brain/mcp/config/cline-mcp-settings.json
 /home/nymph/Nymphs-Brain/mcp/config/mcp-proxy-servers.json
+/home/nymph/Nymphs-Brain/config/lms-model-profiles.env
 ```
 
 These are useful if you want to compare Cline's saved config with the installed Brain defaults.
