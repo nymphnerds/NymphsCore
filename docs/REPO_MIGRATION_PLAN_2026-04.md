@@ -2,9 +2,31 @@
 
 Date: 2026-04-21
 
+## Status
+
+This migration is complete for the active repos and installer defaults.
+
+Completed outcomes:
+
+- `NymphsCore`, `Hunyuan3D-2`, and `Nymphs2D2` are now under `nymphnerds`
+- Manager source scripts and bundled publish scripts point at `nymphnerds`
+- local runtime repos were repointed to `nymphnerds`
+- the helper checkout at `/opt/nymphs3d/Nymphs3D` was repointed to `nymphnerds/NymphsCore`
+- repair/install validation succeeded without active `Babyjawz` pulls
+
+Validation checkpoints:
+
+- [installer-run-20260421-101315.log](/home/nymph/logs/installer-run-20260421-101315.log): exposed original remote mismatches
+- [installer-run-20260421-103334.log](/home/nymph/logs/installer-run-20260421-103334.log): backend repos fixed; helper repo still had permission issues
+- [installer-run-20260421-104532.log](/home/nymph/logs/installer-run-20260421-104532.log): helper repo fetch issue resolved; only a temporary dirty file mode remained, later cleaned
+
+Open follow-up:
+
+- legacy `Nymphs3D` naming in paths, env vars, and helper checkout location still exists and can be cleaned up later as a separate refactor
+
 ## Goal
 
-Consolidate the active backend repos under `nymphnerds`, then clean up naming without breaking the Manager install/update flow.
+Consolidate the active backend repos under `nymphnerds`, then clean up naming without breaking the Manager install/update flow. The owner-consolidation part is now done; the remaining work is optional naming cleanup.
 
 Working owner assumption for this plan:
 
@@ -58,8 +80,8 @@ Current local checkouts in this workspace:
 
 ### Move now
 
-- `Hunyuan3D-2` under `nymphnerds`
-- `Nymphs2D2` under `nymphnerds`
+- `Hunyuan3D-2` under `nymphnerds` (done)
+- `Nymphs2D2` under `nymphnerds` (done)
 
 ### Replace or retire
 
@@ -110,11 +132,11 @@ Why stage this:
 
 ## Safest Migration Order
 
-1. Transfer `Hunyuan3D-2` to `nymphnerds/Hunyuan3D-2` without renaming the repo.
-2. Transfer `Nymphs2D2` to `nymphnerds/Nymphs2D2` without renaming the repo.
-3. Patch `NymphsCore` so all default URLs stop pointing at `nymphnerds` directly instead of relying on legacy redirects.
-4. Rebuild or refresh the checked-in published Manager payload so the bundled scripts match the source scripts.
-5. Test fresh install, repair/update, and managed-repo update check against the new owner URLs.
+1. Transfer `Hunyuan3D-2` to `nymphnerds/Hunyuan3D-2` without renaming the repo. Done.
+2. Transfer `Nymphs2D2` to `nymphnerds/Nymphs2D2` without renaming the repo. Done.
+3. Patch `NymphsCore` so all default URLs stop pointing at `nymphnerds` directly instead of relying on legacy redirects. Done.
+4. Rebuild or refresh the checked-in published Manager payload so the bundled scripts match the source scripts. Done.
+5. Test fresh install, repair/update, and managed-repo update check against the new owner URLs. Done.
 6. After that is stable, decide whether to:
    - replace the `Nymphs3D` helper repo bootstrap with `NymphsCore`
    - rename `Nymphs2D2` to `Z-Image`

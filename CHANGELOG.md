@@ -21,6 +21,31 @@ Across the full documented history, the project moved through eight phases:
 
 Newest entries first.
 
+### 2026-04-21 moved active managed repos to `nymphnerds` and validated installer repair flow
+Source: repo-owner migration, Manager script/default URL cleanup, rebuilt Manager artifacts, and repair-log validation on the live WSL runtime.
+
+Documented changes:
+
+- moved active GitHub repos to `nymphnerds`:
+  - `NymphsCore`
+  - `Hunyuan3D-2`
+  - `Nymphs2D2`
+- updated Manager source scripts and bundled publish scripts so active repo defaults no longer point at `Babyjawz`
+- repointed the live helper checkout under `/opt/nymphs3d/Nymphs3D` to `nymphnerds/NymphsCore`
+- repointed local backend checkouts:
+  - `/home/nymph/Hunyuan3D-2` -> `nymphnerds/Hunyuan3D-2`
+  - `/home/nymph/Z-Image` -> `nymphnerds/Nymphs2D2`
+- verified repair/install logs after the migration cleanup:
+  - backend repo remote mismatches cleared
+  - helper repo fetch permissions fixed
+  - final repair completed successfully without active `Babyjawz` pulls
+
+Why it matters:
+
+- the managed runtime no longer depends on the old `Babyjawz` account for active installs or repair flows
+- the distributed Manager package and the live WSL runtime now agree on the new `nymphnerds` repo defaults
+- any future cleanup of legacy `Nymphs3D` naming can happen as a separate, lower-risk refactor
+
 ### 2026-04-19 optional Nymphs-Brain module integrated into Manager
 Source: fresh Windows installer testing of the optional local LLM stack and the follow-up source fixes needed to make it behave like a real supported module.
 
