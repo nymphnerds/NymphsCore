@@ -66,7 +66,6 @@ public sealed class InstallerWorkflowService
         var items = new List<SystemCheckItem>
         {
             CheckAdministratorStatus(),
-            await CheckBaseTarPresenceAsync(cancellationToken).ConfigureAwait(false),
             CheckDriveAvailability(),
             await CheckWslAvailabilityAsync(cancellationToken).ConfigureAwait(false),
             await CheckExistingWslDistrosAsync(cancellationToken).ConfigureAwait(false),
