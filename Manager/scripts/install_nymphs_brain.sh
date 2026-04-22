@@ -1602,7 +1602,7 @@ if curl "${CURL_CHECK_ARGS[@]}" "http://127.0.0.1:1234/v1/models" >/tmp/nymphs-b
   echo "Model loaded: ${MODEL_OUTPUT}"
 else
   echo "LLM server: stopped"
-  echo "Model loaded: act=${ACT_MODEL_ID:-none}; plan=${PLAN_MODEL_ID:-none}"
+  echo "Model loaded: none"
 fi
 
 echo "Act model: ${ACT_MODEL_ID:-none} (context ${ACT_CONTEXT_LENGTH:-none})"

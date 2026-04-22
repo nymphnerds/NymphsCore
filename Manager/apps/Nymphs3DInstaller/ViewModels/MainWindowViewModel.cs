@@ -1213,6 +1213,31 @@ public sealed class MainWindowViewModel : ViewModelBase
         return string.IsNullOrWhiteSpace(normalized) ? "unknown" : normalized;
     }
 
+    private static string NormalizeLoadedBrainModel(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return "unknown";
+        }
+
+        var normalized = value.Trim();
+        var lowered = normalized.ToLowerInvariant();
+
+        if (lowered is "unknown" or "none" or "none reported" or "not checked" or "not available")
+        {
+            return "unknown";
+        }
+
+        if ((lowered.StartsWith("act=", StringComparison.Ordinal) || lowered.Contains("; plan=", StringComparison.Ordinal)) &&
+            lowered.Contains("act=none", StringComparison.Ordinal) &&
+            lowered.Contains("plan=none", StringComparison.Ordinal))
+        {
+            return "unknown";
+        }
+
+        return normalized;
+    }
+
     private string BuildBrainModelDetailText()
     {
         var hasAct = HasUsableBrainRoleModel(_brainActModel);
@@ -1295,7 +1320,7 @@ public sealed class MainWindowViewModel : ViewModelBase
         _brainLlmState = NormalizeBrainStatus(llm);
         _brainMcpState = NormalizeBrainStatus(mcp);
         _brainWebUiState = NormalizeBrainStatus(webUi);
-        _brainLoadedModel = string.IsNullOrWhiteSpace(model) ? "unknown" : model.Trim();
+        _brainLoadedModel = NormalizeLoadedBrainModel(model);
         _brainActModel = NormalizeBrainRoleModel(actModel);
         _brainPlanModel = NormalizeBrainRoleModel(planModel);
 
@@ -1353,11 +1378,7 @@ public sealed class MainWindowViewModel : ViewModelBase
             return false;
         }
 
-        return _brainLoadedModel.ToLowerInvariant() switch
-        {
-            "unknown" or "none" or "none reported" or "not checked" or "not available" => false,
-            _ => true,
-        };
+        return _brainLoadedModel.ToLowerInvariant() is not ("unknown" or "none" or "none reported" or "not checked" or "not available");
     }
 
     public async Task InitializeAsync()
