@@ -1252,7 +1252,7 @@ public sealed class MainWindowViewModel : ViewModelBase
         {
             var actText = hasAct ? _brainActModel : "none";
             var planText = hasPlan ? _brainPlanModel : "none";
-            return $"Loaded: {loadedText}\nConfigured Act: {actText}\nConfigured Plan: {planText}";
+            return $"Loaded: {loadedText}\nConfigured Plan: {planText}\nConfigured Act: {actText}";
         }
 
         return $"Loaded: {loadedText}";
@@ -1267,15 +1267,15 @@ public sealed class MainWindowViewModel : ViewModelBase
 
         if (hasPlan && !hasAct)
         {
-            return $"Configured Act: {actText}\nConfigured Plan: {planText}\nA Plan model is set. Start Brain will load the local Plan model. An Act model can remain external if that is your workflow.";
+            return $"Configured Plan: {planText}\nConfigured Act: {actText}\nA Plan model is set. Start Brain will load the local Plan model. An Act model can remain external if that is your workflow.";
         }
 
         if (hasAct && !hasPlan)
         {
-            return $"Configured Act: {actText}\nConfigured Plan: {planText}\nAn Act model is set and can be loaded when you start Brain. A Plan model is optional.";
+            return $"Configured Plan: {planText}\nConfigured Act: {actText}\nAn Act model is set and can be loaded when you start Brain. A Plan model is optional.";
         }
 
-        return $"Configured Act: {actText}\nConfigured Plan: {planText}\nNo chat model is loaded yet. Use Manage Models if needed, then Start LLM.";
+        return $"Configured Plan: {planText}\nConfigured Act: {actText}\nNo chat model is loaded yet. Use Manage Models if needed, then Start LLM.";
     }
 
     private static bool HasUsableBrainRoleModel(string? value)
