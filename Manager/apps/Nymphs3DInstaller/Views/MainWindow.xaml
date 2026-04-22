@@ -700,90 +700,29 @@
                           FontSize="16"
                           FontWeight="SemiBold"
                           Content="Install experimental Nymphs-Brain to /home/nymph/Nymphs-Brain" />
-                <Grid Margin="28,14,0,0"
-                      IsEnabled="{Binding BrainOptionsEnabled}">
-                  <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
-                  </Grid.RowDefinitions>
-                  <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="2*" />
-                    <ColumnDefinition Width="12" />
-                    <ColumnDefinition Width="*" />
-                  </Grid.ColumnDefinitions>
-
-                  <StackPanel Grid.Row="0" Grid.Column="0">
-                    <TextBlock Text="Model preset" FontWeight="SemiBold" />
-                    <ComboBox Margin="0,8,0,0"
-                              ItemsSource="{Binding BrainModelOptions}"
-                              SelectedItem="{Binding SelectedBrainModelOption}"
-                              DisplayMemberPath="Title"
-                              FontSize="15"
-                              Padding="10" />
-                  </StackPanel>
-                  <StackPanel Grid.Row="0" Grid.Column="2">
-                    <TextBlock Text="Context length" FontWeight="SemiBold" />
-                    <TextBox Margin="0,8,0,0"
-                             Padding="10"
-                             FontSize="14"
-                             Text="{Binding BrainContextLength, UpdateSourceTrigger=PropertyChanged}" />
-                  </StackPanel>
-
-                  <TextBlock Grid.Row="1"
-                             Grid.Column="0"
-                             Grid.ColumnSpan="3"
-                             Margin="0,10,0,0"
-                             Text="{Binding BrainSelectedModelDescription}"
-                             TextWrapping="Wrap"
-                             Style="{StaticResource MutedText}" />
-
-                  <StackPanel Grid.Row="2"
-                              Grid.Column="0"
-                              Grid.ColumnSpan="3"
-                              Margin="0,12,0,0"
-                              Visibility="{Binding IsCustomBrainModel, Converter={StaticResource BoolToVisibilityConverter}}">
-                    <TextBlock Text="Custom LM Studio model id" FontWeight="SemiBold" />
-                    <TextBox Margin="0,8,0,0"
-                             Padding="10"
-                             FontSize="14"
-                             Text="{Binding CustomBrainModelId, UpdateSourceTrigger=PropertyChanged}" />
-                  </StackPanel>
-
-                  <StackPanel Grid.Row="3"
-                              Grid.Column="0"
-                              Grid.ColumnSpan="3"
-                              Margin="0,12,0,0">
-                    <TextBlock Text="Approximate model size and footprint"
+                <Border Margin="28,14,0,0"
+                        Padding="12"
+                        Background="#FFFDF8"
+                        BorderBrush="#E7DDCF"
+                        BorderThickness="1"
+                        CornerRadius="10"
+                        IsEnabled="{Binding BrainOptionsEnabled}">
+                  <StackPanel>
+                    <TextBlock Text="Brain models are managed after install"
                                FontWeight="SemiBold"
                                FontSize="14" />
                     <TextBlock Margin="0,8,0,0"
-                               Text="{Binding BrainModelSizeGuide}"
+                               Text="Setup installs the Brain tools, LM Studio runtime, MCP gateway, and WebUI wrappers only. After install, open the Brain page and use Manage Models to download or switch Act and Plan models."
+                               TextWrapping="Wrap"
+                               FontSize="13"
+                               Style="{StaticResource MutedText}" />
+                    <TextBlock Margin="0,8,0,0"
+                               Text="{Binding BrainInstallSummary}"
                                TextWrapping="Wrap"
                                FontSize="13"
                                Style="{StaticResource MutedText}" />
                   </StackPanel>
-
-                  <CheckBox Grid.Row="4"
-                            Grid.Column="0"
-                            Grid.ColumnSpan="3"
-                            Margin="0,14,0,0"
-                            IsChecked="{Binding DownloadBrainModelNow}"
-                            Content="Download the selected LLM model during install" />
-
-                  <TextBlock Grid.Row="5"
-                             Grid.Column="0"
-                             Grid.ColumnSpan="3"
-                             Margin="0,12,0,0"
-                             Text="{Binding BrainInstallSummary}"
-                             TextWrapping="Wrap"
-                             FontSize="13"
-                             Style="{StaticResource MutedText}" />
-                </Grid>
+                </Border>
               </StackPanel>
             </Border>
 

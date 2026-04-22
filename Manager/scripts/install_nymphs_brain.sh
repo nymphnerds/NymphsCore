@@ -272,13 +272,20 @@ mkdir -p \
   "${OPEN_WEBUI_LOG_DIR}" \
   "${SECRET_DIR}"
 
-if [[ "${MODEL_ID}" == "auto" ]]; then
+if [[ "${MODEL_ID}" == "auto" && "${DOWNLOAD_MODEL}" == "1" ]]; then
   VRAM_MB="$(detect_vram_mb)"
   choose_auto_model "${VRAM_MB:-0}"
   echo "Auto model selected from detected VRAM (${VRAM_MB:-0} MB): ${MODEL_ID}"
+elif [[ "${MODEL_ID}" == "auto" ]]; then
+  MODEL_ID=""
+  echo "No Brain model configured during install."
+  echo "Use the Manager Brain page 'Manage Models' action after install to download/select Act and Plan models."
 fi
 
-DL_TARGET="${MODEL_ID}@${QUANTIZATION}"
+DL_TARGET=""
+if [[ -n "${MODEL_ID}" ]]; then
+  DL_TARGET="${MODEL_ID}@${QUANTIZATION}"
+fi
 
 export DEBIAN_FRONTEND=noninteractive
 MISSING_CRITICAL=()
@@ -396,7 +403,7 @@ Notes
 - Cline can use the same endpoints with transport type streamableHttp.
 EOF
 
-if [[ "${DOWNLOAD_MODEL}" == "1" ]]; then
+if [[ "${DOWNLOAD_MODEL}" == "1" && -n "${DL_TARGET}" ]]; then
   if ! command -v lms >/dev/null 2>&1; then
     echo "LM Studio CLI command 'lms' was not found after install." >&2
     echo "Open a new shell or check the LM Studio CLI install output, then rerun this script." >&2
@@ -404,8 +411,12 @@ if [[ "${DOWNLOAD_MODEL}" == "1" ]]; then
   fi
   echo "Downloading model: ${DL_TARGET}"
   lms get "${DL_TARGET}" --yes
+elif [[ "${DOWNLOAD_MODEL}" == "1" ]]; then
+  echo "Skipping model download because no Brain model was selected during install."
+  echo "Use the Manager Brain page 'Manage Models' action after install to download/select a model."
 else
-  echo "Skipping model download. The wrapper is configured for ${DL_TARGET}."
+  echo "Skipping model download during install."
+  echo "Use the Manager Brain page 'Manage Models' action after install to download/select a model."
 fi
 
 cat > "${INSTALL_ROOT}/nymph-agent.py" <<'PYEOF'
@@ -485,6 +496,77 @@ fi
 
 declare -A LOADED_MODEL_KEYS=()
 
+json_model_keys() {
+  if [[ -x "${INSTALL_ROOT}/venv/bin/python3" ]]; then
+    "${INSTALL_ROOT}/venv/bin/python3" -c '
+import json
+import sys
+
+try:
+    data = json.load(sys.stdin)
+except Exception:
+    data = []
+
+if isinstance(data, dict):
+    for key in ("models", "llms", "data"):
+        if isinstance(data.get(key), list):
+            data = data[key]
+            break
+    else:
+        data = []
+
+for item in data if isinstance(data, list) else []:
+    if isinstance(item, dict):
+        model_key = item.get("modelKey") or item.get("key") or item.get("id")
+        if model_key:
+            print(model_key)
+'
+  else
+    python3 -c '
+import json
+import sys
+
+try:
+    data = json.load(sys.stdin)
+except Exception:
+    data = []
+
+if isinstance(data, dict):
+    for key in ("models", "llms", "data"):
+        if isinstance(data.get(key), list):
+            data = data[key]
+            break
+    else:
+        data = []
+
+for item in data if isinstance(data, list) else []:
+    if isinstance(item, dict):
+        model_key = item.get("modelKey") or item.get("key") or item.get("id")
+        if model_key:
+            print(model_key)
+'
+  fi
+}
+
+lms_model_keys() {
+  local model_json
+  model_json="$(lms ls --llm --json 2>/dev/null || printf '[]')"
+  printf '%s' "${model_json}" | json_model_keys
+}
+
+model_is_downloaded() {
+  local model_id="$1"
+  local downloaded_model
+
+  while IFS= read -r downloaded_model; do
+    if [[ "${downloaded_model}" == "${model_id}" ]]; then
+      return 0
+    fi
+  done < <(lms_model_keys)
+
+  return 1
+}
+
 load_profile() {
   local role="$1"
   local model_id="$2"
@@ -498,6 +580,14 @@ load_profile() {
   if [[ -n "${LOADED_MODEL_KEYS[${model_key}]:-}" ]]; then
     echo "Skipping ${role} model because it matches ${LOADED_MODEL_KEYS[${model_key}]}. (${model_id}, context ${context_length})"
     return 0
+  fi
+
+  if ! model_is_downloaded "${model_id}"; then
+    echo "Cannot load ${role} model because it is not downloaded in LM Studio: ${model_id}" >&2
+    echo "Use the Manager Brain page 'Manage Models' flow to download/select a model, then start Brain again." >&2
+    echo "Downloaded LM Studio model keys:" >&2
+    lms_model_keys | sed 's/^/- /' >&2 || true
+    return 2
   fi
 
   echo "Loading ${role} model: ${model_id} (context ${context_length})"

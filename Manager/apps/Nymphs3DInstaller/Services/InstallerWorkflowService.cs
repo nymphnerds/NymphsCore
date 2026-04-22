@@ -355,9 +355,6 @@ public sealed class InstallerWorkflowService
         var scriptArguments = new List<string>
         {
             "--install-root", settings.BrainInstallRoot,
-            "--model", settings.BrainModelId,
-            "--quant", settings.BrainQuantization,
-            "--context", settings.BrainContextLength.ToString(),
             "--quiet",
         };
 
@@ -390,9 +387,7 @@ public sealed class InstallerWorkflowService
         progress.Report(gpuVramMb > 0
             ? $"Nymphs-Brain: detected {gpuVramMb} MB GPU VRAM from Windows for model recommendations."
             : "Nymphs-Brain: GPU VRAM detection failed, using WSL fallback.");
-        progress.Report(settings.DownloadBrainModelNow
-            ? $"Nymphs-Brain: selected model will be downloaded now ({settings.BrainModelId})."
-            : $"Nymphs-Brain: tools will be installed now; model download is deferred ({settings.BrainModelId}).");
+        progress.Report("Nymphs-Brain: tools will be installed now. Use the Brain page Manage Models action after install to download/select Act and Plan models.");
 
         var result = await _processRunner.RunAsync(
             fileName: "wsl.exe",

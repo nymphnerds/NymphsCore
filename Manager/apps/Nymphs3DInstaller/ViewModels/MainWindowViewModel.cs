@@ -516,12 +516,7 @@ public sealed class MainWindowViewModel : ViewModelBase
                 return "Nymphs-Brain is optional and will not be installed. Core Blender/backend features are unaffected.";
             }
 
-            var modelId = ResolveBrainModelId();
-            var download = DownloadBrainModelNow
-                ? "The selected model will download during install."
-                : "Model download is deferred; tools and wrappers are installed now.";
-
-            return $"Experimental Nymphs-Brain will install to {BrainInstallRoot}. Model: {modelId}, context={BrainContextLength}. {download}";
+            return $"Experimental Nymphs-Brain will install to {BrainInstallRoot}. Model download and Act/Plan selection happen afterward from the Brain page with Manage Models.";
         }
     }
 
@@ -1782,11 +1777,11 @@ public sealed class MainWindowViewModel : ViewModelBase
                 WslProcessors = WslCustomProcessors,
                 WslSwapGb = WslCustomSwapGb,
                 InstallNymphsBrain = InstallNymphsBrain,
-                DownloadBrainModelNow = DownloadBrainModelNow,
+                DownloadBrainModelNow = false,
                 BrainInstallRoot = BrainInstallRoot,
-                BrainModelId = ResolveBrainModelId(),
-                BrainQuantization = ResolveBrainQuantization(),
-                BrainContextLength = BrainContextLength,
+                BrainModelId = "auto",
+                BrainQuantization = "q4_k_m",
+                BrainContextLength = 16384,
                 ModuleOnlyRun = _moduleOnlyRun,
             };
 
@@ -2079,7 +2074,7 @@ public sealed class MainWindowViewModel : ViewModelBase
                 {
                     CurrentStepTitle = "Add Optional Modules";
                     CurrentStepSubtitle =
-                        "Add optional modules to the existing NymphsCore install without running a full repair. Tick Nymphs-Brain below (and set your preferred model preset). Backend runtimes and models will be left untouched unless you also tick model prefetch.";
+                        "Add optional modules to the existing NymphsCore install without running a full repair. Tick Nymphs-Brain below to install the local tools; Brain model downloads are handled later from the Brain page. Backend runtimes and models will be left untouched unless you also tick model prefetch.";
                     PrimaryButtonText = "Install Modules";
                 }
                 else
@@ -2308,17 +2303,7 @@ public sealed class MainWindowViewModel : ViewModelBase
 
     private bool HasValidBrainSelection()
     {
-        if (!InstallNymphsBrain)
-        {
-            return true;
-        }
-
-        if (SelectedBrainModelOption is null || BrainContextLength < 1024)
-        {
-            return false;
-        }
-
-        return !SelectedBrainModelOption.IsCustom || !string.IsNullOrWhiteSpace(CustomBrainModelId);
+        return true;
     }
 
     private string ResolveBrainModelId()
@@ -2359,8 +2344,8 @@ public sealed class MainWindowViewModel : ViewModelBase
         }
 
         return settings.DownloadBrainModelNow
-            ? $"Nymphs-Brain: enabled, install root={settings.BrainInstallRoot}, model={settings.BrainModelId}, context={settings.BrainContextLength}, download now."
-            : $"Nymphs-Brain: enabled, install root={settings.BrainInstallRoot}, model={settings.BrainModelId}, context={settings.BrainContextLength}, model download deferred.";
+            ? $"Nymphs-Brain: enabled, install root={settings.BrainInstallRoot}, model download requested."
+            : $"Nymphs-Brain: enabled, install root={settings.BrainInstallRoot}, model selection handled later with Manage Models.";
     }
 
     private static UpdateCheckPresentation BuildFriendlyUpdateCheckSummary(IEnumerable<string> lines)
