@@ -591,15 +591,26 @@ load_profile() {
   fi
 
   echo "Loading ${role} model: ${model_id} (context ${context_length})"
-  lms load "${model_id}" --gpu "max" --context-length "${context_length}"
+  if ! timeout --foreground 300s lms load "${model_id}" --gpu "max" --context-length "${context_length}" < /dev/null; then
+    echo "LM Studio could not load the ${role} model non-interactively: ${model_id}" >&2
+    echo "Use Manage Models to confirm the downloaded model key, then start Brain again." >&2
+    return 2
+  fi
   LOADED_MODEL_KEYS["${model_key}"]="${role}"
 }
 
 lms server stop >/dev/null 2>&1 || true
 lms server start >/dev/null 2>&1 &
-until curl -fsS http://localhost:1234/v1/models >/dev/null 2>&1; do
+for _ in $(seq 1 90); do
+  if curl -fsS http://localhost:1234/v1/models >/dev/null 2>&1; then
+    break
+  fi
   sleep 1
 done
+if ! curl -fsS http://localhost:1234/v1/models >/dev/null 2>&1; then
+  echo "LM Studio server did not become ready before the timeout." >&2
+  exit 2
+fi
 load_profile "act" "${ACT_MODEL_ID}" "${ACT_CONTEXT_LENGTH}"
 load_profile "plan" "${PLAN_MODEL_ID}" "${PLAN_CONTEXT_LENGTH}"
 WRAPEOF

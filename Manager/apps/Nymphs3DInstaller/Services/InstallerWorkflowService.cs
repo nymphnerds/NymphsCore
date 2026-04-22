@@ -1151,13 +1151,18 @@ public sealed class InstallerWorkflowService
         CancellationToken cancellationToken)
     {
         var toolPath = $"{settings.BrainInstallRoot}/bin/{toolName}";
+        var toolInvocation = toolName == "lms-start"
+            ? $"timeout --foreground 120s {ToBashSingleQuoted(toolPath)}"
+            : ToBashSingleQuoted(toolPath);
         var bashCommand =
             "set -euo pipefail; " +
             $"export HOME={ToBashSingleQuoted($"/home/{settings.LinuxUser}")}; " +
             $"export USER={ToBashSingleQuoted(settings.LinuxUser)}; " +
             $"export LOGNAME={ToBashSingleQuoted(settings.LinuxUser)}; " +
+            "export CI=true; " +
+            "export LMS_NO_INTERACTIVE=1; " +
             $"if [[ ! -x {ToBashSingleQuoted(toolPath)} ]]; then echo 'Nymphs-Brain tool missing: {toolPath}'; exit 1; fi; " +
-            $"{ToBashSingleQuoted(toolPath)}";
+            toolInvocation;
 
         var arguments = new List<string>
         {

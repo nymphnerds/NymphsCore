@@ -656,7 +656,7 @@ public sealed class MainWindowViewModel : ViewModelBase
         ? "Local coding model, MCP gateway, and WebUI controls for Cline and Brain workflows."
         : "Install Nymphs-Brain to unlock the local coding model, MCP gateway, and browser UI.";
 
-    public string BrainPrimaryActionText => IsBrainLlmRunning
+    public string BrainPrimaryActionText => IsBrainChatModelLoaded
         ? "Stop Brain"
         : IsAnyBrainServiceRunning
             ? "Start LLM"
@@ -673,7 +673,9 @@ public sealed class MainWindowViewModel : ViewModelBase
     public string BrainLlmStatusBackground => GetBrainStatusBadgeBackground(_brainLlmState);
 
     public string BrainLlmDetailText => IsBrainLlmRunning
-        ? "OpenAI-compatible endpoint is ready on localhost:1234/v1 for local coding chats."
+        ? IsBrainChatModelLoaded
+            ? "OpenAI-compatible endpoint is ready on localhost:1234/v1 for local coding chats."
+            : "LM Studio server is running, but no chat model is loaded. Use Manage Models, then Start LLM."
         : "Start the local coding model server before connecting tools like Cline.";
 
     public string BrainMcpStatusLabel => CapitalizeStatus(_brainMcpState);
@@ -694,21 +696,35 @@ public sealed class MainWindowViewModel : ViewModelBase
 
     public string BrainModelStatusLabel => !IsBrainInstalled
         ? "Missing"
-        : HasReportedBrainModel()
-            ? (IsBrainLlmRunning ? "Loaded" : "Configured")
-            : "Unknown";
+        : IsBrainChatModelLoaded
+            ? "Loaded"
+            : HasConfiguredBrainModel()
+                ? "Configured"
+                : HasLoadedEmbeddingOnly()
+                    ? "No Chat Model"
+                    : HasReportedBrainModel()
+                        ? "Unknown"
+                        : "Not Set";
 
     public string BrainModelStatusBackground => !IsBrainInstalled
         ? "#B74322"
-        : HasReportedBrainModel()
+        : IsBrainChatModelLoaded
             ? "#235756"
-            : "#6B6259";
+            : HasConfiguredBrainModel() || HasLoadedEmbeddingOnly()
+                ? "#B7791F"
+                : "#6B6259";
 
     public string BrainModelDetailText => !IsBrainInstalled
         ? "Install the Brain module to manage and load local LLM models."
-        : HasReportedBrainModel()
+        : IsBrainChatModelLoaded
             ? BuildBrainModelDetailText()
-            : "No model has been reported yet. Refresh after starting the LLM if needed.";
+            : HasConfiguredBrainModel()
+                ? BuildConfiguredBrainModelDetailText()
+                : HasLoadedEmbeddingOnly()
+                    ? "LM Studio is running with only an embedding model loaded. Use Manage Models to download/select an Act model, then Start LLM."
+                    : HasReportedBrainModel()
+                        ? BuildBrainModelDetailText()
+                        : "No Brain chat model is configured. Use Manage Models to download/select an Act model.";
 
     public RuntimeBackendStatus ZImageRuntimeStatus
     {
@@ -1201,35 +1217,77 @@ public sealed class MainWindowViewModel : ViewModelBase
     {
         var hasAct = HasUsableBrainRoleModel(_brainActModel);
         var hasPlan = HasUsableBrainRoleModel(_brainPlanModel);
+        var loadedText = HasReportedBrainModel() ? _brainLoadedModel : "unknown";
 
         if (hasAct || hasPlan)
         {
             var actText = hasAct ? _brainActModel : "none";
             var planText = hasPlan ? _brainPlanModel : "none";
-            return $"Act: {actText}\nPlan: {planText}";
+            return $"Loaded: {loadedText}\nConfigured Act: {actText}\nConfigured Plan: {planText}";
         }
 
-        return _brainLoadedModel;
+        return $"Loaded: {loadedText}";
+    }
+
+    private string BuildConfiguredBrainModelDetailText()
+    {
+        var actText = HasUsableBrainRoleModel(_brainActModel) ? _brainActModel : "none";
+        var planText = HasUsableBrainRoleModel(_brainPlanModel) ? _brainPlanModel : "none";
+        return $"Configured Act: {actText}\nConfigured Plan: {planText}\nNo chat model is loaded yet. Use Manage Models if needed, then Start LLM.";
     }
 
     private static bool HasUsableBrainRoleModel(string? value)
     {
-        return !string.IsNullOrWhiteSpace(value) &&
-               value is not "unknown" &&
-               value is not "none" &&
-               value is not "not checked" &&
-               value is not "not available";
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return false;
+        }
+
+        return value.Trim().ToLowerInvariant() switch
+        {
+            "unknown" or "none" or "none reported" or "not checked" or "not available" => false,
+            _ => true,
+        };
     }
 
     private bool IsBrainInstalled => string.Equals(_brainInstallState, "installed", StringComparison.OrdinalIgnoreCase);
 
     private bool IsBrainLlmRunning => string.Equals(_brainLlmState, "running", StringComparison.OrdinalIgnoreCase);
 
+    private bool IsBrainChatModelLoaded => IsUsableLoadedBrainChatModel(_brainLoadedModel);
+
     private bool IsBrainMcpRunning => string.Equals(_brainMcpState, "running", StringComparison.OrdinalIgnoreCase);
 
     private bool IsBrainWebUiRunning => string.Equals(_brainWebUiState, "running", StringComparison.OrdinalIgnoreCase);
 
     private bool IsAnyBrainServiceRunning => IsBrainLlmRunning || IsBrainMcpRunning || IsBrainWebUiRunning;
+
+    private bool HasConfiguredBrainModel()
+    {
+        return HasUsableBrainRoleModel(_brainActModel) || HasUsableBrainRoleModel(_brainPlanModel);
+    }
+
+    private bool HasLoadedEmbeddingOnly()
+    {
+        return HasReportedBrainModel() && IsEmbeddingModelName(_brainLoadedModel);
+    }
+
+    private static bool IsUsableLoadedBrainChatModel(string? value)
+    {
+        return HasUsableBrainRoleModel(value) && !IsEmbeddingModelName(value);
+    }
+
+    private static bool IsEmbeddingModelName(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return false;
+        }
+
+        var normalized = value.Trim().ToLowerInvariant();
+        return normalized.Contains("embedding", StringComparison.Ordinal) ||
+               normalized.Contains("embed", StringComparison.Ordinal);
+    }
 
     private void SetBrainRuntimeSnapshot(string install, string llm, string model, string? actModel, string? planModel, string mcp, string webUi)
     {
@@ -1290,11 +1348,6 @@ public sealed class MainWindowViewModel : ViewModelBase
 
     private bool HasReportedBrainModel()
     {
-        if (HasUsableBrainRoleModel(_brainActModel) || HasUsableBrainRoleModel(_brainPlanModel))
-        {
-            return true;
-        }
-
         if (string.IsNullOrWhiteSpace(_brainLoadedModel))
         {
             return false;
@@ -1497,7 +1550,7 @@ public sealed class MainWindowViewModel : ViewModelBase
     {
         EnsureBrainToolsActive();
 
-        if (IsBrainLlmRunning)
+        if (IsBrainChatModelLoaded)
         {
             var stopTools = new List<string>();
 
