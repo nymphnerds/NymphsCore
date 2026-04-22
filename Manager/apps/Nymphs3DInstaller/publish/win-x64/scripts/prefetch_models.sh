@@ -11,6 +11,130 @@ HF_CACHE_DIR="${NYMPHS3D_HF_CACHE_DIR}"
 export HF_HUB_DISABLE_PROGRESS_BARS=1
 configure_nymphs3d_hf_env
 
+cache_size_bytes() {
+  local path="$1"
+  if [[ ! -d "${path}" ]]; then
+    echo 0
+    return
+  fi
+  find "${path}" -type f -printf '%s\n' 2>/dev/null | awk '{ total += $1 } END { printf "%.0f\n", total }'
+}
+
+format_bytes() {
+  local size_bytes="${1:-0}"
+  awk -v bytes="${size_bytes}" 'BEGIN {
+    split("B KiB MiB GiB TiB", units, " ");
+    value = bytes + 0;
+    index = 1;
+    while (value >= 1024 && index < 5) {
+      value = value / 1024;
+      index++;
+    }
+    if (index == 1) {
+      printf "%d %s", value, units[index];
+    } else {
+      printf "%.2f %s", value, units[index];
+    }
+  }'
+}
+
+hf_repo_cache_dir() {
+  local repo_id="$1"
+  local repo_path="${repo_id//\//--}"
+  echo "${HF_CACHE_DIR}/models--${repo_path}"
+}
+
+hf_repo_blob_bytes() {
+  local repo_id="$1"
+  local repo_dir
+  repo_dir="$(hf_repo_cache_dir "${repo_id}")"
+  cache_size_bytes "${repo_dir}/blobs"
+}
+
+hf_repo_incomplete_count() {
+  local repo_id="$1"
+  local repo_dir
+  repo_dir="$(hf_repo_cache_dir "${repo_id}")"
+  if [[ ! -d "${repo_dir}/blobs" ]]; then
+    echo 0
+    return
+  fi
+  find "${repo_dir}/blobs" -type f -name '*.incomplete' 2>/dev/null | wc -l | tr -d ' '
+}
+
+print_hf_download_progress() {
+  local label="$1"
+  local repo_id="$2"
+  local start_cache_bytes="$3"
+  local current_cache_bytes
+  local repo_bytes
+  local incomplete_count
+  local cache_delta
+
+  current_cache_bytes="$(cache_size_bytes "${HF_CACHE_DIR}")"
+  repo_bytes="$(hf_repo_blob_bytes "${repo_id}")"
+  incomplete_count="$(hf_repo_incomplete_count "${repo_id}")"
+  cache_delta=$(( current_cache_bytes - start_cache_bytes ))
+  if [[ "${cache_delta}" -lt 0 ]]; then
+    cache_delta=0
+  fi
+
+  echo "${label}: still downloading ${repo_id}..."
+  echo "- shared HF cache: $(format_bytes "${current_cache_bytes}") (+$(format_bytes "${cache_delta}") during this step)"
+  echo "- repo cache blobs: $(format_bytes "${repo_bytes}") (${incomplete_count} active partial files)"
+}
+
+run_with_hf_download_progress() {
+  local label="$1"
+  local repo_id="$2"
+  shift 2
+
+  local interval="${NYMPHS3D_PREFETCH_PROGRESS_INTERVAL:-10}"
+  local start_cache_bytes
+  local marker
+  local pid
+  local status
+
+  if [[ ! "${interval}" =~ ^[0-9]+$ || "${interval}" -lt 1 ]]; then
+    interval=10
+  fi
+
+  start_cache_bytes="$(cache_size_bytes "${HF_CACHE_DIR}")"
+  marker="$(mktemp "${TMPDIR:-/tmp}/nymphscore-prefetch.XXXXXX.status")"
+  rm -f "${marker}"
+
+  echo "${label}: download started. Progress will update every ${interval}s while Hugging Face is busy."
+  (
+    set +e
+    "$@"
+    status=$?
+    printf '%s\n' "${status}" > "${marker}"
+    exit "${status}"
+  ) &
+  pid=$!
+
+  while [[ ! -f "${marker}" ]]; do
+    sleep "${interval}"
+    if [[ -f "${marker}" ]]; then
+      break
+    fi
+    print_hf_download_progress "${label}" "${repo_id}" "${start_cache_bytes}"
+  done
+
+  wait "${pid}" || true
+  status="$(cat "${marker}" 2>/dev/null || echo 1)"
+  rm -f "${marker}"
+
+  if [[ "${status}" -eq 0 ]]; then
+    print_hf_download_progress "${label}" "${repo_id}" "${start_cache_bytes}"
+    echo "${label}: download step complete."
+  else
+    echo "${label}: download step failed with status ${status}."
+  fi
+
+  return "${status}"
+}
+
 prefetch_nymphs2d2_model() {
   (
     cd "${N2D2_DIR}"
@@ -22,7 +146,10 @@ prefetch_nymphs2d2_model() {
       export NYMPHS3D_HF_TOKEN="${HF_TOKEN}"
     fi
     export HF_HUB_DISABLE_PROGRESS_BARS=1
-    python scripts/prefetch_model.py
+    run_with_hf_download_progress \
+      "Z-Image Turbo model prefetch" \
+      "Tongyi-MAI/Z-Image-Turbo" \
+      python scripts/prefetch_model.py
   )
 }
 
