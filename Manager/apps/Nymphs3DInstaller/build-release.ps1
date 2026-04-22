@@ -10,6 +10,8 @@ $repoRoot = Split-Path -Parent (Split-Path -Parent $scriptRoot)
 $publishBase = Join-Path $scriptRoot "publish"
 $publishRoot = Join-Path $scriptRoot ("publish\" + $Runtime)
 $projectPath = Join-Path $scriptRoot "Nymphs3DInstaller.csproj"
+$binRoot = Join-Path $scriptRoot "bin\Release"
+$objRoot = Join-Path $scriptRoot "obj\Release"
 
 Write-Host "Publishing NymphsCore Manager for $Runtime..."
 
@@ -18,7 +20,18 @@ if (-not (Test-Path $projectPath)) {
     throw "Project file not found: $projectPath"
 }
 
-dotnet publish $projectPath -c Release -r $Runtime -o $publishRoot
+# Force a clean rebuild so linked WPF resources like sidebar logos always refresh.
+if (Test-Path $publishRoot) {
+    Remove-Item -Path $publishRoot -Recurse -Force
+}
+if (Test-Path $binRoot) {
+    Remove-Item -Path $binRoot -Recurse -Force
+}
+if (Test-Path $objRoot) {
+    Remove-Item -Path $objRoot -Recurse -Force
+}
+
+dotnet publish $projectPath -c Release -r $Runtime -o $publishRoot -p:NoIncremental=true
 if ($LASTEXITCODE -ne 0) {
     throw "dotnet publish failed."
 }
