@@ -674,25 +674,25 @@ public sealed class MainWindowViewModel : ViewModelBase
 
     public string BrainLlmDetailText => IsBrainLlmRunning
         ? IsBrainChatModelLoaded
-            ? "OpenAI-compatible endpoint is ready on localhost:1234/v1 for local coding chats."
-            : "LM Studio server is running, but no chat model is loaded. Use Manage Models, then Start LLM."
-        : "Start the local coding model server before connecting tools like Cline.";
+            ? "Local endpoint ready."
+            : "Server running; no chat model."
+        : "Local endpoint stopped.";
 
     public string BrainMcpStatusLabel => CapitalizeStatus(_brainMcpState);
 
     public string BrainMcpStatusBackground => GetBrainStatusBadgeBackground(_brainMcpState);
 
     public string BrainMcpDetailText => IsBrainMcpRunning
-        ? "Streamable HTTP MCP tools are ready on localhost:8100."
-        : "Start the Brain MCP gateway to expose filesystem, memory, and web-forager tools.";
+        ? "Gateway ready."
+        : "Gateway stopped.";
 
     public string BrainWebUiStatusLabel => CapitalizeStatus(_brainWebUiState);
 
     public string BrainWebUiStatusBackground => GetBrainStatusBadgeBackground(_brainWebUiState);
 
     public string BrainWebUiDetailText => IsBrainWebUiRunning
-        ? "Browser chat UI is available on localhost:8081."
-        : "Launch Open WebUI when you want a local browser-based front end for the Brain stack.";
+        ? "Browser UI ready."
+        : "Browser UI stopped.";
 
     public string BrainModelStatusLabel => !IsBrainInstalled
         ? "Missing"
@@ -719,16 +719,16 @@ public sealed class MainWindowViewModel : ViewModelBase
                 : "#6B6259";
 
     public string BrainModelDetailText => !IsBrainInstalled
-        ? "Install the Brain module to manage and load local LLM models."
+        ? "Brain module missing."
         : IsBrainChatModelLoaded
             ? BuildBrainModelDetailText()
             : HasConfiguredActModel() || HasConfiguredPlanModel()
                 ? BuildConfiguredBrainModelDetailText()
-                : HasLoadedEmbeddingOnly()
-                    ? "LM Studio is running with only an embedding model loaded. Use Manage Models to select a local Plan model, then Start LLM."
+            : HasLoadedEmbeddingOnly()
+                    ? "Embedding model only."
                     : HasReportedBrainModel()
                         ? BuildBrainModelDetailText()
-                        : "No local Brain Plan model is configured yet. Use Manage Models to select a Plan model. An Act model can stay external.";
+                        : "No plan model set.";
 
     public RuntimeBackendStatus ZImageRuntimeStatus
     {
@@ -1252,7 +1252,7 @@ public sealed class MainWindowViewModel : ViewModelBase
         {
             var actText = hasAct ? _brainActModel : "none";
             var planText = hasPlan ? _brainPlanModel : "none";
-            return $"Loaded: {loadedText}\nConfigured Plan: {planText}\nConfigured Act: {actText}";
+            return $"Plan: {planText}\nAct: {actText}";
         }
 
         return $"Loaded: {loadedText}";
@@ -1264,18 +1264,7 @@ public sealed class MainWindowViewModel : ViewModelBase
         var hasPlan = HasConfiguredPlanModel();
         var actText = hasAct ? _brainActModel : "none";
         var planText = hasPlan ? _brainPlanModel : "none";
-
-        if (hasPlan && !hasAct)
-        {
-            return $"Configured Plan: {planText}\nConfigured Act: {actText}\nA Plan model is set. Start Brain will load the local Plan model. An Act model can remain external if that is your workflow.";
-        }
-
-        if (hasAct && !hasPlan)
-        {
-            return $"Configured Plan: {planText}\nConfigured Act: {actText}\nAn Act model is set and can be loaded when you start Brain. A Plan model is optional.";
-        }
-
-        return $"Configured Plan: {planText}\nConfigured Act: {actText}\nNo chat model is loaded yet. Use Manage Models if needed, then Start LLM.";
+        return $"Plan: {planText}\nAct: {actText}";
     }
 
     private static bool HasUsableBrainRoleModel(string? value)
