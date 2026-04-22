@@ -1598,7 +1598,47 @@ echo "Brain install: $([[ -x "${SCRIPT_DIR}/lms-start" ]] && echo installed || e
 
 if curl "${CURL_CHECK_ARGS[@]}" "http://127.0.0.1:1234/v1/models" >/tmp/nymphs-brain-models.json 2>/dev/null; then
   echo "LLM server: running"
-  MODEL_OUTPUT="$("${INSTALL_ROOT}/venv/bin/python3" -c "import json; from pathlib import Path; data=json.loads(Path('/tmp/nymphs-brain-models.json').read_text(encoding='utf-8')); models=data.get('data', []); loaded=[item.get('id') for item in models if isinstance(item, dict) and item.get('id')]; print(', '.join(loaded) if loaded else 'none reported')" 2>/dev/null || echo unknown)"
+  MODEL_OUTPUT="$(timeout --foreground 5s lms ps --json 2>/tmp/nymphs-brain-models.err | "${INSTALL_ROOT}/venv/bin/python3" -c '
+import json
+import sys
+
+def extract_model_keys(payload):
+    if isinstance(payload, dict):
+        for key in ("models", "llms", "data"):
+            value = payload.get(key)
+            if isinstance(value, list):
+                payload = value
+                break
+        else:
+            payload = []
+    if not isinstance(payload, list):
+        return []
+
+    keys = []
+    for item in payload:
+        if not isinstance(item, dict):
+            continue
+        model = item.get("model")
+        key = (
+            item.get("modelKey")
+            or item.get("key")
+            or item.get("id")
+            or (model.get("modelKey") if isinstance(model, dict) else None)
+            or (model.get("key") if isinstance(model, dict) else None)
+            or (model.get("id") if isinstance(model, dict) else None)
+        )
+        if key:
+            keys.append(str(key))
+    return keys
+
+try:
+    payload = json.load(sys.stdin)
+except Exception:
+    payload = []
+
+loaded = extract_model_keys(payload)
+print(", ".join(loaded) if loaded else "none reported")
+' 2>/dev/null || "${INSTALL_ROOT}/venv/bin/python3" -c "import json; from pathlib import Path; data=json.loads(Path('/tmp/nymphs-brain-models.json').read_text(encoding='utf-8')); models=data.get('data', []); loaded=[item.get('id') for item in models if isinstance(item, dict) and item.get('id')]; print(', '.join(loaded) if loaded else 'none reported')" 2>/dev/null || echo unknown)"
   echo "Model loaded: ${MODEL_OUTPUT}"
 else
   echo "LLM server: stopped"

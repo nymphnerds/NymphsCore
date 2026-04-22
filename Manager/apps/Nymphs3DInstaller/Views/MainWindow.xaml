@@ -6,10 +6,10 @@
         mc:Ignorable="d"
         Title="NymphsCore Manager"
         Icon="/AppAssets/nsw.ico"
-        Width="928"
-        Height="640"
-        MinWidth="768"
-        MinHeight="544"
+        Width="986"
+        Height="680"
+        MinWidth="816"
+        MinHeight="578"
         WindowStartupLocation="CenterScreen"
         Background="#F3EFE6">
   <Window.Resources>
@@ -121,7 +121,7 @@
 
   <Grid Margin="20">
     <Grid.LayoutTransform>
-      <ScaleTransform ScaleX="0.8" ScaleY="0.8" />
+      <ScaleTransform ScaleX="0.85" ScaleY="0.85" />
     </Grid.LayoutTransform>
     <Grid.ColumnDefinitions>
       <ColumnDefinition Width="280" />
@@ -967,19 +967,19 @@
                 <ColumnDefinition Width="Auto" />
               </Grid.ColumnDefinitions>
               <StackPanel Grid.Column="0">
-                <TextBlock Text="Runtime Tools" FontSize="26" FontWeight="Bold" />
-                <TextBlock Margin="0,6,0,0"
+                <TextBlock Text="Runtime Tools" FontSize="24" FontWeight="Bold" />
+                <TextBlock Margin="0,4,0,0"
                            Text="{Binding RuntimeToolsSummary}"
                            TextWrapping="Wrap"
                            FontSize="14"
                            Style="{StaticResource MutedText}" />
               </StackPanel>
               <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top">
-                <Button Width="130" Style="{StaticResource SecondaryActionButton}"
+                <Button Width="118" Style="{StaticResource SecondaryActionButton}"
                         Command="{Binding RefreshRuntimeStatusCommand}" Content="Refresh" />
-                <Button Width="150" Style="{StaticResource SecondaryActionButton}"
+                <Button Width="132" Style="{StaticResource SecondaryActionButton}"
                         Command="{Binding FetchModelsNowCommand}" Content="Fetch Models" />
-                <Button Width="130" Style="{StaticResource SecondaryActionButton}"
+                <Button Width="118" Style="{StaticResource SecondaryActionButton}"
                         Margin="0"
                         Command="{Binding OpenLogFolderCommand}" Content="Open Logs" />
               </StackPanel>
@@ -988,8 +988,8 @@
             <!-- HF token strip. Kept prominent (not collapsed) because authenticated
                  downloads matter for model-gated repos. One-row layout: label |
                  password field | status next to it. -->
-            <Border Margin="0,14,0,0"
-                    Padding="14,10"
+            <Border Margin="0,10,0,0"
+                    Padding="12,8"
                     Background="#F8F3EA"
                     BorderBrush="#E7DDCF"
                     BorderThickness="1"
@@ -1000,29 +1000,29 @@
                   <ColumnDefinition Width="12" />
                   <ColumnDefinition Width="*" />
                   <ColumnDefinition Width="12" />
-                  <ColumnDefinition Width="2*" />
+                  <ColumnDefinition Width="1.6*" />
                 </Grid.ColumnDefinitions>
                 <TextBlock Grid.Column="0"
                            Text="🤗  Hugging Face token"
                            FontWeight="SemiBold"
-                           FontSize="14"
+                           FontSize="13"
                            VerticalAlignment="Center" />
                 <PasswordBox Grid.Column="2"
-                             Padding="8"
+                             Padding="7"
                              FontSize="13"
                              VerticalContentAlignment="Center"
                              PasswordChanged="OnHuggingFaceTokenChanged" />
                 <TextBlock Grid.Column="4"
                            Text="{Binding HuggingFaceTokenStatus}"
                            TextWrapping="Wrap"
-                           FontSize="12"
+                           FontSize="11"
                            VerticalAlignment="Center"
                            Style="{StaticResource MutedText}" />
               </Grid>
             </Border>
 
             <!-- Backend "hero" cards. Now the real focus of the page. -->
-            <Grid Margin="0,14,0,0">
+            <Grid Margin="0,10,0,0">
               <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="12" />
@@ -1034,7 +1034,7 @@
                       BorderBrush="#E5DAC8"
                       BorderThickness="1"
                       CornerRadius="14"
-                      Padding="14"
+                      Padding="12"
                       Margin="0">
                 <StackPanel>
                   <DockPanel LastChildFill="True">
@@ -1047,13 +1047,13 @@
                                  Foreground="White" FontSize="11" FontWeight="SemiBold" />
                     </Border>
                     <TextBlock Text="{Binding ZImageRuntimeStatus.DisplayName}"
-                               FontWeight="SemiBold" FontSize="17" VerticalAlignment="Center" />
+                               FontWeight="SemiBold" FontSize="16" VerticalAlignment="Center" />
                   </DockPanel>
-                  <TextBlock Margin="0,10,0,0"
+                  <TextBlock Margin="0,8,0,0"
                              Text="{Binding ZImageRuntimeStatus.Detail}"
-                             TextWrapping="Wrap" FontSize="13"
+                             TextWrapping="Wrap" FontSize="12"
                              Style="{StaticResource MutedText}" />
-                  <Grid Margin="0,14,0,0">
+                  <Grid Margin="0,10,0,0">
                     <Grid.ColumnDefinitions>
                       <ColumnDefinition Width="*" />
                       <ColumnDefinition Width="8" />
@@ -1074,7 +1074,7 @@
                       BorderBrush="#E5DAC8"
                       BorderThickness="1"
                       CornerRadius="14"
-                      Padding="14"
+                      Padding="12"
                       Margin="0">
                 <StackPanel>
                   <DockPanel LastChildFill="True">
@@ -1087,13 +1087,13 @@
                                  Foreground="White" FontSize="11" FontWeight="SemiBold" />
                     </Border>
                     <TextBlock Text="{Binding TrellisRuntimeStatus.DisplayName}"
-                               FontWeight="SemiBold" FontSize="17" VerticalAlignment="Center" />
+                               FontWeight="SemiBold" FontSize="16" VerticalAlignment="Center" />
                   </DockPanel>
-                  <TextBlock Margin="0,10,0,0"
+                  <TextBlock Margin="0,8,0,0"
                              Text="{Binding TrellisRuntimeStatus.Detail}"
-                             TextWrapping="Wrap" FontSize="13"
+                             TextWrapping="Wrap" FontSize="12"
                              Style="{StaticResource MutedText}" />
-                  <Grid Margin="0,14,0,0">
+                  <Grid Margin="0,10,0,0">
                     <Grid.ColumnDefinitions>
                       <ColumnDefinition Width="*" />
                       <ColumnDefinition Width="8" />
@@ -1110,7 +1110,7 @@
               </Border>
             </Grid>
 
-            <Border Margin="0,14,0,0"
+            <Border Margin="0,10,0,0"
                     Padding="12"
                     Background="#FFFDFC"
                     BorderBrush="#E7DDCF"
@@ -1121,19 +1121,19 @@
                          FontSize="14" Foreground="#3E3A34" TextWrapping="Wrap" />
             </Border>
 
-            <Border Margin="0,14,0,0"
+            <Border Margin="0,10,0,0"
                     Background="#121212"
                     CornerRadius="12"
-                    Padding="10">
+                    Padding="8">
               <StackPanel>
-                <TextBlock Margin="0,0,0,6"
+                <TextBlock Margin="0,0,0,4"
                            Text="Live log"
                            FontWeight="SemiBold"
                            FontSize="14"
                            Foreground="#E8E8E8" />
                 <ListBox x:Name="RuntimeLogListBox"
                          ItemsSource="{Binding LogLines}"
-                         Height="140"
+                         Height="108"
                          FontFamily="Consolas"
                          FontSize="12"
                          Background="Transparent"

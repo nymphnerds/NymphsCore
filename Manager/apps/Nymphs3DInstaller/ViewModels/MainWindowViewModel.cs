@@ -2140,8 +2140,8 @@ public sealed class MainWindowViewModel : ViewModelBase
                 CurrentStepTitle = "System Check";
                 CurrentStepSubtitle =
                     RequiresWslSetup
-                        ? "Windows WSL support is missing or not ready yet. Set up WSL first, then the manager will continue using its own separate NymphsCore distro."
-                        : "Check WSL, existing distro state, NVIDIA visibility, drive availability, and whether a prebuilt NymphsCore.tar is present or the manager should bootstrap a fresh Ubuntu base locally.";
+                        ? "WSL is not ready yet. Set that up first, then continue."
+                        : "Check WSL, distro state, GPU visibility, and drive space.";
                 PrimaryButtonText =
                     !_systemChecksCompleted
                         ? "Checking..."
@@ -2200,7 +2200,7 @@ public sealed class MainWindowViewModel : ViewModelBase
             case 6:
                 CurrentStepTitle = "Runtime Tools";
                 CurrentStepSubtitle =
-                    "Open core backend tools, fetch missing models, and run smoke tests when the required runtimes are ready.";
+                    "Fetch models, check readiness, and run smoke tests.";
                 PrimaryButtonText = "Close";
                 break;
             case 7:
