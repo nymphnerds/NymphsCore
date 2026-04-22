@@ -40,5 +40,11 @@
     <Resource Include="../../../Graphics/NymphBrain.png">
       <Link>Views/Assets/NymphBrain.png</Link>
     </Resource>
+    <Resource Include="../../../Graphics/NymphsCoreLogo.png">
+      <Link>Assets/NymphsCoreLogo.png</Link>
+    </Resource>
+    <Resource Include="../../../Graphics/NymphsCoreLogo.png">
+      <Link>Views/Assets/NymphsCoreLogo.png</Link>
+    </Resource>
   </ItemGroup>
 </Project>
