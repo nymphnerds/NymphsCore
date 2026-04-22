@@ -7,7 +7,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>Nymphs3DInstaller</RootNamespace>
     <AssemblyName>NymphsCoreManager</AssemblyName>
-    <ApplicationIcon>../../../Graphics/nsw.ico</ApplicationIcon>
+    <ApplicationIcon>AppAssets/nsw.ico</ApplicationIcon>
     <Platforms>x64</Platforms>
     <PublishSingleFile>true</PublishSingleFile>
     <SelfContained>false</SelfContained>
@@ -22,29 +22,9 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Resource Include="../../../Graphics/nsw.ico">
-      <Link>Assets/nsw.ico</Link>
-    </Resource>
-    <Resource Include="../../../Graphics/nsw.ico">
-      <Link>Views/Assets/nsw.ico</Link>
-    </Resource>
-    <Resource Include="../../../Graphics/splash.png">
-      <Link>Assets/splash.png</Link>
-    </Resource>
-    <Resource Include="../../../Graphics/splash.png">
-      <Link>Views/Assets/splash.png</Link>
-    </Resource>
-    <Resource Include="../../../Graphics/NymphBrain.png">
-      <Link>Assets/NymphBrain.png</Link>
-    </Resource>
-    <Resource Include="../../../Graphics/NymphBrain.png">
-      <Link>Views/Assets/NymphBrain.png</Link>
-    </Resource>
-    <Resource Include="../../../Graphics/NymphsCoreLogo.png">
-      <Link>Assets/NymphsCoreLogo.png</Link>
-    </Resource>
-    <Resource Include="../../../Graphics/NymphsCoreLogo.png">
-      <Link>Views/Assets/NymphsCoreLogo.png</Link>
-    </Resource>
+    <Resource Include="AppAssets/nsw.ico" />
+    <Resource Include="AppAssets/splash.png" />
+    <Resource Include="AppAssets/NymphBrain.png" />
+    <Resource Include="AppAssets/NymphsCoreLogo.png" />
   </ItemGroup>
 </Project>

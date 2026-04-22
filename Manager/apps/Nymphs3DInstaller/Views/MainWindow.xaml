@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
         Title="NymphsCore Manager"
-        Icon="/Assets/nsw.ico"
+        Icon="/AppAssets/nsw.ico"
         Width="1160"
         Height="800"
         MinWidth="960"
@@ -141,7 +141,7 @@
 
           <Image Grid.Row="2"
                  Panel.ZIndex="0"
-                 Source="/Assets/splash.png"
+                 Source="/AppAssets/splash.png"
                  Width="276"
                  Margin="0,-38,0,0"
                  VerticalAlignment="Top"
@@ -153,7 +153,7 @@
 
           <Image Grid.Row="2"
                  Panel.ZIndex="0"
-                 Source="/Assets/NymphBrain.png"
+                 Source="/AppAssets/NymphBrain.png"
                  Width="250"
                  Margin="0,-26,0,0"
                  VerticalAlignment="Top"
@@ -164,7 +164,7 @@
                  Visibility="{Binding ShowBrainSidebarArt, Converter={StaticResource BoolToVisibilityConverter}}" />
 
         <Image Panel.ZIndex="1"
-               Source="/Assets/NymphsCoreLogo.png"
+               Source="/AppAssets/NymphsCoreLogo.png"
                Height="56"
                Margin="0,0,0,2"
                HorizontalAlignment="Left"
