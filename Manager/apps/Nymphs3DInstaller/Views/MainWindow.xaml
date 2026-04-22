@@ -6,10 +6,10 @@
         mc:Ignorable="d"
         Title="NymphsCore Manager"
         Icon="/AppAssets/nsw.ico"
-        Width="1160"
-        Height="800"
-        MinWidth="960"
-        MinHeight="680"
+        Width="696"
+        Height="480"
+        MinWidth="576"
+        MinHeight="408"
         WindowStartupLocation="CenterScreen"
         Background="#F3EFE6">
   <Window.Resources>
@@ -120,6 +120,9 @@
 	  </Window.Resources>
 
   <Grid Margin="20">
+    <Grid.LayoutTransform>
+      <ScaleTransform ScaleX="0.6" ScaleY="0.6" />
+    </Grid.LayoutTransform>
     <Grid.ColumnDefinitions>
       <ColumnDefinition Width="280" />
       <ColumnDefinition Width="24" />
