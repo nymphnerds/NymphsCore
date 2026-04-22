@@ -656,11 +656,9 @@ public sealed class MainWindowViewModel : ViewModelBase
         ? "Local coding model, MCP gateway, and WebUI controls for Cline and Brain workflows."
         : "Install Nymphs-Brain to unlock the local coding model, MCP gateway, and browser UI.";
 
-    public string BrainPrimaryActionText => IsBrainChatModelLoaded
+    public string BrainPrimaryActionText => IsAnyBrainServiceRunning
         ? "Stop Brain"
-        : IsAnyBrainServiceRunning
-            ? "Start LLM"
-            : "Start Brain";
+        : "Start Brain";
 
     public string BrainWebUiActionText => IsBrainWebUiRunning ? "Stop WebUI" : "Start WebUI";
 
@@ -1587,7 +1585,7 @@ public sealed class MainWindowViewModel : ViewModelBase
     {
         EnsureBrainToolsActive();
 
-        if (IsBrainChatModelLoaded)
+        if (IsAnyBrainServiceRunning)
         {
             var stopTools = new List<string>();
 
@@ -1611,16 +1609,6 @@ public sealed class MainWindowViewModel : ViewModelBase
                 "Stopping Nymphs-Brain services...",
                 "Nymphs-Brain services stopped.",
                 "Nymphs-Brain services failed to stop cleanly.").ConfigureAwait(true);
-            return;
-        }
-
-        if (IsAnyBrainServiceRunning)
-        {
-            await RunNymphsBrainToolActionAsync(
-                "lms-start",
-                "Starting Nymphs-Brain LLM server...",
-                "Nymphs-Brain LLM server started.",
-                "Nymphs-Brain LLM server failed to start.").ConfigureAwait(true);
             return;
         }
 
