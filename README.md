@@ -16,12 +16,11 @@ Use it when you want the Nymphs backend on your own Windows PC, without manually
 
 ### What It Installs
 
-The manager imports and maintains a dedicated WSL distro named `NymphsCore`.
+The lite manager imports and maintains a dedicated WSL distro named `NymphsCore_Lite`.
 
 Inside that distro, it prepares the supported local backend stack:
 
 - `TRELLIS.2` for single-image image-to-3D and texture/retexture workflows
-- `Hunyuan 2mv` for multiview-guided 3D workflows
 - `Z-Image` / Nunchaku for local image generation
 - CUDA 13.0, Python environments, helper scripts, and runtime checks
 
@@ -43,18 +42,20 @@ To install the local backend on Windows:
 
 1. Download the manager app:
    [NymphsCoreManager-win-x64.zip](https://github.com/nymphnerds/NymphsCore/raw/main/Manager/apps/Nymphs3DInstaller/publish/NymphsCoreManager-win-x64.zip)
-2. Download the base distro package:
-   [NymphsCore.tar](https://drive.google.com/file/d/1PIE9LJCcb06MCQ9G4T5ywrBJ8DWeqR5a/view?usp=drive_link)
-3. Extract the zip to a normal Windows folder.
-4. Put `NymphsCore.tar` beside `NymphsCoreManager.exe`.
-5. Run `NymphsCoreManager.exe`.
+2. Extract the zip to a normal Windows folder.
+3. Run `NymphsCoreManager.exe`.
+4. Let the manager bootstrap its own fresh Ubuntu WSL base locally.
+
+Optional faster path:
+
+- If you already have a compatible `NymphsCore.tar`, place it beside `NymphsCoreManager.exe`.
+- If no tar is present, the lite manager creates the base distro locally instead.
 
 Your extracted folder should look like this:
 
 ```text
 NymphsCoreManager-win-x64/
   NymphsCoreManager.exe
-  NymphsCore.tar
   scripts/
     ...
 ```
@@ -63,20 +64,17 @@ Important:
 
 - Do not run the manager from inside the zip.
 - Extract it first.
-- `NymphsCore.tar` must sit next to `NymphsCoreManager.exe`.
-
-The release zip is intentionally a no-tar archive. It contains the manager exe and helper scripts only; `NymphsCore.tar` stays separate so the GitHub download remains small.
+- `NymphsCore.tar` is optional on the lite no-tar branch.
+- A prebuilt tar is only a faster fallback if you already have one.
 
 ### Quick Start
 
 1. Download `NymphsCoreManager-win-x64.zip`.
 2. Extract it to a normal folder on Windows.
-3. Download `NymphsCore.tar`.
-4. Put `NymphsCore.tar` in the extracted manager folder.
-5. Run `NymphsCoreManager.exe`.
-6. Approve the Windows administrator prompt.
-7. Leave model prefetch turned on unless you need a shorter first install.
-8. Use `Runtime Tools` after install to check backend readiness or run smoke tests.
+3. Run `NymphsCoreManager.exe`.
+4. Approve the Windows administrator prompt.
+5. Leave model prefetch turned on unless you need a shorter first install.
+6. Use `Runtime Tools` after install to check backend readiness or run smoke tests.
 
 The manager build is currently unsigned. If Windows SmartScreen appears, choose `More info`, then `Run anyway`.
 
@@ -102,10 +100,10 @@ For the detailed disk story, read:
 The manager walks through these steps:
 
 - `Welcome`: explains the local runtime and links to docs
-- `System Check`: checks administrator access, WSL, NVIDIA visibility, install files, and existing distros
+- `System Check`: checks administrator access, WSL, NVIDIA visibility, optional prebuilt distro package, and existing distros
 - `Install Location`: chooses the Windows drive/folder for the managed distro
 - `WSL Resources And Models`: chooses WSL resource settings, model prefetch, and optional experimental modules
-- `Installation Progress`: imports the distro and prepares runtime environments
+- `Installation Progress`: bootstraps or imports the distro and prepares runtime environments
 - `Finish`: summarizes the install
 - `Runtime Tools`: checks backend status, fetches missing models, and runs smoke tests
 
@@ -151,7 +149,7 @@ The current Brain stack supports:
 
 Use `Runtime Tools` to:
 
-- check whether `Hunyuan 2mv`, `Z-Image`, and `TRELLIS.2` are ready
+- check whether `Z-Image` and `TRELLIS.2` are ready
 - fetch missing model files into an existing install
 - run backend smoke tests
 - confirm the local API can start
@@ -182,7 +180,7 @@ If something fails, send the newest `installer-run-*.log` and a screenshot of th
 
 Common causes:
 
-- `NymphsCore.tar` is missing or not beside `NymphsCoreManager.exe`
+- WSL is too old for local no-tar bootstrap, or an optional prebuilt tar is incompatible
 - the manager was launched from inside the zip
 - not enough free disk space
 - WSL is disabled or unhealthy

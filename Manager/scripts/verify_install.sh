@@ -4,14 +4,13 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "${ROOT_DIR}/scripts/common_paths.sh"
 
-H2_DIR="${NYMPHS3D_H2_DIR}"
 N2D2_DIR="${NYMPHS3D_N2D2_DIR}"
 TRELLIS_DIR="${NYMPHS3D_TRELLIS_DIR}"
 SMOKE_TEST_BACKEND=""
 
 usage() {
   cat <<'EOF'
-Usage: verify_install.sh [--smoke-test 2mv|zimage|trellis|all]
+Usage: verify_install.sh [--smoke-test zimage|trellis|all]
 
 Default behavior performs a fast local verification:
 - repo presence
@@ -21,7 +20,6 @@ Default behavior performs a fast local verification:
 - prefetched model availability checks
 
 Optional smoke tests start a local API server and poll /server_info:
-- --smoke-test 2mv
 - --smoke-test zimage
 - --smoke-test trellis
 - --smoke-test all
@@ -42,31 +40,6 @@ configure_cuda_env() {
 
 configure_hf_env() {
   configure_nymphs3d_hf_env
-}
-
-verify_prefetched_models() {
-  local repo="$1"
-  local spec_json="$2"
-
-  (
-    cd "${repo}"
-    source .venv/bin/activate
-    configure_hf_env
-    python - <<'PY' "${spec_json}"
-import json
-import sys
-from huggingface_hub import snapshot_download
-
-specs = json.loads(sys.argv[1])
-for spec in specs:
-    snapshot_download(
-        repo_id=spec["repo_id"],
-        allow_patterns=spec["allow_patterns"],
-        local_files_only=True,
-    )
-print("Prefetched model snapshots available.")
-PY
-  )
 }
 
 verify_nymphs2d2() {
@@ -97,48 +70,6 @@ print("Runtime imports available for the Z-Image backend.")
 PY
     python scripts/prefetch_model.py --local-files-only
   )
-}
-
-verify_hunyuan2() {
-  echo "Verifying Hunyuan3D-2..."
-  require_file "${H2_DIR}/.git"
-  require_file "${H2_DIR}/.venv/bin/python"
-  require_file "${H2_DIR}/requirements.lock.txt"
-
-  (
-    cd "${H2_DIR}"
-    source .venv/bin/activate
-    configure_cuda_env
-    python --version
-    python -m py_compile api_server_mv.py progress_state.py
-    python - <<'PY'
-import requests
-import torch
-import custom_rasterizer_kernel
-from hy3dgen.texgen.differentiable_renderer.mesh_processor import meshVerticeInpaint
-
-print("Runtime imports available for Hunyuan3D-2.")
-PY
-  )
-
-  verify_prefetched_models "${H2_DIR}" '[
-    {
-      "repo_id": "tencent/Hunyuan3D-2mv",
-      "allow_patterns": [
-        "hunyuan3d-dit-v2-mv/*",
-        "hunyuan3d-dit-v2-mv-turbo/*"
-      ]
-    },
-    {
-      "repo_id": "tencent/Hunyuan3D-2",
-      "allow_patterns": [
-        "hunyuan3d-vae-v2-0/*",
-        "hunyuan3d-vae-v2-0-turbo/*",
-        "hunyuan3d-delight-v2-0/*",
-        "hunyuan3d-paint-v2-0-turbo/*"
-      ]
-    }
-  ]'
 }
 
 verify_trellis() {
@@ -204,9 +135,6 @@ PY
 run_smoke_tests() {
   local target="$1"
   case "${target}" in
-    2mv)
-      "${ROOT_DIR}/scripts/smoke_test_server.sh" --backend 2mv
-      ;;
     zimage)
       "${ROOT_DIR}/scripts/smoke_test_server.sh" --backend zimage
       ;;
@@ -214,7 +142,6 @@ run_smoke_tests() {
       "${ROOT_DIR}/scripts/smoke_test_server.sh" --backend trellis
       ;;
     all)
-      "${ROOT_DIR}/scripts/smoke_test_server.sh" --backend 2mv
       "${ROOT_DIR}/scripts/smoke_test_server.sh" --backend zimage
       "${ROOT_DIR}/scripts/smoke_test_server.sh" --backend trellis
       ;;
@@ -231,7 +158,7 @@ while [[ $# -gt 0 ]]; do
     --smoke-test)
       shift
       if [[ $# -eq 0 ]]; then
-        echo "--smoke-test requires one of: 2mv, zimage, trellis, all"
+        echo "--smoke-test requires one of: zimage, trellis, all"
         exit 1
       fi
       SMOKE_TEST_BACKEND="$1"
@@ -251,7 +178,6 @@ done
 
 echo "Running post-install verification..."
 
-verify_hunyuan2
 verify_nymphs2d2
 verify_trellis
 require_file "${ROOT_DIR}/scripts/install_one_click_windows.ps1"
@@ -261,13 +187,13 @@ if [[ -n "${SMOKE_TEST_BACKEND}" ]]; then
   run_smoke_tests "${SMOKE_TEST_BACKEND}"
 else
   echo "Smoke test skipped."
-  echo "Run ${ROOT_DIR}/scripts/verify_install.sh --smoke-test 2mv for a Hunyuan API startup check."
+  echo "Run ${ROOT_DIR}/scripts/verify_install.sh --smoke-test zimage for a Z-Image API startup check."
   echo "Run ${ROOT_DIR}/scripts/verify_install.sh --smoke-test trellis for a TRELLIS API startup check."
 fi
 
 echo "Post-install verification passed."
 echo "- All managed repos exist"
-echo "- Hunyuan3D-2, Z-Image Turbo via Nunchaku, and TRELLIS.2 venvs are present"
+echo "- Z-Image Turbo via Nunchaku and TRELLIS.2 venvs are present"
 echo "- Core API entrypoints compile"
 echo "- Critical runtime imports succeed"
 echo "- Required prefetched model snapshots and local TRELLIS bundle are present"

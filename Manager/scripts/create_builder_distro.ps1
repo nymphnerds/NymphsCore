@@ -3,7 +3,6 @@ param(
     [string] $BuilderDistroName = "Ubuntu-24.04",
     [string] $RepoBranch = "main",
     [string] $HelperRepoUrl = "https://github.com/nymphnerds/NymphsCore.git",
-    [string] $Hunyuan2RepoUrl = "https://github.com/nymphnerds/Hunyuan3D-2.git",
     [string] $ZImageRepoUrl = "https://github.com/nymphnerds/Nymphs2D2.git",
     [string] $TrellisRepoUrl = "https://github.com/microsoft/TRELLIS.2.git",
     [switch] $Force
@@ -41,6 +40,30 @@ function Invoke-NativeOrThrow {
     }
 }
 
+function ConvertTo-WslPath {
+    param(
+        [string] $WindowsPath
+    )
+
+    if ([string]::IsNullOrWhiteSpace($WindowsPath)) {
+        return $null
+    }
+
+    $normalized = $WindowsPath -replace '\\', '/'
+    if ($normalized -match '^([A-Za-z]):/(.*)$') {
+        $drive = $matches[1].ToLowerInvariant()
+        $rest = $matches[2]
+        return "/mnt/$drive/$rest"
+    }
+
+    $converted = & wsl wslpath -a $WindowsPath 2>$null
+    if ($LASTEXITCODE -ne 0) {
+        return $null
+    }
+
+    return (@($converted) | Select-Object -First 1).Trim()
+}
+
 $existingDistros = @(Get-WslDistroNames)
 $fullBuilderInstallLocation = [System.IO.Path]::GetFullPath($BuilderInstallLocation)
 $parentDir = Split-Path -Parent $fullBuilderInstallLocation
@@ -70,27 +93,31 @@ Write-Host "This uses a fresh Ubuntu install on the target drive and avoids expo
 Write-Host "Windows may download Ubuntu files and this can take a few minutes."
 Invoke-NativeOrThrow -FilePath "wsl" -ArgumentList @("--install", "--distribution", $BuilderDistroName, "--location", $fullBuilderInstallLocation, "--no-launch") -FailureMessage "Failed to install fresh builder distro"
 
+$bootstrapScriptPath = Join-Path $PSScriptRoot "bootstrap_fresh_distro_root.sh"
+if (-not (Test-Path $bootstrapScriptPath)) {
+    throw "Bootstrap script was not found: $bootstrapScriptPath"
+}
+
+$bootstrapScriptWslPath = ConvertTo-WslPath -WindowsPath $bootstrapScriptPath
+if ([string]::IsNullOrWhiteSpace($bootstrapScriptWslPath)) {
+    throw "Failed to convert bootstrap script path for WSL access: $bootstrapScriptPath"
+}
+
 $bootstrapCommand = @'
 set -euo pipefail
-export DEBIAN_FRONTEND=noninteractive
-apt-get update
-apt-get install -y git ca-certificates curl wget sudo python3 python3-venv python3-pip
-mkdir -p /opt/nymphs3d /opt/nymphs3d/runtime
-rm -rf /opt/nymphs3d/Nymphs3D
-git clone --branch "__REPO_BRANCH__" --single-branch "__HELPER_REPO_URL__" /opt/nymphs3d/Nymphs3D
-export NYMPHS3D_HELPER_ROOT=/opt/nymphs3d/Nymphs3D
-export NYMPHS3D_RUNTIME_ROOT=/opt/nymphs3d/runtime
-export NYMPHS3D_H2_REPO_URL="__H2_REPO_URL__"
+export NYMPHS3D_HELPER_REPO_URL="__HELPER_REPO_URL__"
+export NYMPHS3D_HELPER_REPO_BRANCH="__REPO_BRANCH__"
 export NYMPHS3D_N2D2_REPO_URL="__Z_IMAGE_REPO_URL__"
 export NYMPHS3D_TRELLIS_REPO_URL="__TRELLIS_REPO_URL__"
-/bin/bash /opt/nymphs3d/Nymphs3D/scripts/prepare_fresh_builder_distro.sh
+export NYMPHS3D_BOOTSTRAP_PREPARE_RUNTIME_REPOS=1
+/bin/bash "__BOOTSTRAP_SCRIPT_PATH__"
 '@
 
-$bootstrapCommand = $bootstrapCommand.Replace("__REPO_BRANCH__", $RepoBranch)
 $bootstrapCommand = $bootstrapCommand.Replace("__HELPER_REPO_URL__", $HelperRepoUrl)
-$bootstrapCommand = $bootstrapCommand.Replace("__H2_REPO_URL__", $Hunyuan2RepoUrl)
+$bootstrapCommand = $bootstrapCommand.Replace("__REPO_BRANCH__", $RepoBranch)
 $bootstrapCommand = $bootstrapCommand.Replace("__Z_IMAGE_REPO_URL__", $ZImageRepoUrl)
 $bootstrapCommand = $bootstrapCommand.Replace("__TRELLIS_REPO_URL__", $TrellisRepoUrl)
+$bootstrapCommand = $bootstrapCommand.Replace("__BOOTSTRAP_SCRIPT_PATH__", $bootstrapScriptWslPath)
 
 Write-Host "Bootstrapping fresh builder distro contents..."
 Write-Host "This clones only the helper repo and backend source repos into /opt/nymphs3d."

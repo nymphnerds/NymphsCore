@@ -26,6 +26,34 @@ if [[ ! -d "${REPO_DIR}/.git" ]]; then
   exit 1
 fi
 
+LOCK_FILE="${REPO_DIR}/requirements.lock.txt"
+if [[ ! -f "${LOCK_FILE}" ]]; then
+  echo "Missing lock file: ${LOCK_FILE}"
+  echo "Trying to repair the existing Z-Image git checkout before cloning from scratch."
+
+  if ! managed_repo_repair_checkout "Z-Image backend" "${REPO_DIR}" "${REPO_URL}" "${REPO_BRANCH}"; then
+    echo "In-place Z-Image checkout repair failed."
+  fi
+fi
+
+if [[ ! -f "${LOCK_FILE}" ]]; then
+  echo "Missing lock file after repair attempt: ${LOCK_FILE}"
+  echo "Removing the incomplete managed Z-Image checkout and cloning a clean copy."
+  managed_repo_remove_path "Z-Image backend" "${REPO_DIR}"
+  managed_repo_clone "Z-Image backend" "${REPO_DIR}" "${REPO_URL}" "${REPO_BRANCH}"
+
+  if [[ ! -d "${REPO_DIR}/.git" ]]; then
+    echo "Expected repo checkout is still missing at ${REPO_DIR} after retry."
+    exit 1
+  fi
+
+  if [[ ! -f "${LOCK_FILE}" ]]; then
+    echo "Missing lock file after clean clone: ${LOCK_FILE}"
+    echo "The Z-Image backend clone completed without the expected installer lockfile."
+    exit 1
+  fi
+fi
+
 cd "${REPO_DIR}"
 
 LIVE_VENV_DIR="${REPO_DIR}/.venv-nunchaku"
@@ -74,12 +102,6 @@ fi
 if ! "${VENV_PYTHON}" -c 'import torch' >/dev/null 2>&1; then
   echo "Installing PyTorch for Z-Image Turbo via Nunchaku runtime"
   "${VENV_PIP}" install torch==2.11.0 torchvision torchaudio --index-url https://download.pytorch.org/whl/cu130
-fi
-
-LOCK_FILE="${REPO_DIR}/requirements.lock.txt"
-if [[ ! -f "${LOCK_FILE}" ]]; then
-  echo "Missing lock file: ${LOCK_FILE}"
-  exit 1
 fi
 
 FILTERED_LOCK_FILE="$(mktemp)"

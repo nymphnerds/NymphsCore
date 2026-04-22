@@ -16,6 +16,38 @@ managed_repo_reset_state() {
 
 : "${NYMPHS3D_MANAGED_REPO_FETCH_TIMEOUT_SECONDS:=20}"
 
+managed_repo_run_git() {
+  local token="${NYMPHS3D_GITHUB_TOKEN:-${GITHUB_TOKEN:-}}"
+  local askpass_file=""
+  local exit_code=0
+
+  if [[ -z "${token}" ]]; then
+    GIT_TERMINAL_PROMPT=0 "$@"
+    return $?
+  fi
+
+  askpass_file="$(mktemp)"
+  cat > "${askpass_file}" <<'EOF'
+#!/usr/bin/env bash
+case "$1" in
+  *Username*)
+    printf '%s\n' "x-access-token"
+    ;;
+  *Password*)
+    printf '%s\n' "${NYMPHS3D_GITHUB_TOKEN:-${GITHUB_TOKEN:-}}"
+    ;;
+  *)
+    printf '\n'
+    ;;
+esac
+EOF
+  chmod 700 "${askpass_file}"
+
+  GIT_TERMINAL_PROMPT=0 GIT_ASKPASS="${askpass_file}" "$@" || exit_code=$?
+  rm -f "${askpass_file}"
+  return "${exit_code}"
+}
+
 managed_repo_print_state() {
   printf 'repo=%s|state=%s|path=%s|branch=%s|local=%s|remote=%s|message=%s\n' \
     "${MANAGED_REPO_NAME}" \
@@ -85,7 +117,7 @@ managed_repo_fetch() {
   local fetch_output
 
   if command -v timeout >/dev/null 2>&1; then
-    fetch_output="$(timeout "${NYMPHS3D_MANAGED_REPO_FETCH_TIMEOUT_SECONDS}" git -C "${repo_path}" fetch --all --prune 2>&1)"
+    fetch_output="$(managed_repo_run_git timeout "${NYMPHS3D_MANAGED_REPO_FETCH_TIMEOUT_SECONDS}" git -C "${repo_path}" fetch --all --prune 2>&1)"
     case $? in
       0)
         return 0
@@ -103,13 +135,94 @@ managed_repo_fetch() {
     esac
   fi
 
-  if ! fetch_output="$(git -C "${repo_path}" fetch --all --prune 2>&1)"; then
+  if ! fetch_output="$(managed_repo_run_git git -C "${repo_path}" fetch --all --prune 2>&1)"; then
     MANAGED_REPO_STATE="fetch_failed"
     MANAGED_REPO_MESSAGE="${fetch_output//$'\n'/ }"
     return 1
   fi
 
   return 0
+}
+
+managed_repo_clone() {
+  local repo_name="$1"
+  local repo_path="$2"
+  local repo_url="$3"
+  local repo_branch="$4"
+  local clone_pid=""
+  local elapsed_seconds=0
+  local heartbeat_seconds="${NYMPHS3D_MANAGED_REPO_CLONE_HEARTBEAT_SECONDS:-10}"
+  local low_speed_limit="${NYMPHS3D_MANAGED_REPO_CLONE_LOW_SPEED_LIMIT:-1024}"
+  local low_speed_time="${NYMPHS3D_MANAGED_REPO_CLONE_LOW_SPEED_TIME:-60}"
+
+  echo "Cloning ${repo_name} from ${repo_url} into ${repo_path}"
+  managed_repo_run_git git \
+    -c "http.lowSpeedLimit=${low_speed_limit}" \
+    -c "http.lowSpeedTime=${low_speed_time}" \
+    clone --progress --branch "${repo_branch}" --single-branch "${repo_url}" "${repo_path}" &
+  clone_pid=$!
+
+  while kill -0 "${clone_pid}" 2>/dev/null; do
+    sleep "${heartbeat_seconds}"
+    if kill -0 "${clone_pid}" 2>/dev/null; then
+      elapsed_seconds=$((elapsed_seconds + heartbeat_seconds))
+      echo "Still cloning ${repo_name} (${elapsed_seconds}s elapsed)..."
+    fi
+  done
+
+  if ! wait "${clone_pid}"; then
+    echo "Clone failed for ${repo_name}."
+    return 1
+  fi
+
+  return 0
+}
+
+managed_repo_remove_path() {
+  local repo_name="$1"
+  local repo_path="$2"
+
+  case "${repo_path}" in
+    ""|"/"|"/home"|"/home/"|"${HOME}"|"${HOME}/"|"."|"..")
+      echo "Refusing to remove unsafe managed repo path for ${repo_name}: ${repo_path:-<empty>}"
+      return 1
+      ;;
+  esac
+
+  case "${repo_path}" in
+    "${HOME}/"*|"/home/nymph/"*)
+      ;;
+    *)
+      echo "Refusing to remove managed repo path outside the installer home for ${repo_name}: ${repo_path}"
+      return 1
+      ;;
+  esac
+
+  echo "Removing incomplete managed ${repo_name} checkout at ${repo_path}"
+  rm -rf -- "${repo_path}"
+}
+
+managed_repo_repair_checkout() {
+  local repo_name="$1"
+  local repo_path="$2"
+  local repo_url="$3"
+  local repo_branch="$4"
+
+  if [[ ! -d "${repo_path}/.git" ]] || ! git -C "${repo_path}" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    echo "${repo_name}: cannot repair ${repo_path} because it is not a readable git checkout."
+    return 1
+  fi
+
+  echo "Repairing ${repo_name} checkout in place with git fetch + reset."
+  if git -C "${repo_path}" remote get-url origin >/dev/null 2>&1; then
+    managed_repo_run_git git -C "${repo_path}" remote set-url origin "${repo_url}"
+  else
+    managed_repo_run_git git -C "${repo_path}" remote add origin "${repo_url}"
+  fi
+  managed_repo_run_git git -C "${repo_path}" fetch origin "${repo_branch}" --prune
+  git -C "${repo_path}" checkout -B "${repo_branch}" "origin/${repo_branch}"
+  git -C "${repo_path}" reset --hard "origin/${repo_branch}"
+  git -C "${repo_path}" clean -fd
 }
 
 managed_repo_is_effectively_dirty() {
@@ -164,7 +277,7 @@ managed_repo_inspect() {
     return 0
   fi
 
-  if [[ ! -d "${repo_path}/.git" ]]; then
+  if [[ ! -d "${repo_path}/.git" ]] || ! git -C "${repo_path}" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
     MANAGED_REPO_STATE="not_git"
     MANAGED_REPO_MESSAGE="Path exists but is not a git checkout."
     return 0
@@ -174,6 +287,11 @@ managed_repo_inspect() {
   if [[ "${remote_url_output}" == *"detected dubious ownership"* ]]; then
     MANAGED_REPO_STATE="unsafe_ownership"
     MANAGED_REPO_MESSAGE="Repo ownership is considered unsafe by git; safe.directory or ownership normalization is required."
+    return 0
+  fi
+  if [[ "${remote_url_output}" == *"not a git repository"* ]]; then
+    MANAGED_REPO_STATE="not_git"
+    MANAGED_REPO_MESSAGE="Path exists but git cannot read it as a repository."
     return 0
   fi
 
@@ -265,10 +383,9 @@ managed_repo_apply() {
 
   case "${MANAGED_REPO_STATE}" in
     missing)
-      echo "Cloning ${repo_name} from ${repo_url} into ${repo_path}"
-      git clone --branch "${repo_branch}" --single-branch "${repo_url}" "${repo_path}"
+      managed_repo_clone "${repo_name}" "${repo_path}" "${repo_url}" "${repo_branch}"
       managed_repo_inspect "${repo_name}" "${repo_path}" "${repo_url}" "${repo_branch}"
-      if [[ "${MANAGED_REPO_STATE}" != "up_to_date" ]]; then
+      if [[ "${MANAGED_REPO_STATE}" != "up_to_date" && "${MANAGED_REPO_STATE}" != "fetch_timed_out" ]]; then
         echo "Managed repo clone verification failed for ${repo_name}."
         managed_repo_print_state
         return 1
@@ -292,7 +409,23 @@ managed_repo_apply() {
       managed_repo_print_state
       return 0
       ;;
-    up_to_date|ahead_local|dirty|detached|diverged|branch_mismatch|remote_mismatch|unsafe_ownership|missing_origin|missing_remote_ref|not_git|fetch_failed)
+    not_git)
+      echo "${repo_name}: ${repo_path} exists but is not a git checkout."
+      managed_repo_remove_path "${repo_name}" "${repo_path}"
+
+      managed_repo_clone "${repo_name}" "${repo_path}" "${repo_url}" "${repo_branch}"
+      managed_repo_inspect "${repo_name}" "${repo_path}" "${repo_url}" "${repo_branch}"
+      if [[ "${MANAGED_REPO_STATE}" != "up_to_date" && "${MANAGED_REPO_STATE}" != "fetch_timed_out" ]]; then
+        echo "Managed repo clone verification failed for ${repo_name}."
+        managed_repo_print_state
+        return 1
+      fi
+      MANAGED_REPO_MESSAGE="Non-git managed path was removed; repo cloned at ${MANAGED_REPO_LOCAL_COMMIT}."
+      managed_repo_human_summary
+      managed_repo_print_state
+      return 0
+      ;;
+    up_to_date|ahead_local|dirty|detached|diverged|branch_mismatch|remote_mismatch|unsafe_ownership|missing_origin|missing_remote_ref|fetch_failed|fetch_timed_out)
       managed_repo_human_summary
       managed_repo_print_state
       return 0

@@ -94,7 +94,6 @@ cleanup_dir_contents() {
 
 if [[ "$remove_models" -eq 1 ]]; then
   echo "Removing model caches..."
-  cleanup_glob "${NYMPHS3D_HF_CACHE_DIR}/models--tencent--Hunyuan3D-2*"
   cleanup_glob "${NYMPHS3D_HF_CACHE_DIR}/models--tencent--Hunyuan3D-2.1*"
   cleanup_glob "${NYMPHS3D_HF_CACHE_DIR}/models--Tencent-Hunyuan--Hunyuan3D-2.1*"
   cleanup_glob "${NYMPHS3D_HF_CACHE_DIR}/models--Tencent-Hunyuan--HunyuanDiT-v1.1-Diffusers-Distilled*"
@@ -106,7 +105,6 @@ fi
 
 if [[ "$remove_venvs" -eq 1 ]]; then
   echo "Removing Python virtual environments..."
-  cleanup_path "${NYMPHS3D_H2_DIR}/.venv"
   cleanup_path "${NYMPHS3D_N2D2_DIR}/.venv"
   cleanup_path "${NYMPHS3D_N2D2_DIR}/.venv-nunchaku"
   cleanup_path "${NYMPHS3D_TRELLIS_DIR}/.venv"
@@ -114,8 +112,6 @@ if [[ "$remove_venvs" -eq 1 ]]; then
 fi
 
 echo "Removing runtime outputs and transient repo state..."
-cleanup_dir_contents "${NYMPHS3D_H2_DIR}/gradio_cache"
-cleanup_path "${NYMPHS3D_H2_DIR}/__pycache__"
 cleanup_dir_contents "${NYMPHS3D_N2D2_DIR}/outputs"
 cleanup_path "${NYMPHS3D_N2D2_DIR}/__pycache__"
 cleanup_dir_contents "${NYMPHS3D_TRELLIS_DIR}/output"

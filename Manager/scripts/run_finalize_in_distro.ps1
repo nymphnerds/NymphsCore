@@ -95,7 +95,6 @@ function Build-LinuxSessionPrefix {
         "export USER=" + (ConvertTo-BashSingleQuoted $UserName) + "; " +
         "export LOGNAME=" + (ConvertTo-BashSingleQuoted $UserName) + "; " +
         'export NYMPHS3D_RUNTIME_ROOT="$HOME"; ' +
-        'export NYMPHS3D_H2_DIR="$HOME/Hunyuan3D-2"; ' +
         'export NYMPHS3D_Z_IMAGE_DIR="$HOME/Z-Image"; ' +
         'export NYMPHS3D_N2D2_DIR="$NYMPHS3D_Z_IMAGE_DIR"; ' +
         'export NYMPHS3D_TRELLIS_DIR="$HOME/TRELLIS.2"; ' +
@@ -138,6 +137,10 @@ try {
     Set-Location $env:SystemRoot
     $wslUserArgs = @(Build-WslUserArgs -UserName $LinuxUser)
     $hfToken = $env:NYMPHS3D_HF_TOKEN
+    $githubToken = $env:NYMPHS3D_GITHUB_TOKEN
+    if ([string]::IsNullOrWhiteSpace($githubToken)) {
+        $githubToken = $env:GITHUB_TOKEN
+    }
     $packagedScriptsDir = ConvertTo-WslPath -WindowsPath $PSScriptRoot
     $originalWslEnv = $env:WSLENV
     $tokenExportPrefix = ""
@@ -156,6 +159,12 @@ try {
         $env:WSLENV = $wslEnvEntries -join ":"
         Write-Host "Hugging Face token detected for installer-time downloads ($($hfToken.Length) chars after trimming)."
         $tokenExportPrefix = "export NYMPHS3D_HF_TOKEN=" + (ConvertTo-BashSingleQuoted $hfToken) + "; "
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($githubToken)) {
+        $githubToken = $githubToken.Trim()
+        Write-Host "GitHub token detected for private backend repo clones ($($githubToken.Length) chars after trimming)."
+        $tokenExportPrefix += "export NYMPHS3D_GITHUB_TOKEN=" + (ConvertTo-BashSingleQuoted $githubToken) + "; "
     }
 
     $sessionPrefix = Build-LinuxSessionPrefix -UserName $LinuxUser -TokenExportPrefix $tokenExportPrefix

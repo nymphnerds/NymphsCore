@@ -7,32 +7,27 @@ This folder contains the Windows manager app for the lean `NymphsCore` WSL runti
 You need:
 
 - `NymphsCoreManager-win-x64.zip`
-- `NymphsCore.tar`
 
 Current manager download:
 
 - [NymphsCoreManager-win-x64.zip](https://github.com/nymphnerds/NymphsCore/raw/main/Manager/apps/Nymphs3DInstaller/publish/NymphsCoreManager-win-x64.zip)
 
-Current base distro package:
+The lite manager bootstraps a fresh Ubuntu WSL base locally if no prebuilt distro package is present.
 
-- [NymphsCore.tar](https://drive.google.com/file/d/1PIE9LJCcb06MCQ9G4T5ywrBJ8DWeqR5a/view?usp=drive_link)
-- Download it separately, then place it in the extracted manager folder next to `NymphsCoreManager.exe`.
-
-The manager zip is intentionally a no-tar archive. It contains the app and helper scripts only.
+Optional: if you already have a compatible `NymphsCore.tar`, place it in the extracted manager folder next to `NymphsCoreManager.exe` to use the faster prebuilt path.
 
 ## Setup
 
 1. Download `NymphsCoreManager-win-x64.zip`.
 2. Extract the zip to a normal folder on Windows.
-3. Download `NymphsCore.tar` from the Google Drive link above.
-4. Place `NymphsCore.tar` in the same extracted folder as `NymphsCoreManager.exe`.
+3. Run `NymphsCoreManager.exe`.
+4. Let the manager create or reuse the dedicated `NymphsCore` WSL distro.
 
 Your folder should look like this:
 
 ```text
 NymphsCoreManager-win-x64/
   NymphsCoreManager.exe
-  NymphsCore.tar
   scripts/
     ...
 ```
@@ -45,15 +40,15 @@ NymphsCoreManager-win-x64/
 4. Continue through the install steps.
 5. After a successful install, use the finish page to:
    - fetch models later without reinstalling
-   - run smoke tests for `Hunyuan 2mv`, `Z-Image`, and `TRELLIS.2`
+   - run smoke tests for `Z-Image` and `TRELLIS.2`
 6. To repair, refresh, or install optional experimental modules later, rerun the latest `NymphsCore Manager`.
 
 ## Important Notes
 
 - Do not run the manager from inside the zip.
 - Extract it first.
-- `NymphsCore.tar` must be next to `NymphsCoreManager.exe`.
-- If the tar is missing, the app shows the download link and tells you where to place it.
+- `NymphsCore.tar` is optional on the lite no-tar branch.
+- If the tar is missing, the app bootstraps a fresh Ubuntu base locally.
 - If an existing `NymphsCore` install is already present, the manager can reuse it for:
   - update checks
   - model downloads
@@ -84,7 +79,7 @@ NymphsCoreManager-win-x64/
 If you are trying to rebuild the manager from source, use:
 
 ```text
-powershell -ExecutionPolicy Bypass -File .\build-release.ps1 -SkipPayloadTar
+powershell -ExecutionPolicy Bypass -File .\build-release.ps1
 ```
 
-That is not required for normal users. Maintainers should keep the release zip at `publish/NymphsCoreManager-win-x64.zip`, not inside `publish/win-x64/`.
+That is not required for normal users. Maintainers should keep the release zip at `publish/NymphsCoreManager-win-x64.zip`, not inside `publish/win-x64/`. The lite build does not require a bundled `NymphsCore.tar`.

@@ -8,7 +8,7 @@ namespace Nymphs3DInstaller.Services;
 
 public sealed class InstallerWorkflowService
 {
-    public const string ManagedDistroName = "NymphsCore";
+    public const string ManagedDistroName = "NymphsCore_Lite";
     public const string ManagedLinuxUser = "nymph";
     public const string WslAvailabilityCheckKey = "wsl_availability";
     public const string ExistingWslDistrosCheckKey = "existing_wsl_distros";
@@ -36,6 +36,8 @@ public sealed class InstallerWorkflowService
     public string PayloadDirectory { get; }
 
     public string BaseTarPath { get; }
+
+    public bool BaseTarAvailable => File.Exists(BaseTarPath);
 
     public string LogFolderPath { get; }
 
@@ -315,12 +317,12 @@ public sealed class InstallerWorkflowService
             }
         }
 
-        var environmentVariables = string.IsNullOrWhiteSpace(settings.HuggingFaceToken)
-            ? null
-            : new Dictionary<string, string?>
-            {
-                ["NYMPHS3D_HF_TOKEN"] = settings.HuggingFaceToken,
-            };
+        var environmentVariables = BuildInstallerTokenEnvironment(settings.HuggingFaceToken);
+        var githubToken = ResolveGitHubTokenFromEnvironment();
+        if (!string.IsNullOrWhiteSpace(githubToken))
+        {
+            progress.Report($"GitHub token: provided for private backend repo clones ({githubToken.Length} chars after trimming).");
+        }
 
         var result = await RunPowerShellScriptAsync(
             runtimeScript,
@@ -521,7 +523,7 @@ public sealed class InstallerWorkflowService
         };
 
         progress.Report("System dependencies: checking base Linux packages needed by optional modules.");
-        progress.Report("System dependencies note: this may run apt briefly if the existing distro was created from an older base tar.");
+        progress.Report("System dependencies note: this may run apt briefly if the existing distro was created from an older base image.");
 
         var result = await RunPowerShellScriptAsync(
             runtimeScript,
@@ -553,12 +555,7 @@ public sealed class InstallerWorkflowService
 
         progress.Report("Model prefetch: downloading required models into the existing NymphsCore runtime.");
 
-        var environmentVariables = string.IsNullOrWhiteSpace(settings.HuggingFaceToken)
-            ? null
-            : new Dictionary<string, string?>
-            {
-                ["NYMPHS3D_HF_TOKEN"] = settings.HuggingFaceToken,
-            };
+        var environmentVariables = BuildInstallerTokenEnvironment(settings.HuggingFaceToken);
 
         var result = await RunPowerShellScriptAsync(
             runtimeScript,
@@ -589,7 +586,6 @@ public sealed class InstallerWorkflowService
             $"export USER={ToBashSingleQuoted(settings.LinuxUser)}; " +
             $"export LOGNAME={ToBashSingleQuoted(settings.LinuxUser)}; " +
             "export NYMPHS3D_RUNTIME_ROOT=\"$HOME\"; " +
-            "export NYMPHS3D_H2_DIR=\"$HOME/Hunyuan3D-2\"; " +
             "export NYMPHS3D_Z_IMAGE_DIR=\"$HOME/Z-Image\"; " +
             "export NYMPHS3D_N2D2_DIR=\"$NYMPHS3D_Z_IMAGE_DIR\"; " +
             "export NYMPHS3D_TRELLIS_DIR=\"$HOME/TRELLIS.2\"; " +
@@ -633,7 +629,6 @@ public sealed class InstallerWorkflowService
             $"export USER={ToBashSingleQuoted(settings.LinuxUser)}; " +
             $"export LOGNAME={ToBashSingleQuoted(settings.LinuxUser)}; " +
             "export NYMPHS3D_RUNTIME_ROOT=\"$HOME\"; " +
-            "export NYMPHS3D_H2_DIR=\"$HOME/Hunyuan3D-2\"; " +
             "export NYMPHS3D_TRELLIS_DIR=\"$HOME/TRELLIS.2\"; " +
             $"bash {ToBashSingleQuoted(wslCheckScriptPath)}";
 
@@ -676,7 +671,6 @@ public sealed class InstallerWorkflowService
             $"export USER={ToBashSingleQuoted(settings.LinuxUser)}; " +
             $"export LOGNAME={ToBashSingleQuoted(settings.LinuxUser)}; " +
             "export NYMPHS3D_RUNTIME_ROOT=\"$HOME\"; " +
-            "export NYMPHS3D_H2_DIR=\"$HOME/Hunyuan3D-2\"; " +
             "export NYMPHS3D_Z_IMAGE_DIR=\"$HOME/Z-Image\"; " +
             "export NYMPHS3D_N2D2_DIR=\"$NYMPHS3D_Z_IMAGE_DIR\"; " +
             "export NYMPHS3D_TRELLIS_DIR=\"$HOME/TRELLIS.2\"; " +
@@ -846,7 +840,7 @@ public sealed class InstallerWorkflowService
             var sizeGiB = fileInfo.Length / (1024d * 1024d * 1024d);
             return new SystemCheckItem(
                 "Base distro package",
-                "Checks that the small NymphsCore base distro tar is available.",
+                "Checks whether a prebuilt base distro package is available.",
                 CheckState.Pass,
                 $"Found {fileInfo.Name} at {fileInfo.FullName} ({sizeGiB:F1} GB).");
         }
@@ -857,23 +851,22 @@ public sealed class InstallerWorkflowService
             {
                 return new SystemCheckItem(
                     "Base distro package",
-                    "Checks that the small NymphsCore base distro tar is available.",
+                    "Checks whether a prebuilt base distro package is available.",
                     CheckState.Warning,
                     $"Base distro tar was not found, but an existing managed {ManagedDistroName} distro was detected. Repair/continue can reuse the existing distro without replacing it.");
             }
         }
         catch
         {
-            // Let the standard missing-tar message surface if WSL inspection is unavailable.
+            // Fall through to the no-tar bootstrap guidance if WSL inspection is unavailable.
         }
 
         return new SystemCheckItem(
             "Base distro package",
-            "Checks that the small NymphsCore base distro tar is available.",
-            CheckState.Fail,
-            "Base distro tar was not found. Download NymphsCore.tar from " +
-            "https://drive.google.com/file/d/1PIE9LJCcb06MCQ9G4T5ywrBJ8DWeqR5a/view?usp=drive_link " +
-            $"then place it next to NymphsCoreManager.exe at {BaseTarPath} and run the checks again.");
+            "Checks whether a prebuilt base distro package is available.",
+            CheckState.Warning,
+            "Base distro tar was not found. This lite branch can bootstrap a fresh Ubuntu base locally instead. " +
+            $"If you later place NymphsCore.tar at {BaseTarPath}, the installer will use it as a faster prebuilt path.");
     }
 
     private SystemCheckItem CheckDriveAvailability()
@@ -1125,6 +1118,37 @@ public sealed class InstallerWorkflowService
             cancellationToken: cancellationToken).ConfigureAwait(false);
     }
 
+    private static Dictionary<string, string?>? BuildInstallerTokenEnvironment(string? huggingFaceToken)
+    {
+        Dictionary<string, string?>? environmentVariables = null;
+
+        if (!string.IsNullOrWhiteSpace(huggingFaceToken))
+        {
+            environmentVariables ??= new Dictionary<string, string?>();
+            environmentVariables["NYMPHS3D_HF_TOKEN"] = huggingFaceToken.Trim();
+        }
+
+        var githubToken = ResolveGitHubTokenFromEnvironment();
+        if (!string.IsNullOrWhiteSpace(githubToken))
+        {
+            environmentVariables ??= new Dictionary<string, string?>();
+            environmentVariables["NYMPHS3D_GITHUB_TOKEN"] = githubToken;
+        }
+
+        return environmentVariables;
+    }
+
+    private static string? ResolveGitHubTokenFromEnvironment()
+    {
+        var token = Environment.GetEnvironmentVariable("NYMPHS3D_GITHUB_TOKEN");
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            token = Environment.GetEnvironmentVariable("GITHUB_TOKEN");
+        }
+
+        return string.IsNullOrWhiteSpace(token) ? null : token.Trim();
+    }
+
     private async Task<CommandResult> RunNymphsBrainCommandAsync(
         InstallSettings settings,
         string toolName,
@@ -1363,7 +1387,14 @@ public sealed class InstallerWorkflowService
         }
         else
         {
-            progress.Report($"Using base tar: {settings.TarPath}");
+            if (File.Exists(settings.TarPath))
+            {
+                progress.Report($"Using base tar: {settings.TarPath}");
+            }
+            else
+            {
+                progress.Report("Base tar not found. Bootstrapping a fresh Ubuntu base locally.");
+            }
             progress.Report($"Import target: {settings.DistroName} -> {settings.InstallLocation}");
         }
 
@@ -1405,7 +1436,6 @@ public sealed class InstallerWorkflowService
     {
         return backend switch
         {
-            "2mv" => "Hunyuan 2mv",
             "zimage" => "Z-Image",
             "trellis" => "TRELLIS.2",
             _ => backend,

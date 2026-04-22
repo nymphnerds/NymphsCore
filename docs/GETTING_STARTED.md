@@ -10,12 +10,11 @@ The Blender addon is installed separately after the backend is ready:
 
 ## What You Are Installing
 
-NymphsCore Manager installs a dedicated WSL distro named `NymphsCore`.
+NymphsCore Manager installs a dedicated WSL distro named `NymphsCore_Lite` on this lite test branch.
 
 Inside it, the manager prepares:
 
 - `TRELLIS.2` for single-image image-to-3D and texture/retexture workflows
-- `Hunyuan 2mv` for multiview-guided shape and texture workflows
 - `Z-Image` / Nunchaku for local image generation
 - CUDA 13.0 inside WSL
 - Python virtual environments for the supported runtimes
@@ -61,30 +60,25 @@ Download the manager zip:
 
 - [NymphsCoreManager-win-x64.zip](https://github.com/nymphnerds/NymphsCore/raw/main/Manager/apps/Nymphs3DInstaller/publish/NymphsCoreManager-win-x64.zip)
 
-Download the base distro tar separately:
-
-- [NymphsCore.tar](https://drive.google.com/file/d/1PIE9LJCcb06MCQ9G4T5ywrBJ8DWeqR5a/view?usp=drive_link)
+The lite manager can bootstrap its own fresh Ubuntu WSL base locally. A compatible `NymphsCore.tar` can still be placed beside the manager as an optional faster prebuilt path, but it is no longer required on this branch.
 
 Then:
 
 1. Extract `NymphsCoreManager-win-x64.zip` to a normal Windows folder.
-2. Put `NymphsCore.tar` in that extracted folder.
-3. Confirm `NymphsCore.tar` is next to `NymphsCoreManager.exe`.
-4. Run `NymphsCoreManager.exe`.
+2. Run `NymphsCoreManager.exe`.
+3. Approve the Windows administrator prompt if it appears.
+4. Follow the manager checks and install steps.
 
 The folder should look like this:
 
 ```text
 NymphsCoreManager-win-x64/
   NymphsCoreManager.exe
-  NymphsCore.tar
   scripts/
     ...
 ```
 
 Do not run the manager from inside the zip.
-
-The zip intentionally does not include `NymphsCore.tar`. Keeping the tar separate keeps the GitHub download small and makes it clearer which file is the app and which file is the base WSL distro.
 
 This build is currently unsigned. If Windows says `Windows protected your PC`, click `More info`, then `Run anyway`. If Windows says `Unknown publisher`, that is expected for this build.
 
@@ -104,7 +98,7 @@ Use the side buttons if you need:
 The manager checks:
 
 - administrator access
-- whether `NymphsCore.tar` is in the correct folder
+- whether a prebuilt `NymphsCore.tar` is available, or whether the local bootstrap path will be used
 - available install drives
 - WSL availability
 - existing WSL distros
@@ -114,7 +108,7 @@ If a check fails, read the message on screen before continuing.
 
 Most common fixes:
 
-- move `NymphsCore.tar` beside `NymphsCoreManager.exe`
+- update WSL if the local bootstrap path is not supported
 - extract the zip instead of running from inside it
 - free more disk space
 - update NVIDIA drivers
@@ -198,7 +192,7 @@ This is optional. If you only want Blender backend workflows, leave it off.
 
 During install, the manager:
 
-- imports the `NymphsCore` WSL distro from `NymphsCore.tar`
+- bootstraps a fresh Ubuntu base locally, or imports from `NymphsCore.tar` if you provided one
 - prepares Linux system packages
 - installs CUDA 13.0 inside WSL
 - clones or refreshes runtime repos
@@ -235,7 +229,7 @@ Rerunning the latest manager is the intended repair path for interrupted install
 
 Runtime Tools can:
 
-- check whether `Hunyuan 2mv`, `Z-Image`, and `TRELLIS.2` are ready
+- check whether `Z-Image` and `TRELLIS.2` are ready
 - fetch missing models into an existing install
 - run backend smoke tests
 - confirm whether the optional Brain module was installed
@@ -261,12 +255,6 @@ Use `TRELLIS.2` for:
 - single-image image-to-3D
 - single-image texture/retexture workflows
 - the simplest first real test
-
-Use `Hunyuan 2mv` for:
-
-- multiview guidance
-- front/left/right/back reference workflows
-- multiview texture guidance
 
 Use `Z-Image` for:
 
@@ -306,7 +294,7 @@ If model prefetch was off, expect the first real run to spend time downloading m
 
 The most common issues are:
 
-- `NymphsCore.tar` is not next to `NymphsCoreManager.exe`
+- WSL is too old for local no-tar bootstrap, or an optional prebuilt tar is incompatible
 - the manager was run from inside the zip
 - disk space is too low
 - WSL is disabled or unhealthy

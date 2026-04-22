@@ -8,6 +8,33 @@ This file focuses on user-facing and system-level changes rather than package-by
 
 Newest entries first.
 
+### 2026-04-22 validated `nymphscore-lite` tarless repair flow
+Source: live Manager repair testing against the `NymphsCore_Lite` WSL distro after removing the prewarmed `.tar` dependency from the Lite branch.
+
+Documented changes:
+
+- created the permanent `nymphscore-lite` branch as the no-Hunyuan, no-prewarmed-tar edition track
+- changed the Lite distro identity to `NymphsCore_Lite` so it can coexist with an existing `NymphsCore` distro during testing
+- removed Hunyuan 2MV from the Lite installer, Manager runtime surface, addon surface, verification scripts, smoke tests, and docs
+- replaced the prewarmed distro assumption with a tarless bootstrap/finalize path that installs required Linux packages and managed repos into a fresh distro
+- updated managed backend repo handling for the `nymphnerds` repo locations and public clone flow
+- improved managed repo repair so incomplete Git checkouts can be repaired in place or recloned cleanly without leaving timestamped backup folders behind
+- kept `Z-Image` plus Nunchaku as the fast local image lane and kept official `TRELLIS.2` as the native 3D lane
+- made `flash-attn` remain mandatory for TRELLIS while restricting its build to the detected local CUDA architecture where possible
+- added planning docs for future local Gemini-style analysis, Brain-managed GGUF profiles, and possible low-VRAM Trellis GGUF experiments
+
+Validation:
+
+- live tarless Manager repair completed successfully against `NymphsCore_Lite`
+- Z-Image clone and managed repo repair behavior were exercised during installer testing
+- TRELLIS flash-attn diagnostics confirmed the installer was no longer compiling unrelated CUDA architecture families when detection succeeded
+
+Why it matters:
+
+- Lite no longer needs a hosted 3.4 GB prewarmed distro tar to repair or finish setup
+- the branch now has a viable path toward a redistributable installer that rebuilds from scripts, public repos, and model downloads
+- `NymphsCore_Lite` can be tested side-by-side with the existing full `NymphsCore` distro
+
 ### 2026-04-21 reworked the Brain page and added role-aware `Act` / `Plan` model profiles
 Source: iterative Manager UI work on the `brain-activity` branch, plus Linux-side Brain script refactors to support separate Cline planning and execution models cleanly.
 

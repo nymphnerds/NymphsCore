@@ -64,7 +64,6 @@ echo "Normalizing runtime shell paths..."
 cat <<'EOF' | sudo tee /etc/profile.d/nymphscore.sh >/dev/null
 export NYMPHS3D_HELPER_ROOT=/opt/nymphs3d/Nymphs3D
 export NYMPHS3D_RUNTIME_ROOT="$HOME"
-export NYMPHS3D_H2_DIR="$HOME/Hunyuan3D-2"
 export NYMPHS3D_Z_IMAGE_DIR="$HOME/Z-Image"
 export NYMPHS3D_N2D2_DIR="$NYMPHS3D_Z_IMAGE_DIR"
 export NYMPHS3D_TRELLIS_DIR="$HOME/TRELLIS.2"
@@ -102,7 +101,6 @@ if [[ "$install_backend_envs" -eq 1 ]]; then
   "${ROOT_DIR}/scripts/check_managed_repo_updates.sh"
   echo
   echo "Installing backend environments..."
-  "${ROOT_DIR}/scripts/install_hunyuan_2.sh"
   "${ROOT_DIR}/scripts/install_nymphs2d2.sh"
   "${ROOT_DIR}/scripts/install_trellis.sh"
 else

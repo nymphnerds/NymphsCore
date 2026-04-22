@@ -9,7 +9,7 @@ REPO_DIR="${NYMPHS3D_TRELLIS_DIR}"
 REPO_URL="${NYMPHS3D_TRELLIS_REPO_URL}"
 REPO_BRANCH="${NYMPHS3D_TRELLIS_REPO_BRANCH}"
 UTILS3D_REF="${NYMPHS3D_TRELLIS_UTILS3D_REF:-9a4eb15e4021b67b12c460c7057d642626897ec8}"
-INSTALL_FLASH_ATTN="${NYMPHS3D_TRELLIS_INSTALL_FLASH_ATTN:-auto}"
+INSTALL_FLASH_ATTN="${NYMPHS3D_TRELLIS_INSTALL_FLASH_ATTN:-yes}"
 
 print_flash_attn_diagnostics() {
   local torch_report
@@ -35,6 +35,7 @@ else:
 
 print(f"cuda_home={os.environ.get('CUDA_HOME', '')}")
 print(f"torch_cuda_arch_list={os.environ.get('TORCH_CUDA_ARCH_LIST', '')}")
+print(f"flash_attn_cuda_archs={os.environ.get('FLASH_ATTN_CUDA_ARCHS', '')}")
 PY
 )"
   while IFS= read -r line; do
@@ -81,8 +82,13 @@ PY
 resolve_flash_attn_jobs() {
   local explicit_jobs="${NYMPHS3D_TRELLIS_FLASH_ATTN_MAX_JOBS:-}"
   local low_memory_mode="${NYMPHS3D_TRELLIS_FLASH_ATTN_LOW_MEMORY:-auto}"
+  local max_auto_jobs="${NYMPHS3D_TRELLIS_FLASH_ATTN_MAX_AUTO_JOBS:-6}"
+  local mem_per_job_gb="${NYMPHS3D_TRELLIS_FLASH_ATTN_MEM_PER_JOB_GB:-8}"
+  local reserve_gb="${NYMPHS3D_TRELLIS_FLASH_ATTN_RESERVE_GB:-8}"
   local mem_available_kb="0"
-  local swap_total_kb="0"
+  local mem_available_gb="0"
+  local usable_gb="0"
+  local cpu_count="1"
   local chosen_jobs=""
 
   if [[ -n "${explicit_jobs}" ]]; then
@@ -94,26 +100,66 @@ resolve_flash_attn_jobs() {
     return 0
   fi
 
+  for numeric_setting in max_auto_jobs mem_per_job_gb reserve_gb; do
+    local value="${!numeric_setting}"
+    if [[ ! "${value}" =~ ^[0-9]+$ || "${value}" -lt 1 ]]; then
+      echo "Invalid ${numeric_setting} value: ${value}" >&2
+      return 1
+    fi
+  done
+
+  if command -v nproc >/dev/null 2>&1; then
+    cpu_count="$(nproc)"
+  fi
+  if [[ ! "${cpu_count}" =~ ^[0-9]+$ || "${cpu_count}" -lt 1 ]]; then
+    cpu_count="1"
+  fi
+
   if [[ -r /proc/meminfo ]]; then
     mem_available_kb="$(awk '/MemAvailable:/ { print $2 }' /proc/meminfo | head -n 1)"
-    swap_total_kb="$(awk '/SwapTotal:/ { print $2 }' /proc/meminfo | head -n 1)"
   fi
+  if [[ "${mem_available_kb}" =~ ^[0-9]+$ && "${mem_available_kb}" -gt 0 ]]; then
+    mem_available_gb=$((mem_available_kb / 1048576))
+  fi
+
+  cap_jobs() {
+    local requested="$1"
+    local capped="${requested}"
+    if [[ "${cpu_count}" -lt "${capped}" ]]; then
+      capped="${cpu_count}"
+    fi
+    if [[ "${max_auto_jobs}" -lt "${capped}" ]]; then
+      capped="${max_auto_jobs}"
+    fi
+    if [[ "${capped}" -lt 1 ]]; then
+      capped=1
+    fi
+    echo "${capped}"
+  }
+
+  jobs_from_memory() {
+    if [[ "${mem_available_gb}" -le "${reserve_gb}" ]]; then
+      echo 1
+      return 0
+    fi
+
+    usable_gb=$((mem_available_gb - reserve_gb))
+    local jobs=$((usable_gb / mem_per_job_gb))
+    if [[ "${jobs}" -lt 1 ]]; then
+      jobs=1
+    fi
+    cap_jobs "${jobs}"
+  }
 
   case "${low_memory_mode}" in
     yes|true|1)
       chosen_jobs=1
       ;;
     no|false|0)
-      chosen_jobs=2
+      chosen_jobs="$(cap_jobs "${max_auto_jobs}")"
       ;;
     auto)
-      if [[ "${mem_available_kb}" =~ ^[0-9]+$ && "${mem_available_kb}" -lt 25000000 ]]; then
-        chosen_jobs=1
-      elif [[ "${swap_total_kb}" =~ ^[0-9]+$ && "${swap_total_kb}" -eq 0 ]]; then
-        chosen_jobs=1
-      else
-        chosen_jobs=2
-      fi
+      chosen_jobs="$(jobs_from_memory)"
       ;;
     *)
       echo "Unknown NYMPHS3D_TRELLIS_FLASH_ATTN_LOW_MEMORY value: ${low_memory_mode}" >&2
@@ -123,6 +169,64 @@ resolve_flash_attn_jobs() {
   esac
 
   echo "${chosen_jobs}"
+}
+
+map_flash_attn_cuda_arch() {
+  local compute_cap="$1"
+  local major="${compute_cap%%.*}"
+
+  case "${major}" in
+    8)
+      echo "80"
+      ;;
+    9)
+      echo "90"
+      ;;
+    10|11)
+      echo "100"
+      ;;
+    12)
+      echo "120"
+      ;;
+  esac
+}
+
+resolve_flash_attn_cuda_archs() {
+  local detected_caps=""
+  local compute_cap=""
+  local arch=""
+  local archs=""
+
+  if ! command -v nvidia-smi >/dev/null 2>&1; then
+    return 0
+  fi
+
+  detected_caps="$(nvidia-smi --query-gpu=compute_cap --format=csv,noheader 2>/dev/null || true)"
+  while IFS= read -r compute_cap; do
+    compute_cap="$(tr -d '[:space:]' <<< "${compute_cap}")"
+    if [[ ! "${compute_cap}" =~ ^[0-9]+\.[0-9]+$ ]]; then
+      continue
+    fi
+
+    arch="$(map_flash_attn_cuda_arch "${compute_cap}")"
+    if [[ -z "${arch}" ]]; then
+      continue
+    fi
+
+    case ";${archs};" in
+      *";${arch};"*)
+        ;;
+      *)
+        if [[ -z "${archs}" ]]; then
+          archs="${arch}"
+        else
+          archs="${archs};${arch}"
+        fi
+        ;;
+    esac
+  done <<< "${detected_caps}"
+
+  echo "${archs}"
 }
 
 configure_nymphs3d_cuda_env
@@ -237,18 +341,39 @@ elif command -v nvidia-smi >/dev/null 2>&1; then
   fi
 fi
 
+if [[ -n "${NYMPHS3D_TRELLIS_FLASH_ATTN_CUDA_ARCHS:-}" ]]; then
+  export FLASH_ATTN_CUDA_ARCHS="${NYMPHS3D_TRELLIS_FLASH_ATTN_CUDA_ARCHS}"
+  echo "Using explicit flash-attn CUDA arch list: ${FLASH_ATTN_CUDA_ARCHS}"
+elif [[ -n "${FLASH_ATTN_CUDA_ARCHS:-}" ]]; then
+  echo "Using existing flash-attn CUDA arch list: ${FLASH_ATTN_CUDA_ARCHS}"
+else
+  flash_attn_archs="$(resolve_flash_attn_cuda_archs)"
+  if [[ -n "${flash_attn_archs}" ]]; then
+    export FLASH_ATTN_CUDA_ARCHS="${flash_attn_archs}"
+    echo "Auto-detected flash-attn CUDA arch list: ${FLASH_ATTN_CUDA_ARCHS}"
+  else
+    echo "Could not auto-detect flash-attn CUDA arch list; flash-attn will use its package defaults."
+  fi
+fi
+
 case "${INSTALL_FLASH_ATTN}" in
   auto|yes)
     if "${VENV_PYTHON}" -c 'import flash_attn' >/dev/null 2>&1; then
       echo "flash-attn already available."
     else
       flash_attn_jobs="$(resolve_flash_attn_jobs)"
+      flash_attn_nvcc_threads="${NYMPHS3D_TRELLIS_FLASH_ATTN_NVCC_THREADS:-1}"
+      if [[ ! "${flash_attn_nvcc_threads}" =~ ^[0-9]+$ || "${flash_attn_nvcc_threads}" -lt 1 ]]; then
+        echo "Invalid NYMPHS3D_TRELLIS_FLASH_ATTN_NVCC_THREADS value: ${flash_attn_nvcc_threads}"
+        exit 1
+      fi
       flash_attn_log_dir="${REPO_DIR}/logs"
       mkdir -p "${flash_attn_log_dir}"
       flash_attn_log="${flash_attn_log_dir}/flash-attn-build-$(date +%Y%m%d-%H%M%S).log"
-      echo "Attempting optional flash-attn install for TRELLIS.2"
+      echo "Installing required flash-attn for TRELLIS.2"
       echo "flash-attn build log: ${flash_attn_log}"
-      echo "flash-attn build parallelism: MAX_JOBS=${flash_attn_jobs} CMAKE_BUILD_PARALLEL_LEVEL=${flash_attn_jobs}"
+      echo "flash-attn build parallelism: MAX_JOBS=${flash_attn_jobs} CMAKE_BUILD_PARALLEL_LEVEL=${flash_attn_jobs} NVCC_THREADS=${flash_attn_nvcc_threads}"
+      echo "flash-attn tuning: set NYMPHS3D_TRELLIS_FLASH_ATTN_MAX_JOBS to force a job count, or tune MAX_AUTO_JOBS/MEM_PER_JOB_GB/RESERVE_GB."
       echo "flash-attn build marker: diagnostics start"
       print_flash_attn_diagnostics | tee -a "${flash_attn_log}"
       echo "flash-attn build marker: diagnostics complete" | tee -a "${flash_attn_log}"
@@ -256,6 +381,9 @@ case "${INSTALL_FLASH_ATTN}" in
       set +e
       MAX_JOBS="${flash_attn_jobs}" \
       CMAKE_BUILD_PARALLEL_LEVEL="${flash_attn_jobs}" \
+      MAKEFLAGS="-j${flash_attn_jobs}" \
+      NINJAFLAGS="-j${flash_attn_jobs}" \
+      NVCC_THREADS="${flash_attn_nvcc_threads}" \
       "${VENV_PIP}" install --no-build-isolation flash-attn 2>&1 | tee -a "${flash_attn_log}"
       flash_attn_status=${PIPESTATUS[0]}
       set -e
@@ -265,23 +393,18 @@ case "${INSTALL_FLASH_ATTN}" in
         echo "flash-attn full log preserved at ${flash_attn_log}"
         echo "flash-attn failure tail:"
         tail -n 120 "${flash_attn_log}" || true
-        if [[ "${INSTALL_FLASH_ATTN}" == "yes" ]]; then
-          echo "flash-attn installation failed and NYMPHS3D_TRELLIS_INSTALL_FLASH_ATTN=yes requires it."
-          exit 1
-        fi
-        echo "flash-attn install failed; TRELLIS.2 will continue with the sdpa fallback."
+        echo "flash-attn installation failed. TRELLIS.2 requires flash-attn for this managed install."
+        exit 1
       else
         echo "flash-attn full log preserved at ${flash_attn_log}"
         echo "flash-attn install complete."
       fi
     fi
     ;;
-  no)
-    echo "Skipping flash-attn install for TRELLIS.2"
-    ;;
   *)
     echo "Unknown NYMPHS3D_TRELLIS_INSTALL_FLASH_ATTN value: ${INSTALL_FLASH_ATTN}"
-    echo "Use one of: auto, yes, no"
+    echo "Use one of: auto, yes"
+    echo "flash-attn is required for this managed TRELLIS.2 install."
     exit 1
     ;;
 esac

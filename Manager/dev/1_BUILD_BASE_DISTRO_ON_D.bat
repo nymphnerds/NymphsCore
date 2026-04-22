@@ -10,13 +10,13 @@ echo.
 echo It does NOT export your huge working Ubuntu distro.
 echo.
 echo Target builder distro: Ubuntu-24.04
-echo Target builder location: D:\WSL\NymphsCore-Builder
+echo Target builder location: D:\WSL\NymphsCore_Lite-Builder
 echo.
 echo Run this from an Administrator PowerShell or Administrator Command Prompt.
 echo.
 pause
 
-powershell -NoProfile -ExecutionPolicy Bypass -File "..\scripts\create_builder_distro.ps1" -BuilderInstallLocation "D:\WSL\NymphsCore-Builder" -Force
+powershell -NoProfile -ExecutionPolicy Bypass -File "..\scripts\create_builder_distro.ps1" -BuilderInstallLocation "D:\WSL\NymphsCore_Lite-Builder" -Force
 set "exit_code=%ERRORLEVEL%"
 
 echo.

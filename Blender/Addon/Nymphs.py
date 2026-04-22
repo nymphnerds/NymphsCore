@@ -74,10 +74,8 @@ IMAGEGEN_PROMPT_SYNC_GUARD = False
 
 DEFAULT_WSL_DISTRO = "NymphsCore"
 DEFAULT_WSL_USER = "nymph"
-DEFAULT_REPO_2MV_PATH = "~/Hunyuan3D-2"
 DEFAULT_REPO_N2D2_PATH = "~/Z-Image"
 DEFAULT_REPO_TRELLIS_PATH = "~/TRELLIS.2"
-DEFAULT_2MV_PYTHON_PATH = "~/Hunyuan3D-2/.venv/bin/python"
 DEFAULT_N2D2_PYTHON_PATH = "~/Z-Image/.venv-nunchaku/bin/python"
 DEFAULT_TRELLIS_PYTHON_PATH = "~/TRELLIS.2/.venv/bin/python"
 DEFAULT_N2D2_MODEL_ID = "Tongyi-MAI/Z-Image-Turbo"
@@ -507,16 +505,14 @@ TRELLIS_SHAPE_PRESETS = {
     },
 }
 SERVICE_LABELS = {
-    "2mv": "Hunyuan 2mv",
     "n2d2": "Z-Image",
     "trellis": "TRELLIS.2",
 }
 SERVICE_PROP_PREFIXES = {
-    "2mv": "service_2mv",
     "n2d2": "service_n2d2",
     "trellis": "service_trellis",
 }
-SERVICE_ORDER = ("n2d2", "trellis", "2mv")
+SERVICE_ORDER = ("n2d2", "trellis")
 
 
 @dataclass
@@ -579,9 +575,7 @@ def _sync_shape_texture_state(state):
 
 
 def _launch_backend_label(state):
-    if state.launch_backend == "BACKEND_TRELLIS":
-        return "TRELLIS.2"
-    return "2mv"
+    return "TRELLIS.2"
 
 
 def _service_prefix(service_key):
@@ -604,9 +598,7 @@ def _service_changes(service_key, **changes):
 
 
 def _selected_3d_service_key(state):
-    if state.launch_backend == "BACKEND_TRELLIS":
-        return "trellis"
-    return "2mv"
+    return "trellis"
 
 
 def _service_port(state, service_key):
@@ -615,9 +607,7 @@ def _service_port(state, service_key):
         return value
     if service_key == "trellis":
         return "8094"
-    if service_key == "n2d2":
-        return "8090"
-    return "8080"
+    return "8090"
 
 
 def _n2d2_model_family(model_id: str | None) -> str:
@@ -3070,88 +3060,41 @@ def _trellis_image_source_path(state, *, allow_front_fallback=False):
 
 
 def _selected_texture_service_key(state):
-    choice = (getattr(state, "texture_backend", "2MV") or "2MV").strip().upper()
-    if choice == "TRELLIS":
-        return "trellis"
-    return "2mv"
+    return "trellis"
 
 
 def _build_shape_payload(state):
-    if _selected_3d_service_key(state) == "trellis":
-        if state.shape_workflow != "IMAGE":
-            raise RuntimeError("TRELLIS shape generation currently uses one image only.")
-        image_path = _trellis_image_source_path(state, allow_front_fallback=False)
-        if not image_path.strip():
-            raise RuntimeError("Select one source image for TRELLIS shape generation.")
-        return {
-            "image": _file_to_base64(image_path),
-            "pipeline_type": getattr(state, "trellis_pipeline_type", "512"),
-            "seed": _trellis_seed_value(state),
-            "remove_background": state.auto_remove_background,
-            "texture": state.shape_generate_texture,
-            "max_num_tokens": int(getattr(state, "trellis_max_tokens", 49152)),
-            "texture_size": int(getattr(state, "trellis_texture_size", "2048")),
-            "decimation_target": int(getattr(state, "trellis_decimation_target", 500000)),
-            "ss_sampling_steps": int(getattr(state, "trellis_ss_sampling_steps", 12)),
-            "ss_guidance_strength": float(getattr(state, "trellis_ss_guidance_strength", 7.5)),
-            "ss_guidance_rescale": float(getattr(state, "trellis_ss_guidance_rescale", 0.7)),
-            "ss_guidance_interval_start": float(getattr(state, "trellis_ss_guidance_interval_start", 0.6)),
-            "ss_guidance_interval_end": float(getattr(state, "trellis_ss_guidance_interval_end", 1.0)),
-            "ss_rescale_t": float(getattr(state, "trellis_ss_rescale_t", 5.0)),
-            "shape_sampling_steps": int(getattr(state, "trellis_shape_sampling_steps", 12)),
-            "shape_guidance_strength": float(getattr(state, "trellis_shape_guidance_strength", 7.5)),
-            "shape_guidance_rescale": float(getattr(state, "trellis_shape_guidance_rescale", 0.5)),
-            "shape_guidance_interval_start": float(getattr(state, "trellis_shape_guidance_interval_start", 0.6)),
-            "shape_guidance_interval_end": float(getattr(state, "trellis_shape_guidance_interval_end", 1.0)),
-            "shape_rescale_t": float(getattr(state, "trellis_shape_rescale_t", 3.0)),
-            "tex_sampling_steps": int(getattr(state, "trellis_tex_sampling_steps", 12)),
-            "tex_guidance_strength": float(getattr(state, "trellis_tex_guidance_strength", 1.0)),
-            "tex_guidance_rescale": float(getattr(state, "trellis_tex_guidance_rescale", 0.0)),
-            "tex_guidance_interval_start": float(getattr(state, "trellis_tex_guidance_interval_start", 0.6)),
-            "tex_guidance_interval_end": float(getattr(state, "trellis_tex_guidance_interval_end", 0.9)),
-            "tex_rescale_t": float(getattr(state, "trellis_tex_rescale_t", 3.0)),
-        }
-
-    payload = {
-        "octree_resolution": state.mesh_detail,
-        "num_inference_steps": state.detail_passes,
-        "guidance_scale": state.reference_strength,
+    image_path = _trellis_image_source_path(state, allow_front_fallback=False)
+    if not image_path.strip():
+        raise RuntimeError("Select one source image for TRELLIS shape generation.")
+    return {
+        "image": _file_to_base64(image_path),
+        "pipeline_type": getattr(state, "trellis_pipeline_type", "512"),
+        "seed": _trellis_seed_value(state),
         "remove_background": state.auto_remove_background,
         "texture": state.shape_generate_texture,
+        "max_num_tokens": int(getattr(state, "trellis_max_tokens", 49152)),
+        "texture_size": int(getattr(state, "trellis_texture_size", "2048")),
+        "decimation_target": int(getattr(state, "trellis_decimation_target", 500000)),
+        "ss_sampling_steps": int(getattr(state, "trellis_ss_sampling_steps", 12)),
+        "ss_guidance_strength": float(getattr(state, "trellis_ss_guidance_strength", 7.5)),
+        "ss_guidance_rescale": float(getattr(state, "trellis_ss_guidance_rescale", 0.7)),
+        "ss_guidance_interval_start": float(getattr(state, "trellis_ss_guidance_interval_start", 0.6)),
+        "ss_guidance_interval_end": float(getattr(state, "trellis_ss_guidance_interval_end", 1.0)),
+        "ss_rescale_t": float(getattr(state, "trellis_ss_rescale_t", 5.0)),
+        "shape_sampling_steps": int(getattr(state, "trellis_shape_sampling_steps", 12)),
+        "shape_guidance_strength": float(getattr(state, "trellis_shape_guidance_strength", 7.5)),
+        "shape_guidance_rescale": float(getattr(state, "trellis_shape_guidance_rescale", 0.5)),
+        "shape_guidance_interval_start": float(getattr(state, "trellis_shape_guidance_interval_start", 0.6)),
+        "shape_guidance_interval_end": float(getattr(state, "trellis_shape_guidance_interval_end", 1.0)),
+        "shape_rescale_t": float(getattr(state, "trellis_shape_rescale_t", 3.0)),
+        "tex_sampling_steps": int(getattr(state, "trellis_tex_sampling_steps", 12)),
+        "tex_guidance_strength": float(getattr(state, "trellis_tex_guidance_strength", 1.0)),
+        "tex_guidance_rescale": float(getattr(state, "trellis_tex_guidance_rescale", 0.0)),
+        "tex_guidance_interval_start": float(getattr(state, "trellis_tex_guidance_interval_start", 0.6)),
+        "tex_guidance_interval_end": float(getattr(state, "trellis_tex_guidance_interval_end", 0.9)),
+        "tex_rescale_t": float(getattr(state, "trellis_tex_rescale_t", 3.0)),
     }
-
-    if state.shape_workflow == "TEXT":
-        prompt = state.prompt.strip()
-        if not prompt:
-            raise RuntimeError("Enter a text prompt first.")
-        payload["text"] = prompt
-        return payload
-
-    if state.shape_workflow == "IMAGE":
-        payload["image"] = _file_to_base64(state.image_path)
-        if state.prompt.strip():
-            payload["text"] = state.prompt.strip()
-        return payload
-
-    if state.shape_workflow == "MULTIVIEW":
-        views = {
-            "mv_image_front": state.mv_front,
-            "mv_image_back": state.mv_back,
-            "mv_image_left": state.mv_left,
-            "mv_image_right": state.mv_right,
-        }
-        encoded = {}
-        for key, raw_path in views.items():
-            if raw_path.strip():
-                encoded[key] = _file_to_base64(raw_path)
-        if "mv_image_front" not in encoded:
-            raise RuntimeError("A front image is required for multiview mode.")
-        payload.update(encoded)
-        if state.prompt.strip():
-            payload["text"] = state.prompt.strip()
-        return payload
-
-    raise RuntimeError(f"Unsupported shape workflow: {state.shape_workflow}")
 
 
 def _build_texture_payload(state, mesh_b64, mesh_format="glb"):
@@ -3166,57 +3109,26 @@ def _build_texture_payload(state, mesh_b64, mesh_format="glb"):
     }
     payload.update(_texture_option_payload(state, include_use_remesh=True))
 
-    texture_service_key = _selected_texture_service_key(state)
-    texture_caps = _service_capabilities_from_summary(state, texture_service_key)
-    if texture_service_key == "trellis":
-        image_path = _trellis_image_source_path(state, allow_front_fallback=True)
-        if not image_path.strip():
-            raise RuntimeError("TRELLIS texturing needs one guidance image.")
-        payload["image"] = _file_to_base64(image_path)
-        return payload
-
-    if not bool(texture_caps.get("multiview", False)):
-        raise RuntimeError("The selected texture backend does not support multiview guidance.")
-    views = {
-        "mv_image_front": state.mv_front,
-        "mv_image_back": state.mv_back,
-        "mv_image_left": state.mv_left,
-        "mv_image_right": state.mv_right,
-    }
-    encoded = {}
-    for key, raw_path in views.items():
-        if raw_path.strip():
-            encoded[key] = _file_to_base64(raw_path)
-    if "mv_image_front" not in encoded:
-        raise RuntimeError("A front MV image is required for Hunyuan 2mv texturing.")
-    payload.update(encoded)
-
+    image_path = _trellis_image_source_path(state, allow_front_fallback=True)
+    if not image_path.strip():
+        raise RuntimeError("TRELLIS texturing needs one guidance image.")
+    payload["image"] = _file_to_base64(image_path)
     return payload
 
 
 def _texture_option_payload(state, include_use_remesh=False):
-    selected_service = _selected_3d_service_key(state)
-    if selected_service == "trellis":
-        return {
-            "texture_resolution": int(getattr(state, "trellis_texture_resolution", 1024)),
-            "texture_size": int(getattr(state, "trellis_texture_size", 2048)),
-            "seed": _trellis_seed_value(state),
-            "decimation_target": int(getattr(state, "trellis_decimation_target", 500000)),
-            "tex_sampling_steps": int(getattr(state, "trellis_tex_sampling_steps", 12)),
-            "tex_guidance_strength": float(getattr(state, "trellis_tex_guidance_strength", 1.0)),
-            "tex_guidance_rescale": float(getattr(state, "trellis_tex_guidance_rescale", 0.0)),
-            "tex_guidance_interval_start": float(getattr(state, "trellis_tex_guidance_interval_start", 0.6)),
-            "tex_guidance_interval_end": float(getattr(state, "trellis_tex_guidance_interval_end", 0.9)),
-            "tex_rescale_t": float(getattr(state, "trellis_tex_rescale_t", 3.0)),
-        }
-
-    payload = {
-        "face_count": int(state.texture_face_limit),
+    return {
+        "texture_resolution": int(getattr(state, "trellis_texture_resolution", 1024)),
+        "texture_size": int(getattr(state, "trellis_texture_size", 2048)),
+        "seed": _trellis_seed_value(state),
+        "decimation_target": int(getattr(state, "trellis_decimation_target", 500000)),
+        "tex_sampling_steps": int(getattr(state, "trellis_tex_sampling_steps", 12)),
+        "tex_guidance_strength": float(getattr(state, "trellis_tex_guidance_strength", 1.0)),
+        "tex_guidance_rescale": float(getattr(state, "trellis_tex_guidance_rescale", 0.0)),
+        "tex_guidance_interval_start": float(getattr(state, "trellis_tex_guidance_interval_start", 0.6)),
+        "tex_guidance_interval_end": float(getattr(state, "trellis_tex_guidance_interval_end", 0.9)),
+        "tex_rescale_t": float(getattr(state, "trellis_tex_rescale_t", 3.0)),
     }
-
-    payload["texture_resolution"] = int(state.texture_resolution_2mv)
-
-    return payload
 
 
 def _summarize_server_info(info):
@@ -3261,8 +3173,6 @@ def _backend_family(info):
     blob = f"{info.get('model_path', '')} {info.get('subfolder', '')}".lower()
     if "trellis" in blob:
         return "TRELLIS.2"
-    if "2mv" in blob or "mv" in blob:
-        return "2mv"
     if "hunyuan3d-2" in blob:
         return "2.0"
     return "Unknown"
@@ -3273,20 +3183,6 @@ def _server_capabilities_from_info(info):
     texture_only = bool(info.get("texture_only", False))
     text_enabled = bool(info.get("enable_t23d", False))
     retexture_enabled = bool(info.get("mesh_retexture", False))
-
-    if family in {"2mv", "2.0"}:
-        texture_enabled = bool(info.get("enable_tex", False))
-        if not retexture_enabled:
-            retexture_enabled = texture_enabled
-        return {
-            "family": family,
-            "shape": not texture_only,
-            "texture": texture_enabled,
-            "retexture": retexture_enabled,
-            "multiview": True,
-            "text": text_enabled,
-            "texture_only": texture_only,
-        }
 
     if family == "TRELLIS.2":
         texture_enabled = bool(info.get("enable_tex", True))
@@ -3334,22 +3230,12 @@ def _fallback_server_capabilities(state):
             "text": False,
             "texture_only": False,
         }
-    if family == "Nymphs2D2":
-        return {
-            "family": family,
-            "shape": False,
-            "texture": False,
-            "retexture": False,
-            "multiview": False,
-            "text": False,
-            "texture_only": False,
-        }
     return {
         "family": family,
-        "shape": True,
-        "texture": bool(state.launch_texture_support),
-        "retexture": bool(state.launch_texture_support),
-        "multiview": True,
+        "shape": False,
+        "texture": False,
+        "retexture": False,
+        "multiview": False,
         "text": False,
         "texture_only": False,
     }
@@ -3358,15 +3244,6 @@ def _fallback_server_capabilities(state):
 def _service_capabilities_from_summary(state, service_key):
     summary = (_service_get(state, service_key, "backend_summary", "Unavailable") or "").strip()
     fallback = {
-        "2mv": {
-            "family": "2mv",
-            "shape": True,
-            "texture": bool(state.launch_texture_support),
-            "retexture": bool(state.launch_texture_support),
-            "multiview": True,
-            "text": False,
-            "texture_only": False,
-        },
         "trellis": {
             "family": "TRELLIS.2",
             "shape": True,
@@ -3404,8 +3281,6 @@ def _service_capabilities_from_summary(state, service_key):
             parsed[field] = match.group(1).lower() == "true"
     if "trellis" in summary.lower():
         parsed["family"] = "TRELLIS.2"
-    elif "2mv" in summary.lower():
-        parsed["family"] = "2mv"
     return parsed
 
 
@@ -3751,15 +3626,6 @@ def _active_service_summaries(state):
 
 
 def _runtime_vram_estimate(state, service_key):
-    flashvdm = bool(state.launch_flashvdm)
-    turbo = bool(state.launch_turbo)
-    if state.shape_workflow == "TEXT" and state.prompt.strip():
-        input_mode = "text_prompt"
-    elif state.shape_workflow == "MULTIVIEW":
-        input_mode = "multiview"
-    else:
-        input_mode = "single_image"
-
     if service_key == "n2d2":
         model_id = (state.n2d2_model_id or DEFAULT_N2D2_MODEL_ID).strip()
         family = _n2d2_model_family(model_id)
@@ -3806,28 +3672,12 @@ def _runtime_vram_estimate(state, service_key):
             "The TRELLIS 512 shape path completed locally on a 16 GB card in this branch.",
         )
 
-    texture = bool(state.launch_texture_support or state.shape_generate_texture)
-    if texture:
-        estimate = "16-24.5 GB total"
-        basis = "Basis: official + inferred"
-        mode = "Shape + texture"
-        caveat = (
-            "FlashVDM helps throughput, but texture mode still needs the larger VRAM budget."
-            if flashvdm
-            else "Texture mode is the main VRAM driver on 2mv."
-        )
-        return estimate, basis, mode, caveat
-    if input_mode == "text_prompt":
-        estimate = "Not supported"
-        basis = "Basis: product decision"
-        mode = "Text prompt disabled"
-        caveat = "Use Z-Image for prompt-to-image, then feed image or MV guidance into the 3D backends."
-        return estimate, basis, mode, caveat
-    estimate = "9-12 GB"
-    basis = "Basis: inferred"
-    mode = "Shape only"
-    caveat = "Turbo improves latency more than VRAM footprint." if turbo else "Standard 2mv shape mode."
-    return estimate, basis, mode, caveat
+    return (
+        "Unknown",
+        "Basis: unavailable",
+        "Unsupported",
+        "This runtime is not part of the supported addon surface in this edition.",
+    )
 
 
 def _runtime_guidance_entries(state):
@@ -4177,29 +4027,6 @@ def _compose_wsl_launch(state, service_key):
             "--port",
             port,
         ]
-    elif service_key == "2mv":
-        repo_path = state.repo_2mv_path.strip() or DEFAULT_REPO_2MV_PATH
-        python_path = _resolved_user_path(state.python_2mv_path.strip() or DEFAULT_2MV_PYTHON_PATH, state)
-        subfolder = "hunyuan3d-dit-v2-mv-turbo" if state.launch_turbo else "hunyuan3d-dit-v2-mv"
-        parts = [
-            python_path,
-            "-u",
-            "api_server_mv.py",
-            "--host",
-            "0.0.0.0",
-            "--port",
-            port,
-            "--model_path",
-            "tencent/Hunyuan3D-2mv",
-            "--subfolder",
-            subfolder,
-            "--tex_model_path",
-            "tencent/Hunyuan3D-2",
-        ]
-        if state.launch_texture_support:
-            parts.append("--enable_tex")
-        if state.launch_flashvdm:
-            parts.append("--enable_flashvdm")
     else:
         repo_path = state.repo_trellis_path.strip() or DEFAULT_REPO_TRELLIS_PATH
         python_path = _resolved_user_path(state.trellis_python_path.strip() or DEFAULT_TRELLIS_PYTHON_PATH, state)
@@ -4224,13 +4051,6 @@ def _compose_wsl_launch(state, service_key):
 
 def _stop_shell_for_service(service_key, port):
     common = f'(command -v fuser >/dev/null 2>&1 && fuser -k {port}/tcp >/dev/null 2>&1) || true; '
-    if service_key == "2mv":
-        return (
-            common +
-            f'pkill -f "api_server_mv.py --host 0.0.0.0 --port {port}" >/dev/null 2>&1 || true; '
-            'pkill -f "python -u api_server_mv.py" >/dev/null 2>&1 || true; '
-            'pkill -f "python api_server_mv.py" >/dev/null 2>&1 || true'
-        )
     if service_key == "trellis":
         return (
             common +
@@ -4369,7 +4189,7 @@ def _backend_lifecycle(scene_name, proc, service_key):
         "launch_detail": message,
         "backend_summary": "Unavailable",
     }
-    if service_key in {"2mv", "trellis"}:
+    if service_key == "trellis":
         changes.update(
             {
                 "backend_family": "Unknown",
@@ -5079,7 +4899,6 @@ def _gemini_mv_worker(scene_name, snapshot, prompts):
             mv_back=assigned.get("back", ""),
             mv_left=assigned.get("left", ""),
             mv_right=assigned.get("right", ""),
-            shape_workflow="MULTIVIEW",
         )
     except Exception as exc:
         _emit_status(
@@ -5156,7 +4975,6 @@ def _imagegen_mv_worker(scene_name, api_root, seed):
             mv_back=assigned.get("back", ""),
             mv_left=assigned.get("left", ""),
             mv_right=assigned.get("right", ""),
-            shape_workflow="MULTIVIEW",
             imagegen_seed=str(seed),
         )
     except Exception as exc:
@@ -5200,20 +5018,9 @@ class NymphsV2State(bpy.types.PropertyGroup):
         name="Backend",
         items=(
             ("BACKEND_TRELLIS", "TRELLIS.2", "Launch the official TRELLIS adapter backend"),
-            ("BACKEND_2MV", "Hunyuan 2mv", "Launch the multiview Hunyuan shape backend"),
         ),
         default="BACKEND_TRELLIS",
     )
-    service_2mv_enabled: BoolProperty(name="Enable Hunyuan 2mv", default=False)
-    service_2mv_port: StringProperty(
-        name="Hunyuan 2mv Port",
-        description="Port used to reach Hunyuan3D-2mv. Stop and restart this runtime after changing it.",
-        default="8080",
-    )
-    service_2mv_show: BoolProperty(default=False)
-    service_2mv_launch_state: StringProperty(default="Stopped")
-    service_2mv_launch_detail: StringProperty(default="Hunyuan 2mv server is not running.")
-    service_2mv_backend_summary: StringProperty(default="Unavailable")
     service_n2d2_enabled: BoolProperty(name="Enable Z-Image", default=False)
     service_n2d2_port: StringProperty(
         name="Z-Image Port",
@@ -5234,26 +5041,6 @@ class NymphsV2State(bpy.types.PropertyGroup):
     service_trellis_launch_state: StringProperty(default="Stopped")
     service_trellis_launch_detail: StringProperty(default="TRELLIS.2 server is not running.")
     service_trellis_backend_summary: StringProperty(default="Unavailable")
-    launch_shape_support: BoolProperty(
-        name="Shape",
-        description="Start the Hunyuan3D-2mv shape backend for image or multiview image-to-3D requests.",
-        default=True,
-    )
-    launch_texture_support: BoolProperty(
-        name="Texture",
-        description="Also load Hunyuan3D-Paint texture support. Needed for shape+texture and retexture requests, but it increases startup time and VRAM use a lot.",
-        default=True,
-    )
-    launch_turbo: BoolProperty(
-        name="Turbo",
-        description="Use the distilled Hunyuan3D-2mv Turbo model folder for faster multiview shape generation. Turn off only if you want the standard non-turbo model.",
-        default=True,
-    )
-    launch_flashvdm: BoolProperty(
-        name="FlashVDM",
-        description="Enable Hunyuan FlashVDM acceleration for the shape pipeline. Faster shape decoding/generation path; best paired with Turbo, but it can change performance and results.",
-        default=True,
-    )
     launch_open_terminal: BoolProperty(
         name="Open Terminal Window",
         default=False,
@@ -5271,15 +5058,6 @@ class NymphsV2State(bpy.types.PropertyGroup):
         name="WSL User",
         description="Which Linux user to use inside the selected WSL distro",
         default=DEFAULT_WSL_USER,
-    )
-    repo_2mv_path: StringProperty(
-        name="2mv Path",
-        default=DEFAULT_REPO_2MV_PATH,
-    )
-    python_2mv_path: StringProperty(
-        name="Hunyuan Python",
-        description="Python executable used to launch Hunyuan3D-2mv. Change this only if Hunyuan uses a different virtual environment.",
-        default=DEFAULT_2MV_PYTHON_PATH,
     )
     repo_n2d2_path: StringProperty(
         name="Z-Image Repo Path",
@@ -5338,8 +5116,6 @@ class NymphsV2State(bpy.types.PropertyGroup):
         name="Shape Workflow",
         items=(
             ("IMAGE", "Image to 3D", "Generate shape from one image"),
-            ("MULTIVIEW", "Multiview to 3D", "Generate shape from front/back/left/right images"),
-            ("TEXT", "Text to 3D", "Generate shape from a text prompt"),
         ),
         default="IMAGE",
     )
@@ -5359,7 +5135,6 @@ class NymphsV2State(bpy.types.PropertyGroup):
         description="Choose which backend handles mesh texturing.",
         items=(
             ("TRELLIS", "TRELLIS.2", "Use TRELLIS.2 for single-image mesh texturing"),
-            ("2MV", "Hunyuan 2mv", "Use Hunyuan 2mv for image or multiview-guided mesh texturing"),
         ),
         default="TRELLIS",
     )
@@ -5372,57 +5147,10 @@ class NymphsV2State(bpy.types.PropertyGroup):
         description="Remove plain backgrounds before sending the image to the 3D backend",
         default=True,
     )
-    mesh_detail: IntProperty(
-        name="Mesh Detail",
-        description="Target shape detail for Hunyuan 2mv. Higher values can keep more form but cost more time and memory.",
-        default=256,
-        min=128,
-        max=512,
-    )
-    detail_passes: IntProperty(
-        name="Detail Passes",
-        description="Number of Hunyuan 2mv refinement passes. Higher values are slower and can improve stability.",
-        default=20,
-        min=10,
-        max=100,
-    )
-    reference_strength: FloatProperty(
-        name="Reference Strength",
-        description="How strongly Hunyuan 2mv follows the input guide. Higher values keep closer to the reference.",
-        default=5.5,
-        min=1.0,
-        max=12.0,
-    )
     shape_generate_texture: BoolProperty(
         name="Also Generate Texture",
         description="Request texture generation in the same shape job when the selected backend supports it",
         default=True,
-    )
-    texture_face_limit: IntProperty(
-        name="Face Limit",
-        description="Target face count for Hunyuan retexture output. Lower values are lighter, higher values preserve more geometry.",
-        default=40000,
-        min=1000,
-        max=100000,
-    )
-    texture_max_views: IntProperty(
-        name="Max Views",
-        default=6,
-        min=6,
-        max=12,
-    )
-    texture_resolution_2mv: EnumProperty(
-        name="Texture Size",
-        description="Output texture size for Hunyuan texturing. Larger sizes keep more texture detail but cost more time and memory.",
-        items=(
-            ("256", "256 px", "Fastest 2mv texture bake, lowest quality"),
-            ("512", "512 px", "Lowest VRAM and fastest 2mv texturing"),
-            ("768", "768 px", "Balanced 2mv texture bake"),
-            ("1024", "1024 px", "Lower VRAM and faster 2mv texturing"),
-            ("1536", "1536 px", "Higher detail with a smaller jump than 2048"),
-            ("2048", "2048 px", "Higher quality but heavier 2mv texturing"),
-        ),
-        default="2048",
     )
     texture_use_remesh: BoolProperty(
         name="Remesh Uploaded Mesh",
@@ -5924,17 +5652,11 @@ def _service_display_name(service_key):
 def _runtime_card_name(state, service_key):
     if service_key == "n2d2":
         return f"Z-Image Turbo / {_short_n2d2_runtime_label(state)}"
-    if service_key == "trellis":
-        return "TRELLIS.2"
-    if service_key == "2mv":
-        return "Hunyuan3D-2mv"
-    return _service_display_name(service_key)
+    return "TRELLIS.2"
 
 
 def _backend_display_name(label):
     mapping = {
-        "2mv": SERVICE_LABELS["2mv"],
-        "2.0": SERVICE_LABELS["2mv"],
         "Nymphs2D2": SERVICE_LABELS["n2d2"],
         "TRELLIS.2": SERVICE_LABELS["trellis"],
     }
@@ -6006,7 +5728,7 @@ def _start_service_process(context, state, service_key):
             "launch_detail": str(exc),
             "backend_summary": "Unavailable",
         }
-        if service_key in {"2mv", "trellis"}:
+        if service_key == "trellis":
             changes.update(
                 {
                     "backend_family": "Unknown",
@@ -6031,7 +5753,7 @@ def _start_service_process(context, state, service_key):
             "wsl_user_name": _resolved_wsl_user_name(state),
         },
     )
-    if service_key in {"2mv", "trellis"}:
+    if service_key == "trellis":
         _set_3d_target_from_service(state, service_key)
     _apply_service_state(
         state,
@@ -6064,7 +5786,7 @@ def _stop_service_process(state, service_key):
             "launch_detail": f"{_service_display_name(service_key)} is not running.",
             "backend_summary": "Unavailable",
         }
-        if service_key in {"2mv", "trellis"}:
+        if service_key == "trellis":
             changes.update(
                 {
                     "backend_family": "Unknown",
@@ -6145,11 +5867,8 @@ def _restart_n2d2_after_model_change(context, state):
 
 
 def _set_3d_target_from_service(state, service_key):
-    if service_key == "trellis":
-        state.launch_backend = "BACKEND_TRELLIS"
-        state.shape_workflow = "IMAGE"
-    else:
-        state.launch_backend = "BACKEND_2MV"
+    state.launch_backend = "BACKEND_TRELLIS"
+    state.shape_workflow = "IMAGE"
     _sync_local_api(state)
 
 
@@ -6240,22 +5959,6 @@ class NYMPHSV2_OT_stop_service(bpy.types.Operator):
         _schedule_event_loop()
         return {"FINISHED"} if ok else {"CANCELLED"}
 
-
-class NYMPHSV2_OT_set_3d_target(bpy.types.Operator):
-    bl_idname = "nymphsv2.set_3d_target"
-    bl_label = "Set 3D Target"
-    bl_description = "Use this runtime for 3D requests"
-
-    service_key: StringProperty()
-
-    def execute(self, context):
-        state = context.scene.nymphs_state
-        _set_3d_target_from_service(state, self.service_key)
-        state.status_text = f"3D target set to {_service_display_name(_selected_3d_service_key(state))}."
-        _touch_ui()
-        return {"FINISHED"}
-
-
 def _submit_request(context, state, payload, source_name, status_text):
     api_root = _normalize_api_root(state.api_root)
     state.is_busy = True
@@ -6296,12 +5999,6 @@ class NYMPHSV2_OT_run_shape_request(bpy.types.Operator):
         if not caps["shape"] or caps["texture_only"]:
             self.report({"ERROR"}, "The current server is not exposing shape generation.")
             return {"CANCELLED"}
-        if state.shape_workflow == "MULTIVIEW" and not caps["multiview"]:
-            self.report({"ERROR"}, "The current server does not support multiview shape generation.")
-            return {"CANCELLED"}
-        if state.shape_workflow == "TEXT" and not caps["text"]:
-            self.report({"ERROR"}, "The current server was not started with text support.")
-            return {"CANCELLED"}
 
         try:
             api_root = _normalize_api_root(state.api_root)
@@ -6315,18 +6012,9 @@ class NYMPHSV2_OT_run_shape_request(bpy.types.Operator):
             self.report({"ERROR"}, str(exc))
             return {"CANCELLED"}
 
-        if state.shape_workflow == "MULTIVIEW":
-            status_text = "Submitting multiview shape request..."
-            if texture_requested:
-                status_text = "Submitting multiview shape + texture request..."
-        elif state.shape_workflow == "TEXT":
-            status_text = "Submitting text-to-3D request..."
-            if texture_requested:
-                status_text = "Submitting text-to-3D + texture request..."
-        else:
-            status_text = "Submitting image-to-3D request..."
-            if texture_requested:
-                status_text = "Submitting image-to-3D + texture request..."
+        status_text = "Submitting image-to-3D request..."
+        if texture_requested:
+            status_text = "Submitting image-to-3D + texture request..."
 
         _submit_request(context, state, payload, "", status_text)
         return {"FINISHED"}
@@ -7989,23 +7677,7 @@ def _draw_service_block(layout, state, service_key):
             _draw_wrapped_lines(details, detail, prefix="Detail: ", width=44, max_lines=2)
         if live_progress:
             _draw_wrapped_lines(details, live_progress, prefix="Progress: ", width=44, max_lines=2)
-        if service_key in {"2mv", "trellis"}:
-            target_row = details.row(align=True)
-            if service_key == _selected_3d_service_key(state):
-                target_row.label(text="Current 3D Target")
-            else:
-                target_op = target_row.operator("nymphsv2.set_3d_target", text="Use For 3D")
-                target_op.service_key = service_key
-
-        if service_key == "2mv":
-            _draw_labeled_prop(details, state, "repo_2mv_path", "Repo Path")
-            _draw_labeled_prop(details, state, "python_2mv_path", "Python Path")
-            row = details.row(align=True)
-            row.prop(state, "launch_texture_support")
-            row = details.row(align=True)
-            row.prop(state, "launch_turbo")
-            row.prop(state, "launch_flashvdm")
-        elif service_key == "trellis":
+        if service_key == "trellis":
             _draw_labeled_prop(details, state, "repo_trellis_path", "Repo Path")
             _draw_labeled_prop(details, state, "trellis_python_path", "Python Path")
         else:
@@ -8036,8 +7708,6 @@ class NYMPHSV2_PT_shape(bpy.types.Panel):
         layout = self.layout
 
         panel = layout.column(align=True)
-        backend_row = panel.row(align=True)
-        backend_row.prop(state, "launch_backend", expand=True)
         selected_service = _selected_3d_service_key(state)
         caps = _state_server_capabilities(state)
         texture_requested = bool(state.shape_generate_texture and caps["texture"])
@@ -8059,114 +7729,10 @@ class NYMPHSV2_PT_shape(bpy.types.Panel):
             panel.label(text=f"Status: {_panel_status_text(state)}"[:160])
             return
 
-        if active_family == "TRELLIS.2":
-            _sync_trellis_shape_preset(state)
-            request = panel.box()
-            request.label(text="Workflow")
-            request.prop(state, "image_path")
-            request.prop(state, "auto_remove_background")
-            texture_row = request.row()
-            texture_row.enabled = caps["texture"]
-            texture_row.prop(state, "shape_generate_texture")
-
-            trellis_opts = panel.box()
-            preset_row = trellis_opts.row(align=True)
-            preset_row.prop(state, "trellis_shape_preset", text="")
-            preset_row.operator("nymphsv2.load_trellis_shape_preset", text="Apply")
-            preset_tools = trellis_opts.row(align=True)
-            preset_tools.operator("nymphsv2.save_trellis_shape_preset", text="Save")
-            preset_tools.operator("nymphsv2.delete_trellis_shape_preset", text="Delete")
-            preset_tools.operator("nymphsv2.open_trellis_shape_presets_folder", text="Open")
-            trellis_opts.prop(state, "trellis_pipeline_type")
-            seed_row = trellis_opts.row(align=True)
-            seed_row.prop(state, "trellis_seed", text="Seed")
-            trellis_opts.prop(state, "trellis_max_tokens", text="Tokens")
-
-            early_pass = trellis_opts.column(align=True)
-            early_pass.separator()
-            early_pass.label(text="Early Pass")
-            row = early_pass.row(align=True)
-            row.prop(state, "trellis_ss_sampling_steps", text="Steps")
-            row.prop(state, "trellis_ss_guidance_strength", text="Image")
-            early_pass.prop(state, "trellis_ss_guidance_rescale", text="Rescale")
-            interval_row = early_pass.row(align=True)
-            interval_row.prop(state, "trellis_ss_guidance_interval_start", text="Start")
-            interval_row.prop(state, "trellis_ss_guidance_interval_end", text="End")
-            early_pass.prop(state, "trellis_ss_rescale_t", text="Timing")
-
-            shape_pass = trellis_opts.column(align=True)
-            shape_pass.separator()
-            shape_pass.label(text="Shape Pass")
-            row = shape_pass.row(align=True)
-            row.prop(state, "trellis_shape_sampling_steps", text="Steps")
-            row.prop(state, "trellis_shape_guidance_strength", text="Image")
-            shape_pass.prop(state, "trellis_shape_guidance_rescale", text="Rescale")
-            interval_row = shape_pass.row(align=True)
-            interval_row.prop(state, "trellis_shape_guidance_interval_start", text="Start")
-            interval_row.prop(state, "trellis_shape_guidance_interval_end", text="End")
-            shape_pass.prop(state, "trellis_shape_rescale_t", text="Timing")
-
-            if state.shape_generate_texture:
-                texture_pass = trellis_opts.column(align=True)
-                texture_pass.separator()
-                texture_pass.label(text="Texture Pass")
-                row = texture_pass.row(align=True)
-                row.prop(state, "trellis_tex_sampling_steps", text="Steps")
-                row.prop(state, "trellis_tex_guidance_strength", text="Image")
-                texture_pass.prop(state, "trellis_tex_guidance_rescale", text="Rescale")
-                interval_row = texture_pass.row(align=True)
-                interval_row.prop(state, "trellis_tex_guidance_interval_start", text="Start")
-                interval_row.prop(state, "trellis_tex_guidance_interval_end", text="End")
-                texture_pass.prop(state, "trellis_tex_rescale_t", text="Timing")
-                texture_pass.prop(state, "trellis_texture_size")
-                texture_pass.prop(state, "trellis_decimation_target", text="Faces")
-
-            action = panel.row()
-            action.enabled = not state.is_busy and not state.imagegen_is_busy
-            action.operator(
-                "nymphsv2.run_shape_request",
-                text="Generate Shape + Texture" if texture_requested else "Generate Shape",
-            )
-
-            if state.shape_output_path:
-                result = panel.box()
-                if state.shape_output_dir:
-                    result.label(text=f"Folder: {_path_leaf(state.shape_output_dir) or 'shape_outputs'}")
-                result.label(text=f"Last Mesh: {_path_leaf(state.shape_output_path)}")
-                action_row = result.row(align=True)
-                action_row.operator("nymphsv2.open_shape_folder", text="Open Folder")
-                action_row.operator("nymphsv2.clear_shape_folder", text="Clear Folder")
-
-            _draw_request_status(panel, state)
-            return
-
+        _sync_trellis_shape_preset(state)
         request = panel.box()
         request.label(text="Workflow")
-        request.prop(state, "shape_workflow")
-
-        text_row = request.row()
-        text_row.enabled = caps["text"] or state.shape_workflow != "TEXT"
-        text_row.prop(state, "prompt")
-        if state.shape_workflow == "TEXT" and not caps["text"]:
-            request.label(text="This server was not started with text support.")
-
-        if state.shape_workflow == "IMAGE":
-            request.prop(state, "image_path")
-        elif state.shape_workflow == "MULTIVIEW":
-            if not caps["multiview"]:
-                request.label(text="Current server does not expose multiview.")
-            if any((state.mv_front, state.mv_left, state.mv_right, state.mv_back)):
-                source = (state.imagegen_mv_received_source or "").strip()
-                stamp = _format_clock_time(state.imagegen_mv_received_at)
-                if source and stamp:
-                    request.label(text=f"Received from {source} at {stamp}")
-                elif source:
-                    request.label(text=f"Received from {source}")
-            request.prop(state, "mv_front")
-            request.prop(state, "mv_back")
-            request.prop(state, "mv_left")
-            request.prop(state, "mv_right")
-
+        request.prop(state, "image_path")
         request.prop(state, "auto_remove_background")
         texture_row = request.row()
         texture_row.enabled = caps["texture"]
@@ -8175,17 +7741,61 @@ class NYMPHSV2_PT_shape(bpy.types.Panel):
             request.label(text="This server was started without texture support.")
             if state.shape_generate_texture:
                 request.label(text="Shape requests will run without texture on this server.")
-        request.prop(state, "mesh_detail")
-        request.prop(state, "detail_passes")
-        request.prop(state, "reference_strength")
+
+        trellis_opts = panel.box()
+        preset_row = trellis_opts.row(align=True)
+        preset_row.prop(state, "trellis_shape_preset", text="")
+        preset_row.operator("nymphsv2.load_trellis_shape_preset", text="Apply")
+        preset_tools = trellis_opts.row(align=True)
+        preset_tools.operator("nymphsv2.save_trellis_shape_preset", text="Save")
+        preset_tools.operator("nymphsv2.delete_trellis_shape_preset", text="Delete")
+        preset_tools.operator("nymphsv2.open_trellis_shape_presets_folder", text="Open")
+        trellis_opts.prop(state, "trellis_pipeline_type")
+        seed_row = trellis_opts.row(align=True)
+        seed_row.prop(state, "trellis_seed", text="Seed")
+        trellis_opts.prop(state, "trellis_max_tokens", text="Tokens")
+
+        early_pass = trellis_opts.column(align=True)
+        early_pass.separator()
+        early_pass.label(text="Early Pass")
+        row = early_pass.row(align=True)
+        row.prop(state, "trellis_ss_sampling_steps", text="Steps")
+        row.prop(state, "trellis_ss_guidance_strength", text="Image")
+        early_pass.prop(state, "trellis_ss_guidance_rescale", text="Rescale")
+        interval_row = early_pass.row(align=True)
+        interval_row.prop(state, "trellis_ss_guidance_interval_start", text="Start")
+        interval_row.prop(state, "trellis_ss_guidance_interval_end", text="End")
+        early_pass.prop(state, "trellis_ss_rescale_t", text="Timing")
+
+        shape_pass = trellis_opts.column(align=True)
+        shape_pass.separator()
+        shape_pass.label(text="Shape Pass")
+        row = shape_pass.row(align=True)
+        row.prop(state, "trellis_shape_sampling_steps", text="Steps")
+        row.prop(state, "trellis_shape_guidance_strength", text="Image")
+        shape_pass.prop(state, "trellis_shape_guidance_rescale", text="Rescale")
+        interval_row = shape_pass.row(align=True)
+        interval_row.prop(state, "trellis_shape_guidance_interval_start", text="Start")
+        interval_row.prop(state, "trellis_shape_guidance_interval_end", text="End")
+        shape_pass.prop(state, "trellis_shape_rescale_t", text="Timing")
+
+        if state.shape_generate_texture:
+            texture_pass = trellis_opts.column(align=True)
+            texture_pass.separator()
+            texture_pass.label(text="Texture Pass")
+            row = texture_pass.row(align=True)
+            row.prop(state, "trellis_tex_sampling_steps", text="Steps")
+            row.prop(state, "trellis_tex_guidance_strength", text="Image")
+            texture_pass.prop(state, "trellis_tex_guidance_rescale", text="Rescale")
+            interval_row = texture_pass.row(align=True)
+            interval_row.prop(state, "trellis_tex_guidance_interval_start", text="Start")
+            interval_row.prop(state, "trellis_tex_guidance_interval_end", text="End")
+            texture_pass.prop(state, "trellis_tex_rescale_t", text="Timing")
+            texture_pass.prop(state, "trellis_texture_size")
+            texture_pass.prop(state, "trellis_decimation_target", text="Faces")
 
         action = panel.row()
-        workflow_supported = True
-        if state.shape_workflow == "MULTIVIEW" and not caps["multiview"]:
-            workflow_supported = False
-        if state.shape_workflow == "TEXT" and not caps["text"]:
-            workflow_supported = False
-        action.enabled = not state.is_busy and not state.imagegen_is_busy and workflow_supported
+        action.enabled = not state.is_busy and not state.imagegen_is_busy
         action.operator(
             "nymphsv2.run_shape_request",
             text="Generate Shape + Texture" if texture_requested else "Generate Shape",
@@ -8214,13 +7824,11 @@ class NYMPHSV2_PT_texture(bpy.types.Panel):
         layout = self.layout
         panel = layout.column(align=True)
 
-        backend_row = panel.row(align=True)
-        backend_row.prop(state, "texture_backend", expand=True)
         selected_service = _selected_texture_service_key(state)
         caps = _service_capabilities_from_summary(state, selected_service)
         active_family = caps["family"]
         if active_family == "Unknown":
-            active_family = "TRELLIS.2" if selected_service == "trellis" else "2mv"
+            active_family = "TRELLIS.2"
         if not _service_runtime_is_available(state, selected_service):
             warn = panel.box()
             warn.label(text=f"Start {_service_display_name(selected_service)} in Runtimes.")
@@ -8243,69 +7851,33 @@ class NYMPHSV2_PT_texture(bpy.types.Panel):
         elif caps["texture_only"]:
             info.label(text="Texture-only server mode is active.")
 
-        if active_family == "TRELLIS.2":
-            request = panel.box()
-            request.label(text="Texture Guidance")
-            request.prop(state, "image_path")
-            request.prop(state, "auto_remove_background")
-
-            texture_opts = panel.box()
-            texture_opts.label(text="TRELLIS Texture Options")
-            texture_opts.prop(state, "trellis_texture_resolution")
-            texture_opts.prop(state, "trellis_texture_size")
-            texture_opts.prop(state, "trellis_seed")
-            row = texture_opts.row(align=True)
-            row.prop(state, "trellis_tex_sampling_steps", text="Steps")
-            row.prop(state, "trellis_tex_guidance_strength", text="Follow Image")
-            texture_opts.prop(
-                state,
-                "show_texture_settings",
-                text="Advanced Texture Controls",
-                icon="TRIA_DOWN" if state.show_texture_settings else "TRIA_RIGHT",
-                emboss=False,
-            )
-            if state.show_texture_settings:
-                texture_opts.prop(state, "trellis_tex_guidance_rescale", text="Guidance Rescale")
-                interval_row = texture_opts.row(align=True)
-                interval_row.prop(state, "trellis_tex_guidance_interval_start", text="Start")
-                interval_row.prop(state, "trellis_tex_guidance_interval_end", text="End")
-                texture_opts.prop(state, "trellis_tex_rescale_t", text="Rescale T")
-                texture_opts.prop(state, "trellis_decimation_target")
-
-            action = panel.row()
-            action.enabled = not state.is_busy and not state.imagegen_is_busy and caps["retexture"]
-            action.operator("nymphsv2.run_texture_request", text="Retexture Selected Mesh")
-
-            _draw_request_status(panel, state)
-            return
-
         request = panel.box()
         request.label(text="Texture Guidance")
-        source = (state.imagegen_mv_received_source or "").strip()
-        stamp = _format_clock_time(state.imagegen_mv_received_at)
-        if source and stamp:
-            request.label(text=f"Received from {source} at {stamp}")
-        elif source:
-            request.label(text=f"Received from {source}")
-        request.prop(state, "mv_front")
-        request.prop(state, "mv_back")
-        request.prop(state, "mv_left")
-        request.prop(state, "mv_right")
+        request.prop(state, "image_path")
         request.prop(state, "auto_remove_background")
 
         texture_opts = panel.box()
-        texture_opts.label(text="Hunyuan Texture Options")
+        texture_opts.label(text="TRELLIS Texture Options")
+        texture_opts.prop(state, "trellis_texture_resolution")
+        texture_opts.prop(state, "trellis_texture_size")
+        texture_opts.prop(state, "trellis_seed")
+        row = texture_opts.row(align=True)
+        row.prop(state, "trellis_tex_sampling_steps", text="Steps")
+        row.prop(state, "trellis_tex_guidance_strength", text="Follow Image")
         texture_opts.prop(
             state,
             "show_texture_settings",
-            text="Texture Options",
+            text="Advanced Texture Controls",
             icon="TRIA_DOWN" if state.show_texture_settings else "TRIA_RIGHT",
             emboss=False,
         )
         if state.show_texture_settings:
-            texture_opts.prop(state, "texture_face_limit")
-            size_col = texture_opts.column(align=True)
-            size_col.prop(state, "texture_resolution_2mv")
+            texture_opts.prop(state, "trellis_tex_guidance_rescale", text="Guidance Rescale")
+            interval_row = texture_opts.row(align=True)
+            interval_row.prop(state, "trellis_tex_guidance_interval_start", text="Start")
+            interval_row.prop(state, "trellis_tex_guidance_interval_end", text="End")
+            texture_opts.prop(state, "trellis_tex_rescale_t", text="Rescale T")
+            texture_opts.prop(state, "trellis_decimation_target")
 
         action = panel.row()
         action.enabled = not state.is_busy and not state.imagegen_is_busy and caps["retexture"]
@@ -8323,7 +7895,6 @@ CLASSES = (
     NYMPHSV2_OT_stop_backend,
     NYMPHSV2_OT_start_service,
     NYMPHSV2_OT_stop_service,
-    NYMPHSV2_OT_set_3d_target,
     NYMPHSV2_OT_run_shape_request,
     NYMPHSV2_OT_run_texture_request,
     NYMPHSV2_OT_generate_image,

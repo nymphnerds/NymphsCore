@@ -4,7 +4,6 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "${ROOT_DIR}/scripts/common_paths.sh"
 
-H2_DIR="${NYMPHS3D_H2_DIR}"
 N2D2_DIR="${NYMPHS3D_N2D2_DIR}"
 TRELLIS_DIR="${NYMPHS3D_TRELLIS_DIR}"
 
@@ -30,43 +29,6 @@ emit_status() {
     "${models_ready}" \
     "${test_ready}" \
     "$(sanitize_detail "${detail}")"
-}
-
-probe_hunyuan_models() {
-  (
-    cd "${H2_DIR}"
-    source .venv/bin/activate
-    configure_nymphs3d_hf_env
-    python - <<'PY' >/dev/null 2>&1
-from huggingface_hub import snapshot_download
-
-specs = [
-    {
-        "repo_id": "tencent/Hunyuan3D-2mv",
-        "allow_patterns": [
-            "hunyuan3d-dit-v2-mv/*",
-            "hunyuan3d-dit-v2-mv-turbo/*",
-        ],
-    },
-    {
-        "repo_id": "tencent/Hunyuan3D-2",
-        "allow_patterns": [
-            "hunyuan3d-vae-v2-0/*",
-            "hunyuan3d-vae-v2-0-turbo/*",
-            "hunyuan3d-delight-v2-0/*",
-            "hunyuan3d-paint-v2-0-turbo/*",
-        ],
-    },
-]
-
-for spec in specs:
-    snapshot_download(
-        repo_id=spec["repo_id"],
-        allow_patterns=spec["allow_patterns"],
-        local_files_only=True,
-    )
-PY
-  )
 }
 
 probe_zimage_models() {
@@ -112,24 +74,6 @@ PY
   )
 }
 
-check_hunyuan() {
-  if [[ ! -d "${H2_DIR}/.git" ]]; then
-    emit_status "2mv" "Hunyuan 2mv" "no" "no" "no" "Repo is missing from the managed runtime."
-    return
-  fi
-
-  if [[ ! -x "${H2_DIR}/.venv/bin/python" ]]; then
-    emit_status "2mv" "Hunyuan 2mv" "no" "no" "no" "Runtime environment is missing. Run repair or install again."
-    return
-  fi
-
-  if probe_hunyuan_models; then
-    emit_status "2mv" "Hunyuan 2mv" "yes" "yes" "yes" "All components present. Ready for smoke test."
-  else
-    emit_status "2mv" "Hunyuan 2mv" "yes" "no" "no" "Runtime env is ready, but required models are missing. Fetch models before testing."
-  fi
-}
-
 check_zimage() {
   if [[ ! -d "${N2D2_DIR}/.git" ]]; then
     emit_status "zimage" "Z-Image" "no" "no" "no" "Repo is missing from the managed runtime."
@@ -172,6 +116,5 @@ check_trellis() {
 }
 
 echo "Checking managed runtime tool status..."
-check_hunyuan
 check_zimage
 check_trellis

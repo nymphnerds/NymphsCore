@@ -10,14 +10,12 @@ public sealed class MainWindowViewModel : ViewModelBase
 {
     private const int TotalSteps = 8;
     private const string ModelDownloadDetails =
-        "- Hunyuan 2 texture model (tencent/Hunyuan3D-2): about 28 GB\n" +
-        "- Hunyuan 2mv shape model (tencent/Hunyuan3D-2mv): about 19 GB\n" +
         "- u2net helper model: about 168 MB\n" +
-        "- Tongyi-MAI/Z-Image-Turbo: about 31 GB";
+        "- Tongyi-MAI/Z-Image-Turbo: about 31 GB\n" +
+        "- TRELLIS.2 model bundle: a large multi-GB shared-cache download";
     private const string RuntimeDownloadDetails =
-        "- Hunyuan 2mv runtime repo folder on the working machine: about 6.5 GB\n" +
-        "- Hunyuan 2mv Python .venv: about 6.1 GB\n" +
         "- Z-Image Turbo via Nunchaku Python .venv: about 5.4 GB\n" +
+        "- TRELLIS.2 runtime repo and Python .venv\n" +
         "- CUDA 13.0 in WSL: about 4.9 GB";
     private const string BrainInstallRoot = "/home/nymph/Nymphs-Brain";
 
@@ -31,7 +29,6 @@ public sealed class MainWindowViewModel : ViewModelBase
     private readonly AsyncRelayCommand _openBrainToolsCommand;
     private readonly AsyncRelayCommand _refreshBrainStatusCommand;
     private readonly AsyncRelayCommand _fetchModelsNowCommand;
-    private readonly AsyncRelayCommand _testHunyuanCommand;
     private readonly AsyncRelayCommand _testZImageCommand;
     private readonly AsyncRelayCommand _testTrellisCommand;
     private readonly AsyncRelayCommand _startBrainLlmCommand;
@@ -90,7 +87,6 @@ public sealed class MainWindowViewModel : ViewModelBase
     private string _brainLoadedModel = "Not checked";
     private string _brainActModel = "unknown";
     private string _brainPlanModel = "unknown";
-    private RuntimeBackendStatus _hunyuanRuntimeStatus = RuntimeBackendStatus.Unknown("2mv", "Hunyuan 2mv", "Open Runtime Tools to check status.");
     private RuntimeBackendStatus _zImageRuntimeStatus = RuntimeBackendStatus.Unknown("zimage", "Z-Image", "Open Runtime Tools to check status.");
     private RuntimeBackendStatus _trellisRuntimeStatus = RuntimeBackendStatus.Unknown("trellis", "TRELLIS.2", "Open Runtime Tools to check status.");
     private string _brainRuntimeStatusText = "Status: Not checked";
@@ -115,7 +111,6 @@ public sealed class MainWindowViewModel : ViewModelBase
         _openBrainToolsCommand = new AsyncRelayCommand(OpenBrainToolsAsync, CanRunManagedRuntimeAction);
         _refreshBrainStatusCommand = new AsyncRelayCommand(RefreshBrainStatusAsync, CanRunManagedRuntimeAction);
         _fetchModelsNowCommand = new AsyncRelayCommand(RunFetchModelsNowAsync, CanRunManagedRuntimeAction);
-        _testHunyuanCommand = new AsyncRelayCommand(() => RunSmokeTestAsync("2mv"), CanRunHunyuanSmokeTest);
         _testZImageCommand = new AsyncRelayCommand(() => RunSmokeTestAsync("zimage"), CanRunZImageSmokeTest);
         _testTrellisCommand = new AsyncRelayCommand(() => RunSmokeTestAsync("trellis"), CanRunTrellisSmokeTest);
         _startBrainLlmCommand = new AsyncRelayCommand(StartBrainLlmAsync, CanStartBrainLlm);
@@ -172,8 +167,6 @@ public sealed class MainWindowViewModel : ViewModelBase
 
     public AsyncRelayCommand FetchModelsNowCommand => _fetchModelsNowCommand;
 
-    public AsyncRelayCommand TestHunyuanCommand => _testHunyuanCommand;
-
     public AsyncRelayCommand TestZImageCommand => _testZImageCommand;
 
     public AsyncRelayCommand TestTrellisCommand => _testTrellisCommand;
@@ -187,8 +180,6 @@ public sealed class MainWindowViewModel : ViewModelBase
     public RelayCommand ChangeBrainModelCommand => _changeBrainModelCommand;
 
     public AsyncRelayCommand StopBrainLlmCommand => _stopBrainLlmCommand;
-
-    public System.Windows.Input.ICommand HunyuanRuntimeActionCommand => HunyuanRuntimeStatus.TestReady ? _testHunyuanCommand : _fetchModelsNowCommand;
 
     public System.Windows.Input.ICommand ZImageRuntimeActionCommand => ZImageRuntimeStatus.TestReady ? _testZImageCommand : _fetchModelsNowCommand;
 
@@ -336,7 +327,6 @@ public sealed class MainWindowViewModel : ViewModelBase
                 OnPropertyChanged(nameof(WelcomeHeadline));
                 OnPropertyChanged(nameof(WelcomeLead));
                 OnPropertyChanged(nameof(ShowFooterPrimaryButton));
-                OnPropertyChanged(nameof(HunyuanRuntimeActionCommand));
                 OnPropertyChanged(nameof(ZImageRuntimeActionCommand));
                 OnPropertyChanged(nameof(TrellisRuntimeActionCommand));
                 RecomputeStepState();
@@ -415,8 +405,8 @@ public sealed class MainWindowViewModel : ViewModelBase
 
     public string ModelDownloadDecisionSummary =>
         PrefetchModelsNow
-            ? "With model prefetch turned on, the installer downloads about 72 GB of required model and helper files now. This is the smoothest option for non-technical users, but it can add 1 to 2 hours or more to the install on a typical home connection."
-            : "With model prefetch turned off, the installer skips about 72 GB of model and helper downloads for now. The manager or Blender addon will need to download these later on first real use, which can make first launch feel very slow or look stuck.";
+            ? "With model prefetch turned on, the installer downloads the required model and helper files now. This is the smoothest option for non-technical users, but it can still add a long multi-GB download stage on a typical home connection."
+            : "With model prefetch turned off, the installer skips the large model and helper downloads for now. The manager or Blender addon will need to download these later on first real use, which can make first launch feel very slow or look stuck.";
 
     public string ModelDownloadDecisionDetails => ModelDownloadDetails;
 
@@ -725,20 +715,6 @@ public sealed class MainWindowViewModel : ViewModelBase
             ? BuildBrainModelDetailText()
             : "No model has been reported yet. Refresh after starting the LLM if needed.";
 
-    public RuntimeBackendStatus HunyuanRuntimeStatus
-    {
-        get => _hunyuanRuntimeStatus;
-        private set
-        {
-            if (SetProperty(ref _hunyuanRuntimeStatus, value))
-            {
-                OnPropertyChanged(nameof(HunyuanTestButtonText));
-                OnPropertyChanged(nameof(HunyuanRuntimeActionCommand));
-                RaiseCommandStateChanged();
-            }
-        }
-    }
-
     public RuntimeBackendStatus ZImageRuntimeStatus
     {
         get => _zImageRuntimeStatus;
@@ -771,8 +747,6 @@ public sealed class MainWindowViewModel : ViewModelBase
     // the card title above the button, so repeating it just made the label clip
     // inside the narrow 3-column card. When models aren't ready we tell the user
     // to fetch first instead.
-    public string HunyuanTestButtonText => HunyuanRuntimeStatus.ModelsReady ? "Test" : "Fetch First";
-
     public string ZImageTestButtonText => ZImageRuntimeStatus.ModelsReady ? "Test" : "Fetch First";
 
     public string TrellisTestButtonText => TrellisRuntimeStatus.ModelsReady ? "Test" : "Fetch First";
@@ -836,11 +810,6 @@ public sealed class MainWindowViewModel : ViewModelBase
     private bool CanStopBrainLlm()
     {
         return CanRunManagedRuntimeAction() && IsBrainInstalled && IsBrainLlmRunning;
-    }
-
-    private bool CanRunHunyuanSmokeTest()
-    {
-        return CanRunManagedRuntimeAction() && HunyuanRuntimeStatus.TestReady;
     }
 
     private bool CanRunZImageSmokeTest()
@@ -1160,16 +1129,12 @@ public sealed class MainWindowViewModel : ViewModelBase
 
     private void ApplyRuntimeBackendStatuses(IReadOnlyDictionary<string, RuntimeBackendStatus> statuses)
     {
-        HunyuanRuntimeStatus = statuses.TryGetValue("2mv", out var h2)
-            ? h2
-            : RuntimeBackendStatus.Unknown("2mv", "Hunyuan 2mv", "No runtime status was returned.");
         ZImageRuntimeStatus = statuses.TryGetValue("zimage", out var zimage)
             ? zimage
             : RuntimeBackendStatus.Unknown("zimage", "Z-Image", "No runtime status was returned.");
         TrellisRuntimeStatus = statuses.TryGetValue("trellis", out var trellis)
             ? trellis
             : RuntimeBackendStatus.Unknown("trellis", "TRELLIS.2", "No runtime status was returned.");
-        OnPropertyChanged(nameof(HunyuanRuntimeActionCommand));
         OnPropertyChanged(nameof(ZImageRuntimeActionCommand));
         OnPropertyChanged(nameof(TrellisRuntimeActionCommand));
     }
@@ -1417,16 +1382,6 @@ public sealed class MainWindowViewModel : ViewModelBase
 
     private void MarkCoreRuntimeModelsReady()
     {
-        if (HunyuanRuntimeStatus.EnvironmentReady)
-        {
-            HunyuanRuntimeStatus = HunyuanRuntimeStatus with
-            {
-                ModelsReady = true,
-                TestReady = true,
-                Detail = "All components present. Ready for smoke test.",
-            };
-        }
-
         if (ZImageRuntimeStatus.EnvironmentReady)
         {
             ZImageRuntimeStatus = ZImageRuntimeStatus with
@@ -1447,7 +1402,6 @@ public sealed class MainWindowViewModel : ViewModelBase
             };
         }
 
-        OnPropertyChanged(nameof(HunyuanRuntimeActionCommand));
         OnPropertyChanged(nameof(ZImageRuntimeActionCommand));
         OnPropertyChanged(nameof(TrellisRuntimeActionCommand));
     }
@@ -1500,7 +1454,6 @@ public sealed class MainWindowViewModel : ViewModelBase
         var settings = BuildManagedActionSettings();
         var backendLabel = backend switch
         {
-            "2mv" => "Hunyuan 2mv",
             "zimage" => "Z-Image",
             "trellis" => "TRELLIS.2",
             _ => backend,
@@ -1854,7 +1807,10 @@ public sealed class MainWindowViewModel : ViewModelBase
             }
 
             AppendInstallLog($"Linux user: {settings.LinuxUser}");
-            AppendInstallLog($"Base tar: {settings.TarPath}");
+            AppendInstallLog(
+                _workflowService.BaseTarAvailable
+                    ? $"Base tar: {settings.TarPath}"
+                    : $"Base tar: not found at {settings.TarPath} (local Ubuntu bootstrap will be used)");
             AppendInstallLog(
                 string.IsNullOrWhiteSpace(settings.HuggingFaceToken)
                     ? "Hugging Face token: not provided"
@@ -1881,7 +1837,9 @@ public sealed class MainWindowViewModel : ViewModelBase
                 ? "Reusing the existing NymphsCore environment to add optional modules..."
                 : settings.RepairExistingDistro
                     ? "Continuing with the existing NymphsCore base environment..."
-                    : "Importing the NymphsCore base environment...";
+                    : _workflowService.BaseTarAvailable
+                        ? "Importing the NymphsCore base environment..."
+                        : "Bootstrapping a fresh NymphsCore base environment locally...";
             LogLines.Add(baseStepMessage);
             AppendInstallLog(baseStepMessage);
             await _workflowService.ApplyWslConfigAsync(settings, progress, CancellationToken.None).ConfigureAwait(true);
@@ -2098,7 +2056,7 @@ public sealed class MainWindowViewModel : ViewModelBase
                 CurrentStepSubtitle =
                     RequiresWslSetup
                         ? "Windows WSL support is missing or not ready yet. Set up WSL first, then the manager will continue using its own separate NymphsCore distro."
-                        : "Check WSL, existing distro state, NVIDIA visibility, drive availability, and whether NymphsCore.tar is present next to the manager.";
+                        : "Check WSL, existing distro state, NVIDIA visibility, drive availability, and whether a prebuilt NymphsCore.tar is present or the manager should bootstrap a fresh Ubuntu base locally.";
                 PrimaryButtonText =
                     !_systemChecksCompleted
                         ? "Checking..."
@@ -2183,7 +2141,6 @@ public sealed class MainWindowViewModel : ViewModelBase
         _openBrainToolsCommand.RaiseCanExecuteChanged();
         _refreshBrainStatusCommand.RaiseCanExecuteChanged();
         _fetchModelsNowCommand.RaiseCanExecuteChanged();
-        _testHunyuanCommand.RaiseCanExecuteChanged();
         _testZImageCommand.RaiseCanExecuteChanged();
         _testTrellisCommand.RaiseCanExecuteChanged();
         _startBrainLlmCommand.RaiseCanExecuteChanged();
@@ -2424,7 +2381,6 @@ public sealed class MainWindowViewModel : ViewModelBase
         {
             "Nymphs3D helper repo",
             "NymphsCore helper repo",
-            "Hunyuan3D-2",
             "Z-Image backend",
             "TRELLIS.2",
         };
@@ -2525,7 +2481,6 @@ public sealed class MainWindowViewModel : ViewModelBase
         {
             "Nymphs3D helper repo" => "Manager helper repo",
             "NymphsCore helper repo" => "Manager helper repo",
-            "Hunyuan3D-2" => "Hunyuan 2mv",
             "Z-Image backend" => "Z-Image Turbo via Nunchaku",
             _ => repoName,
         };

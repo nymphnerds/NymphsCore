@@ -121,7 +121,6 @@ Default local ports:
 
 | Runtime | Default Port | Purpose |
 |---|---:|---|
-| `Hunyuan 2mv` | `8080` | multiview shape and multiview-guided texturing |
 | `Z-Image` | `8090` | local prompt-to-image generation |
 | `TRELLIS.2` | `8094` | single-image shape, texture, and retexture |
 
@@ -139,7 +138,7 @@ Use `Z-Image` when:
 
 - you want local prompt-to-image generation
 - you want to create a reference image before making a mesh
-- you want to generate a front, back, left, and right multiview set
+- you want to generate a front, back, left, and right turnaround set for reference or manual review
 
 Use `Gemini Flash` when:
 
@@ -154,13 +153,6 @@ Use `TRELLIS.2` when:
 - you want shape plus texture in one pass
 - you want to retexture a selected mesh from one guidance image
 
-Use `Hunyuan 2mv` when:
-
-- you have front, back, left, and right reference images
-- the asset needs multiple aligned views to describe its shape
-- you want the multiview-specific lane
-- you want practical selected-mesh retexture using multiview guidance
-
 ## Recommended First Test
 
 For a first proof that everything is working, use the simplest local path:
@@ -171,13 +163,12 @@ For a first proof that everything is working, use the simplest local path:
 4. Start `TRELLIS.2`.
 5. Wait until it reports as ready.
 6. Open `Nymphs Shape`.
-7. Set the backend to `TRELLIS.2`.
-8. Choose a clean source image.
-9. Leave `Auto Remove Background` on.
-10. Leave `Also Generate Texture` on.
-11. Click `Generate Shape + Texture`.
-12. Wait for the mesh to import into Blender.
-13. Use `Open Folder` if you want to inspect the saved `.glb` and metadata.
+7. Choose a clean source image.
+8. Leave `Auto Remove Background` on.
+9. Leave `Also Generate Texture` on.
+10. Click `Generate Shape + Texture`.
+11. Wait for the mesh to import into Blender.
+12. Use `Open Folder` if you want to inspect the saved `.glb` and metadata.
 
 Good first source images are simple, centered, and fully visible. Props, creatures, small buildings, and full-body characters on plain backgrounds are better first tests than crowded scenes, cropped images, or screenshots with heavy shadows.
 
@@ -197,7 +188,6 @@ Top status area:
 
 - start and stop `Z-Image`
 - start and stop `TRELLIS.2`
-- start and stop `Hunyuan 2mv`
 - refresh backend state
 - stop all managed runtimes
 
@@ -235,7 +225,7 @@ Image backends:
 8. Set image size, steps, seed, and variants if needed.
 9. Click `Generate Image`.
 
-Use `4-View MV` when you want a front, left, right, and back set for `Hunyuan 2mv`.
+Use `4-View MV` when you want a front, left, right, and back turnaround set for reference, paintovers, or choosing the best single TRELLIS input image.
 
 ### Gemini Flash Flow
 
@@ -318,23 +308,17 @@ Changing the source image clears the old plan so a part checklist cannot acciden
 
 `Nymphs Shape` turns reference images into imported Blender meshes.
 
-The panel has two backend choices:
+### TRELLIS.2 Shape
 
-- `TRELLIS.2`
-- `Hunyuan 2mv`
-
-### TRELLIS.2 Single-Image Shape
-
-Use this as the default single-image path.
+This is the current built-in 3D path.
 
 1. Start `TRELLIS.2` in `Nymphs Server`.
 2. Open `Nymphs Shape`.
-3. Choose `TRELLIS.2`.
-4. Pick a source image.
-5. Leave `Auto Remove Background` on for normal plain-background references.
-6. Leave `Also Generate Texture` on if you want a textured result.
-7. Choose a TRELLIS preset or leave the default.
-8. Click `Generate Shape` or `Generate Shape + Texture`.
+3. Pick a source image.
+4. Leave `Auto Remove Background` on for normal plain-background references.
+5. Leave `Also Generate Texture` on if you want a textured result.
+6. Choose a TRELLIS preset or leave the default.
+7. Click `Generate Shape` or `Generate Shape + Texture`.
 
 Useful TRELLIS options:
 
@@ -347,29 +331,7 @@ Useful TRELLIS options:
 
 Most users should start with presets and only change seed, texture size, and obvious quality/runtime controls.
 
-### Hunyuan 2mv Multiview Shape
-
-Use this when one image is not enough and you have aligned views.
-
-1. Start `Hunyuan 2mv` in `Nymphs Server`.
-2. Open `Nymphs Image`.
-3. Generate or choose front, left, right, and back images.
-4. Open `Nymphs Shape`.
-5. Choose `Hunyuan 2mv`.
-6. Set `Shape Workflow` to `Multiview to 3D`.
-7. Fill `Front`, `Back`, `Left`, and `Right`.
-8. Leave `Auto Remove Background` on unless your references already have clean alpha.
-9. Leave `Also Generate Texture` on if you want a textured result.
-10. Click `Generate Shape` or `Generate Shape + Texture`.
-
-Hunyuan 2mv controls:
-
-- `Mesh Detail` trades detail against time and memory.
-- `Detail Passes` controls refinement work.
-- `Reference Strength` controls how strongly the backend follows the guide.
-- `Texture` support must be enabled in the runtime if you want texture generation.
-- `Turbo` is the practical speed path.
-- `FlashVDM` accelerates the shape pipeline.
+If you create a four-view turnaround set in `Nymphs Image`, use the best front or three-quarter image as the actual shape input. The addon no longer exposes a separate multiview 3D runtime.
 
 ## Nymphs Texture Panel
 
@@ -382,25 +344,12 @@ Use it when the shape is good but the surface needs another pass.
 1. Start `TRELLIS.2`.
 2. Select one mesh in Blender.
 3. Open `Nymphs Texture`.
-4. Choose `TRELLIS.2`.
-5. Pick a texture guidance image.
-6. Leave `Auto Remove Background` on for normal references.
-7. Choose texture resolution, texture size, seed, steps, and image-follow strength.
-8. Click `Retexture Selected Mesh`.
-
-TRELLIS retexture is a good default when you have one strong guidance image.
-
-### Hunyuan 2mv Retexture
-
-1. Start `Hunyuan 2mv` with texture support enabled.
-2. Select one mesh in Blender.
-3. Open `Nymphs Texture`.
-4. Choose `Hunyuan 2mv`.
-5. Fill front, back, left, and right guidance images when available.
-6. Expand `Texture Options` if you need to change face limit or texture size.
+4. Pick a texture guidance image.
+5. Leave `Auto Remove Background` on for normal references.
+6. Choose texture resolution, texture size, seed, steps, and image-follow strength.
 7. Click `Retexture Selected Mesh`.
 
-Hunyuan 2mv is the practical multiview retexture lane. It is useful when a single image does not describe the whole surface well enough.
+TRELLIS retexture is a good default when you have one strong guidance image.
 
 ## Output Files
 
@@ -507,7 +456,6 @@ If a runtime behaves strangely after an update:
 - Select exactly one mesh.
 - Use a guidance image that clearly describes the desired surface.
 - Confirm the selected backend reports texture and retexture support.
-- For `Hunyuan 2mv`, confirm texture support was enabled when the runtime started.
 - Try a smaller texture size.
 
 ### Gemini Flash does not work

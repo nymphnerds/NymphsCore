@@ -57,9 +57,7 @@ public partial class MainWindow : Window
 
         Dispatcher.BeginInvoke(new Action(() =>
         {
-            var activeLogListBox = _viewModel?.IsBrainToolsStep == true
-                ? BrainLogListBox
-                : RuntimeLogListBox;
+            var activeLogListBox = GetActiveLogListBox();
 
             if (activeLogListBox.Items.Count == 0)
             {
@@ -73,6 +71,21 @@ public partial class MainWindow : Window
             var scrollViewer = FindDescendant<ScrollViewer>(activeLogListBox);
             scrollViewer?.ScrollToEnd();
         }), DispatcherPriority.Render);
+    }
+
+    private ListBox GetActiveLogListBox()
+    {
+        if (_viewModel?.IsBrainToolsStep == true)
+        {
+            return BrainLogListBox;
+        }
+
+        if (_viewModel?.IsRuntimeToolsStep == true)
+        {
+            return RuntimeLogListBox;
+        }
+
+        return LogListBox;
     }
 
     private void OnHuggingFaceTokenChanged(object sender, RoutedEventArgs e)

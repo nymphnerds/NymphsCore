@@ -31,13 +31,13 @@ The extension id is `nymphs`.
 3. Retexture the selected mesh in `Nymphs Texture` if the first texture needs another pass.
 4. Open output folders when you want to inspect saved images, meshes, or metadata.
 
-Start with a single prompt image when the object is simple. Use a front, back, left, and right image set when the shape needs multiple views.
+Start with one strong front or three-quarter image when the object is simple. You can still generate a front, back, left, and right turnaround set in `Nymphs Image`, but the current 3D lane uses a single chosen image through `TRELLIS.2`.
 
 For character assets, a guided parts workflow is available inside `Nymphs Image`: create or choose one master character image, open `Image Part Extraction`, plan the extractable parts, choose only the parts you want, then run `Extract Selected`. This produces separate reference images for the base body, clothing, hair, props, and optional eyeball assets while keeping everything tied to the same source image.
 
 ## Image Generation
 
-The `Nymphs Image` panel creates the reference image or multiview set that drives the rest of the workflow.
+The `Nymphs Image` panel creates the reference image set that drives the rest of the workflow.
 
 Image backends:
 
@@ -53,7 +53,7 @@ Useful image tools:
 - `Image Part Extraction` for planning and extracting separate parts from one master image
 - optional face, eyes-in-base, eyeball-only, style lock, and symmetry controls for extraction passes
 - generation profiles for size, steps, seed, guidance, and variant count
-- four-view multiview generation for front, back, left, and right references
+- four-view turnaround generation for front, back, left, and right references
 - open and clear buttons for generated image folders
 
 ## Image Part Extraction
@@ -75,21 +75,14 @@ Changing the source image clears the old part plan so a checklist cannot acciden
 
 The `Nymphs Shape` panel turns generated image references into a mesh and first texture result, then imports the returned model into Blender.
 
-Single-image path:
+Current shape path:
 
 1. Start `TRELLIS.2` in `Nymphs Runtimes`.
 2. Generate or choose an image.
 3. Run shape generation from the `Nymphs Shape` panel.
 4. Adjust TRELLIS guidance presets when a prompt needs more or less image adherence.
 
-Multiview path:
-
-1. Create or choose front, back, left, and right reference images.
-2. Start `Hunyuan 2mv` in `Nymphs Runtimes`.
-3. Send the multiview set from the `Nymphs Shape` panel.
-4. Use the imported mesh as the base model for cleanup or texturing.
-
-`Hunyuan 2mv` is intended for cases where multiple aligned views describe the object better than one image can.
+If you generate a four-view turnaround set, use the clearest front or three-quarter view as the actual shape input. The addon no longer exposes a separate multiview 3D backend.
 
 ## Retexture
 
@@ -99,7 +92,7 @@ Typical flow:
 
 1. Select a mesh in Blender.
 2. Choose a texture reference image.
-3. Start `TRELLIS.2` or `Hunyuan 2mv`.
+3. Start `TRELLIS.2`.
 4. Run the texture request and inspect the imported result.
 
 ## Runtime
@@ -110,7 +103,6 @@ Use `Nymphs Runtimes` to start, stop, and probe:
 
 - `Z-Image` for local prompt-to-image generation
 - `TRELLIS.2` for single-image shape, texture, and retexture work
-- `Hunyuan 2mv` for multiview mesh generation from front, back, left, and right images
 
 The retired Hunyuan Parts / P3-SAM / X-Part workflow is no longer included.
 

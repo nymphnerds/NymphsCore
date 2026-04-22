@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [string]$DistroName = "NymphsCore",
+    [string]$DistroName = "NymphsCore_Lite",
     [switch]$BuildManager
 )
 
@@ -68,18 +68,15 @@ if ($currentUser -ne "nymph") {
 }
 
 Write-Step "Core folders"
-$foldersResult = Run-WslCapture -Distro $DistroName -Command "ls ~ && printf '\n---\n' && ls ~/Hunyuan3D-2 ~/Z-Image ~/TRELLIS.2"
+$foldersResult = Run-WslCapture -Distro $DistroName -Command "ls ~ && printf '\n---\n' && ls ~/Z-Image ~/TRELLIS.2"
 Require-Success -Label "folder check" -Result $foldersResult
 $foldersResult.StdOut | Out-Host
 
 Write-Step "Python versions"
-$pythonResult = Run-WslCapture -Distro $DistroName -Command "~/Hunyuan3D-2/.venv/bin/python --version && ~/Z-Image/.venv-nunchaku/bin/python --version && ~/TRELLIS.2/.venv/bin/python --version"
+$pythonResult = Run-WslCapture -Distro $DistroName -Command "~/Z-Image/.venv-nunchaku/bin/python --version && ~/TRELLIS.2/.venv/bin/python --version"
 Require-Success -Label "python version check" -Result $pythonResult
 $pythonResult.StdOut | Out-Host
-if ($pythonResult.StdOut -notmatch "Python 3\.10") {
-    throw "Hunyuan3D-2 venv is not using Python 3.10."
-}
-if (($pythonResult.StdOut -split "`n").Count -lt 3) {
+if (($pythonResult.StdOut -split "`n").Count -lt 2) {
     throw "Expected all core backend Python versions to be reported."
 }
 if ($pythonResult.StdOut -notmatch "Python 3\.11") {

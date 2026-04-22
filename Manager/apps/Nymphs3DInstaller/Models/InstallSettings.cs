@@ -2,7 +2,7 @@ namespace Nymphs3DInstaller.Models;
 
 public sealed class InstallSettings
 {
-    public string DistroName { get; set; } = "NymphsCore";
+    public string DistroName { get; set; } = "NymphsCore_Lite";
 
     public string LinuxUser { get; set; } = "nymph";
 

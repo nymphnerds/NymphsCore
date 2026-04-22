@@ -48,22 +48,17 @@ No other tool does this. This is your secret weapon.
 Front / Left / Right / Back views for better 3D accuracy.
 
 - 4-View MV generation creates consistent multi-angle references
-- Feed multiple views into Hunyuan 2mv for superior 3D reconstruction
-- Automatic view composition with clean silhouettes
+- Pick the strongest front or three-quarter image from the set for TRELLIS.2
+- Automatic view composition with clean silhouettes for reference and paintovers
 - Seed control for reproducible related images
 
-### Dual 3D Pipeline (Best of Breed)
+### 3D Pipeline
 
 **TRELLIS.2** — Premium single-image to 3D
 - Single image → textured mesh in one pass
 - 1024/1536 cascade for high detail
 - 22 fine-tuneable parameters for experts
 - Native texture and retexture support
-
-**Hunyuan 2mv** — Multi-view guided excellence
-- Best results with 4-view reference
-- Multiview texture guidance
-- 28GB optimized model family
 
 ### Local Image Generation (Z-Image / Nunchaku)
 Generate concept art and references locally—no external API calls.

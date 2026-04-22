@@ -53,7 +53,6 @@ Current public baseline:
   - `http://localhost:8080`
 - backend stack:
   - `TRELLIS.2` for single-image image-to-3D and texture/retexture workflows
-  - `Hunyuan 2mv` for multiview-guided workflows
   - `Z-Image` / Nunchaku for local image generation
 - model prefetch is recommended, but still optional
 - runtime tools handle readiness checks, model fetch, and smoke tests
@@ -191,7 +190,6 @@ Work:
 - confirm Runtime Tools status after each scenario
 - confirm smoke tests for:
   - `TRELLIS.2`
-  - `Hunyuan 2mv`
   - `Z-Image`
 - capture screenshots for support/docs
 

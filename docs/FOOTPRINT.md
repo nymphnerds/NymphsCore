@@ -5,7 +5,6 @@ This document explains the current local disk footprint for the NymphsCore Manag
 The current public runtime stack is:
 
 - `TRELLIS.2` for single-image image-to-3D and texture/retexture workflows
-- `Hunyuan 2mv` for multiview-guided workflows
 - `Z-Image` / Nunchaku for local image generation
 
 Older experimental lanes and local development experiments are not part of this baseline.
@@ -14,12 +13,7 @@ Older experimental lanes and local development experiments are not part of this 
 
 ## Headline Numbers
 
-Plan for:
-
-- about `92 GB` installed for a ready-to-run local backend
-- about `72 GB` of required model/helper downloads during model prefetch
-- about `120 GB` free before install as a practical minimum
-- about `150 GB` free before install for comfortable headroom
+Plan for a large multi-GB install with comfortable headroom. The exact total depends on whether model prefetch is enabled, how much shared model cache is already present, and which optional modules you install.
 
 The install can grow over time as you create meshes, textures, logs, model cache files, and future runtime updates.
 
@@ -49,7 +43,6 @@ Inside that distro, it prepares:
 
 - CUDA 13.0 inside WSL
 - system packages needed by the backend scripts
-- the `Hunyuan3D-2` runtime family used by the `Hunyuan 2mv` lane
 - the `Z-Image` / Nunchaku runtime used by local image generation
 - the official `TRELLIS.2` runtime
 - Python virtual environments for the supported backends
@@ -114,23 +107,18 @@ Practical advice:
 
 The current product baseline should be read like this:
 
-- `TRELLIS.2` owns the single-image 3D lane
-- `Hunyuan 2mv` is kept for multiview-guided workflows
+- `TRELLIS.2` owns the built-in 3D lane
 - `Z-Image` / Nunchaku is kept for local image generation
-
-Some folders and model caches still use upstream names such as `Hunyuan3D-2` because the multiview and texture paths depend on that runtime family. Seeing that name on disk does not mean every older Hunyuan workflow is part of the public product surface.
 
 The manager UI currently lists these major download groups:
 
-- `tencent/Hunyuan3D-2`: about `28 GB`
-- `tencent/Hunyuan3D-2mv`: about `19 GB`
 - `u2net` helper model: about `168 MB`
 - `Tongyi-MAI/Z-Image-Turbo`: about `31 GB`
+- `TRELLIS.2` model bundle: a large shared-cache download whose exact size depends on upstream snapshot changes
 
 Runtime and environment pieces include:
 
-- Hunyuan 2mv runtime repo folder: about `6.5 GB`
-- Hunyuan 2mv Python `.venv`: about `6.1 GB`
+- TRELLIS.2 runtime repo and Python environment
 - Z-Image Turbo via Nunchaku Python `.venv`: about `5.4 GB`
 - CUDA 13.0 in WSL: about `4.9 GB`
 

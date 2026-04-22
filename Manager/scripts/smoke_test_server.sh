@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "${ROOT_DIR}/scripts/common_paths.sh"
 
-BACKEND="2mv"
+BACKEND="zimage"
 TIMEOUT_SECONDS="${NYMPHS3D_SMOKE_TEST_TIMEOUT:-900}"
 PORT=""
 WORK_DIR=""
@@ -14,7 +14,7 @@ VENV_ACTIVATE=""
 
 usage() {
   cat <<'EOF'
-Usage: smoke_test_server.sh [--backend 2mv|zimage|trellis] [--port PORT] [--timeout SECONDS]
+Usage: smoke_test_server.sh [--backend zimage|trellis] [--port PORT] [--timeout SECONDS]
 
 Starts a local API server, waits for /server_info, and then shuts it down.
 EOF
@@ -62,21 +62,6 @@ while [[ $# -gt 0 ]]; do
 done
 
 case "${BACKEND}" in
-  2mv)
-    REPO_DIR="${NYMPHS3D_H2_DIR}"
-    VENV_ACTIVATE="${REPO_DIR}/.venv/bin/activate"
-    PORT="${PORT:-8090}"
-    EXPECTED_BACKEND="Hunyuan3D-2mv"
-    EXPECTED_MODEL="tencent/Hunyuan3D-2mv"
-    EXPECTED_SUBFOLDER="hunyuan3d-dit-v2-mv-turbo"
-    SERVER_CMD=(
-      python -u api_server_mv.py
-      --host 127.0.0.1
-      --port "${PORT}"
-      --model_path "${EXPECTED_MODEL}"
-      --subfolder "${EXPECTED_SUBFOLDER}"
-    )
-    ;;
   zimage)
     REPO_DIR="${NYMPHS3D_Z_IMAGE_DIR}"
     VENV_ACTIVATE="${REPO_DIR}/.venv-nunchaku/bin/activate"
@@ -165,11 +150,7 @@ while time.time() < deadline:
         payload_runtime = payload_extra.get("runtime")
         payload_configured_runtime = payload_extra.get("configured_runtime")
         payload_supported_modes = payload.get("supported_modes") if isinstance(payload.get("supported_modes"), list) else []
-        if expected_backend == "Hunyuan3D-2mv":
-            if payload.get("status") in {"ok", "ready"} and payload_model == expected_model and payload_subfolder == expected_subfolder:
-                print(f"Smoke test passed for {expected_backend}.")
-                sys.exit(0)
-        elif payload_backend in expected_backend_aliases and payload_model == expected_model:
+        if payload_backend in expected_backend_aliases and payload_model == expected_model:
             if expected_backend == "Z-Image":
                 if payload_runtime == expected_subfolder or payload_configured_runtime == expected_subfolder:
                     print(f"Smoke test passed for {expected_backend}.")
