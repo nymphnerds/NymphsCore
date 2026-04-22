@@ -251,6 +251,8 @@ wsl -d NymphsCore --user nymph -- bash -lc "/home/nymph/Nymphs-Brain/bin/brain-r
 
 The Manager Brain page `Update Stack` action runs `brain-refresh` before LM Studio/Open WebUI updates, so repaired installs do not stay stuck on older plan/act wrapper logic.
 
+Older Brain installs may not have `brain-refresh` yet. In that case, the Manager falls back to running the packaged Brain installer script once to seed the new wrapper while preserving saved Plan/Act profiles.
+
 Update Open WebUI:
 
 ```powershell

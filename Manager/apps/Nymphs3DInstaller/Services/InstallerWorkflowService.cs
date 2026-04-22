@@ -1150,9 +1150,7 @@ public sealed class InstallerWorkflowService
         CancellationToken cancellationToken)
     {
         var toolPath = $"{settings.BrainInstallRoot}/bin/{toolName}";
-        var toolInvocation = toolName == "lms-start"
-            ? $"timeout --foreground 120s {ToBashSingleQuoted(toolPath)}"
-            : ToBashSingleQuoted(toolPath);
+        var toolInvocation = BuildNymphsBrainToolInvocation(settings, toolName, toolPath);
         var bashCommand =
             "set -euo pipefail; " +
             $"export HOME={ToBashSingleQuoted($"/home/{settings.LinuxUser}")}; " +
@@ -1160,7 +1158,7 @@ public sealed class InstallerWorkflowService
             $"export LOGNAME={ToBashSingleQuoted(settings.LinuxUser)}; " +
             "export CI=true; " +
             "export LMS_NO_INTERACTIVE=1; " +
-            $"if [[ ! -x {ToBashSingleQuoted(toolPath)} ]]; then echo 'Nymphs-Brain tool missing: {toolPath}'; exit 1; fi; " +
+            BuildNymphsBrainToolPreflight(settings, toolName, toolPath) +
             toolInvocation;
 
         var arguments = new List<string>
@@ -1178,6 +1176,39 @@ public sealed class InstallerWorkflowService
             progress,
             environmentVariables: null,
             cancellationToken).ConfigureAwait(false);
+    }
+
+    private string BuildNymphsBrainToolInvocation(InstallSettings settings, string toolName, string toolPath)
+    {
+        if (toolName == "lms-start")
+        {
+            return $"timeout --foreground 120s {ToBashSingleQuoted(toolPath)}";
+        }
+
+        if (toolName == "brain-refresh")
+        {
+            var brainScript = RequireScript("install_nymphs_brain.sh");
+            var wslBrainScriptPath = ConvertWindowsPathToWsl(brainScript)
+                ?? throw new InvalidOperationException($"Could not convert script path for WSL: {brainScript}");
+            return $"if [[ -x {ToBashSingleQuoted(toolPath)} ]]; then " +
+                   $"{ToBashSingleQuoted(toolPath)}; " +
+                   "else " +
+                   "echo 'Nymphs-Brain brain-refresh missing; bootstrapping wrapper refresh from packaged installer.'; " +
+                   $"bash {ToBashSingleQuoted(wslBrainScriptPath)} --install-root {ToBashSingleQuoted(settings.BrainInstallRoot)} --quiet; " +
+                   "fi";
+        }
+
+        return ToBashSingleQuoted(toolPath);
+    }
+
+    private static string BuildNymphsBrainToolPreflight(InstallSettings settings, string toolName, string toolPath)
+    {
+        if (toolName == "brain-refresh")
+        {
+            return string.Empty;
+        }
+
+        return $"if [[ ! -x {ToBashSingleQuoted(toolPath)} ]]; then echo 'Nymphs-Brain tool missing: {toolPath}'; exit 1; fi; ";
     }
 
     private async Task<IReadOnlyList<string>> GetWslDistroNamesAsync(CancellationToken cancellationToken)
