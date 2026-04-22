@@ -16,6 +16,7 @@ Documented changes:
 - removed the optional base tar/package row from visible System Check because Lite no longer requires a hosted prewarmed tar
 - adjusted the Manager UI scale to 85% and trimmed Runtime Tools/System Check copy so pages fit without unnecessary micro-scroll
 - moved Manager branding assets into the app-local `AppAssets` directory so rebuilt branding is predictable
+- rebuilt and committed the Lite Windows Manager release artifacts so `publish/NymphsCoreManager-win-x64.zip` and `publish/win-x64/NymphsCoreManager.exe` match the current source
 - made the Brain page plan-first:
   - local `Plan` is the primary configured model role
   - `Act` can remain external for workflows that use an online action model
