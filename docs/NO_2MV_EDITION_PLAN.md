@@ -2,6 +2,28 @@
 
 This document turns the backend audit into a concrete implementation plan for a NymphsCore edition that does not ship `Hunyuan 2mv`.
 
+## Current Lite Branch Status
+
+The permanent Lite branch is now `nymphscore-lite`.
+
+Current product shape:
+
+- WSL distro name: `NymphsCore_Lite`
+- no `Hunyuan 2mv` backend
+- no prewarmed tar requirement
+- local tarless Ubuntu bootstrap is the normal install/repair path
+- optional prebuilt `NymphsCore.tar` remains only as a maintainer shortcut
+- Manager `Runtime Tools` checks `Z-Image` and `TRELLIS.2`
+- System Check no longer treats the tar/base package as a visible requirement
+- optional `Nymphs-Brain` is separate from Blender backend runtime health
+
+Recent Brain follow-up:
+
+- Brain is plan-first for local model profiles
+- a local `Plan` model can be used while `Act` remains external
+- `Update Stack` refreshes installed Brain wrappers before updating LM Studio/Open WebUI
+- `Stop Brain` is shown whenever any Brain service is running
+
 ## Recommendation
 
 Treat this as a product-surface branch, not a runtime toggle.

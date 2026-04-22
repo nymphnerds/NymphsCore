@@ -1055,6 +1055,64 @@ use_downloaded_model_menu() {
 }
 
 remove_models_menu() {
+  local models_root="${HOME}/.lmstudio/models"
+
+  resolve_model_dir() {
+    local model_key="$1"
+    python_json - "${models_root}" "${model_key}" <<'PYEOF'
+import re
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1]).expanduser()
+model_key = sys.argv[2]
+
+def norm(value: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "", value.lower())
+
+if not root.exists():
+    raise SystemExit(1)
+
+key_parts = [part for part in model_key.split("/") if part]
+candidates = [model_key]
+if key_parts:
+    candidates.append(key_parts[-1])
+
+normalized_candidates = [norm(item) for item in candidates if item]
+direct = root / model_key
+if direct.exists() and direct.is_dir():
+    print(direct)
+    raise SystemExit(0)
+
+for path in root.glob("*/*"):
+    if not path.is_dir():
+        continue
+    haystack = norm("/".join(path.parts[-2:]))
+    if any(candidate and candidate in haystack for candidate in normalized_candidates):
+        print(path)
+        raise SystemExit(0)
+
+raise SystemExit(1)
+PYEOF
+  }
+
+  clear_removed_profile_refs() {
+    local removed_key="$1"
+    local plan_key=""
+    local act_key=""
+
+    plan_key="$("${INSTALL_ROOT}/bin/lms-get-profile" plan 2>/dev/null || true)"
+    act_key="$("${INSTALL_ROOT}/bin/lms-get-profile" act 2>/dev/null || true)"
+
+    if [[ "${plan_key}" == "${removed_key}" ]]; then
+      "${INSTALL_ROOT}/bin/lms-set-profile" plan clear
+    fi
+
+    if [[ "${act_key}" == "${removed_key}" ]]; then
+      "${INSTALL_ROOT}/bin/lms-set-profile" act clear
+    fi
+  }
+
   while true; do
     echo
     echo "Remove Models"
@@ -1073,8 +1131,17 @@ remove_models_menu() {
       if [[ -n "${model_choice}" ]]; then
         read -rp "Remove '${model_choice}'? (y/n): " response
         if [[ "${response}" =~ ^[Yy]$ ]]; then
-          "${LMS_BIN}" rm "${model_choice}"
-          echo "Removed ${model_choice}."
+          model_dir="$(resolve_model_dir "${model_choice}" || true)"
+          if [[ -z "${model_dir}" ]]; then
+            echo "Could not find a local LM Studio folder for '${model_choice}' under ${models_root}." >&2
+            echo "Open ${models_root} and remove the model folder manually if needed." >&2
+            break
+          fi
+
+          "${LMS_BIN}" unload "${model_choice}" >/dev/null 2>&1 || true
+          rm -rf -- "${model_dir}"
+          clear_removed_profile_refs "${model_choice}"
+          echo "Removed ${model_choice} from ${model_dir}."
         fi
         break
       fi

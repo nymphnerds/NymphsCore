@@ -8,6 +8,41 @@ This file focuses on user-facing and system-level changes rather than package-by
 
 Newest entries first.
 
+### 2026-04-22 hardened `nymphscore-lite` Manager and Brain follow-up testing
+Source: live Manager testing against the `NymphsCore_Lite` distro after the tarless repair path completed.
+
+Documented changes:
+
+- removed the optional base tar/package row from visible System Check because Lite no longer requires a hosted prewarmed tar
+- adjusted the Manager UI scale to 85% and trimmed Runtime Tools/System Check copy so pages fit without unnecessary micro-scroll
+- moved Manager branding assets into the app-local `AppAssets` directory so rebuilt branding is predictable
+- made the Brain page plan-first:
+  - local `Plan` is the primary configured model role
+  - `Act` can remain external for workflows that use an online action model
+  - model manager menus and profile helpers now present/set `Plan` before `Act`
+- hardened Brain service controls:
+  - `Start Brain` starts the LLM and MCP gateway
+  - the primary action becomes `Stop Brain` whenever any Brain service is running
+  - `Stop Brain` stops WebUI, MCP, and LM Studio/LLM as applicable
+- hardened Brain wrapper refresh:
+  - `Update Stack` now refreshes local Brain wrapper scripts before updating LM Studio/Open WebUI
+  - Brain reinstall/update preserves existing Plan/Act profile selections
+  - `brain-status` falls back to the OpenAI-compatible model list if LM Studio's `lms ps` output is empty
+- made LM Studio model loads non-interactive with `lms load -y` so script-driven starts do not hang on model-choice prompts
+
+Validation:
+
+- local Brain services were manually stopped and ports `1234`, `8081`, and `8100` were confirmed clear
+- Brain load output showed Qwen loading successfully, which exposed the UI state bug that kept `Stop Brain` hidden
+- shell syntax checks passed for both source and packaged Brain install scripts after the plan/act hardening pass
+
+Why it matters:
+
+- the Lite Manager no longer suggests a tar is required
+- the Brain page has an always-available stop path for partial service states
+- repair/update is less likely to leave old installed Brain wrappers stuck inside the distro
+- Plan-local / Act-external workflows are now supported by the intended UI and script flow
+
 ### 2026-04-22 validated `nymphscore-lite` tarless repair flow
 Source: live Manager repair testing against the `NymphsCore_Lite` WSL distro after removing the prewarmed `.tar` dependency from the Lite branch.
 

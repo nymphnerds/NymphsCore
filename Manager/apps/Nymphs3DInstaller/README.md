@@ -12,9 +12,9 @@ Current manager download:
 
 - [NymphsCoreManager-win-x64.zip](https://github.com/nymphnerds/NymphsCore/raw/main/Manager/apps/Nymphs3DInstaller/publish/NymphsCoreManager-win-x64.zip)
 
-The lite manager bootstraps a fresh Ubuntu WSL base locally if no prebuilt distro package is present.
+The lite manager bootstraps a fresh Ubuntu WSL base locally. A prebuilt distro package is not required.
 
-Optional: if you already have a compatible `NymphsCore.tar`, place it in the extracted manager folder next to `NymphsCoreManager.exe` to use the faster prebuilt path.
+Optional maintainer shortcut: if you already have a compatible `NymphsCore.tar`, place it in the extracted manager folder next to `NymphsCoreManager.exe` to use the faster prebuilt path.
 
 ## Setup
 
@@ -47,7 +47,7 @@ NymphsCoreManager-win-x64/
 
 - Do not run the manager from inside the zip.
 - Extract it first.
-- `NymphsCore.tar` is optional on the lite no-tar branch.
+- `NymphsCore.tar` is optional on the lite branch and is not shown as a required system check.
 - If the tar is missing, the app bootstraps a fresh Ubuntu base locally.
 - If an existing `NymphsCore` install is already present, the manager can reuse it for:
   - update checks
@@ -55,12 +55,15 @@ NymphsCoreManager-win-x64/
   - smoke tests
   - repair / refresh reruns
 - `Nymphs-Brain` is optional and experimental. If selected, it installs inside WSL at `/home/nymph/Nymphs-Brain`; it is not required for the Blender backend.
-- if `Nymphs-Brain` is selected, Runtime Tools also exposes:
-  - `Start LLM`
-  - `Open WebUI`
+- if `Nymphs-Brain` is selected, the Manager exposes a dedicated Brain page with:
+  - `Start Brain`
+  - `Stop Brain`
+  - `Start/Stop WebUI`
   - `Manage Models`
-  - `Stop LLM`
-- the Brain install and Runtime Tools actions use LM Studio's normal CLI behavior for model fetch and server start, so no separate manual daemon bootstrap step should be needed
+  - `Update Stack`
+- Brain model profiles are plan-first. A local `Plan` model can be used while `Act` remains external.
+- `Update Stack` refreshes the installed Brain wrapper scripts before updating LM Studio/Open WebUI packages.
+- the Brain install and Brain page actions use LM Studio's normal CLI behavior for model fetch and server start, so no separate manual daemon bootstrap step should be needed
 - Open WebUI is intended to open on `http://localhost:8081`
 
 ## If Something Fails

@@ -34,7 +34,7 @@ Download the manager zip from the repo:
 
 The lite manager can bootstrap its own fresh Ubuntu WSL base locally.
 
-If you already have a compatible `NymphsCore.tar`, you can put it next to `NymphsCoreManager.exe` after extracting the zip. That optional prebuilt path is faster, but it is no longer required on this branch.
+If you already have a compatible `NymphsCore.tar`, you can put it next to `NymphsCoreManager.exe` after extracting the zip. That optional maintainer shortcut is faster, but it is no longer required and is not treated as a system-check requirement on this branch.
 
 Your folder should look like this:
 
@@ -80,7 +80,7 @@ For the detailed disk story, read:
 The manager walks through these steps:
 
 - `Welcome`: explains the local runtime and links to docs
-- `System Check`: checks administrator access, WSL, NVIDIA visibility, install files, and existing distros
+- `System Check`: checks administrator access, WSL, NVIDIA visibility, drive space, and existing distros
 - `Install Location`: chooses the Windows drive/folder for the managed distro
 - `WSL Resources And Models`: chooses WSL resource settings, model prefetch, and optional experimental modules
 - `Installation Progress`: imports the distro and prepares runtime environments
@@ -119,11 +119,13 @@ Useful Brain commands:
 /home/nymph/Nymphs-Brain/bin/brain-status
 ```
 
-The current Brain stack supports:
+The current Brain stack is plan-first and supports:
 
-- one `Act` model
-- one optional `Plan` model
-- loading only `Act` or both `Act` + `Plan` from the Linux-side Brain config
+- one local `Plan` model
+- one optional local `Act` model
+- keeping `Act` external if your workflow uses an online action model
+- loading `Plan` first, then `Act` if an `Act` profile is configured
+- refreshing installed Brain wrapper scripts from the Brain page `Update Stack` action
 
 ## Runtime Tools
 
@@ -148,6 +150,8 @@ Use the dedicated `Brain` page to:
 - update the Linux-side Brain stack components
 - inspect the Brain activity log
 
+The primary Brain action becomes `Stop Brain` whenever any Brain service is running, even if only WebUI or MCP is active. This gives the page a reliable all-stop path for partial service states.
+
 The Brain page is optional. If the module was not selected during install, the main backend setup still works normally without it.
 
 ## Logs And Troubleshooting
@@ -162,7 +166,7 @@ If something fails, send the newest `installer-run-*.log` and a screenshot of th
 
 Common causes:
 
-- WSL is too old for local no-tar bootstrap, or an optional prebuilt tar is incompatible
+- WSL is too old for local no-tar bootstrap
 - the manager was launched from inside the zip
 - not enough free disk space
 - WSL is disabled or unhealthy

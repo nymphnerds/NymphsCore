@@ -45,8 +45,8 @@ Useful folders:
 The current Brain stack includes:
 
 - Linux-side LM Studio CLI/runtime wrappers
-- one `Act` model role
-- one optional `Plan` model role
+- one primary local `Plan` model role
+- one optional local `Act` model role
 - Open WebUI
 - a local MCP proxy with:
   - `filesystem`
@@ -67,12 +67,14 @@ If Brain was installed, NymphsCore Manager now exposes a dedicated `Brain` page.
 
 Use it to:
 
-- start or stop the Brain LLM stack
+- start or stop the Brain stack
 - start or stop Open WebUI
 - inspect `LLM Server`, `MCP Gateway`, `Open WebUI`, and `Current Model`
 - open the role-aware `Manage Models` flow
 - inspect the `Brain activity` log
 - update the Brain stack from the launcher
+
+The primary Brain button is an all-stop safety control when any Brain service is running. If LLM, MCP, or WebUI is active, it shows `Stop Brain` and stops the active pieces it can manage.
 
 `Runtime Tools` is for the Blender backend runtimes. `Brain` is the separate Brain control page.
 
@@ -86,6 +88,7 @@ Useful commands inside WSL:
 /home/nymph/Nymphs-Brain/bin/lms-model
 /home/nymph/Nymphs-Brain/bin/lms-get-profile
 /home/nymph/Nymphs-Brain/bin/lms-set-profile
+/home/nymph/Nymphs-Brain/bin/brain-refresh
 /home/nymph/Nymphs-Brain/bin/lms-update
 /home/nymph/Nymphs-Brain/bin/mcp-start
 /home/nymph/Nymphs-Brain/bin/mcp-stop
@@ -115,8 +118,8 @@ Expected healthy output shape looks like:
 Brain install: installed
 LLM server: running|stopped
 Model loaded: ...
-Act model: qwen/qwen2.5-coder-14b (context 65536)
 Plan model: qwen3.5-9b (context 16384)
+Act model: none (context none)
 MCP proxy: running|stopped
 Open WebUI: running|stopped
 ```
@@ -125,16 +128,16 @@ Open WebUI: running|stopped
 
 ## Model Roles: Act And Plan
 
-Brain no longer assumes a single generic selected model.
+Brain no longer assumes a single generic selected model, and the Lite branch is now plan-first.
 
 It supports:
 
-- `Act`: the main execution/coding model
-- `Plan`: an optional lighter planning model
+- `Plan`: the primary local planning model
+- `Act`: an optional local execution/coding model
 
-This makes it a better fit for tools like Cline that can use separate models for planning and action.
+This makes it a better fit for workflows where Cline or another client uses a local planning model but keeps action/execution on an external provider.
 
-If `Plan` is blank, Brain loads only the `Act` model.
+If `Act` is blank, Brain loads only the local `Plan` model. If both are configured, Brain loads `Plan` first, then `Act`.
 
 Profile config is stored here:
 
@@ -152,16 +155,19 @@ wsl -d NymphsCore --user nymph -- bash -lc "/home/nymph/Nymphs-Brain/bin/lms-mod
 
 The current role-aware model manager lets you:
 
-- set a downloaded model as `Act`
 - set a downloaded model as `Plan`
-- download a new model for `Act`
+- set a downloaded model as `Act`
 - download a new model for `Plan`
-- clear `Act`
+- download a new model for `Act`
 - clear `Plan`
+- clear `Act`
+- remove downloaded LM Studio model folders
 
 The manager flow now updates the saved role config safely. It does not immediately unload and reload models during selection.
 
 After changing roles, restart the Brain LLM to apply the saved configuration.
+
+Removing a model unloads it if possible, deletes the matching folder under `~/.lmstudio/models`, and clears the saved Plan/Act profile if that profile pointed at the removed model. LM Studio's CLI does not currently expose an `rm` command, so Brain handles removal through the local model folder.
 
 ## Direct Profile Commands
 
@@ -171,25 +177,25 @@ Inspect the current saved roles:
 wsl -d NymphsCore --user nymph -- bash -lc "/home/nymph/Nymphs-Brain/bin/lms-get-profile"
 ```
 
-Example: set `Plan` to Qwen 3 9B and `Act` to Qwen 2.5 Coder 14B:
+Example: set `Plan` to Qwen 3.5 9B and leave `Act` external:
 
 ```powershell
 wsl -d NymphsCore --user nymph -- bash -lc "/home/nymph/Nymphs-Brain/bin/lms-set-profile plan qwen3.5-9b 16384"
-wsl -d NymphsCore --user nymph -- bash -lc "/home/nymph/Nymphs-Brain/bin/lms-set-profile act qwen/qwen2.5-coder-14b 65536"
+wsl -d NymphsCore --user nymph -- bash -lc "/home/nymph/Nymphs-Brain/bin/lms-set-profile act clear"
 wsl -d NymphsCore --user nymph -- bash -lc "/home/nymph/Nymphs-Brain/bin/lms-get-profile"
 ```
 
 Expected output shape:
 
 ```text
-act: qwen/qwen2.5-coder-14b (context 65536)
 plan: qwen3.5-9b (context 16384)
+act: none (context none)
 ```
 
-If you only want one model loaded, clear `Plan`:
+If you want a separate local Act model too:
 
 ```powershell
-wsl -d NymphsCore --user nymph -- bash -lc "/home/nymph/Nymphs-Brain/bin/lms-set-profile plan clear"
+wsl -d NymphsCore --user nymph -- bash -lc "/home/nymph/Nymphs-Brain/bin/lms-set-profile act qwen/qwen2.5-coder-14b 65536"
 ```
 
 You can also clear `Act`:
@@ -237,6 +243,14 @@ Update the Linux-side LM Studio/runtime layer:
 wsl -d NymphsCore --user nymph -- bash -lc "/home/nymph/Nymphs-Brain/bin/lms-update"
 ```
 
+Refresh the installed Brain wrapper scripts without changing model profiles:
+
+```powershell
+wsl -d NymphsCore --user nymph -- bash -lc "/home/nymph/Nymphs-Brain/bin/brain-refresh"
+```
+
+The Manager Brain page `Update Stack` action runs `brain-refresh` before LM Studio/Open WebUI updates, so repaired installs do not stay stuck on older plan/act wrapper logic.
+
 Update Open WebUI:
 
 ```powershell
@@ -275,10 +289,10 @@ OpenAI Compatible API Key: lm-studio
 
 If you use separate Cline `Plan` and `Act` models:
 
-- point Cline `Act` at the Brain `Act` model
 - point Cline `Plan` at the Brain `Plan` model
+- point Cline `Act` at the Brain `Act` model, or keep Act on an external provider
 
-If Brain `Plan` is blank, only the Brain `Act` model will be loaded.
+If Brain `Act` is blank, only the Brain `Plan` model will be loaded locally.
 
 Quick test:
 
@@ -348,6 +362,10 @@ wsl -d NymphsCore --user nymph -- bash -lc "/home/nymph/Nymphs-Brain/bin/lms-sto
 wsl -d NymphsCore --user nymph -- bash -lc "/home/nymph/Nymphs-Brain/bin/lms-start"
 ```
 
+### The Brain page shows a partial running state
+
+This can happen if only Open WebUI or MCP is running, or if LM Studio is running but the loaded model report is delayed. Use the primary `Stop Brain` button to stop all active Brain services from the Manager.
+
 ### Cline still behaves like the old provider
 
 Start a brand new Cline chat after changing provider or model settings. Old chats can keep older provider context.
@@ -372,5 +390,5 @@ The Brain stack is now:
 - a dedicated optional local LLM subsystem
 - controlled from its own Manager page
 - based on Linux-side LM Studio wrappers
-- able to load one `Act` model and one optional `Plan` model
+- plan-first, with a local `Plan` model and optional local `Act` model
 - usable from Open WebUI and Cline through the same local endpoints
