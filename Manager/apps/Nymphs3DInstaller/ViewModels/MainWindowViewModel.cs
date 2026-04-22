@@ -698,12 +698,12 @@ public sealed class MainWindowViewModel : ViewModelBase
         ? "Missing"
         : IsBrainChatModelLoaded
             ? "Loaded"
-            : HasConfiguredActModel() && HasConfiguredPlanModel()
+        : HasConfiguredActModel() && HasConfiguredPlanModel()
                 ? "Configured"
+                : HasConfiguredPlanModel()
+                        ? "Plan Set"
                 : HasConfiguredActModel()
-                    ? "Act Set"
-                    : HasConfiguredPlanModel()
-                        ? "Plan Only"
+                    ? "Act Only"
                         : HasLoadedEmbeddingOnly()
                             ? "No Chat Model"
                             : HasReportedBrainModel()
@@ -725,10 +725,10 @@ public sealed class MainWindowViewModel : ViewModelBase
             : HasConfiguredActModel() || HasConfiguredPlanModel()
                 ? BuildConfiguredBrainModelDetailText()
                 : HasLoadedEmbeddingOnly()
-                    ? "LM Studio is running with only an embedding model loaded. Use Manage Models to download/select an Act model, then Start LLM."
+                    ? "LM Studio is running with only an embedding model loaded. Use Manage Models to select a local Plan model, then Start LLM."
                     : HasReportedBrainModel()
                         ? BuildBrainModelDetailText()
-                        : "No Brain Act model is configured yet. Use Manage Models to select an Act model. Plan models are optional and do not start Brain by themselves.";
+                        : "No local Brain Plan model is configured yet. Use Manage Models to select a Plan model. An Act model can stay external.";
 
     public RuntimeBackendStatus ZImageRuntimeStatus
     {
@@ -1267,12 +1267,12 @@ public sealed class MainWindowViewModel : ViewModelBase
 
         if (hasPlan && !hasAct)
         {
-            return $"Configured Act: {actText}\nConfigured Plan: {planText}\nA Plan model is set, but Brain still needs an Act model before Start Brain can load a chat model.";
+            return $"Configured Act: {actText}\nConfigured Plan: {planText}\nA Plan model is set. Start Brain will load the local Plan model. An Act model can remain external if that is your workflow.";
         }
 
         if (hasAct && !hasPlan)
         {
-            return $"Configured Act: {actText}\nConfigured Plan: {planText}\nAn Act model is set and can be loaded when you start Brain. Plan models are optional.";
+            return $"Configured Act: {actText}\nConfigured Plan: {planText}\nAn Act model is set and can be loaded when you start Brain. A Plan model is optional.";
         }
 
         return $"Configured Act: {actText}\nConfigured Plan: {planText}\nNo chat model is loaded yet. Use Manage Models if needed, then Start LLM.";

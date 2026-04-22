@@ -464,11 +464,11 @@ sed -i "s|__MODEL_ID__|${MODEL_ID}|g" "${INSTALL_ROOT}/nymph-agent.py"
 
 mkdir -p "${CONFIG_DIR}"
 cat > "${CONFIG_DIR}/lms-model-profiles.env" <<EOF
-PLAN_MODEL_ID=""
-PLAN_CONTEXT_LENGTH=""
-ACT_MODEL_ID="${MODEL_ID}"
-ACT_CONTEXT_LENGTH="${CONTEXT_LENGTH}"
-PRIMARY_MODEL_ROLE="act"
+PLAN_MODEL_ID="${MODEL_ID}"
+PLAN_CONTEXT_LENGTH="${CONTEXT_LENGTH}"
+ACT_MODEL_ID=""
+ACT_CONTEXT_LENGTH=""
+PRIMARY_MODEL_ROLE="plan"
 EOF
 
 cat > "${BIN_DIR}/lms-start" <<'WRAPEOF'
@@ -484,10 +484,10 @@ for candidate in "${HOME}/.lmstudio/bin" "${HOME}/.cache/lm-studio/bin" "${HOME}
   fi
 done
 
-PLAN_MODEL_ID=""
-PLAN_CONTEXT_LENGTH=""
-ACT_MODEL_ID="__MODEL_ID__"
-ACT_CONTEXT_LENGTH="__CONTEXT_LENGTH__"
+PLAN_MODEL_ID="__MODEL_ID__"
+PLAN_CONTEXT_LENGTH="__CONTEXT_LENGTH__"
+ACT_MODEL_ID=""
+ACT_CONTEXT_LENGTH=""
 
 if [[ -f "${PROFILE_CONFIG_FILE}" ]]; then
   # shellcheck disable=SC1090
@@ -1075,31 +1075,31 @@ main() {
   ensure_lms
 
   if [[ "$#" -gt 0 ]]; then
-    run_add_change_model "act" "$*"
+    run_add_change_model "plan" "$*"
     return
   fi
 
   while true; do
     echo
     echo "LM Studio Model Manager"
-    echo "1) Set Act Model From Downloaded"
-    echo "2) Set Plan Model From Downloaded"
-    echo "3) Download New Model For Act"
-    echo "4) Download New Model For Plan"
-    echo "5) Clear Act Model"
-    echo "6) Clear Plan Model"
+    echo "1) Set Plan Model From Downloaded"
+    echo "2) Set Act Model From Downloaded"
+    echo "3) Download New Model For Plan"
+    echo "4) Download New Model For Act"
+    echo "5) Clear Plan Model"
+    echo "6) Clear Act Model"
     echo "7) Remove Models"
     echo "8) Exit"
     echo
     read -rp "Enter your choice (1-8): " choice
 
     case "${choice}" in
-      1) use_downloaded_model_menu "act" ;;
-      2) use_downloaded_model_menu "plan" ;;
-      3) run_add_change_model "act" "" ;;
-      4) run_add_change_model "plan" "" ;;
-      5) clear_act_model ;;
-      6) clear_plan_model ;;
+      1) use_downloaded_model_menu "plan" ;;
+      2) use_downloaded_model_menu "act" ;;
+      3) run_add_change_model "plan" "" ;;
+      4) run_add_change_model "act" "" ;;
+      5) clear_plan_model ;;
+      6) clear_act_model ;;
       7) remove_models_menu ;;
       8) return ;;
       *) echo "Invalid choice. Please try again." ;;
@@ -1137,8 +1137,8 @@ case "${role}" in
     printf '%s\n' "${ACT_MODEL_ID}"
     ;;
   all)
-    printf 'act: %s (context %s)\n' "${ACT_MODEL_ID:-none}" "${ACT_CONTEXT_LENGTH:-none}"
     printf 'plan: %s (context %s)\n' "${PLAN_MODEL_ID:-none}" "${PLAN_CONTEXT_LENGTH:-none}"
+    printf 'act: %s (context %s)\n' "${ACT_MODEL_ID:-none}" "${ACT_CONTEXT_LENGTH:-none}"
     ;;
   *)
     echo "Usage: lms-get-profile [plan|act]" >&2
@@ -1193,7 +1193,7 @@ PLAN_MODEL_ID=""
 PLAN_CONTEXT_LENGTH=""
 ACT_MODEL_ID=""
 ACT_CONTEXT_LENGTH=""
-PRIMARY_MODEL_ROLE="act"
+PRIMARY_MODEL_ROLE="plan"
 
 if [[ -f "${PROFILE_CONFIG_FILE}" ]]; then
   # shellcheck disable=SC1090
@@ -1251,13 +1251,13 @@ WRAPEOF
 cat > "${BIN_DIR}/lms-get-selected" <<'WRAPEOF'
 #!/usr/bin/env bash
 set -euo pipefail
-"$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lms-get-profile" act
+"$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lms-get-profile" plan
 WRAPEOF
 
 cat > "${BIN_DIR}/lms-set-selected" <<'WRAPEOF'
 #!/usr/bin/env bash
 set -euo pipefail
-"$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lms-set-profile" act "$@"
+"$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lms-set-profile" plan "$@"
 WRAPEOF
 
 cat > "${BIN_DIR}/mcp-start" <<'WRAPEOF'
@@ -1584,10 +1584,10 @@ MCP_HOST="${NYMPHS_BRAIN_MCP_HOST:-${NYMPHS_BRAIN_MCPO_HOST:-__MCP_HOST__}}"
 MCP_PORT="${NYMPHS_BRAIN_MCP_PORT:-${NYMPHS_BRAIN_MCPO_PORT:-__MCP_PORT__}}"
 CURL_CHECK_ARGS=(--silent --show-error --fail --connect-timeout 2 --max-time 5)
 
-PLAN_MODEL_ID=""
-PLAN_CONTEXT_LENGTH=""
-ACT_MODEL_ID="__MODEL_ID__"
-ACT_CONTEXT_LENGTH="__CONTEXT_LENGTH__"
+PLAN_MODEL_ID="__MODEL_ID__"
+PLAN_CONTEXT_LENGTH="__CONTEXT_LENGTH__"
+ACT_MODEL_ID=""
+ACT_CONTEXT_LENGTH=""
 
 if [[ -f "${PROFILE_CONFIG_FILE}" ]]; then
   # shellcheck disable=SC1090
@@ -1670,8 +1670,8 @@ chmod +x \
 cat > "${INSTALL_ROOT}/install-summary.txt" <<EOF
 Nymphs-Brain experimental local LLM stack
 Install root: ${INSTALL_ROOT}
-Act model: ${MODEL_ID}
-Plan model: not configured
+Plan model: ${MODEL_ID}
+Act model: not configured
 Quantization: ${QUANTIZATION}
 Context length: ${CONTEXT_LENGTH}
 Model download during install: ${DOWNLOAD_MODEL}
