@@ -1676,7 +1676,7 @@ public sealed class MainWindowViewModel : ViewModelBase
         {
             _workflowService.OpenNymphsBrainModelManager(settings);
             StatusMessage = "Opened Nymphs-Brain model manager in a terminal.";
-            PostInstallActionSummary = "Use the terminal window to download, switch, or remove Brain models.";
+            PostInstallActionSummary = "Use the terminal window to download, switch, or remove Brain models. When you finish there, click Refresh here to reload the selected Plan/Act profile.";
             AppendInstallLog("Opened Nymphs-Brain model manager terminal.");
         }
         catch (Exception ex)

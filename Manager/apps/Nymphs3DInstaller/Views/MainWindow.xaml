@@ -1329,6 +1329,8 @@
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="8" />
                     <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="8" />
+                    <ColumnDefinition Width="*" />
                   </Grid.ColumnDefinitions>
 
                   <Button Grid.Column="0"
@@ -1340,15 +1342,21 @@
                           Margin="0"
                           HorizontalAlignment="Stretch"
                           Style="{StaticResource SecondaryActionButton}"
+                          Command="{Binding RefreshBrainStatusCommand}"
+                          Content="Refresh" />
+                  <Button Grid.Column="4"
+                          Margin="0"
+                          HorizontalAlignment="Stretch"
+                          Style="{StaticResource SecondaryActionButton}"
                           Command="{Binding OpenBrainWebUiCommand}"
                           Content="{Binding BrainWebUiActionText}" />
-                  <Button Grid.Column="4"
+                  <Button Grid.Column="6"
                           Margin="0"
                           HorizontalAlignment="Stretch"
                           Style="{StaticResource SecondaryActionButton}"
                           Command="{Binding ChangeBrainModelCommand}"
                           Content="Manage Models" />
-                  <Button Grid.Column="6"
+                  <Button Grid.Column="8"
                           Margin="0"
                           HorizontalAlignment="Stretch"
                           Style="{StaticResource SecondaryActionButton}"
