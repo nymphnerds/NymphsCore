@@ -698,19 +698,23 @@ public sealed class MainWindowViewModel : ViewModelBase
         ? "Missing"
         : IsBrainChatModelLoaded
             ? "Loaded"
-            : HasConfiguredBrainModel()
+            : HasConfiguredActModel() && HasConfiguredPlanModel()
                 ? "Configured"
-                : HasLoadedEmbeddingOnly()
-                    ? "No Chat Model"
-                    : HasReportedBrainModel()
-                        ? "Unknown"
-                        : "Not Set";
+                : HasConfiguredActModel()
+                    ? "Act Set"
+                    : HasConfiguredPlanModel()
+                        ? "Plan Only"
+                        : HasLoadedEmbeddingOnly()
+                            ? "No Chat Model"
+                            : HasReportedBrainModel()
+                                ? "Unknown"
+                                : "Not Set";
 
     public string BrainModelStatusBackground => !IsBrainInstalled
         ? "#B74322"
         : IsBrainChatModelLoaded
             ? "#235756"
-            : HasConfiguredBrainModel() || HasLoadedEmbeddingOnly()
+            : HasConfiguredActModel() || HasConfiguredPlanModel() || HasLoadedEmbeddingOnly()
                 ? "#B7791F"
                 : "#6B6259";
 
@@ -718,13 +722,13 @@ public sealed class MainWindowViewModel : ViewModelBase
         ? "Install the Brain module to manage and load local LLM models."
         : IsBrainChatModelLoaded
             ? BuildBrainModelDetailText()
-            : HasConfiguredBrainModel()
+            : HasConfiguredActModel() || HasConfiguredPlanModel()
                 ? BuildConfiguredBrainModelDetailText()
                 : HasLoadedEmbeddingOnly()
                     ? "LM Studio is running with only an embedding model loaded. Use Manage Models to download/select an Act model, then Start LLM."
                     : HasReportedBrainModel()
                         ? BuildBrainModelDetailText()
-                        : "No Brain chat model is configured. Use Manage Models to download/select an Act model.";
+                        : "No Brain Act model is configured yet. Use Manage Models to select an Act model. Plan models are optional and do not start Brain by themselves.";
 
     public RuntimeBackendStatus ZImageRuntimeStatus
     {
@@ -1256,8 +1260,21 @@ public sealed class MainWindowViewModel : ViewModelBase
 
     private string BuildConfiguredBrainModelDetailText()
     {
-        var actText = HasUsableBrainRoleModel(_brainActModel) ? _brainActModel : "none";
-        var planText = HasUsableBrainRoleModel(_brainPlanModel) ? _brainPlanModel : "none";
+        var hasAct = HasConfiguredActModel();
+        var hasPlan = HasConfiguredPlanModel();
+        var actText = hasAct ? _brainActModel : "none";
+        var planText = hasPlan ? _brainPlanModel : "none";
+
+        if (hasPlan && !hasAct)
+        {
+            return $"Configured Act: {actText}\nConfigured Plan: {planText}\nA Plan model is set, but Brain still needs an Act model before Start Brain can load a chat model.";
+        }
+
+        if (hasAct && !hasPlan)
+        {
+            return $"Configured Act: {actText}\nConfigured Plan: {planText}\nAn Act model is set and can be loaded when you start Brain. Plan models are optional.";
+        }
+
         return $"Configured Act: {actText}\nConfigured Plan: {planText}\nNo chat model is loaded yet. Use Manage Models if needed, then Start LLM.";
     }
 
@@ -1289,7 +1306,17 @@ public sealed class MainWindowViewModel : ViewModelBase
 
     private bool HasConfiguredBrainModel()
     {
-        return HasUsableBrainRoleModel(_brainActModel) || HasUsableBrainRoleModel(_brainPlanModel);
+        return HasConfiguredActModel() || HasConfiguredPlanModel();
+    }
+
+    private bool HasConfiguredActModel()
+    {
+        return HasUsableBrainRoleModel(_brainActModel);
+    }
+
+    private bool HasConfiguredPlanModel()
+    {
+        return HasUsableBrainRoleModel(_brainPlanModel);
     }
 
     private bool HasLoadedEmbeddingOnly()
