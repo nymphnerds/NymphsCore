@@ -591,7 +591,7 @@ load_profile() {
   fi
 
   echo "Loading ${role} model: ${model_id} (context ${context_length})"
-  if ! timeout --foreground 300s lms load "${model_id}" --gpu "max" --context-length "${context_length}" < /dev/null; then
+  if ! timeout --foreground 300s lms load "${model_id}" --gpu "max" --context-length "${context_length}" -y < /dev/null; then
     echo "LM Studio could not load the ${role} model non-interactively: ${model_id}" >&2
     echo "Use Manage Models to confirm the downloaded model key, then start Brain again." >&2
     return 2
