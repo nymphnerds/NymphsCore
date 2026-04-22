@@ -2,8 +2,6 @@
   <img src="Graphics/NymphsCoreLogo.png" alt="NymphsCore" width="480">
 </p>
 
-# NymphsCore
-
 The central hub for the NymphNerds game development backend. This repo contains the core runtime, Manager, and Blender addon source that power the local pipeline.
 
 ---
@@ -212,14 +210,6 @@ NymphsCore/
 └── Blender/
     └── Addon/      — Blender addon source and extension build tooling
 ```
-
----
-
-## Why This Structure?
-
-Previously the codebase was split across several repos with confusing names. NymphsCore now keeps the local runtime, Manager, and Blender addon source together under `nymphnerds`.
-
-The active managed backend defaults should point at `nymphnerds`. Legacy helper-path naming still exists in some installer/bootstrap internals and should be cleaned up separately from repo ownership.
 
 ### Why is the Blender Extension a separate repo?
 Blender Extensions (Blender 4.2+) must have `blender_manifest.toml` at the **root** of a repo to support direct Git URL installs from inside Blender. So each Blender Extension needs its own repo — see [`NymphsExt`](https://github.com/nymphnerds/NymphsExt).
