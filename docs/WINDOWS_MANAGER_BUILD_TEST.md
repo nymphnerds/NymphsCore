@@ -6,12 +6,28 @@ Run these commands from an Administrator PowerShell unless noted otherwise.
 
 ## Build The Manager
 
-From the repo root:
+Recommended path from Windows PowerShell:
+
+```powershell
+Set-Location "\\wsl.localhost\NymphsCore\home\nymph\NymphsCore\Manager\apps\Nymphs3DInstaller"
+powershell -ExecutionPolicy Bypass -File .\build-release.ps1
+```
+
+Why:
+
+- the Manager is a Windows WPF app
+- the local WSL distro may not have a Linux `dotnet` SDK installed
+- building through Windows PowerShell lets `dotnet publish` use the Windows SDK/tooling while reading the repo through the WSL UNC path
+- this is the path that successfully rebuilt the Lite Manager exe and zip on 2026-04-22
+
+Equivalent command if you are already in a Windows checkout of the repo:
 
 ```powershell
 cd .\Manager\apps\Nymphs3DInstaller
 powershell -ExecutionPolicy Bypass -File .\build-release.ps1
 ```
+
+Avoid relying on a plain Linux-side `dotnet publish` from inside WSL unless you have intentionally installed and tested the required Windows-targeting .NET SDK there.
 
 Expected outputs:
 
