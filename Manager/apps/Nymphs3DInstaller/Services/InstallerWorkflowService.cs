@@ -387,7 +387,7 @@ public sealed class InstallerWorkflowService
         progress.Report(gpuVramMb > 0
             ? $"Nymphs-Brain: detected {gpuVramMb} MB GPU VRAM from Windows for model recommendations."
             : "Nymphs-Brain: GPU VRAM detection failed, using WSL fallback.");
-        progress.Report("Nymphs-Brain: tools will be installed now. Use the Brain page Manage Models action after install to download/select Act and Plan models.");
+        progress.Report("Nymphs-Brain: tools will be installed now. Use the Brain page Manage Models action after install to download/select Plan and Act models.");
 
         var result = await _processRunner.RunAsync(
             fileName: "wsl.exe",
@@ -1231,6 +1231,7 @@ public sealed class InstallerWorkflowService
     {
         return toolName is
             "lms-start" or
+            "brain-refresh" or
             "lms-update" or
             "lms-stop" or
             "mcp-start" or

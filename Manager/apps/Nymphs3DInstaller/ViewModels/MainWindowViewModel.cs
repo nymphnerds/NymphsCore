@@ -1681,7 +1681,7 @@ public sealed class MainWindowViewModel : ViewModelBase
     {
         EnsureBrainToolsActive();
         await RunNymphsBrainToolSequenceAsync(
-            ["lms-update", "open-webui-update"],
+            ["brain-refresh", "lms-update", "open-webui-update"],
             "Updating Nymphs-Brain stack...",
             "Nymphs-Brain stack update completed.",
             "Nymphs-Brain stack update failed.").ConfigureAwait(true);

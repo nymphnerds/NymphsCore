@@ -272,6 +272,23 @@ mkdir -p \
   "${OPEN_WEBUI_LOG_DIR}" \
   "${SECRET_DIR}"
 
+PROFILE_CONFIG_FILE="${CONFIG_DIR}/lms-model-profiles.env"
+EXISTING_PLAN_MODEL_ID=""
+EXISTING_PLAN_CONTEXT_LENGTH=""
+EXISTING_ACT_MODEL_ID=""
+EXISTING_ACT_CONTEXT_LENGTH=""
+EXISTING_PRIMARY_MODEL_ROLE="plan"
+
+if [[ -f "${PROFILE_CONFIG_FILE}" ]]; then
+  # shellcheck disable=SC1090
+  source "${PROFILE_CONFIG_FILE}"
+  EXISTING_PLAN_MODEL_ID="${PLAN_MODEL_ID:-}"
+  EXISTING_PLAN_CONTEXT_LENGTH="${PLAN_CONTEXT_LENGTH:-}"
+  EXISTING_ACT_MODEL_ID="${ACT_MODEL_ID:-}"
+  EXISTING_ACT_CONTEXT_LENGTH="${ACT_CONTEXT_LENGTH:-}"
+  EXISTING_PRIMARY_MODEL_ROLE="${PRIMARY_MODEL_ROLE:-plan}"
+fi
+
 if [[ "${MODEL_ID}" == "auto" && "${DOWNLOAD_MODEL}" == "1" ]]; then
   VRAM_MB="$(detect_vram_mb)"
   choose_auto_model "${VRAM_MB:-0}"
@@ -279,7 +296,7 @@ if [[ "${MODEL_ID}" == "auto" && "${DOWNLOAD_MODEL}" == "1" ]]; then
 elif [[ "${MODEL_ID}" == "auto" ]]; then
   MODEL_ID=""
   echo "No Brain model configured during install."
-  echo "Use the Manager Brain page 'Manage Models' action after install to download/select Act and Plan models."
+  echo "Use the Manager Brain page 'Manage Models' action after install to download/select Plan and Act models."
 fi
 
 DL_TARGET=""
@@ -463,12 +480,23 @@ PYEOF
 sed -i "s|__MODEL_ID__|${MODEL_ID}|g" "${INSTALL_ROOT}/nymph-agent.py"
 
 mkdir -p "${CONFIG_DIR}"
-cat > "${CONFIG_DIR}/lms-model-profiles.env" <<EOF
-PLAN_MODEL_ID="${MODEL_ID}"
-PLAN_CONTEXT_LENGTH="${CONTEXT_LENGTH}"
-ACT_MODEL_ID=""
-ACT_CONTEXT_LENGTH=""
-PRIMARY_MODEL_ROLE="plan"
+INITIAL_PLAN_MODEL_ID="${EXISTING_PLAN_MODEL_ID}"
+INITIAL_PLAN_CONTEXT_LENGTH="${EXISTING_PLAN_CONTEXT_LENGTH}"
+INITIAL_ACT_MODEL_ID="${EXISTING_ACT_MODEL_ID}"
+INITIAL_ACT_CONTEXT_LENGTH="${EXISTING_ACT_CONTEXT_LENGTH}"
+INITIAL_PRIMARY_MODEL_ROLE="${EXISTING_PRIMARY_MODEL_ROLE:-plan}"
+
+if [[ -n "${MODEL_ID}" ]]; then
+  INITIAL_PLAN_MODEL_ID="${MODEL_ID}"
+  INITIAL_PLAN_CONTEXT_LENGTH="${CONTEXT_LENGTH}"
+fi
+
+cat > "${PROFILE_CONFIG_FILE}" <<EOF
+PLAN_MODEL_ID="${INITIAL_PLAN_MODEL_ID}"
+PLAN_CONTEXT_LENGTH="${INITIAL_PLAN_CONTEXT_LENGTH}"
+ACT_MODEL_ID="${INITIAL_ACT_MODEL_ID}"
+ACT_CONTEXT_LENGTH="${INITIAL_ACT_CONTEXT_LENGTH}"
+PRIMARY_MODEL_ROLE="${INITIAL_PRIMARY_MODEL_ROLE}"
 EOF
 
 cat > "${BIN_DIR}/lms-start" <<'WRAPEOF'
@@ -611,8 +639,8 @@ if ! curl -fsS http://localhost:1234/v1/models >/dev/null 2>&1; then
   echo "LM Studio server did not become ready before the timeout." >&2
   exit 2
 fi
-load_profile "act" "${ACT_MODEL_ID}" "${ACT_CONTEXT_LENGTH}"
 load_profile "plan" "${PLAN_MODEL_ID}" "${PLAN_CONTEXT_LENGTH}"
+load_profile "act" "${ACT_MODEL_ID}" "${ACT_CONTEXT_LENGTH}"
 WRAPEOF
 
 cat > "${BIN_DIR}/lms-stop" <<'WRAPEOF'
@@ -637,6 +665,22 @@ echo "Shutting down LM Studio daemon..."
 lms daemon down || true
 
 echo "LM Studio has been stopped."
+WRAPEOF
+
+cat > "${BIN_DIR}/brain-refresh" <<'WRAPEOF'
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+INSTALL_ROOT="$(dirname "${SCRIPT_DIR}")"
+INSTALLER_COPY="${INSTALL_ROOT}/brain-installer.sh"
+
+if [[ ! -x "${INSTALLER_COPY}" ]]; then
+  echo "Brain refresh script is missing at ${INSTALLER_COPY}. Rerun install_nymphs_brain.sh." >&2
+  exit 1
+fi
+
+exec "${INSTALLER_COPY}" --install-root "${INSTALL_ROOT}" --quiet
 WRAPEOF
 
 cat > "${BIN_DIR}/lms-update" <<'WRAPEOF'
@@ -925,7 +969,7 @@ update_lms_start_script() {
   local plan_context_length=""
   local act_model_id=""
   local act_context_length=""
-  local primary_model_role="act"
+  local primary_model_role="plan"
 
   if [[ -f "${profile_config_path}" ]]; then
     # shellcheck disable=SC1090
@@ -1637,6 +1681,14 @@ except Exception:
     payload = []
 
 loaded = extract_model_keys(payload)
+if not loaded:
+    try:
+        with open("/tmp/nymphs-brain-models.json", "r", encoding="utf-8") as handle:
+            api_payload = json.load(handle)
+    except Exception:
+        api_payload = []
+    loaded = extract_model_keys(api_payload)
+
 print(", ".join(loaded) if loaded else "none reported")
 ' 2>/dev/null || "${INSTALL_ROOT}/venv/bin/python3" -c "import json; from pathlib import Path; data=json.loads(Path('/tmp/nymphs-brain-models.json').read_text(encoding='utf-8')); models=data.get('data', []); loaded=[item.get('id') for item in models if isinstance(item, dict) and item.get('id')]; print(', '.join(loaded) if loaded else 'none reported')" 2>/dev/null || echo unknown)"
   echo "Model loaded: ${MODEL_OUTPUT}"
@@ -1687,7 +1739,10 @@ sed -i "s|__MCP_PORT__|${MCP_PORT}|g" "${BIN_DIR}/mcp-start" "${BIN_DIR}/mcp-sta
 sed -i "s|__OPEN_WEBUI_HOST__|${OPEN_WEBUI_HOST}|g" "${BIN_DIR}/open-webui-start" "${BIN_DIR}/open-webui-status" "${BIN_DIR}/brain-status"
 sed -i "s|__OPEN_WEBUI_PORT__|${OPEN_WEBUI_PORT}|g" "${BIN_DIR}/mcp-start" "${BIN_DIR}/open-webui-start" "${BIN_DIR}/open-webui-status" "${BIN_DIR}/brain-status"
 sed -i "s|__LMSTUDIO_API_BASE_URL__|${LMSTUDIO_API_BASE_URL}|g" "${BIN_DIR}/open-webui-start"
+cp "$0" "${INSTALL_ROOT}/brain-installer.sh"
 chmod +x \
+  "${INSTALL_ROOT}/brain-installer.sh" \
+  "${BIN_DIR}/brain-refresh" \
   "${BIN_DIR}/lms-start" \
   "${BIN_DIR}/lms-model" \
   "${BIN_DIR}/lms-get-profile" \
@@ -1710,13 +1765,15 @@ chmod +x \
 cat > "${INSTALL_ROOT}/install-summary.txt" <<EOF
 Nymphs-Brain experimental local LLM stack
 Install root: ${INSTALL_ROOT}
-Plan model: ${MODEL_ID}
-Act model: not configured
+Plan model: ${INITIAL_PLAN_MODEL_ID:-none}
+Act model: ${INITIAL_ACT_MODEL_ID:-none}
 Quantization: ${QUANTIZATION}
-Context length: ${CONTEXT_LENGTH}
+Plan context length: ${INITIAL_PLAN_CONTEXT_LENGTH:-none}
+Act context length: ${INITIAL_ACT_CONTEXT_LENGTH:-none}
 Model download during install: ${DOWNLOAD_MODEL}
 LM Studio CLI location: user profile managed by LM Studio
 Commands:
+- ${BIN_DIR}/brain-refresh
 - ${BIN_DIR}/lms-start
 - ${BIN_DIR}/lms-model
 - ${BIN_DIR}/lms-get-profile
@@ -1741,6 +1798,7 @@ Primary Streamable HTTP endpoints:
 EOF
 
 echo "Nymphs-Brain setup complete."
+echo "Refresh local Brain wrappers: ${BIN_DIR}/brain-refresh"
 echo "Start LM Studio model server: ${BIN_DIR}/lms-start"
 echo "Change/download/remove LM Studio models: ${BIN_DIR}/lms-model"
 echo "Set plan/act model profiles: ${BIN_DIR}/lms-set-profile"
