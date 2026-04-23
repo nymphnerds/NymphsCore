@@ -119,7 +119,7 @@ Default local ports:
 
 | Runtime | Default Port | Purpose |
 |---|---:|---|
-| `Z-Image` | `8090` | local prompt-to-image generation |
+| `Z-Image` | `8090` | local text-to-image and image-to-image generation |
 | `TRELLIS.2` | `8094` | single-image shape, texture, and retexture |
 
 The older general API field defaults to:
@@ -134,7 +134,7 @@ The current addon uses separate runtime cards and ports for the main services. I
 
 Use `Z-Image` when:
 
-- you want local prompt-to-image generation
+- you want local text-to-image generation
 - you want to create a reference image before making a mesh
 - you want to edit from a local guide image with `Image to Image`
 
@@ -208,7 +208,7 @@ Use `Stop All` before closing Blender if you want to make sure backend processes
 
 Image backends:
 
-- `Z-Image`, local image generation in the managed runtime.
+- `Z-Image`, local text-to-image and image-to-image generation in the managed runtime.
 - `Gemini Flash`, image generation through OpenRouter.
 
 ### Local Z-Image Flow

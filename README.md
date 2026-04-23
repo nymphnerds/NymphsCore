@@ -19,7 +19,7 @@ The manager imports and maintains a dedicated WSL distro named `NymphsCore`.
 Inside that distro, it prepares the supported local backend stack:
 
 - `TRELLIS.2` for single-image image-to-3D and texture/retexture workflows
-- `Z-Image` / Nunchaku for local image generation
+- `Z-Image` / Nunchaku for local text-to-image and image-to-image generation
 - CUDA 13.0, Python environments, helper scripts, and runtime checks
 
 The managed Linux user inside the distro is:

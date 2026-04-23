@@ -52,13 +52,14 @@ No other tool does this. This is your secret weapon.
 - 22 fine-tuneable parameters for experts
 - Native texture and retexture support
 
-### Local Image Generation (Z-Image / Nunchaku)
-Generate concept art and references locally—no external API calls.
+### Local Image Generation And Editing (Z-Image / Nunchaku)
+Generate concept art, references, and guided variations locally with text-to-image or image-to-image workflows—no external API calls.
 
 - Turbo fast draft (rank 32) for quick iteration
 - Balanced default (rank 128) for production
 - High quality (rank 256) for final output
 - local `Image to Image` from a picked guide image
+- guide-strength control for lighter edits or stronger transformations
 - 1024×1024 up to 1536×1536 resolution
 - Seed control for reproducible variants
 

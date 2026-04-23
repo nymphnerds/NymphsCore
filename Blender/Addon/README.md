@@ -41,7 +41,7 @@ The `Nymphs Image` panel creates the reference image set that drives the rest of
 
 Image backends:
 
-- `Z-Image`, the default local backend running in the managed runtime
+- `Z-Image`, the default local text-to-image and image-to-image backend running in the managed runtime
 - `Gemini Flash`, using OpenRouter for Nano Banana / Gemini image models
 
 For OpenRouter, paste an API key in the addon field or set `OPENROUTER_API_KEY` in the environment before Blender starts.
@@ -101,7 +101,7 @@ Nymphs uses the managed `NymphsCore` WSL runtime and the `nymph` user created by
 
 Use `Nymphs Server > Runtimes` to start, stop, and probe all runtimes. The Image, Shape, and Texture panels also expose the relevant runtime start/stop row near the top of each panel.
 
-- `Z-Image` for local prompt-to-image generation
+- `Z-Image` for local text-to-image and image-to-image generation
 - `TRELLIS.2` for single-image shape, texture, and retexture work
 
 The retired Hunyuan Parts / P3-SAM / X-Part workflow is no longer included.
