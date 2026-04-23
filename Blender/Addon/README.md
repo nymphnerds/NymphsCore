@@ -49,12 +49,12 @@ For OpenRouter, paste an API key in the addon field or set `OPENROUTER_API_KEY` 
 Useful image tools:
 
 - subject/style prompt presets plus manual prompt editing
+- local Z-Image `Image to Image` generation from a picked guide image
 - editable subject, style, and saved-prompt JSON presets in one `prompt_presets/` folder
 - `Image Part Extraction` for planning and extracting separate parts from one master image
 - optional face, eyes-in-base, eyeball-only, style lock, and symmetry controls for extraction passes
 - generation profiles for size, steps, seed, guidance, and variant count
-- four-view turnaround generation for front, back, left, and right references
-- open and clear buttons for generated image folders
+- open and clear buttons for generated image folders below the generate action
 
 ## Image Part Extraction
 
@@ -77,12 +77,12 @@ The `Nymphs Shape` panel turns generated image references into a mesh and first 
 
 Current shape path:
 
-1. Start `TRELLIS.2` in `Nymphs Runtimes`.
+1. Start `TRELLIS.2` from the `Nymphs Shape` panel or from `Nymphs Server > Runtimes`.
 2. Generate or choose an image.
 3. Run shape generation from the `Nymphs Shape` panel.
 4. Adjust TRELLIS guidance presets when a prompt needs more or less image adherence.
 
-If you generate a four-view turnaround set, use the clearest front or three-quarter view as the actual shape input. The addon no longer exposes a separate multiview 3D backend.
+Use the clearest front or three-quarter reference as the actual shape input. The addon no longer exposes the old Hunyuan multiview 3D backend.
 
 ## Retexture
 
@@ -97,9 +97,9 @@ Typical flow:
 
 ## Runtime
 
-Nymphs uses the managed `NymphsCore` WSL runtime and the `nymph` user created by the Windows Manager.
+Nymphs uses the managed `NymphsCore_Lite` WSL runtime and the `nymph` user created by the Windows Manager on the Lite test branch.
 
-Use `Nymphs Runtimes` to start, stop, and probe:
+Use `Nymphs Server > Runtimes` to start, stop, and probe all runtimes. The Image, Shape, and Texture panels also expose the relevant runtime start/stop row near the top of each panel.
 
 - `Z-Image` for local prompt-to-image generation
 - `TRELLIS.2` for single-image shape, texture, and retexture work

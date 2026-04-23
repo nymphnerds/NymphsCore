@@ -44,14 +44,6 @@ Master image → AI planning → separate game-ready assets in one workflow.
 
 No other tool does this. This is your secret weapon.
 
-### Multi-View Reference System
-Front / Left / Right / Back views for better 3D accuracy.
-
-- 4-View MV generation creates consistent multi-angle references
-- Pick the strongest front or three-quarter image from the set for TRELLIS.2
-- Automatic view composition with clean silhouettes for reference and paintovers
-- Seed control for reproducible related images
-
 ### 3D Pipeline
 
 **TRELLIS.2** — Premium single-image to 3D
@@ -66,6 +58,7 @@ Generate concept art and references locally—no external API calls.
 - Turbo fast draft (rank 32) for quick iteration
 - Balanced default (rank 128) for production
 - High quality (rank 256) for final output
+- local `Image to Image` from a picked guide image
 - 1024×1024 up to 1536×1536 resolution
 - Seed control for reproducible variants
 

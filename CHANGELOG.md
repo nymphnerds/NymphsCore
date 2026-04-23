@@ -8,6 +8,109 @@ This file focuses on user-facing and system-level changes rather than package-by
 
 Newest entries first.
 
+### 2026-04-23 Z-Image img2img installer branch and addon release
+Source: live Lite distro testing confirmed local Z-Image image-to-image generation can run through Nunchaku with a compatibility shim against the current diffusers Z-Image pipeline.
+
+Documented changes:
+
+- added an experimental Nunchaku Z-Image img2img backend branch in `nymphnerds/Nymphs2D2`
+- added a Nunchaku forward shim for current diffusers Z-Image transformer signatures
+- resized guide images server-side before img2img generation to avoid latent shape mismatches
+- made backend HTTP 500 responses and active-task state include the real exception detail
+- updated Manager install, status, verify, and prefetch scripts so Z-Image readiness requires the base model, Nunchaku rank weights, the Z-Image img2img pipeline, and the shim import
+- pointed the Lite installer test branch at the temporary Nymphs2D2 img2img branch
+- bumped the Blender addon through `1.1.155`
+- added Z-Image `Image to Image` controls and a guide-image picker in the Image panel
+- moved Z-Image runtime controls outside the Image Generation foldout and moved Image output folder actions below Generate
+- updated addon docs, user guides, feature docs, and architecture notes to remove stale multiview references and document local Z-Image img2img
+
+Validation:
+
+- generated a Lite distro output named with `img2img`
+- confirmed its metadata used `mode=img2img`, `runtime=nunchaku`, strength `0.55`, and Z-Image Turbo
+- verified addon and backend Python syntax, Manager shell script syntax, and extension zip hashes during the test pass
+
+Why it matters:
+
+- the Lite branch now has a testable local image-to-image path using the same Nunchaku-optimized Z-Image runtime as txt2img, and fresh installer testing can pull the matching backend branch instead of relying on hand-copied files
+
+### 2026-04-23 Manager Z-Image prefetch verification fix
+Source: live Lite distro testing showed `Fetch Models` could report completion while Z-Image still lacked required Nunchaku weights.
+
+Documented changes:
+
+- made the Manager fetch path refresh backend scripts/environments before model download so existing distros use the fixed Z-Image prefetcher
+- replaced the Manager's optimistic post-fetch ready flag with a real runtime status probe
+- surfaced Z-Image offline verification details in the Runtime Tools status card when required weights are missing
+- updated fresh-install verification to run Z-Image's local-only model check when a model cache is present
+- clarified the Manager model download list includes `nunchaku-ai/nunchaku-z-image-turbo` weights
+- bumped the Blender addon to `1.1.151` and changed its default WSL target to the Lite distro name, `NymphsCore_Lite`
+- changed `Fetch Models` to run the model prefetch script directly instead of running the full runtime finalize/repair path
+
+Why it matters:
+
+- the Manager no longer declares a Z-Image fetch healthy unless the backend can verify both the base model and the Nunchaku transformer weights offline, `Fetch Models` no longer reinstalls runtime packages, and the Lite addon no longer quietly launches the old `NymphsCore` distro by default
+
+### 2026-04-23 Z-Image generation failure diagnostics and launch env alignment
+Source: live testing showed Z-Image requests could fail with a generic HTTP 500 while the backend kept the useful exception detail in active-task state.
+
+Documented changes:
+
+- bumped the Blender addon version to `1.1.150`
+- made addon HTTP errors query `/active_task` after a failed `/generate` call so Blender shows the real backend failure detail
+- aligned the addon Z-Image launch environment with both `Z_IMAGE_*` and legacy `NYMPHS2D2_*` names
+- updated the local Z-Image backend to accept both env-name families, include real exception text in HTTP 500 details, and prefetch required Nunchaku rank weights
+
+Validation:
+
+- local cache check confirmed the base Z-Image model was present but `nunchaku-ai/nunchaku-z-image-turbo/svdq-int4_r32-z-image-turbo.safetensors` was missing
+- `prefetch_model.py --local-files-only` now fails explicitly on the missing Nunchaku rank file instead of letting generation discover it later
+
+Why it matters:
+
+- the UI will stop hiding the real reason Z-Image failed, and the model prefetch path now covers the lazy-loaded Nunchaku transformer file needed for generation
+
+### 2026-04-23 Lite Blender addon 4-view UI removal
+Source: Lite branch review showed the remaining `4-View MV` toggle was a leftover from the removed Hunyuan multiview workflow.
+
+Documented changes:
+
+- bumped the Blender addon version to `1.1.148`
+- removed the visible `4-View MV` toggle from the Z-Image prompt panel
+- stopped saved legacy `4-View MV` state from redirecting `Generate Image` into the old multiview generation path
+- removed the registered MV generation operator from the Lite addon package
+- kept the legacy property only as a no-op compatibility field for older `.blend` state
+
+Why it matters:
+
+- Lite now presents Z-Image as a single-image/variant generator feeding TRELLIS, without a Hunyuan-era multiview control that no longer belongs in this edition
+
+### 2026-04-23 Blender addon runtime rediscovery fix
+Source: live addon testing showed Z-Image could keep running while a restarted Blender session showed it as stopped.
+
+Documented changes:
+
+- bumped the Blender addon version to `1.1.147`
+- made the runtime status poller probe all known local service ports instead of only services with addon-owned process handles
+- scheduled the first runtime probe shortly after addon registration
+
+Why it matters:
+
+- after restarting Blender, the addon can rediscover an already-running Z-Image server on `8090` and mark it ready without forcing a pointless restart
+
+### 2026-04-23 Blender addon prompt text editor round-trip fix
+Source: live addon testing showed the prompt area could feel collapsed after applying text from Blender's Text Editor.
+
+Documented changes:
+
+- bumped the Blender addon version to `1.1.146`
+- restored visible editable prompt and extraction-guidance fields under the Text Editor controls
+- kept the relevant prompt foldouts open when opening, applying, quick-editing, or clearing text
+
+Why it matters:
+
+- users can open the Blender Text Editor for long prompt edits, return to the Viewport, click `Apply`, and see the applied text remain in the prompt surface instead of losing the working area
+
 ### 2026-04-22 hardened `nymphscore-lite` Manager and Brain follow-up testing
 Source: live Manager testing against the `NymphsCore_Lite` distro after the tarless repair path completed.
 

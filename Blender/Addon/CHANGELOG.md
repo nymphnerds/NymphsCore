@@ -21,6 +21,70 @@ Across the full documented history, the project moved through eight phases:
 
 Newest entries first.
 
+### 2026-04-23 Z-Image img2img and Image panel layout
+Source: live Lite distro testing proved Z-Image generation through Nunchaku, then exposed the need for local guide-image generation and a cleaner Image panel layout.
+
+Documented changes:
+
+- bumped the addon package through `1.1.155`
+- added Z-Image `Image to Image` controls with a guide-image picker and strength control
+- launched Z-Image with the Nunchaku img2img feature flag from the addon
+- kept Z-Image runtime Start/Stop outside the Image Generation foldout so it matches Shape and Texture
+- moved Image `Open Folder` and `Clear Folder` below the Generate action
+- restored prompt Text Editor round-tripping without drawing a long editable prompt field directly in the sidebar
+- defaulted the balanced Z-Image profile to 16 steps, high quality to 20, and kept img2img strength at 0.55 after testing
+
+Validation:
+
+- confirmed a Lite distro `img2img` output was generated with `runtime=nunchaku`
+- confirmed the prompt editor `Apply` path no longer breaks the Image panel
+
+### 2026-04-23 Lite distro launch default
+Source: Lite branch testing showed the addon still defaulted to the old `NymphsCore` WSL distro while the Manager maintains `NymphsCore_Lite`.
+
+Documented changes:
+
+- bumped the local addon test package to `1.1.151`
+- changed the default managed WSL distro target to `NymphsCore_Lite`
+
+### 2026-04-23 Z-Image generation failure diagnostics
+Source: live testing showed Z-Image requests could fail with a generic HTTP 500 while the backend kept the useful exception detail in active-task state.
+
+Documented changes:
+
+- bumped the local addon test package to `1.1.150`
+- made the addon read `/active_task` after a failed `/generate` response so the visible status includes the backend's real failure detail
+- aligned the addon Z-Image launch environment with both `Z_IMAGE_*` and legacy `NYMPHS2D2_*` variables
+
+### 2026-04-23 Lite addon 4-view UI removal
+Source: Lite branch review showed the remaining `4-View MV` toggle was a leftover from the removed Hunyuan multiview workflow.
+
+Documented changes:
+
+- bumped the local addon test package to `1.1.148`
+- removed the visible `4-View MV` toggle from the image-generation panel
+- stopped the hidden legacy multiview flag from redirecting `Generate Image` into the old MV generation path
+- removed the registered MV generation operator from the Lite addon package
+- left the legacy saved property as a load-compatibility no-op for older Blender files
+
+### 2026-04-23 restarted Blender runtime rediscovery fix
+Source: live addon testing showed Z-Image could keep running while a restarted Blender session showed it as stopped.
+
+Documented changes:
+
+- bumped the local addon test package to `1.1.147`
+- made the runtime poller probe every known local service port instead of only addon-launched process handles
+- scheduled the first runtime probe shortly after addon registration so already-running Z-Image is rediscovered on Blender startup
+
+### 2026-04-23 prompt text editor round-trip fix
+Source: live addon testing showed the prompt area could feel collapsed after applying text from Blender's Text Editor.
+
+Documented changes:
+
+- bumped the local addon test package to `1.1.146`
+- restored the visible editable prompt and extraction-guidance fields below the Text Editor controls
+- kept the relevant prompt foldouts open when opening, applying, quick-editing, or clearing text
+
 ### 2026-04-18 prompt preset folder consolidation and public docs cleanup
 Source: commercial-readiness cleanup before pushing the remote repo.
 

@@ -15,8 +15,7 @@ This document provides a comprehensive overview of the NymphsCore system, coveri
 
 ## Backend Services
 
-- **3 Local AI Services** running in WSL with CUDA:
-  - **Hunyuan 3D-2 (2mv)** - Image → 3D mesh (port 8080)
+- **2 Local Blender runtime services** running in WSL with CUDA:
   - **Z-Image (Nunchaku)** - Fast image generation (port 8090)
   - **TRELLIS.2** - High-quality image → textured 3D (port 8094)
 - **OpenRouter API** - Gemini vision & image gen via remote API
@@ -27,7 +26,7 @@ This document provides a comprehensive overview of the NymphsCore system, coveri
 
 ## Optional Nymphs-Brain Subsystem
 
-`Nymphs-Brain` is an optional local LLM and tool stack that installs into the same managed `NymphsCore` WSL distro, but remains separate from the Blender 3D runtime family.
+`Nymphs-Brain` is an optional local LLM and tool stack that installs into the same managed `NymphsCore_Lite` WSL distro on the Lite test branch, but remains separate from the Blender 3D runtime family.
 
 - Installed under `/home/nymph/Nymphs-Brain`
 - Linux-side LM Studio CLI/runtime wrappers
@@ -59,7 +58,7 @@ The Brain model profile config lives at:
 - Subject presets: character, creature, building, prop, hard-surface
 - Style presets: painterly fantasy, anime, grimdark, storybook inkwash, watercolor styles
 - Generation profiles: turbo_fast_draft (r32), turbo_default (r128), turbo_high_detail (r256)
-- 4-View MV generation (front/left/right/back)
+- Local Z-Image txt2img and experimental Nunchaku-backed img2img
 - Seed control for reproducible results
 - Variant batching (1-8 images)
 
@@ -68,8 +67,6 @@ The Brain model profile config lives at:
 ## 3D Shape Pipeline
 
 - Image-to-3D via local services
-- Multi-view input support
-- Text-to-3D option
 - Texture generation toggle
 - TRELLIS presets: 512, 1024, 1024_cascade, 1536_cascade
 - 22 fine-tuneable TRELLIS parameters (guidance strength, rescale, intervals)
@@ -132,7 +129,7 @@ The Brain model profile config lives at:
 ## Installation Workflow
 
 - `install_all.sh` orchestrates:
-  - `preflight_wsl.sh` → system deps → CUDA 13 → Hunyuan → Z-Image → TRELLIS
+  - `preflight_wsl.sh` → system deps → CUDA 13 → Z-Image → TRELLIS
   - `prefetch_models.sh` → model download
   - `verify_install.sh` → smoke tests
 - Optional Brain install path adds:

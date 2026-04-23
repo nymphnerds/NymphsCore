@@ -114,7 +114,7 @@ Most common fixes:
 - update NVIDIA drivers
 - enable or repair WSL
 
-If you already have a `NymphsCore` WSL distro, the manager will treat this as an existing install and can repair or refresh it.
+If you already have a `NymphsCore_Lite` WSL distro, the manager will treat this as an existing install and can repair or refresh it.
 
 ## Step 3: Install Location
 
@@ -259,6 +259,7 @@ Use `TRELLIS.2` for:
 Use `Z-Image` for:
 
 - generating concept or reference images locally
+- editing from a guide image with local Z-Image `Image to Image`
 - creating images that can later feed the 3D backends
 
 ## After The Backend Works

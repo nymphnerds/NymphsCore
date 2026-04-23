@@ -1,6 +1,6 @@
 # Nymphs Blender Addon User Guide
 
-Nymphs is a Blender addon for creating game-ready 3D asset drafts from images. It works with a managed local backend called `NymphsCore`, which runs inside WSL on Windows and provides the image, shape, and texture services used by Blender.
+Nymphs is a Blender addon for creating game-ready 3D asset drafts from images. It works with a managed local backend called `NymphsCore_Lite` on this Lite test branch, which runs inside WSL on Windows and provides the image, shape, and texture services used by Blender.
 
 This guide is written for a normal user installing the product on one Windows PC. It explains the expected setup, how to install the backend and addon, how to start the runtimes, and how to run the main image-to-3D workflows.
 
@@ -14,7 +14,7 @@ Nymphs has two parts:
 The backend is intentionally local. Model generation runs on the user's machine instead of a hosted cloud service. The normal managed install creates a dedicated WSL distro named:
 
 ```text
-NymphsCore
+NymphsCore_Lite
 ```
 
 The managed Linux user inside that distro is:
@@ -48,7 +48,6 @@ Install the backend before trying to generate assets in Blender.
 Download:
 
 - `NymphsCoreManager-win-x64.zip`
-- `NymphsCore.tar`
 
 Current source locations are documented in:
 
@@ -59,19 +58,18 @@ Basic install:
 
 1. Download `NymphsCoreManager-win-x64.zip`.
 2. Extract the zip to a normal Windows folder.
-3. Download `NymphsCore.tar`.
-4. Place `NymphsCore.tar` next to `NymphsCoreManager.exe` in the extracted manager folder.
-5. Run `NymphsCoreManager.exe`.
-6. Approve the Windows administrator prompt if it appears.
-7. Follow the manager checks and install steps.
-8. Let the manager finish the WSL import, dependency setup, and backend verification.
+3. Run `NymphsCoreManager.exe`.
+4. Approve the Windows administrator prompt if it appears.
+5. Follow the manager checks and install steps.
+6. Let the manager finish the WSL bootstrap/import, dependency setup, and backend verification.
+
+Optional maintainer shortcut: if you already have a compatible `NymphsCore.tar`, place it next to `NymphsCoreManager.exe` before launching. If no tar is present, the Lite manager bootstraps a fresh Ubuntu base locally.
 
 The extracted folder should look like this:
 
 ```text
 NymphsCoreManager-win-x64/
   NymphsCoreManager.exe
-  NymphsCore.tar
   scripts/
     ...
 ```
@@ -138,7 +136,7 @@ Use `Z-Image` when:
 
 - you want local prompt-to-image generation
 - you want to create a reference image before making a mesh
-- you want to generate a front, back, left, and right turnaround set for reference or manual review
+- you want to edit from a local guide image with `Image to Image`
 
 Use `Gemini Flash` when:
 
@@ -215,7 +213,7 @@ Image backends:
 
 ### Local Z-Image Flow
 
-1. Start `Z-Image` in `Nymphs Server`.
+1. Start `Z-Image` from the top of `Nymphs Image`, or from `Nymphs Server > Runtimes`.
 2. Open `Nymphs Image`.
 3. Choose `Z-Image`.
 4. Choose a generation profile.
@@ -225,7 +223,7 @@ Image backends:
 8. Set image size, steps, seed, and variants if needed.
 9. Click `Generate Image`.
 
-Use `4-View MV` when you want a front, left, right, and back turnaround set for reference, paintovers, or choosing the best single TRELLIS input image.
+For local image-to-image, enable `Image to Image`, pick a guide image, and adjust `Strength`. Lower values stay closer to the guide; higher values transform more strongly. Z-Image outputs and their metadata are saved with `txt2img` or `img2img` in the filename.
 
 ### Gemini Flash Flow
 
@@ -331,7 +329,7 @@ Useful TRELLIS options:
 
 Most users should start with presets and only change seed, texture size, and obvious quality/runtime controls.
 
-If you create a four-view turnaround set in `Nymphs Image`, use the best front or three-quarter image as the actual shape input. The addon no longer exposes a separate multiview 3D runtime.
+Use the best front or three-quarter image as the actual shape input. The addon no longer exposes the old Hunyuan multiview 3D runtime.
 
 ## Nymphs Texture Panel
 
@@ -365,7 +363,7 @@ Generated mesh outputs are saved under Blender's temporary directory in:
 nymphs_shape_outputs
 ```
 
-Use the addon `Open Folder` buttons instead of hunting for these manually. Use `Clear Folder` when you want to remove generated outputs from that output area.
+Use the addon `Open Folder` buttons instead of hunting for these manually. In `Nymphs Image`, `Open Folder` and `Clear Folder` sit below the generate action so the top status area stays focused on the latest result. Use `Clear Folder` when you want to remove generated outputs from that output area.
 
 Imported meshes are brought into the current Blender scene. Retextured meshes are imported back near the source object's transform when possible.
 
@@ -389,7 +387,7 @@ Use the latest `NymphsCore Manager` to:
 - refresh backend helper scripts
 - run smoke tests
 - download missing models
-- update or verify the managed `NymphsCore` distro
+- update or verify the managed `NymphsCore_Lite` distro
 
 Use Blender's Extensions system to update the addon.
 
@@ -421,7 +419,7 @@ If a runtime behaves strangely after an update:
 ### A runtime will not start
 
 - Confirm the backend was installed with `NymphsCore Manager`.
-- Confirm WSL has a distro named `NymphsCore`.
+- Confirm WSL has a distro named `NymphsCore_Lite`.
 - Confirm the WSL user is `nymph`.
 - Click `Refresh` in `Nymphs Server`.
 - Check that another app is not using the same port.
