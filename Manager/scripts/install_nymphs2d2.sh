@@ -118,7 +118,24 @@ fi
 echo "Installing Z-Image compatibility packages for the Nunchaku runtime path"
 "${VENV_PIP}" install httpx importlib_metadata einops "peft>=0.17" protobuf sentencepiece
 "${VENV_PIP}" install --no-deps --force-reinstall safetensors==0.7.0
-"${VENV_PIP}" install --no-deps --force-reinstall git+https://github.com/huggingface/diffusers.git
+diffusers_attempts=3
+diffusers_success=0
+for diffusers_attempt in $(seq 1 "${diffusers_attempts}"); do
+  if [[ "${diffusers_attempt}" -gt 1 ]]; then
+    echo "Retrying diffusers install (${diffusers_attempt}/${diffusers_attempts})..."
+    sleep $((5 * diffusers_attempt))
+  fi
+
+  if "${VENV_PIP}" install --no-deps --force-reinstall git+https://github.com/huggingface/diffusers.git; then
+    diffusers_success=1
+    break
+  fi
+done
+
+if [[ "${diffusers_success}" -ne 1 ]]; then
+  echo "diffusers install failed after ${diffusers_attempts} attempts."
+  exit 1
+fi
 
 echo "Validating Z-Image Nunchaku imports"
 "${VENV_PYTHON}" -m py_compile api_server.py model_manager.py nunchaku_compat.py scripts/run_nunchaku_zimage_test.py

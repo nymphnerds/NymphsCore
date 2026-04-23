@@ -245,7 +245,7 @@
         </Grid>
 
         <TextBlock Grid.Row="4"
-                   Text="Windows will ask for administrator permission. Click Yes to continue."
+                   Text="Magic takes a moment. Let the forge work."
                    TextWrapping="Wrap"
                    Foreground="#C1D7D1" />
       </Grid>
@@ -849,7 +849,7 @@
 
             <TextBlock Grid.Row="2"
                        Margin="0,12,0,0"
-                       Text="This step can stay on one log line for several minutes while Ubuntu packages, CUDA pieces, or Python environments finish. Keep the window open and watch the live log below."
+                       Text="This step can stay on one log line for a long time while Ubuntu packages, CUDA pieces, Python environments, or Flash Attention builds finish. On some PCs the Flash Attention part can take hours. Keep the window open and watch the live log below."
                        TextWrapping="Wrap"
                        FontSize="13"
                        Foreground="#6B6259" />
@@ -871,7 +871,7 @@
                       Padding="10">
                 <ListBox x:Name="LogListBox"
                          ItemsSource="{Binding LogLines}"
-                         Height="416"
+                         Height="360"
                          FontFamily="Consolas"
                          FontSize="13"
                          Background="Transparent"

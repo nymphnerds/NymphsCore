@@ -410,10 +410,27 @@ case "${INSTALL_FLASH_ATTN}" in
 esac
 
 echo "Building TRELLIS native runtime extensions"
-"${VENV_PIP}" install --no-build-isolation \
-  git+https://github.com/JeffreyXiang/CuMesh.git \
-  git+https://github.com/JeffreyXiang/FlexGEMM.git \
-  git+https://github.com/NVlabs/nvdiffrast.git@v0.4.0
+trellis_native_attempts=3
+trellis_native_success=0
+for trellis_native_attempt in $(seq 1 "${trellis_native_attempts}"); do
+  if [[ "${trellis_native_attempt}" -gt 1 ]]; then
+    echo "Retrying TRELLIS native runtime extension install (${trellis_native_attempt}/${trellis_native_attempts})..."
+    sleep $((5 * trellis_native_attempt))
+  fi
+
+  if "${VENV_PIP}" install --no-build-isolation \
+    git+https://github.com/JeffreyXiang/CuMesh.git \
+    git+https://github.com/JeffreyXiang/FlexGEMM.git \
+    git+https://github.com/NVlabs/nvdiffrast.git@v0.4.0; then
+    trellis_native_success=1
+    break
+  fi
+done
+
+if [[ "${trellis_native_success}" -ne 1 ]]; then
+  echo "TRELLIS native runtime extension install failed after ${trellis_native_attempts} attempts."
+  exit 1
+fi
 
 "${VENV_PIP}" install --no-build-isolation --no-deps ./o-voxel
 

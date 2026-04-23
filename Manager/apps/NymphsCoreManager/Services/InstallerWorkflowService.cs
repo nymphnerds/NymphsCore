@@ -296,7 +296,7 @@ public sealed class InstallerWorkflowService
         };
 
         progress.Report("Runtime setup: preparing the required runtime environments inside the managed distro");
-        progress.Report("Runtime setup note: this stage can sit on one line for several minutes during apt work, CUDA setup, or Python environment creation. That does not mean the installer is frozen.");
+        progress.Report("Runtime setup note: this stage can sit on one line for a long time during apt work, CUDA setup, Python environment creation, or Flash Attention builds. On some machines the Flash Attention step can take hours. That does not mean the installer is frozen.");
 
         if (!settings.PrefetchModelsNow)
         {
@@ -1439,7 +1439,7 @@ public sealed class InstallerWorkflowService
             }
             else
             {
-                progress.Report("Base tar not found. Bootstrapping a fresh Ubuntu base locally.");
+                progress.Report("Bootstrapping a fresh Ubuntu base locally.");
             }
             progress.Report($"Import target: {settings.DistroName} -> {settings.InstallLocation}");
         }

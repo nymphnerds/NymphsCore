@@ -223,16 +223,7 @@ function Invoke-FreshBootstrapImport {
         throw "Failed to convert bootstrap script path for WSL access: $bootstrapScriptPath"
     }
 
-    $existingDistros = @(Get-WslDistroNames)
-    $bootstrapDistroName = Get-UniqueDistroName -BaseName "$TargetDistroName-bootstrap" -ExistingNames $existingDistros
-    $bootstrapInstallLocation = "$TargetInstallLocation-bootstrap"
-    $tempTarPath = Join-Path ([System.IO.Path]::GetTempPath()) ("{0}-bootstrap-{1}.tar" -f $TargetDistroName, [Guid]::NewGuid().ToString("N"))
-
-    if (Test-Path $bootstrapInstallLocation) {
-        Remove-InstallLocationWithRetries -Path $bootstrapInstallLocation
-    }
-
-    New-Item -ItemType Directory -Path $bootstrapInstallLocation -Force | Out-Null
+    New-Item -ItemType Directory -Path $TargetInstallLocation -Force | Out-Null
 
     $bootstrapCommand = @'
 set -euo pipefail
@@ -246,56 +237,27 @@ export NYMPHS3D_BOOTSTRAP_PREPARE_RUNTIME_REPOS=0
     $bootstrapCommand = $bootstrapCommand.Replace("__BOOTSTRAP_SCRIPT_PATH__", $bootstrapScriptWslPath)
 
     try {
-        Write-Host "No base tar was found. Bootstrapping a fresh Ubuntu base locally..."
-        Write-Host "Temporary bootstrap distro: $bootstrapDistroName"
-        Write-Host "Bootstrap install location: $bootstrapInstallLocation"
-        try {
-            Invoke-NativeOrThrow -FilePath "wsl" -ArgumentList @("--install", "--distribution", $BootstrapDistribution, "--name", $bootstrapDistroName, "--location", $bootstrapInstallLocation, "--no-launch") -FailureMessage "Failed to install temporary bootstrap distro"
-        }
-        catch {
-            throw "Failed to create a temporary '$BootstrapDistribution' bootstrap distro. This no-tar path requires a recent WSL build that supports named installs. Details: $($_.Exception.Message)"
-        }
-
-        try {
-            Invoke-NativeOrThrow -FilePath "wsl" -ArgumentList @("-d", $bootstrapDistroName, "--user", "root", "--", "bash", "-lc", $bootstrapCommand) -FailureMessage "Bootstrap preparation failed"
-        }
-        catch {
-            throw "Bootstrap preparation failed. If WSL asks for first-launch user setup on '$bootstrapDistroName', open it once manually, then rerun this command. Details: $($_.Exception.Message)"
-        }
-
-        Write-Host "Exporting temporary bootstrap distro..."
-        Invoke-NativeOrThrow -FilePath "wsl" -ArgumentList @("--export", $bootstrapDistroName, $tempTarPath) -FailureMessage "Failed to export temporary bootstrap distro"
-
-        Write-Host "Importing managed distro '$TargetDistroName'..."
+        Write-Host "Bootstrapping a fresh Ubuntu base locally..."
+        Write-Host "Managed distro: $TargetDistroName"
         Write-Host "Install location: $TargetInstallLocation"
-        Invoke-NativeOrThrow -FilePath "wsl" -ArgumentList @("--import", $TargetDistroName, $TargetInstallLocation, $tempTarPath) -FailureMessage "Fresh bootstrap import failed"
+        try {
+            Invoke-NativeOrThrow -FilePath "wsl" -ArgumentList @("--install", "--distribution", $BootstrapDistribution, "--name", $TargetDistroName, "--location", $TargetInstallLocation, "--no-launch") -FailureMessage "Failed to install managed distro"
+        }
+        catch {
+            throw "Failed to create '$TargetDistroName' from '$BootstrapDistribution'. This no-tar path requires a recent WSL build that supports named installs. Details: $($_.Exception.Message)"
+        }
+
+        try {
+            Invoke-NativeOrThrow -FilePath "wsl" -ArgumentList @("-d", $TargetDistroName, "--user", "root", "--", "bash", "-lc", $bootstrapCommand) -FailureMessage "Bootstrap preparation failed"
+        }
+        catch {
+            throw "Bootstrap preparation failed inside '$TargetDistroName'. If WSL asks for first-launch user setup on '$TargetDistroName', open it once manually, then rerun this command. Details: $($_.Exception.Message)"
+        }
+
+        Write-Host "Fresh distro bootstrap complete."
     }
     finally {
-        $finalDistros = @()
-        try {
-            $finalDistros = @(Get-WslDistroNames)
-        }
-        catch {
-            $finalDistros = @()
-        }
-
-        if ($finalDistros -contains $bootstrapDistroName) {
-            Write-Host "Cleaning up temporary bootstrap distro '$bootstrapDistroName'..."
-            & wsl --unregister $bootstrapDistroName 2>$null
-        }
-
-        if (Test-Path $bootstrapInstallLocation) {
-            try {
-                Remove-InstallLocationWithRetries -Path $bootstrapInstallLocation
-            }
-            catch {
-                Write-Warning "Temporary bootstrap install location could not be removed automatically: $bootstrapInstallLocation"
-            }
-        }
-
-        if (Test-Path $tempTarPath) {
-            Remove-Item -Force $tempTarPath -ErrorAction SilentlyContinue
-        }
+        & wsl --terminate $TargetDistroName 2>$null
     }
 }
 
@@ -372,7 +334,7 @@ elseif ($useBaseTar) {
     Write-Host "Base distro import complete."
 }
 else {
-    Write-Host "Fresh bootstrap import complete."
+    Write-Host "Fresh bootstrap provisioning complete."
 }
 Write-Host "Default Linux user: $effectiveLinuxUser"
 

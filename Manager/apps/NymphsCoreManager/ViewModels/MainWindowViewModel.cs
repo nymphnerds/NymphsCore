@@ -17,7 +17,8 @@ public sealed class MainWindowViewModel : ViewModelBase
     private const string RuntimeDownloadDetails =
         "- Z-Image Turbo via Nunchaku Python .venv: about 5.4 GB\n" +
         "- TRELLIS.2 runtime repo and Python .venv\n" +
-        "- CUDA 13.0 in WSL: about 4.9 GB";
+        "- CUDA 13.0 in WSL: about 4.9 GB\n" +
+        "- Flash Attention may compile during TRELLIS setup and can take a very long time on some machines";
     private const string BrainInstallRoot = "/home/nymph/Nymphs-Brain";
 
     private readonly InstallerWorkflowService _workflowService;
@@ -413,8 +414,8 @@ public sealed class MainWindowViewModel : ViewModelBase
 
     public string RuntimeDownloadSummary =>
         PrefetchModelsNow
-            ? "The installer also prepares the runtime stack now. That work happens either way and is separate from the large model downloads."
-            : "The installer still has to prepare the runtime stack now, even with model prefetch turned off. Turning prefetch off only skips the large Hugging Face model downloads.";
+            ? "The installer also prepares the runtime stack now. That work happens either way and is separate from the large model downloads. TRELLIS setup may include a long Flash Attention build."
+            : "The installer still has to prepare the runtime stack now, even with model prefetch turned off. Turning prefetch off only skips the large Hugging Face model downloads. TRELLIS setup may still include a long Flash Attention build.";
 
     public string RuntimeDownloadDetailsText => RuntimeDownloadDetails;
 
@@ -1885,8 +1886,8 @@ public sealed class MainWindowViewModel : ViewModelBase
             AppendInstallLog($"Linux user: {settings.LinuxUser}");
             AppendInstallLog(
                 _workflowService.BaseTarAvailable
-                    ? $"Base tar: {settings.TarPath}"
-                    : $"Base tar: not found at {settings.TarPath} (local Ubuntu bootstrap will be used)");
+                    ? $"Legacy base image detected at {settings.TarPath}"
+                    : "Local Ubuntu bootstrap mode selected.");
             AppendInstallLog(
                 string.IsNullOrWhiteSpace(settings.HuggingFaceToken)
                     ? "Hugging Face token: not provided"
