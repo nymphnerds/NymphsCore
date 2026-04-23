@@ -5,7 +5,7 @@ Live Blender addon implementation for Nymphs.
 bl_info = {
     "name": "Nymphs",
     "author": "Nymphs3D",
-    "version": (1, 1, 154),
+    "version": (1, 1, 155),
     "blender": (4, 2, 0),
     "location": "View3D > Sidebar > Nymphs",
     "description": "Blender client for NymphsCore image, shape, and texture backends",
@@ -7340,7 +7340,10 @@ def _draw_imagegen_status_box(layout, state):
     result.label(text=f"Status: {image_status or 'Ready'}"[:160])
     if state.imagegen_output_path:
         result.label(text=f"Last Image: {_path_leaf(state.imagegen_output_path)}"[:160])
-    action_row = result.row(align=True)
+
+
+def _draw_imagegen_folder_actions(layout):
+    action_row = layout.row(align=True)
     action_row.operator("nymphsv2.open_imagegen_folder", text="Open Folder")
     action_row.operator("nymphsv2.clear_imagegen_folder", text="Clear Folder")
 
@@ -7358,6 +7361,13 @@ class NYMPHSV2_PT_image_generation(bpy.types.Panel):
         panel = layout.column(align=True)
         image_backend = getattr(state, "imagegen_backend", "Z_IMAGE")
         _draw_imagegen_status_box(panel, state)
+        if image_backend == "Z_IMAGE":
+            if not _service_runtime_is_available(state, "n2d2"):
+                hint = panel.box()
+                hint.label(text="Start Z-Image in Runtimes.")
+                _draw_service_control_row(hint, state, "n2d2")
+            else:
+                _draw_service_control_row(panel, state, "n2d2")
 
         generation_box = panel.box()
         generation_box.prop(
@@ -7372,118 +7382,112 @@ class NYMPHSV2_PT_image_generation(bpy.types.Panel):
             backend_row.prop(state, "imagegen_backend", expand=True)
             image_backend = getattr(state, "imagegen_backend", "Z_IMAGE")
 
-            if image_backend == "Z_IMAGE" and not _service_runtime_is_available(state, "n2d2"):
-                hint = generation_box.box()
-                hint.label(text="Start Z-Image in Runtimes.")
-                _draw_service_control_row(hint, state, "n2d2")
+            _sync_imagegen_prompt_preset(state)
+            if image_backend == "Z_IMAGE":
+                _sync_imagegen_settings_preset(state)
+            elif not _online_access_enabled():
+                warning = generation_box.box()
+                warning.label(text="Enable Blender online access to use Gemini.")
+
+            request = generation_box.column(align=True)
+
+            if image_backend == "Z_IMAGE":
+                settings_label_row = request.row(align=True)
+                settings_label_row.label(text="Profile")
+                settings_label_row.operator("nymphsv2.load_imagegen_settings_preset", text="Apply")
+                settings_preset_row = request.row(align=True)
+                settings_preset_row.prop(state, "imagegen_settings_preset", text="")
+                settings_preset_tools = request.row(align=True)
+                settings_preset_tools.operator("nymphsv2.save_imagegen_settings_preset", text="Save")
+                settings_preset_tools.operator("nymphsv2.delete_imagegen_settings_preset", text="Delete")
+                settings_preset_tools.operator("nymphsv2.open_imagegen_settings_presets_folder", text="Open")
+                zimage_guide_box = request.column(align=True)
+                zimage_guide_toggle = zimage_guide_box.row(align=True)
+                zimage_guide_toggle.prop(state, "zimage_use_guide_image")
+                if state.zimage_use_guide_image:
+                    zimage_guide_box.prop(state, "zimage_guide_image_path", text="Guide")
+                    zimage_guide_tools = zimage_guide_box.row(align=True)
+                    zimage_guide_tools.operator("nymphsv2.pick_zimage_guide_image", text="Pick")
+                    zimage_guide_tools.operator("nymphsv2.clear_zimage_guide_image", text="Clear")
+                    zimage_guide_box.prop(state, "zimage_img2img_strength")
             else:
-                _sync_imagegen_prompt_preset(state)
-                if image_backend == "Z_IMAGE":
-                    _sync_imagegen_settings_preset(state)
+                gemini_box = request.column(align=True)
+                _ensure_openrouter_api_key_loaded(state)
+                gemini_model_row = gemini_box.split(factor=0.42, align=True)
+                gemini_model_row.label(text="Gemini Flash")
+                gemini_model_row.prop(state, "gemini_model", text="")
+                gemini_box.prop(state, "openrouter_api_key", text="API")
+                if not (state.openrouter_api_key or os.environ.get("OPENROUTER_API_KEY")):
+                    gemini_box.label(text="Use an OpenRouter API key.")
+                gemini_row = gemini_box.row(align=True)
+                gemini_row.prop(state, "gemini_aspect_ratio")
+                if _gemini_model_id(state) in GEMINI_IMAGE_SIZE_MODELS:
+                    gemini_row.prop(state, "gemini_image_size")
+                guide_box = gemini_box.column(align=True)
+                guide_toggle_row = guide_box.row(align=True)
+                guide_toggle_row.prop(state, "gemini_use_guide_image")
+                if state.gemini_use_guide_image:
+                    guide_box.prop(state, "gemini_guide_image_path", text="Guide")
+                    guide_actions = guide_box.row(align=True)
+                    guide_actions.operator("nymphsv2.pick_gemini_guide_image", text="Pick")
+                    guide_actions.operator("nymphsv2.clear_gemini_guide_image", text="Clear")
 
-                if image_backend == "Z_IMAGE":
-                    _draw_service_control_row(generation_box, state, "n2d2")
-                elif not _online_access_enabled():
-                    warning = generation_box.box()
-                    warning.label(text="Enable Blender online access to use Gemini.")
+            prompts_box = request.column(align=True)
+            prompts_box.label(text="PROMPTS")
+            _sync_imagegen_prompt_preset(state, "imagegen_prompt_preset", PROMPT_KIND_SUBJECT)
+            _sync_imagegen_style_preset(state)
+            _sync_imagegen_managed_prompt_blocks(state)
+            subject_row = prompts_box.row(align=True)
+            subject_row.prop(state, "imagegen_prompt_preset", text="Subject")
+            style_preset_row = prompts_box.row(align=True)
+            style_preset_row.prop(state, "imagegen_style_preset", text="Style")
+            prompt_insert_tools = prompts_box.row(align=True)
+            prompt_insert_tools.operator("nymphsv2.open_prompt_presets_folder", text="Open")
 
-                request = generation_box.column(align=True)
+            prompt_row = request.row(align=True)
+            prompt_row.label(text="Manual Prompt Editing")
+            prompt_tools_primary = request.row(align=True)
+            large_prompt = prompt_tools_primary.operator("nymphsv2.open_image_prompt_text_block", text="Editor")
+            large_prompt.target = "prompt"
+            use_prompt_text = prompt_tools_primary.operator("nymphsv2.pull_image_prompt_text_block", text="Apply")
+            use_prompt_text.target = "prompt"
+            prompt_tools_secondary = request.row(align=True)
+            edit_prompt = prompt_tools_secondary.operator("nymphsv2.edit_image_prompts", text="Quick Edit")
+            edit_prompt.target = "prompt"
+            prompt_tools_secondary.operator("nymphsv2.preview_image_prompt", text="Preview")
+            clear_prompt = prompt_tools_secondary.operator("nymphsv2.clear_image_prompt_field", text="Clear")
+            clear_prompt.target = "prompt"
+            if (state.imagegen_prompt or "").strip():
+                _draw_wrapped_lines(request, state.imagegen_prompt, prefix="Text: ", width=52, max_lines=2)
+            else:
+                request.label(text="No prompt text yet.")
+            _sync_imagegen_prompt_preset(state, "imagegen_saved_prompt_preset", PROMPT_KIND_SAVED)
+            saved_prompt_row = request.row(align=True)
+            saved_prompt_row.prop(state, "imagegen_saved_prompt_preset", text="Saved Prompt")
+            saved_prompt_tools = request.row(align=True)
+            saved_prompt_tools.operator("nymphsv2.save_current_prompt", text="Save Current")
+            if image_backend == "Z_IMAGE":
+                size_row = request.row(align=True)
+                size_row.prop(state, "imagegen_width")
+                size_row.prop(state, "imagegen_height")
+                settings_row = request.row(align=True)
+                settings_row.prop(state, "imagegen_steps")
+                settings_row.prop(state, "imagegen_guidance_scale")
 
-                if image_backend == "Z_IMAGE":
-                    settings_label_row = request.row(align=True)
-                    settings_label_row.label(text="Profile")
-                    settings_label_row.operator("nymphsv2.load_imagegen_settings_preset", text="Apply")
-                    settings_preset_row = request.row(align=True)
-                    settings_preset_row.prop(state, "imagegen_settings_preset", text="")
-                    settings_preset_tools = request.row(align=True)
-                    settings_preset_tools.operator("nymphsv2.save_imagegen_settings_preset", text="Save")
-                    settings_preset_tools.operator("nymphsv2.delete_imagegen_settings_preset", text="Delete")
-                    settings_preset_tools.operator("nymphsv2.open_imagegen_settings_presets_folder", text="Open")
-                    zimage_guide_box = request.column(align=True)
-                    zimage_guide_toggle = zimage_guide_box.row(align=True)
-                    zimage_guide_toggle.prop(state, "zimage_use_guide_image")
-                    if state.zimage_use_guide_image:
-                        zimage_guide_box.prop(state, "zimage_guide_image_path", text="Guide")
-                        zimage_guide_tools = zimage_guide_box.row(align=True)
-                        zimage_guide_tools.operator("nymphsv2.pick_zimage_guide_image", text="Pick")
-                        zimage_guide_tools.operator("nymphsv2.clear_zimage_guide_image", text="Clear")
-                        zimage_guide_box.prop(state, "zimage_img2img_strength")
-                else:
-                    gemini_box = request.column(align=True)
-                    _ensure_openrouter_api_key_loaded(state)
-                    gemini_model_row = gemini_box.split(factor=0.42, align=True)
-                    gemini_model_row.label(text="Gemini Flash")
-                    gemini_model_row.prop(state, "gemini_model", text="")
-                    gemini_box.prop(state, "openrouter_api_key", text="API")
-                    if not (state.openrouter_api_key or os.environ.get("OPENROUTER_API_KEY")):
-                        gemini_box.label(text="Use an OpenRouter API key.")
-                    gemini_row = gemini_box.row(align=True)
-                    gemini_row.prop(state, "gemini_aspect_ratio")
-                    if _gemini_model_id(state) in GEMINI_IMAGE_SIZE_MODELS:
-                        gemini_row.prop(state, "gemini_image_size")
-                    guide_box = gemini_box.column(align=True)
-                    guide_toggle_row = guide_box.row(align=True)
-                    guide_toggle_row.prop(state, "gemini_use_guide_image")
-                    if state.gemini_use_guide_image:
-                        guide_box.prop(state, "gemini_guide_image_path", text="Guide")
-                        guide_actions = guide_box.row(align=True)
-                        guide_actions.operator("nymphsv2.pick_gemini_guide_image", text="Pick")
-                        guide_actions.operator("nymphsv2.clear_gemini_guide_image", text="Clear")
+                seed_row = request.row(align=True)
+                seed_row.prop(state, "imagegen_seed", text="Seed")
+            variant_row = request.row(align=True)
+            variant_row.prop(state, "imagegen_variant_count")
+            if image_backend == "Z_IMAGE":
+                variant_row.prop(state, "imagegen_seed_step", text="Step")
 
-                prompts_box = request.column(align=True)
-                prompts_box.label(text="PROMPTS")
-                _sync_imagegen_prompt_preset(state, "imagegen_prompt_preset", PROMPT_KIND_SUBJECT)
-                _sync_imagegen_style_preset(state)
-                _sync_imagegen_managed_prompt_blocks(state)
-                subject_row = prompts_box.row(align=True)
-                subject_row.prop(state, "imagegen_prompt_preset", text="Subject")
-                style_preset_row = prompts_box.row(align=True)
-                style_preset_row.prop(state, "imagegen_style_preset", text="Style")
-                prompt_insert_tools = prompts_box.row(align=True)
-                prompt_insert_tools.operator("nymphsv2.open_prompt_presets_folder", text="Open")
-
-                prompt_row = request.row(align=True)
-                prompt_row.label(text="Manual Prompt Editing")
-                prompt_tools_primary = request.row(align=True)
-                large_prompt = prompt_tools_primary.operator("nymphsv2.open_image_prompt_text_block", text="Editor")
-                large_prompt.target = "prompt"
-                use_prompt_text = prompt_tools_primary.operator("nymphsv2.pull_image_prompt_text_block", text="Apply")
-                use_prompt_text.target = "prompt"
-                prompt_tools_secondary = request.row(align=True)
-                edit_prompt = prompt_tools_secondary.operator("nymphsv2.edit_image_prompts", text="Quick Edit")
-                edit_prompt.target = "prompt"
-                prompt_tools_secondary.operator("nymphsv2.preview_image_prompt", text="Preview")
-                clear_prompt = prompt_tools_secondary.operator("nymphsv2.clear_image_prompt_field", text="Clear")
-                clear_prompt.target = "prompt"
-                if (state.imagegen_prompt or "").strip():
-                    _draw_wrapped_lines(request, state.imagegen_prompt, prefix="Text: ", width=52, max_lines=2)
-                else:
-                    request.label(text="No prompt text yet.")
-                _sync_imagegen_prompt_preset(state, "imagegen_saved_prompt_preset", PROMPT_KIND_SAVED)
-                saved_prompt_row = request.row(align=True)
-                saved_prompt_row.prop(state, "imagegen_saved_prompt_preset", text="Saved Prompt")
-                saved_prompt_tools = request.row(align=True)
-                saved_prompt_tools.operator("nymphsv2.save_current_prompt", text="Save Current")
-                if image_backend == "Z_IMAGE":
-                    size_row = request.row(align=True)
-                    size_row.prop(state, "imagegen_width")
-                    size_row.prop(state, "imagegen_height")
-                    settings_row = request.row(align=True)
-                    settings_row.prop(state, "imagegen_steps")
-                    settings_row.prop(state, "imagegen_guidance_scale")
-
-                    seed_row = request.row(align=True)
-                    seed_row.prop(state, "imagegen_seed", text="Seed")
-                variant_row = request.row(align=True)
-                variant_row.prop(state, "imagegen_variant_count")
-                if image_backend == "Z_IMAGE":
-                    variant_row.prop(state, "imagegen_seed_step", text="Step")
-
-                generate_label = "Generate Image" if int(getattr(state, "imagegen_variant_count", 1)) <= 1 else "Generate Variants"
-                primary_action = request.row(align=True)
-                primary_action.enabled = not state.is_busy and not state.imagegen_is_busy
-                primary_action.scale_y = 1.25
-                primary_action.operator("nymphsv2.generate_image", text=generate_label, icon="RENDER_STILL")
+            generate_label = "Generate Image" if int(getattr(state, "imagegen_variant_count", 1)) <= 1 else "Generate Variants"
+            primary_action = request.row(align=True)
+            runtime_ready = image_backend != "Z_IMAGE" or _service_runtime_is_available(state, "n2d2")
+            primary_action.enabled = runtime_ready and not state.is_busy and not state.imagegen_is_busy
+            primary_action.scale_y = 1.25
+            primary_action.operator("nymphsv2.generate_image", text=generate_label, icon="RENDER_STILL")
+            _draw_imagegen_folder_actions(request)
 
         if image_backend == "GEMINI":
             parts_box = panel.box()
