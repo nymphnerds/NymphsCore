@@ -53,6 +53,13 @@ else
   git clone --depth 1 --branch "${HELPER_REPO_BRANCH}" --single-branch "${HELPER_REPO_URL}" "${NYMPHS3D_HELPER_ROOT}"
 fi
 
+if [[ ! -d "${NYMPHS3D_HELPER_ROOT}/Manager/scripts" ]]; then
+  echo "Expected manager scripts were not found at ${NYMPHS3D_HELPER_ROOT}/Manager/scripts" >&2
+  exit 1
+fi
+
+ln -sfn "Manager/scripts" "${NYMPHS3D_HELPER_ROOT}/scripts"
+
 cat >/etc/profile.d/nymphscore.sh <<'EOF'
 export NYMPHS3D_HELPER_ROOT=/opt/nymphs3d/NymphsCore
 export NYMPHS3D_RUNTIME_ROOT="$HOME"

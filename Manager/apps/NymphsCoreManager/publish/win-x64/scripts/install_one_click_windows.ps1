@@ -616,6 +616,11 @@ else
   git clone --branch "${REPO_BRANCH}" --single-branch "${REPO_URL}" "${REPO_DIR}"
 fi
 cd "${REPO_DIR}"
+if [ ! -d "Manager/scripts" ]; then
+  echo "Expected manager scripts were not found at ${REPO_DIR}/Manager/scripts" >&2
+  exit 1
+fi
+ln -sfn "Manager/scripts" "scripts"
 chmod +x scripts/*.sh
 ./scripts/install_all.sh
 '@
