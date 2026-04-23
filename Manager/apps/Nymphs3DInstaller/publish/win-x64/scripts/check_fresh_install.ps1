@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [string]$DistroName = "NymphsCore_Lite",
+    [string]$DistroName = "NymphsCore",
     [switch]$BuildManager
 )
 
