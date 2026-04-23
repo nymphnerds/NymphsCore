@@ -12,6 +12,7 @@ public sealed class MainWindowViewModel : ViewModelBase
     private const string ModelDownloadDetails =
         "- u2net helper model: about 168 MB\n" +
         "- Tongyi-MAI/Z-Image-Turbo: about 31 GB\n" +
+        "- nunchaku-ai/nunchaku-z-image-turbo weights for Z-Image Turbo\n" +
         "- TRELLIS.2 model bundle: a large multi-GB shared-cache download";
     private const string RuntimeDownloadDetails =
         "- Z-Image Turbo via Nunchaku Python .venv: about 5.4 GB\n" +
@@ -1082,9 +1083,7 @@ public sealed class MainWindowViewModel : ViewModelBase
 
         try
         {
-            var statuses = await _workflowService.GetRuntimeBackendStatusesAsync(settings, progress, CancellationToken.None).ConfigureAwait(true);
-            ApplyRuntimeBackendStatuses(statuses);
-            AppendInstallLog("Core backend runtime status checked.");
+            var statuses = await RefreshCoreRuntimeStatusSnapshotAsync(settings, progress).ConfigureAwait(true);
             await RefreshBrainRuntimeStatusSnapshotAsync(settings).ConfigureAwait(true);
             RuntimeToolsSummary = BuildRuntimeToolsSummary(statuses);
             StatusMessage = "Runtime tool status check completed.";
@@ -1150,6 +1149,24 @@ public sealed class MainWindowViewModel : ViewModelBase
             : RuntimeBackendStatus.Unknown("trellis", "TRELLIS.2", "No runtime status was returned.");
         OnPropertyChanged(nameof(ZImageRuntimeActionCommand));
         OnPropertyChanged(nameof(TrellisRuntimeActionCommand));
+    }
+
+    private async Task<IReadOnlyDictionary<string, RuntimeBackendStatus>> RefreshCoreRuntimeStatusSnapshotAsync(
+        InstallSettings settings,
+        IProgress<string> progress)
+    {
+        var statuses = await _workflowService.GetRuntimeBackendStatusesAsync(settings, progress, CancellationToken.None).ConfigureAwait(true);
+        ApplyRuntimeBackendStatuses(statuses);
+        AppendInstallLog("Core backend runtime status checked.");
+        return statuses;
+    }
+
+    private static bool CoreBackendModelsReady(IReadOnlyDictionary<string, RuntimeBackendStatus> statuses)
+    {
+        return statuses.TryGetValue("zimage", out var zimage)
+            && statuses.TryGetValue("trellis", out var trellis)
+            && zimage.ModelsReady
+            && trellis.ModelsReady;
     }
 
     private async Task RefreshBrainRuntimeStatusSnapshotAsync(InstallSettings settings)
@@ -1463,38 +1480,12 @@ public sealed class MainWindowViewModel : ViewModelBase
         return "Runtime tools are available, but backend readiness could not be confirmed.";
     }
 
-    private void MarkCoreRuntimeModelsReady()
-    {
-        if (ZImageRuntimeStatus.EnvironmentReady)
-        {
-            ZImageRuntimeStatus = ZImageRuntimeStatus with
-            {
-                ModelsReady = true,
-                TestReady = true,
-                Detail = "All components present. Ready for smoke test.",
-            };
-        }
-
-        if (TrellisRuntimeStatus.EnvironmentReady)
-        {
-            TrellisRuntimeStatus = TrellisRuntimeStatus with
-            {
-                ModelsReady = true,
-                TestReady = true,
-                Detail = "All components present. Ready for smoke test.",
-            };
-        }
-
-        OnPropertyChanged(nameof(ZImageRuntimeActionCommand));
-        OnPropertyChanged(nameof(TrellisRuntimeActionCommand));
-    }
-
     private async Task RunFetchModelsNowAsync()
     {
         var settings = BuildManagedActionSettings();
         PrepareManagedActionRun(
-            "Fetching required models into the existing NymphsCore runtime...",
-            "Starting explicit model-prefetch pass against the managed runtime.");
+            "Fetching required model weights...",
+            "Starting model-only prefetch against the existing runtime.");
         IsBusy = true;
 
         var progress = new Progress<string>(line =>
@@ -1511,10 +1502,22 @@ public sealed class MainWindowViewModel : ViewModelBase
         try
         {
             await _workflowService.RunModelPrefetchOnlyAsync(settings, progress, CancellationToken.None).ConfigureAwait(true);
-            MarkCoreRuntimeModelsReady();
-            PostInstallActionSummary = "Required models were downloaded successfully.";
-            RuntimeToolsSummary = "Model download completed. Core backends should now be ready for smoke tests.";
-            StatusMessage = "Model prefetch completed successfully.";
+            var statuses = await RefreshCoreRuntimeStatusSnapshotAsync(settings, progress).ConfigureAwait(true);
+            await RefreshBrainRuntimeStatusSnapshotAsync(settings).ConfigureAwait(true);
+
+            if (CoreBackendModelsReady(statuses))
+            {
+                PostInstallActionSummary = "Required models were downloaded and verified successfully.";
+                RuntimeToolsSummary = "Model download completed. Core backends are ready for smoke tests.";
+                StatusMessage = "Model prefetch completed and verified successfully.";
+            }
+            else
+            {
+                PostInstallActionSummary = "Model prefetch finished, but backend readiness is still incomplete.";
+                RuntimeToolsSummary = BuildRuntimeToolsSummary(statuses);
+                StatusMessage = "Model prefetch completed, but required models did not verify.";
+            }
+
             AppendInstallLog(StatusMessage);
         }
         catch (Exception ex)

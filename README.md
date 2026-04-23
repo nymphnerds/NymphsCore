@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="Graphics/NymphsCoreLogoLITE.png" alt="NymphsCore-Lite" width="960">
+  <img src="Graphics/NymphsCoreLogoLITE.png" alt="NymphsCore" width="960">
 </p>
 
 The central hub for the NymphNerds game development backend. This repo contains the core runtime, Manager, and Blender addon source that power the local pipeline.
@@ -14,7 +14,7 @@ Use it when you want the Nymphs backend on your own Windows PC, without manually
 
 ### What It Installs
 
-The lite manager imports and maintains a dedicated WSL distro named `NymphsCore_Lite`.
+The manager imports and maintains a dedicated WSL distro named `NymphsCore`.
 
 Inside that distro, it prepares the supported local backend stack:
 
@@ -47,7 +47,7 @@ To install the local backend on Windows:
 Optional faster path:
 
 - If you already have a compatible `NymphsCore.tar`, place it beside `NymphsCoreManager.exe`.
-- If no tar is present, the lite manager creates the base distro locally instead.
+- If no tar is present, the manager creates the base distro locally instead.
 
 Your extracted folder should look like this:
 
@@ -62,7 +62,7 @@ Important:
 
 - Do not run the manager from inside the zip.
 - Extract it first.
-- `NymphsCore.tar` is optional on the lite no-tar branch.
+- `NymphsCore.tar` is optional; the manager can bootstrap a fresh Ubuntu base locally.
 - A prebuilt tar is only a faster fallback if you already have one.
 
 ### Quick Start

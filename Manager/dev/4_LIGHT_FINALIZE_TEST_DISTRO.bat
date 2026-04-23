@@ -5,7 +5,7 @@ pushd "%~dp0"
 echo NymphsCore light finalize test
 echo.
 echo This runs the light finalize step inside:
-echo NymphsCore_Lite-Test
+echo NymphsCore-Test
 echo.
 echo It will:
 echo - install system dependencies
@@ -18,7 +18,7 @@ echo This avoids typing commands inside the Linux root shell.
 echo.
 pause
 
-powershell -NoProfile -ExecutionPolicy Bypass -File "..\scripts\run_finalize_in_distro.ps1" -DistroName "NymphsCore_Lite-Test" -LinuxUser "nymph" -SystemOnly
+powershell -NoProfile -ExecutionPolicy Bypass -File "..\scripts\run_finalize_in_distro.ps1" -DistroName "NymphsCore-Test" -LinuxUser "nymph" -SystemOnly
 set "exit_code=%ERRORLEVEL%"
 
 echo.

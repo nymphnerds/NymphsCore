@@ -1,6 +1,6 @@
 param(
     [string] $TarPath,
-    [string] $DistroName = "NymphsCore_Lite",
+    [string] $DistroName = "NymphsCore",
     [Parameter(Mandatory = $true)] [string] $InstallLocation,
     [string] $LinuxUser,
     [string] $HelperRepoUrl = "https://github.com/nymphnerds/NymphsCore.git",

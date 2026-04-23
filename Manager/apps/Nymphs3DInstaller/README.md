@@ -12,7 +12,7 @@ Current manager download:
 
 - [NymphsCoreManager-win-x64.zip](https://github.com/nymphnerds/NymphsCore/raw/main/Manager/apps/Nymphs3DInstaller/publish/NymphsCoreManager-win-x64.zip)
 
-The lite manager bootstraps a fresh Ubuntu WSL base locally. A prebuilt distro package is not required.
+The manager bootstraps a fresh Ubuntu WSL base locally. A prebuilt distro package is not required.
 
 Optional maintainer shortcut: if you already have a compatible `NymphsCore.tar`, place it in the extracted manager folder next to `NymphsCoreManager.exe` to use the faster prebuilt path.
 
@@ -47,7 +47,7 @@ NymphsCoreManager-win-x64/
 
 - Do not run the manager from inside the zip.
 - Extract it first.
-- `NymphsCore.tar` is optional on the lite branch and is not shown as a required system check.
+- `NymphsCore.tar` is optional and is not shown as a required system check.
 - If the tar is missing, the app bootstraps a fresh Ubuntu base locally.
 - If an existing `NymphsCore` install is already present, the manager can reuse it for:
   - update checks
@@ -85,4 +85,4 @@ If you are trying to rebuild the manager from source, use:
 powershell -ExecutionPolicy Bypass -File .\build-release.ps1
 ```
 
-That is not required for normal users. Maintainers should keep the release zip at `publish/NymphsCoreManager-win-x64.zip`, not inside `publish/win-x64/`. The lite build does not require a bundled `NymphsCore.tar`.
+That is not required for normal users. Maintainers should keep the release zip at `publish/NymphsCoreManager-win-x64.zip`, not inside `publish/win-x64/`. The build does not require a bundled `NymphsCore.tar`.

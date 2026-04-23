@@ -16,7 +16,7 @@ public sealed class DriveChoice
 
     public long FreeGiB => FreeBytes / (1024L * 1024L * 1024L);
 
-    public string InstallPath => Path.Combine(RootPath, "WSL", "NymphsCore_Lite");
+    public string InstallPath => Path.Combine(RootPath, "WSL", "NymphsCore");
 
     public string DisplayLabel => $"{RootPath} ({FreeGiB} GB free)";
 }

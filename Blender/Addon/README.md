@@ -97,7 +97,7 @@ Typical flow:
 
 ## Runtime
 
-Nymphs uses the managed `NymphsCore_Lite` WSL runtime and the `nymph` user created by the Windows Manager on the Lite test branch.
+Nymphs uses the managed `NymphsCore` WSL runtime and the `nymph` user created by the Windows Manager.
 
 Use `Nymphs Server > Runtimes` to start, stop, and probe all runtimes. The Image, Shape, and Texture panels also expose the relevant runtime start/stop row near the top of each panel.
 

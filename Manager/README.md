@@ -6,7 +6,7 @@ Use it when you want the Nymphs backend on your own Windows PC, without manually
 
 ## What It Installs
 
-The lite manager imports and maintains a dedicated WSL distro named `NymphsCore_Lite`.
+The manager imports and maintains a dedicated WSL distro named `NymphsCore`.
 
 Inside that distro, it prepares the supported local backend stack:
 
@@ -32,7 +32,7 @@ Download the manager zip from the repo:
 
 - [NymphsCoreManager-win-x64.zip](https://github.com/nymphnerds/NymphsCore/raw/main/Manager/apps/Nymphs3DInstaller/publish/NymphsCoreManager-win-x64.zip)
 
-The lite manager can bootstrap its own fresh Ubuntu WSL base locally.
+The manager can bootstrap its own fresh Ubuntu WSL base locally.
 
 If you already have a compatible `NymphsCore.tar`, you can put it next to `NymphsCoreManager.exe` after extracting the zip. That optional maintainer shortcut is faster, but it is no longer required and is not treated as a system-check requirement on this branch.
 

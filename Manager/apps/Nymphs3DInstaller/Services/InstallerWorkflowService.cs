@@ -8,7 +8,7 @@ namespace Nymphs3DInstaller.Services;
 
 public sealed class InstallerWorkflowService
 {
-    public const string ManagedDistroName = "NymphsCore_Lite";
+    public const string ManagedDistroName = "NymphsCore";
     public const string ManagedLinuxUser = "nymph";
     public const string WslAvailabilityCheckKey = "wsl_availability";
     public const string ExistingWslDistrosCheckKey = "existing_wsl_distros";
@@ -537,25 +537,42 @@ public sealed class InstallerWorkflowService
         IProgress<string> progress,
         CancellationToken cancellationToken)
     {
-        var runtimeScript = RequireScript("run_finalize_in_distro.ps1");
+        var prefetchScript = RequireScript("prefetch_models.sh");
+        var wslPrefetchScriptPath = ConvertWindowsPathToWsl(prefetchScript)
+            ?? throw new InvalidOperationException($"Could not convert script path for WSL: {prefetchScript}");
+
+        var tokenExport = string.IsNullOrWhiteSpace(settings.HuggingFaceToken)
+            ? string.Empty
+            : $"export NYMPHS3D_HF_TOKEN={ToBashSingleQuoted(settings.HuggingFaceToken.Trim())}; ";
+
+        var bashCommand =
+            "set -euo pipefail; " +
+            $"export HOME={ToBashSingleQuoted($"/home/{settings.LinuxUser}")}; " +
+            $"export USER={ToBashSingleQuoted(settings.LinuxUser)}; " +
+            $"export LOGNAME={ToBashSingleQuoted(settings.LinuxUser)}; " +
+            tokenExport +
+            "export NYMPHS3D_RUNTIME_ROOT=\"$HOME\"; " +
+            "export NYMPHS3D_Z_IMAGE_DIR=\"$HOME/Z-Image\"; " +
+            "export NYMPHS3D_N2D2_DIR=\"$NYMPHS3D_Z_IMAGE_DIR\"; " +
+            "export NYMPHS3D_TRELLIS_DIR=\"$HOME/TRELLIS.2\"; " +
+            $"bash {ToBashSingleQuoted(wslPrefetchScriptPath)}";
+
         var arguments = new List<string>
         {
-            "-DistroName", settings.DistroName,
-            "-LinuxUser", settings.LinuxUser,
-            "-SkipCuda",
-            "-SkipBackendEnvs",
-            "-SkipVerify",
+            "-d", settings.DistroName,
+            "--user", settings.LinuxUser,
+            "--",
+            "/bin/bash", "-lc", bashCommand,
         };
 
-        progress.Report("Model prefetch: downloading required models into the existing NymphsCore runtime.");
+        progress.Report("Model prefetch: downloading model weights only. Runtime repair is not part of this step.");
 
-        var environmentVariables = BuildInstallerTokenEnvironment(settings.HuggingFaceToken);
-
-        var result = await RunPowerShellScriptAsync(
-            runtimeScript,
+        var result = await _processRunner.RunAsync(
+            fileName: "wsl.exe",
             arguments,
+            workingDirectory: Environment.SystemDirectory,
             progress,
-            environmentVariables,
+            environmentVariables: null,
             cancellationToken).ConfigureAwait(false);
 
         if (result.ExitCode != 0)
@@ -859,7 +876,7 @@ public sealed class InstallerWorkflowService
             "Base distro package",
             "Checks whether a prebuilt base distro package is available.",
             CheckState.Warning,
-            "Base distro tar was not found. This lite branch can bootstrap a fresh Ubuntu base locally instead. " +
+            "Base distro tar was not found. The manager can bootstrap a fresh Ubuntu base locally instead. " +
             $"If you later place NymphsCore.tar at {BaseTarPath}, the installer will use it as a faster prebuilt path.");
     }
 
@@ -1362,6 +1379,8 @@ public sealed class InstallerWorkflowService
             return true;
         }
 
+        // Legacy lite distros are separate installs and must not be reused as the
+        // canonical managed runtime.
         if (!distroName.StartsWith(ManagedDistroName, StringComparison.OrdinalIgnoreCase))
         {
             return false;

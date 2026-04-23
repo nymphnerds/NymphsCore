@@ -10,7 +10,7 @@ The Blender addon is installed separately after the backend is ready:
 
 ## What You Are Installing
 
-NymphsCore Manager installs a dedicated WSL distro named `NymphsCore_Lite` on this lite test branch.
+NymphsCore Manager installs a dedicated WSL distro named `NymphsCore`.
 
 Inside it, the manager prepares:
 
@@ -60,7 +60,7 @@ Download the manager zip:
 
 - [NymphsCoreManager-win-x64.zip](https://github.com/nymphnerds/NymphsCore/raw/main/Manager/apps/Nymphs3DInstaller/publish/NymphsCoreManager-win-x64.zip)
 
-The lite manager can bootstrap its own fresh Ubuntu WSL base locally. A compatible `NymphsCore.tar` can still be placed beside the manager as an optional faster prebuilt path, but it is no longer required on this branch.
+The manager can bootstrap its own fresh Ubuntu WSL base locally. A compatible `NymphsCore.tar` can still be placed beside the manager as an optional faster prebuilt path, but it is no longer required.
 
 Then:
 
@@ -114,7 +114,7 @@ Most common fixes:
 - update NVIDIA drivers
 - enable or repair WSL
 
-If you already have a `NymphsCore_Lite` WSL distro, the manager will treat this as an existing install and can repair or refresh it.
+If you already have a `NymphsCore` WSL distro, the manager will treat this as an existing install and can repair or refresh it.
 
 ## Step 3: Install Location
 

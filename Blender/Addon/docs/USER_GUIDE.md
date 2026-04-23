@@ -1,6 +1,6 @@
 # Nymphs Blender Addon User Guide
 
-Nymphs is a Blender addon for creating game-ready 3D asset drafts from images. It works with a managed local backend called `NymphsCore_Lite` on this Lite test branch, which runs inside WSL on Windows and provides the image, shape, and texture services used by Blender.
+Nymphs is a Blender addon for creating game-ready 3D asset drafts from images. It works with a managed local backend called `NymphsCore`, which runs inside WSL on Windows and provides the image, shape, and texture services used by Blender.
 
 This guide is written for a normal user installing the product on one Windows PC. It explains the expected setup, how to install the backend and addon, how to start the runtimes, and how to run the main image-to-3D workflows.
 
@@ -14,7 +14,7 @@ Nymphs has two parts:
 The backend is intentionally local. Model generation runs on the user's machine instead of a hosted cloud service. The normal managed install creates a dedicated WSL distro named:
 
 ```text
-NymphsCore_Lite
+NymphsCore
 ```
 
 The managed Linux user inside that distro is:
@@ -387,7 +387,7 @@ Use the latest `NymphsCore Manager` to:
 - refresh backend helper scripts
 - run smoke tests
 - download missing models
-- update or verify the managed `NymphsCore_Lite` distro
+- update or verify the managed `NymphsCore` distro
 
 Use Blender's Extensions system to update the addon.
 
@@ -419,7 +419,7 @@ If a runtime behaves strangely after an update:
 ### A runtime will not start
 
 - Confirm the backend was installed with `NymphsCore Manager`.
-- Confirm WSL has a distro named `NymphsCore_Lite`.
+- Confirm WSL has a distro named `NymphsCore`.
 - Confirm the WSL user is `nymph`.
 - Click `Refresh` in `Nymphs Server`.
 - Check that another app is not using the same port.
