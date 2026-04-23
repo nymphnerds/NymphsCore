@@ -66,7 +66,7 @@ Current public docs:
 
 Current public download path:
 
-- `Manager/apps/Nymphs3DInstaller/publish/NymphsCoreManager-win-x64.zip`
+- `Manager/apps/NymphsCoreManager/publish/NymphsCoreManager-win-x64.zip`
 
 ## Product Rule
 
@@ -164,7 +164,7 @@ Old names still exist in source paths and historical scripts.
 
 Risk areas:
 
-- `Nymphs3DInstaller` source namespace/project name
+- `NymphsCoreManager` source namespace/project name
 - `Hunyuan3D-2` path names needed by `2mv`
 - legacy docs under archive
 - old backup repo names
@@ -350,7 +350,7 @@ Exit condition:
 
 ## Technical Cleanup Backlog
 
-- Rename source project/namespace from `Nymphs3DInstaller` when convenient.
+- Source project/namespace rename is complete. Keep follow-up cleanup focused on packaging and legacy archive content only.
 - Remove stale `2.1` wording from non-archive docs and UI if any remains.
 - Remove remaining legacy repo references from scripts as they are cleaned up.
 - Move dev-only docs deeper under ignored local docs or archive.

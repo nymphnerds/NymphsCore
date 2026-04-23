@@ -58,7 +58,7 @@ More detail:
 
 Download the manager zip:
 
-- [NymphsCoreManager-win-x64.zip](https://github.com/nymphnerds/NymphsCore/raw/main/Manager/apps/Nymphs3DInstaller/publish/NymphsCoreManager-win-x64.zip)
+- [NymphsCoreManager-win-x64.zip](https://github.com/nymphnerds/NymphsCore/raw/main/Manager/apps/NymphsCoreManager/publish/NymphsCoreManager-win-x64.zip)
 
 The manager can bootstrap its own fresh Ubuntu WSL base locally. A compatible `NymphsCore.tar` can still be placed beside the manager as an optional faster prebuilt path, but it is no longer required.
 

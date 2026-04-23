@@ -144,14 +144,11 @@ function Normalize-DistroShellPaths {
         [Parameter(Mandatory = $true)] [string] $DistroName
     )
 
-    $command = @'
+$command = @'
 set -euo pipefail
 install -d -m 0755 /opt/nymphs3d
-if [ -d /opt/nymphs3d/Nymphs3D ] && [ ! -e /opt/nymphs3d/NymphsCore ]; then
-  ln -s /opt/nymphs3d/Nymphs3D /opt/nymphs3d/NymphsCore
-fi
 cat > /etc/profile.d/nymphscore.sh <<'EOF'
-export NYMPHS3D_HELPER_ROOT=/opt/nymphs3d/Nymphs3D
+export NYMPHS3D_HELPER_ROOT=/opt/nymphs3d/NymphsCore
 export NYMPHS3D_RUNTIME_ROOT="$HOME"
 export NYMPHS3D_Z_IMAGE_DIR="$HOME/Z-Image"
 export NYMPHS3D_N2D2_DIR="$NYMPHS3D_Z_IMAGE_DIR"
@@ -383,7 +380,7 @@ if (-not $RunFinalize.IsPresent) {
     Write-Host ""
     Write-Host "Next step: run the finalize script inside the provisioned distro."
     Write-Host "Expected path inside the distro should match one of:"
-    Write-Host "  /opt/nymphs3d/Nymphs3D/scripts/finalize_imported_distro.sh"
+    Write-Host "  /opt/nymphs3d/NymphsCore/scripts/finalize_imported_distro.sh"
     Write-Host "  /opt/nymphs3d/NymphsCore/scripts/finalize_imported_distro.sh"
     exit 0
 }
@@ -401,7 +398,7 @@ if ($SkipVerify.IsPresent) {
 
 $quotedFinalizeArgs = ($finalizeArgs | ForEach-Object { "'$_'" }) -join " "
 $finalizeCandidates = @(
-    "/opt/nymphs3d/Nymphs3D/scripts/finalize_imported_distro.sh",
+    "/opt/nymphs3d/NymphsCore/scripts/finalize_imported_distro.sh",
     "/opt/nymphs3d/NymphsCore/scripts/finalize_imported_distro.sh"
 )
 $quotedCandidates = ($finalizeCandidates | ForEach-Object { "'$_'" }) -join " "

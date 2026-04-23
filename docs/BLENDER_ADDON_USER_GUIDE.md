@@ -53,7 +53,7 @@ Current source locations are documented in:
 
 - [NymphsCore README](../README.md)
 - [Manager README](../Manager/README.md)
-- [NymphsCore Manager README](../Manager/apps/Nymphs3DInstaller/README.md)
+- [NymphsCore Manager README](../Manager/apps/NymphsCoreManager/README.md)
 
 Basic install:
 

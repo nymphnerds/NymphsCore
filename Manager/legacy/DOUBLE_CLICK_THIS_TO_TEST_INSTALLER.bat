@@ -2,7 +2,7 @@
 setlocal
 
 set "SCRIPT_DIR=%~dp0"
-set "PS_SCRIPT=%SCRIPT_DIR%Install_Nymphs3D.ps1"
+set "PS_SCRIPT=%SCRIPT_DIR%Install_NymphsCore.ps1"
 
 if not exist "%PS_SCRIPT%" (
   echo Could not find:

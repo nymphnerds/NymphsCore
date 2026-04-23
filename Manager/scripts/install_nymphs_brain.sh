@@ -358,7 +358,7 @@ cat > "${MCP_CONFIG_DIR}/mcp-proxy-servers.json" <<EOF
         "${NPM_GLOBAL}/lib/node_modules/@modelcontextprotocol/server-filesystem/dist/index.js",
         "${HOME}",
         "${INSTALL_ROOT}",
-        "/opt/nymphs3d/Nymphs3D"
+        "/opt/nymphs3d/NymphsCore"
       ]
     },
     "memory": {

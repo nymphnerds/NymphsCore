@@ -189,7 +189,7 @@ The node graph is the tool. NymphsCore is the solution.
 
 ## Get Started
 
-1. Download [NymphsCoreManager](https://github.com/nymphnerds/NymphsCore/raw/main/Manager/apps/Nymphs3DInstaller/publish/NymphsCoreManager-win-x64.zip)
+1. Download [NymphsCoreManager](https://github.com/nymphnerds/NymphsCore/raw/main/Manager/apps/NymphsCoreManager/publish/NymphsCoreManager-win-x64.zip)
 2. Run the installer (one-click setup)
 3. Open Blender, enable the addon
 4. Start creating

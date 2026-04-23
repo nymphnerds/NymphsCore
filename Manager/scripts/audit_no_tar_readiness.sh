@@ -5,7 +5,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "${ROOT_DIR}/scripts/common_paths.sh"
 
 HOME_DIR="${HOME}"
-OPT_HELPER_DIR="/opt/nymphs3d/Nymphs3D"
+OPT_HELPER_DIR="/opt/nymphs3d/NymphsCore"
 OPT_RUNTIME_ROOT="/opt/nymphs3d/runtime"
 OPT_Z_IMAGE_DIR="${OPT_RUNTIME_ROOT}/Z-Image"
 OPT_TRELLIS_DIR="${OPT_RUNTIME_ROOT}/TRELLIS.2"

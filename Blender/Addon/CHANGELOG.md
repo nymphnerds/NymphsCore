@@ -1247,7 +1247,7 @@ Title: `Harden installer and split addon repo`
 Documented changes:
 
 - hardened the Windows + WSL installer flow
-- made rerunning `Install_Nymphs3D.bat` an intended repair/update path
+- made rerunning `Install_NymphsCore.bat` an intended repair/update path
 - reframed the helper repo as setup/backend infrastructure rather than the addon product
 - strengthened verification and repair framing in the docs
 

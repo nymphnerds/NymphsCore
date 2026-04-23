@@ -6,7 +6,7 @@ if [[ "${EUID}" -ne 0 ]]; then
   exit 1
 fi
 
-NYMPHS3D_HELPER_ROOT="${NYMPHS3D_HELPER_ROOT:-/opt/nymphs3d/Nymphs3D}"
+NYMPHS3D_HELPER_ROOT="${NYMPHS3D_HELPER_ROOT:-/opt/nymphs3d/NymphsCore}"
 NYMPHS3D_RUNTIME_ROOT="${NYMPHS3D_RUNTIME_ROOT:-/opt/nymphs3d/runtime}"
 NYMPHS3D_N2D2_REPO_URL="${NYMPHS3D_N2D2_REPO_URL:-https://github.com/nymphnerds/Nymphs2D2.git}"
 NYMPHS3D_TRELLIS_REPO_URL="${NYMPHS3D_TRELLIS_REPO_URL:-https://github.com/microsoft/TRELLIS.2.git}"
@@ -14,7 +14,7 @@ NYMPHS3D_TRELLIS_REPO_URL="${NYMPHS3D_TRELLIS_REPO_URL:-https://github.com/micro
 Z_IMAGE_DIR="${NYMPHS3D_RUNTIME_ROOT}/Z-Image"
 TRELLIS_DIR="${NYMPHS3D_RUNTIME_ROOT}/TRELLIS.2"
 
-echo "Preparing fresh Nymphs3D builder distro..."
+echo "Preparing fresh NymphsCore builder distro..."
 echo "Helper root: ${NYMPHS3D_HELPER_ROOT}"
 echo "Runtime root: ${NYMPHS3D_RUNTIME_ROOT}"
 
@@ -68,7 +68,7 @@ rm -rf /var/lib/apt/lists/* \
        /var/log/journal/*
 
 cat >/etc/profile.d/nymphscore.sh <<'EOF'
-export NYMPHS3D_HELPER_ROOT=/opt/nymphs3d/Nymphs3D
+export NYMPHS3D_HELPER_ROOT=/opt/nymphs3d/NymphsCore
 export NYMPHS3D_RUNTIME_ROOT="$HOME"
 export NYMPHS3D_Z_IMAGE_DIR="$HOME/Z-Image"
 export NYMPHS3D_N2D2_DIR="$NYMPHS3D_Z_IMAGE_DIR"

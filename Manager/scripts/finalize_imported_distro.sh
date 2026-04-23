@@ -13,7 +13,7 @@ usage() {
   cat <<'EOF'
 Usage: finalize_imported_distro.sh [options]
 
-This script is intended for a post-import Nymphs3D base distro workflow.
+This script is intended for a post-import NymphsCore base distro workflow.
 It finalizes the imported distro by installing runtime pieces that were
 deliberately left out of the exported base image.
 
@@ -62,7 +62,7 @@ echo
 
 echo "Normalizing runtime shell paths..."
 cat <<'EOF' | sudo tee /etc/profile.d/nymphscore.sh >/dev/null
-export NYMPHS3D_HELPER_ROOT=/opt/nymphs3d/Nymphs3D
+export NYMPHS3D_HELPER_ROOT=/opt/nymphs3d/NymphsCore
 export NYMPHS3D_RUNTIME_ROOT="$HOME"
 export NYMPHS3D_Z_IMAGE_DIR="$HOME/Z-Image"
 export NYMPHS3D_N2D2_DIR="$NYMPHS3D_Z_IMAGE_DIR"

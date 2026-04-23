@@ -8,7 +8,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-$LogDir = Join-Path $env:LOCALAPPDATA "Nymphs3D"
+$LogDir = Join-Path $env:LOCALAPPDATA "NymphsCore"
 $LogPath = Join-Path $LogDir "install.log"
 $script:TargetDistroName = $null
 $script:CreateNewDistroSelected = $false
@@ -309,7 +309,7 @@ function Resolve-NewDistroLocation {
     )
 
     $baseDir = Join-Path $DriveRoot "WSL"
-    $installDir = Join-Path $baseDir ("Nymphs3D-" + $DistroName)
+    $installDir = Join-Path $baseDir ("NymphsCore-" + $DistroName)
     if (Test-Path $installDir) {
         throw "The install folder already exists: $installDir"
     }
@@ -330,7 +330,7 @@ function Prompt-InstallTargetChoice {
     if ($distros.Count -eq 0) {
         Write-InstallLog ""
         Write-InstallLog "WSL is installed, but no Linux distros were found yet."
-        Write-InstallLog "A new Ubuntu for Nymphs3D will be created."
+        Write-InstallLog "A new Ubuntu for NymphsCore will be created."
 
         $selectedDrive = if ($InstallDrive) { Normalize-InstallDrive -DriveInput $InstallDrive } else { Select-InstallDriveInteractive }
         $selectedDistro = Get-NewUbuntuCandidateName
@@ -345,7 +345,7 @@ function Prompt-InstallTargetChoice {
     Write-InstallLog ""
     Write-InstallLog "WSL is already installed on this PC."
     Write-InstallLog "1. Use an existing WSL distro"
-    Write-InstallLog "2. Create a new Ubuntu for Nymphs3D on another drive"
+    Write-InstallLog "2. Create a new Ubuntu for NymphsCore on another drive"
 
     $choice = Read-ChoiceNumber -Prompt "Choose 1 or 2" -Min 1 -Max 2
     if ($choice -eq 1) {
@@ -496,7 +496,7 @@ function Test-WindowsPreflight {
                 throw "At least 20 GB free on C: is recommended for the Windows-side installer files. Found ${cFreeGb} GB."
             }
             if ($targetFreeGb -lt 120) {
-                throw "At least 120 GB free is recommended on $normalizedTargetDrive for a new Nymphs3D WSL install. Found ${targetFreeGb} GB."
+                throw "At least 120 GB free is recommended on $normalizedTargetDrive for a new NymphsCore WSL install. Found ${targetFreeGb} GB."
             }
         } elseif ($targetFreeGb -lt 120) {
             throw "At least 120 GB free on C: is recommended. Found ${targetFreeGb} GB."
@@ -593,8 +593,8 @@ function Invoke-WslInstall {
 set -euo pipefail
 REPO_URL='__REPO_URL__'
 REPO_BRANCH='__REPO_BRANCH__'
-INSTALL_ROOT="${HOME}/.nymphs3d-installer"
-REPO_DIR="${INSTALL_ROOT}/Nymphs3D"
+INSTALL_ROOT="${HOME}/.nymphscore-installer"
+REPO_DIR="${INSTALL_ROOT}/NymphsCore"
 BACKUP_ROOT="${INSTALL_ROOT}/backups"
 mkdir -p "${INSTALL_ROOT}" "${BACKUP_ROOT}"
 if ! command -v git >/dev/null 2>&1; then
@@ -608,7 +608,7 @@ if [ -d "${REPO_DIR}/.git" ]; then
   git -C "${REPO_DIR}" reset --hard "origin/${REPO_BRANCH}"
   git -C "${REPO_DIR}" clean -fdx
 elif [ -e "${REPO_DIR}" ]; then
-  backup="${BACKUP_ROOT}/Nymphs3D-$(date +%Y%m%d-%H%M%S)"
+  backup="${BACKUP_ROOT}/NymphsCore-$(date +%Y%m%d-%H%M%S)"
   mv "${REPO_DIR}" "${backup}"
   echo "Moved unexpected installer path to ${backup}"
   git clone --branch "${REPO_BRANCH}" --single-branch "${REPO_URL}" "${REPO_DIR}"
@@ -630,7 +630,7 @@ chmod +x scripts/*.sh
 try {
     Ensure-Elevated
 
-    Write-InstallLog "Preparing one-click Hunyuan installer..."
+    Write-InstallLog "Preparing one-click NymphsCore installer..."
     Write-InstallLog "Writing installer log to $LogPath"
     Write-InstallLog "Installer repo branch: $RepoBranch"
     Prompt-InstallTargetChoice
@@ -654,7 +654,7 @@ try {
         Write-InstallLog "Using selected drive for a new Ubuntu distro."
     }
     if ($createNewFlow) {
-        Write-InstallLog "Advanced mode: creating a new Ubuntu distro for Nymphs3D."
+        Write-InstallLog "Advanced mode: creating a new Ubuntu distro for NymphsCore."
     }
     if ($SkipWslConfig.IsPresent) {
         Write-InstallLog "Advanced mode: skipping .wslconfig changes."
@@ -676,8 +676,8 @@ try {
 
     Write-InstallLog ""
     Write-InstallLog "One-click install finished."
-    Write-InstallLog "Managed WSL installer checkout: ~/.nymphs3d-installer/Nymphs3D"
-    Write-InstallLog "For a full API smoke test later, run: ~/.nymphs3d-installer/Nymphs3D/scripts/verify_install.sh --smoke-test 2mv"
+    Write-InstallLog "Managed WSL installer checkout: ~/.nymphscore-installer/NymphsCore"
+    Write-InstallLog "For a smoke test later, run: ~/.nymphscore-installer/NymphsCore/scripts/verify_install.sh --smoke-test zimage"
     exit 0
 } catch {
     Write-InstallLog ""

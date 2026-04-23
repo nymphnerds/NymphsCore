@@ -40,7 +40,7 @@ print_group() {
 
 repo_n2d2="${NYMPHS3D_N2D2_DIR}"
 repo_trellis="${NYMPHS3D_TRELLIS_DIR}"
-repo_nymph="${HOME_DIR}/Nymphs3D"
+repo_nymph="${HOME_DIR}/NymphsCore"
 
 venv_n2d2="${repo_n2d2}/.venv-nunchaku"
 venv_trellis="${repo_trellis}/.venv"
@@ -58,7 +58,7 @@ human_from_bytes() {
   numfmt --to=iec --suffix=B "$bytes"
 }
 
-echo "Nymphs3D working-install audit"
+echo "NymphsCore working-install audit"
 echo "This report is intended to help define a distributable base WSL image."
 
 print_group "Core repos and runtime weight" \

@@ -11,7 +11,7 @@ usage() {
 Usage: prepare_base_distro_export.sh [options]
 
 This script is destructive. Run it only inside a disposable builder distro that
-exists purely to produce a distributable Nymphs3D base image.
+exists purely to produce a distributable NymphsCore base image.
 
 Options:
   --allow-destructive  Required. Confirms that this builder distro can be cleaned.

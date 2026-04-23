@@ -1,6 +1,6 @@
 param(
     [Parameter(Mandatory = $true)] [string] $DistroName,
-    [string] $FinalizeScriptPath = "/opt/nymphs3d/Nymphs3D/scripts/finalize_imported_distro.sh",
+    [string] $FinalizeScriptPath = "/opt/nymphs3d/NymphsCore/scripts/finalize_imported_distro.sh",
     [string] $LinuxUser,
     [switch] $CheckUpdatesOnly,
     [switch] $SystemOnly,
@@ -144,7 +144,7 @@ try {
     $packagedScriptsDir = ConvertTo-WslPath -WindowsPath $PSScriptRoot
     $originalWslEnv = $env:WSLENV
     $tokenExportPrefix = ""
-    $effectiveScriptsDir = "/opt/nymphs3d/Nymphs3D/scripts"
+    $effectiveScriptsDir = "/opt/nymphs3d/NymphsCore/scripts"
     $effectiveFinalizeScriptPath = $FinalizeScriptPath
 
     if (-not [string]::IsNullOrWhiteSpace($hfToken)) {
@@ -175,7 +175,7 @@ try {
         Write-Host "Using packaged helper scripts from '$effectiveScriptsDir'."
     }
     else {
-        Write-Host "Using in-distro helper scripts from '/opt/nymphs3d/Nymphs3D/scripts'."
+        Write-Host "Using in-distro helper scripts from '$effectiveScriptsDir'."
     }
 
     if (-not $SystemOnly.IsPresent) {

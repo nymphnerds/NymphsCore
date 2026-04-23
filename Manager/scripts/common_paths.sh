@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 
 if [[ -z "${NYMPHS3D_HELPER_ROOT:-}" ]]; then
-  if [[ -d /opt/nymphs3d/Nymphs3D ]]; then
-    NYMPHS3D_HELPER_ROOT=/opt/nymphs3d/Nymphs3D
+  if [[ -d /opt/nymphs3d/NymphsCore ]]; then
+    NYMPHS3D_HELPER_ROOT=/opt/nymphs3d/NymphsCore
   else
     NYMPHS3D_HELPER_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
   fi

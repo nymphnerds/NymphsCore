@@ -223,7 +223,7 @@ Documented changes:
   - `Hunyuan3D-2`
   - `Nymphs2D2`
 - updated Manager source scripts and bundled publish scripts so active repo defaults no longer point at `Babyjawz`
-- repointed the live helper checkout under `/opt/nymphs3d/Nymphs3D` to `nymphnerds/NymphsCore`
+- repointed the live helper checkout under `/opt/nymphs3d/NymphsCore` to `nymphnerds/NymphsCore`
 - repointed local backend checkouts:
   - `/home/nymph/Hunyuan3D-2` -> `nymphnerds/Hunyuan3D-2`
   - `/home/nymph/Z-Image` -> `nymphnerds/Nymphs2D2`
@@ -1489,7 +1489,7 @@ Title: `Harden installer and split addon repo`
 Documented changes:
 
 - hardened the Windows + WSL installer flow
-- made rerunning `Install_Nymphs3D.bat` an intended repair/update path
+- made rerunning `Install_NymphsCore.bat` an intended repair/update path
 - reframed the helper repo as setup/backend infrastructure rather than the addon product
 - strengthened verification and repair framing in the docs
 

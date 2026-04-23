@@ -108,7 +108,7 @@ if ([string]::IsNullOrWhiteSpace($modelResult.StdOut)) {
 if ($BuildManager) {
     Write-Step "Build local manager"
     $managerRoot = Split-Path -Parent $MyInvocation.MyCommand.Path | Split-Path -Parent
-    $managerProject = Join-Path $managerRoot "apps\Nymphs3DInstaller\Nymphs3DInstaller.csproj"
+    $managerProject = Join-Path $managerRoot "apps\NymphsCoreManager\NymphsCoreManager.csproj"
     if (-not (Test-Path $managerProject)) {
         throw "Manager project not found at $managerProject"
     }

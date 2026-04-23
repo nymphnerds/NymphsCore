@@ -30,7 +30,7 @@ http://localhost:8080
 
 Download the manager zip from the repo:
 
-- [NymphsCoreManager-win-x64.zip](https://github.com/nymphnerds/NymphsCore/raw/main/Manager/apps/Nymphs3DInstaller/publish/NymphsCoreManager-win-x64.zip)
+- [NymphsCoreManager-win-x64.zip](https://github.com/nymphnerds/NymphsCore/raw/main/Manager/apps/NymphsCoreManager/publish/NymphsCoreManager-win-x64.zip)
 
 The manager can bootstrap its own fresh Ubuntu WSL base locally.
 
@@ -194,7 +194,7 @@ Useful docs:
 
 The current manager app source lives under:
 
-- `apps/Nymphs3DInstaller`
+- `apps/NymphsCoreManager`
 
 The legacy batch/PowerShell installer is archived under:
 
