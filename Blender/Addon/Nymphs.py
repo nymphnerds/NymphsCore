@@ -5,7 +5,7 @@ Live Blender addon implementation for Nymphs.
 bl_info = {
     "name": "Nymphs",
     "author": "Nymphs3D",
-    "version": (1, 1, 155),
+    "version": (1, 1, 156),
     "blender": (4, 2, 0),
     "location": "View3D > Sidebar > Nymphs",
     "description": "Blender client for NymphsCore image, shape, and texture backends",
@@ -1511,7 +1511,7 @@ def _current_imagegen_settings_values(state):
         "n2d2_model_preset": getattr(state, "n2d2_model_preset", DEFAULT_N2D2_MODEL_PRESET),
         "imagegen_width": int(getattr(state, "imagegen_width", 1024)),
         "imagegen_height": int(getattr(state, "imagegen_height", 1024)),
-        "imagegen_steps": int(getattr(state, "imagegen_steps", 9)),
+        "imagegen_steps": int(getattr(state, "imagegen_steps", 16)),
         "imagegen_guidance_scale": float(getattr(state, "imagegen_guidance_scale", 0.0)),
         "imagegen_variant_count": int(getattr(state, "imagegen_variant_count", 1)),
         "imagegen_seed_step": int(getattr(state, "imagegen_seed_step", 1)),
@@ -1630,6 +1630,16 @@ def _sync_imagegen_settings_preset(state):
             state.imagegen_settings_preset = key
     except Exception:
         pass
+    return key
+
+
+def _ensure_imagegen_profile_defaults(state):
+    key = _sync_imagegen_settings_preset(state)
+    values = _imagegen_settings_preset_data(key).get("values", {})
+    profile_steps = int(values.get("imagegen_steps", 16) or 16)
+    current_steps = int(getattr(state, "imagegen_steps", profile_steps) or profile_steps)
+    if current_steps <= 1 and profile_steps > current_steps:
+        state.imagegen_steps = profile_steps
     return key
 
 
@@ -6193,6 +6203,7 @@ class NYMPHSV2_OT_generate_image(bpy.types.Operator):
             else:
                 api_root = _normalize_api_root(_service_api_root(state, "n2d2"))
                 _require_network_access(api_root)
+                _ensure_imagegen_profile_defaults(state)
                 seed_step = max(1, int(getattr(state, "imagegen_seed_step", 1)))
                 preset_key = _sync_imagegen_prompt_preset(state)
                 _preset_kind, preset_id = _split_prompt_preset_key(preset_key)
@@ -7384,7 +7395,7 @@ class NYMPHSV2_PT_image_generation(bpy.types.Panel):
 
             _sync_imagegen_prompt_preset(state)
             if image_backend == "Z_IMAGE":
-                _sync_imagegen_settings_preset(state)
+                _ensure_imagegen_profile_defaults(state)
             elif not _online_access_enabled():
                 warning = generation_box.box()
                 warning.label(text="Enable Blender online access to use Gemini.")

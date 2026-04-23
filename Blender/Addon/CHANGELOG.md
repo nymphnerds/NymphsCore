@@ -26,13 +26,14 @@ Source: live Lite distro testing proved Z-Image generation through Nunchaku, the
 
 Documented changes:
 
-- bumped the addon package through `1.1.155`
+- bumped the addon package through `1.1.156`
 - added Z-Image `Image to Image` controls with a guide-image picker and strength control
 - launched Z-Image with the Nunchaku img2img feature flag from the addon
 - kept Z-Image runtime Start/Stop outside the Image Generation foldout so it matches Shape and Texture
 - moved Image `Open Folder` and `Clear Folder` below the Generate action
 - restored prompt Text Editor round-tripping without drawing a long editable prompt field directly in the sidebar
 - defaulted the balanced Z-Image profile to 16 steps, high quality to 20, and kept img2img strength at 0.55 after testing
+- repaired stale Blender scene state that could leave the Z-Image step count stuck at `1` after restarting Blender
 
 Validation:
 
