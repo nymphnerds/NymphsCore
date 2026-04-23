@@ -5,7 +5,7 @@ Live Blender addon implementation for Nymphs.
 bl_info = {
     "name": "Nymphs",
     "author": "Nymphs3D",
-    "version": (1, 1, 156),
+    "version": (1, 1, 157),
     "blender": (4, 2, 0),
     "location": "View3D > Sidebar > Nymphs",
     "description": "Blender client for NymphsCore image, shape, and texture backends",
@@ -7371,14 +7371,18 @@ class NYMPHSV2_PT_image_generation(bpy.types.Panel):
 
         panel = layout.column(align=True)
         image_backend = getattr(state, "imagegen_backend", "Z_IMAGE")
+        zimage_runtime_ready = image_backend != "Z_IMAGE" or _service_runtime_is_available(state, "n2d2")
         _draw_imagegen_status_box(panel, state)
         if image_backend == "Z_IMAGE":
-            if not _service_runtime_is_available(state, "n2d2"):
+            if not zimage_runtime_ready:
                 hint = panel.box()
                 hint.label(text="Start Z-Image in Runtimes.")
                 _draw_service_control_row(hint, state, "n2d2")
             else:
                 _draw_service_control_row(panel, state, "n2d2")
+
+        if image_backend == "Z_IMAGE" and not zimage_runtime_ready and state.show_image_generation:
+            state.show_image_generation = False
 
         generation_box = panel.box()
         generation_box.prop(
@@ -7494,7 +7498,7 @@ class NYMPHSV2_PT_image_generation(bpy.types.Panel):
 
             generate_label = "Generate Image" if int(getattr(state, "imagegen_variant_count", 1)) <= 1 else "Generate Variants"
             primary_action = request.row(align=True)
-            runtime_ready = image_backend != "Z_IMAGE" or _service_runtime_is_available(state, "n2d2")
+            runtime_ready = image_backend != "Z_IMAGE" or zimage_runtime_ready
             primary_action.enabled = runtime_ready and not state.is_busy and not state.imagegen_is_busy
             primary_action.scale_y = 1.25
             primary_action.operator("nymphsv2.generate_image", text=generate_label, icon="RENDER_STILL")
