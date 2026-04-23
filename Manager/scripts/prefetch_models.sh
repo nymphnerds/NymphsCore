@@ -80,6 +80,9 @@ print_hf_download_progress() {
   fi
 
   echo "${label}: still downloading ${repo_id}..."
+  if [[ -n "${NYMPHS3D_PREFETCH_COMPONENT_HINT:-}" ]]; then
+    echo "- waiting on: ${NYMPHS3D_PREFETCH_COMPONENT_HINT}"
+  fi
   echo "- shared HF cache: $(format_bytes "${current_cache_bytes}") (+$(format_bytes "${cache_delta}") during this step)"
   echo "- repo cache blobs: $(format_bytes "${repo_bytes}") (${incomplete_count} active partial files)"
 }
@@ -170,6 +173,7 @@ prefetch_nymphs2d2_model() {
     export Z_IMAGE_NUNCHAKU_MODEL_REPO="${Z_IMAGE_NUNCHAKU_MODEL_REPO:-nunchaku-ai/nunchaku-z-image-turbo}"
     export Z_IMAGE_NUNCHAKU_RANK="${Z_IMAGE_NUNCHAKU_RANK:-32}"
     export Z_IMAGE_NUNCHAKU_PRECISION="${Z_IMAGE_NUNCHAKU_PRECISION:-auto}"
+    export NYMPHS3D_PREFETCH_COMPONENT_HINT="base Z-Image files: scheduler, text encoder, tokenizer, transformer, and VAE"
     if [[ -n "${HF_TOKEN}" ]]; then
       export NYMPHS3D_HF_TOKEN="${HF_TOKEN}"
     fi
@@ -178,10 +182,13 @@ prefetch_nymphs2d2_model() {
       "Z-Image Turbo model prefetch" \
       "Tongyi-MAI/Z-Image-Turbo" \
       python scripts/prefetch_model.py
+    unset NYMPHS3D_PREFETCH_COMPONENT_HINT
+    export NYMPHS3D_PREFETCH_COMPONENT_HINT="Nunchaku rank weights for the selected Z-Image preset"
     run_with_hf_download_progress \
       "Z-Image Turbo Nunchaku weight prefetch" \
       "${Z_IMAGE_NUNCHAKU_MODEL_REPO}" \
       prefetch_zimage_nunchaku_weights
+    unset NYMPHS3D_PREFETCH_COMPONENT_HINT
   )
 }
 
