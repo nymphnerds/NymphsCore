@@ -1,0 +1,10 @@
+# Local maintainer notes and planning/audit scratch docs.
+# Keep these in the working tree, but do not publish them as forward-facing docs.
+/ARCHITECTURE.md
+/LOCAL_GEMINI_PLANNER_HANDOFF.md
+/NO_2MV_EDITION_PLAN.md
+/NO_TAR_AUDIT.md
+/NO_TAR_BOOTSTRAP_ACTIONS.md
+/NO_TAR_LIVE_AUDIT_CHECKLIST.md
+/TAR_OBSOLETE_FINDINGS.md
+/WINDOWS_MANAGER_BUILD_TEST.md
