@@ -25,15 +25,15 @@ format_bytes() {
   awk -v bytes="${size_bytes}" 'BEGIN {
     split("B KiB MiB GiB TiB", units, " ");
     value = bytes + 0;
-    index = 1;
-    while (value >= 1024 && index < 5) {
+    unit_index = 1;
+    while (value >= 1024 && unit_index < 5) {
       value = value / 1024;
-      index++;
+      unit_index++;
     }
-    if (index == 1) {
-      printf "%d %s", value, units[index];
+    if (unit_index == 1) {
+      printf "%d %s", value, units[unit_index];
     } else {
-      printf "%.2f %s", value, units[index];
+      printf "%.2f %s", value, units[unit_index];
     }
   }'
 }
@@ -135,6 +135,31 @@ run_with_hf_download_progress() {
   return "${status}"
 }
 
+prefetch_zimage_nunchaku_weights() {
+  python - <<'PY'
+import os
+from huggingface_hub import hf_hub_download
+
+repo_id = os.getenv("Z_IMAGE_NUNCHAKU_MODEL_REPO") or "nunchaku-ai/nunchaku-z-image-turbo"
+rank = os.getenv("Z_IMAGE_NUNCHAKU_RANK") or os.getenv("NYMPHS2D2_NUNCHAKU_RANK") or "32"
+precision = (os.getenv("Z_IMAGE_NUNCHAKU_PRECISION") or os.getenv("NYMPHS2D2_NUNCHAKU_PRECISION") or "auto").strip().lower()
+precisions = ["int4", "fp4"] if precision == "auto" else [precision]
+cache_dir = os.getenv("NYMPHS3D_HF_CACHE_DIR") or None
+token = os.getenv("NYMPHS3D_HF_TOKEN") or None
+
+for item in precisions:
+    filename = f"svdq-{item}_r{rank}-z-image-turbo.safetensors"
+    print(f"Z-Image Turbo Nunchaku weight prefetch: {repo_id}/{filename}", flush=True)
+    path = hf_hub_download(
+        repo_id=repo_id,
+        filename=filename,
+        cache_dir=cache_dir,
+        token=token,
+    )
+    print(f"Z-Image Turbo Nunchaku weight ready: {path}", flush=True)
+PY
+}
+
 prefetch_nymphs2d2_model() {
   (
     cd "${N2D2_DIR}"
@@ -142,6 +167,9 @@ prefetch_nymphs2d2_model() {
     configure_nymphs3d_hf_env
     export NYMPHS3D_HF_CACHE_DIR="${HF_CACHE_DIR}"
     export Z_IMAGE_RUNTIME="nunchaku"
+    export Z_IMAGE_NUNCHAKU_MODEL_REPO="${Z_IMAGE_NUNCHAKU_MODEL_REPO:-nunchaku-ai/nunchaku-z-image-turbo}"
+    export Z_IMAGE_NUNCHAKU_RANK="${Z_IMAGE_NUNCHAKU_RANK:-32}"
+    export Z_IMAGE_NUNCHAKU_PRECISION="${Z_IMAGE_NUNCHAKU_PRECISION:-auto}"
     if [[ -n "${HF_TOKEN}" ]]; then
       export NYMPHS3D_HF_TOKEN="${HF_TOKEN}"
     fi
@@ -150,6 +178,10 @@ prefetch_nymphs2d2_model() {
       "Z-Image Turbo model prefetch" \
       "Tongyi-MAI/Z-Image-Turbo" \
       python scripts/prefetch_model.py
+    run_with_hf_download_progress \
+      "Z-Image Turbo Nunchaku weight prefetch" \
+      "${Z_IMAGE_NUNCHAKU_MODEL_REPO}" \
+      prefetch_zimage_nunchaku_weights
   )
 }
 

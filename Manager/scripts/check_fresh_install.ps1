@@ -98,6 +98,11 @@ if ([string]::IsNullOrWhiteSpace($modelResult.StdOut)) {
     Write-Host "No prefetched model cache found. This is expected if you installed without models."
 } else {
     $modelResult.StdOut | Out-Host
+
+    Write-Step "Z-Image model verification"
+    $zImageModelResult = Run-WslCapture -Distro $DistroName -Command "cd ~/Z-Image && source .venv-nunchaku/bin/activate && export Z_IMAGE_RUNTIME=nunchaku && python scripts/prefetch_model.py --local-files-only"
+    Require-Success -Label "Z-Image model verification" -Result $zImageModelResult
+    $zImageModelResult.StdOut | Out-Host
 }
 
 if ($BuildManager) {

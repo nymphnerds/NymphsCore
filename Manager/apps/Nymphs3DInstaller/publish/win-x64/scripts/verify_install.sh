@@ -56,8 +56,9 @@ verify_nymphs2d2() {
     configure_cuda_env
     configure_hf_env
     export Z_IMAGE_RUNTIME="nunchaku"
+    export Z_IMAGE_NUNCHAKU_IMG2IMG="1"
     python --version
-    python -m py_compile api_server.py config.py image_store.py model_manager.py progress_state.py schemas.py scripts/prefetch_model.py
+    python -m py_compile api_server.py config.py image_store.py model_manager.py nunchaku_compat.py progress_state.py schemas.py scripts/prefetch_model.py scripts/run_nunchaku_zimage_test.py
     python - <<'PY'
 import diffusers
 import fastapi
@@ -65,8 +66,18 @@ import huggingface_hub
 import nunchaku
 import PIL
 import torch
+from diffusers.pipelines.z_image.pipeline_z_image_img2img import ZImageImg2ImgPipeline
+from nunchaku import NunchakuZImageTransformer2DModel
+from nunchaku_compat import patch_zimage_transformer_forward
+from config import get_settings
+from model_manager import ModelManager
 
-print("Runtime imports available for the Z-Image backend.")
+patch_zimage_transformer_forward(NunchakuZImageTransformer2DModel)
+modes = ModelManager(get_settings()).supported_modes()
+if "img2img" not in modes:
+    raise RuntimeError(f"Z-Image img2img mode is not available: {modes}")
+
+print(f"Runtime imports available for the Z-Image backend. img2img={ZImageImg2ImgPipeline.__name__}")
 PY
     python scripts/prefetch_model.py --local-files-only
   )

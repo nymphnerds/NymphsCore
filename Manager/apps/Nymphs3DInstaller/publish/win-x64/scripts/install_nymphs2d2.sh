@@ -115,9 +115,25 @@ if ! "${VENV_PYTHON}" -c 'import nunchaku' >/dev/null 2>&1; then
   "${VENV_PIP}" install --no-deps --pre --index-url https://appmana.github.io/forks-nunchaku-stable-abi/cu130 nunchaku
 fi
 
-echo "Pinning Z-Image compatibility packages for the Nunchaku runtime path"
+echo "Installing Z-Image compatibility packages for the Nunchaku runtime path"
+"${VENV_PIP}" install httpx importlib_metadata einops "peft>=0.17" protobuf sentencepiece
 "${VENV_PIP}" install --no-deps --force-reinstall safetensors==0.7.0
 "${VENV_PIP}" install --no-deps --force-reinstall git+https://github.com/huggingface/diffusers.git
+
+echo "Validating Z-Image Nunchaku imports"
+"${VENV_PYTHON}" -m py_compile api_server.py model_manager.py nunchaku_compat.py scripts/run_nunchaku_zimage_test.py
+"${VENV_PYTHON}" - <<'PY'
+from diffusers.pipelines.z_image.pipeline_z_image import ZImagePipeline
+from diffusers.pipelines.z_image.pipeline_z_image_img2img import ZImageImg2ImgPipeline
+from nunchaku import NunchakuZImageTransformer2DModel
+from nunchaku_compat import patch_zimage_transformer_forward
+
+patched_forward = patch_zimage_transformer_forward(NunchakuZImageTransformer2DModel)
+print(f"zimage_pipeline={ZImagePipeline.__name__}")
+print(f"zimage_img2img_pipeline={ZImageImg2ImgPipeline.__name__}")
+print(f"nunchaku_transformer={NunchakuZImageTransformer2DModel.__name__}")
+print(f"zimage_forward_shim={patched_forward}")
+PY
 
 echo "Swapping staged Nunchaku venv into place"
 if [[ -d "${LIVE_VENV_DIR}" ]]; then

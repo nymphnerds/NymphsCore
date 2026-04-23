@@ -5,7 +5,7 @@ Live Blender addon implementation for Nymphs.
 bl_info = {
     "name": "Nymphs",
     "author": "Nymphs3D",
-    "version": (1, 1, 145),
+    "version": (1, 1, 154),
     "blender": (4, 2, 0),
     "location": "View3D > Sidebar > Nymphs",
     "description": "Blender client for NymphsCore image, shape, and texture backends",
@@ -72,7 +72,7 @@ CACHE_MISS = object()
 PART_GUIDANCE_SYNC_GUARD = False
 IMAGEGEN_PROMPT_SYNC_GUARD = False
 
-DEFAULT_WSL_DISTRO = "NymphsCore"
+DEFAULT_WSL_DISTRO = "NymphsCore_Lite"
 DEFAULT_WSL_USER = "nymph"
 DEFAULT_REPO_N2D2_PATH = "~/Z-Image"
 DEFAULT_REPO_TRELLIS_PATH = "~/TRELLIS.2"
@@ -355,7 +355,7 @@ IMAGEGEN_SETTINGS_PRESETS = {
             "n2d2_model_preset": "zimage_nunchaku_r128",
             "imagegen_width": 1024,
             "imagegen_height": 1024,
-            "imagegen_steps": 9,
+            "imagegen_steps": 16,
             "imagegen_guidance_scale": 0.0,
             "imagegen_variant_count": 1,
             "imagegen_seed_step": 1,
@@ -368,7 +368,7 @@ IMAGEGEN_SETTINGS_PRESETS = {
             "n2d2_model_preset": "zimage_nunchaku_r256",
             "imagegen_width": 1536,
             "imagegen_height": 1536,
-            "imagegen_steps": 9,
+            "imagegen_steps": 20,
             "imagegen_guidance_scale": 0.0,
             "imagegen_variant_count": 1,
             "imagegen_seed_step": 1,
@@ -381,7 +381,7 @@ IMAGEGEN_SETTINGS_PRESETS = {
             "n2d2_model_preset": "zimage_nunchaku_r128",
             "imagegen_width": 1024,
             "imagegen_height": 1536,
-            "imagegen_steps": 9,
+            "imagegen_steps": 16,
             "imagegen_guidance_scale": 0.0,
             "imagegen_variant_count": 1,
             "imagegen_seed_step": 1,
@@ -822,6 +822,39 @@ def _require_network_access(api_root):
         raise RuntimeError("Enable Blender online access before using a remote API URL.")
 
 
+def _http_error_detail_from_body(raw_body):
+    detail = raw_body.decode("utf-8", errors="replace").strip()
+    if not detail:
+        return ""
+    try:
+        payload = json.loads(detail)
+    except Exception:
+        return detail
+    if isinstance(payload, dict):
+        extracted = payload.get("detail") or payload.get("message") or payload.get("error")
+        if extracted:
+            return str(extracted)
+    return detail
+
+
+def _active_task_error_detail_for_url(url):
+    parsed = urlparse(url)
+    if not parsed.scheme or not parsed.netloc:
+        return ""
+    active_url = f"{parsed.scheme}://{parsed.netloc}/active_task"
+    try:
+        request = Request(url=active_url, method="GET")
+        with urlopen(request, timeout=2) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+    except Exception:
+        return ""
+    status = str(payload.get("status") or "").strip()
+    stage = str(payload.get("stage") or "").strip()
+    detail = str(payload.get("detail") or payload.get("message") or "").strip()
+    pieces = [piece for piece in (status, stage, detail) if piece]
+    return " | ".join(pieces)
+
+
 def _http_call(method, url, payload=None, timeout=10, headers=None):
     body = None
     request_headers = dict(headers or {})
@@ -834,7 +867,10 @@ def _http_call(method, url, payload=None, timeout=10, headers=None):
         with urlopen(request, timeout=timeout) as response:
             return response.status, response.headers.get("Content-Type", ""), response.read()
     except HTTPError as exc:
-        detail = exc.read().decode("utf-8", errors="replace").strip()
+        detail = _http_error_detail_from_body(exc.read())
+        active_detail = _active_task_error_detail_for_url(url)
+        if active_detail and active_detail not in detail:
+            detail = f"{detail}. Active task: {active_detail}" if detail else active_detail
         raise RuntimeError(f"HTTP {exc.code}: {detail or exc.reason}") from exc
     except URLError as exc:
         parsed = urlparse(url)
@@ -1792,6 +1828,15 @@ def _set_imagegen_prompt_value(state, target, value, *, sync_text=True):
         _sync_imagegen_text_block(state, target, value)
 
 
+def _keep_imagegen_prompt_ui_open(state, target):
+    try:
+        state.show_image_generation = True
+        if target == "guidance":
+            state.show_part_extraction = True
+    except Exception:
+        pass
+
+
 def _insert_imagegen_prompt_text(state, value):
     insert_text = (value or "").strip()
     if not insert_text:
@@ -2043,9 +2088,41 @@ def _build_imagegen_payload_for_prompt(state, *, prompt, seed=None):
         "steps": int(state.imagegen_steps),
         "guidance_scale": float(state.imagegen_guidance_scale),
     }
+    guide_image_path = _zimage_guide_image_path(state)
+    if guide_image_path:
+        _normalized_path, guide_image = _zimage_guide_image_base64(guide_image_path)
+        payload.update(
+            {
+                "mode": "img2img",
+                "image": guide_image,
+                "strength": float(state.zimage_img2img_strength),
+            }
+        )
     if seed is not None:
         payload["seed"] = seed
     return payload
+
+
+def _zimage_guide_image_path(state):
+    if not bool(getattr(state, "zimage_use_guide_image", False)):
+        return ""
+    raw_path = (getattr(state, "zimage_guide_image_path", "") or "").strip()
+    if not raw_path:
+        raise RuntimeError("Pick a Z-Image guide image first.")
+    return _resolve_file_path(raw_path)
+
+
+def _zimage_guide_image_base64(raw_path):
+    path = _resolve_file_path(raw_path)
+    if not path:
+        raise RuntimeError("Pick a Z-Image guide image first.")
+    if not os.path.isfile(path):
+        raise RuntimeError(f"Z-Image guide image not found: {path}")
+
+    suffix = os.path.splitext(path)[1].lower()
+    if suffix not in {".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp"}:
+        raise RuntimeError("Z-Image guide image must be a PNG, JPG, WEBP, GIF, or BMP file.")
+    return path, _file_to_base64(path)
 
 
 def _build_mv_prompt(state, view_phrase):
@@ -4012,12 +4089,21 @@ def _compose_wsl_launch(state, service_key):
             'export HF_HUB_DISABLE_XET=1; '
             f"export NYMPHS3D_HF_CACHE_DIR={shlex.quote(hf_cache)}; "
             'export Z_IMAGE_DEVICE="cuda"; '
+            'export NYMPHS2D2_DEVICE="cuda"; '
             f"export Z_IMAGE_DTYPE={shlex.quote(n2d2_dtype)}; "
+            f"export NYMPHS2D2_DTYPE={shlex.quote(n2d2_dtype)}; "
             f"export Z_IMAGE_MODEL_ID={shlex.quote(n2d2_model_id)}; "
+            f"export NYMPHS2D2_MODEL_ID={shlex.quote(n2d2_model_id)}; "
             "export Z_IMAGE_RUNTIME='nunchaku'; "
+            "export NYMPHS2D2_RUNTIME='nunchaku'; "
+            "export Z_IMAGE_NUNCHAKU_IMG2IMG='1'; "
+            "export NYMPHS2D2_NUNCHAKU_IMG2IMG='1'; "
             f"export Z_IMAGE_PORT={shlex.quote(port)}; "
+            f"export NYMPHS2D2_PORT={shlex.quote(port)}; "
             f"export Z_IMAGE_NUNCHAKU_RANK={shlex.quote(str(n2d2_rank))}; "
+            f"export NYMPHS2D2_NUNCHAKU_RANK={shlex.quote(str(n2d2_rank))}; "
             "export Z_IMAGE_MODEL_VARIANT=''; "
+            "export NYMPHS2D2_MODEL_VARIANT=''; "
         )
         parts = [
             python_path,
@@ -4403,12 +4489,11 @@ def _server_probe_timer():
             continue
         threading.Thread(target=_background_primary_probe, args=(scene.name,), daemon=True).start()
         for service_key in SERVICE_ORDER:
-            if _service_enabled(state, service_key) or _backend_is_alive(service_key):
-                threading.Thread(
-                    target=_background_server_probe,
-                    args=(scene.name, service_key),
-                    daemon=True,
-                ).start()
+            threading.Thread(
+                target=_background_server_probe,
+                args=(scene.name, service_key),
+                daemon=True,
+            ).start()
             if _service_get(state, service_key, "launch_state", "Stopped") in {"Launching", "Stopping"}:
                 interval = SERVER_POLL_FAST_SECONDS
         break
@@ -5366,6 +5451,24 @@ class NymphsV2State(bpy.types.PropertyGroup):
         ),
         default="Z_IMAGE",
     )
+    zimage_use_guide_image: BoolProperty(
+        name="Image to Image",
+        description="Send one picked image with the Z-Image prompt.",
+        default=False,
+    )
+    zimage_guide_image_path: StringProperty(
+        name="Guide",
+        description="Image file to send with the Z-Image prompt.",
+        subtype="FILE_PATH",
+        default="",
+    )
+    zimage_img2img_strength: FloatProperty(
+        name="Strength",
+        description="How strongly Z-Image should transform the guide image.",
+        default=0.55,
+        min=0.05,
+        max=1.0,
+    )
     openrouter_api_key: StringProperty(
         name="API",
         description="OpenRouter API key for Gemini Flash image generation. Leave blank to use OPENROUTER_API_KEY from the environment instead.",
@@ -5471,7 +5574,7 @@ class NymphsV2State(bpy.types.PropertyGroup):
     imagegen_steps: IntProperty(
         name="Steps",
         description="How many image-generation refinement steps to run. More steps are slower.",
-        default=9,
+        default=16,
         min=1,
         max=100,
     )
@@ -5489,19 +5592,19 @@ class NymphsV2State(bpy.types.PropertyGroup):
     )
     imagegen_variant_count: IntProperty(
         name="Variants",
-        description="How many single-image variants Generate Image should make. Generate 4-View MV ignores this and always makes front, left, right, and back views.",
+        description="How many single-image variants Generate Image should make.",
         default=1,
         min=1,
         max=8,
     )
     imagegen_generate_mv: BoolProperty(
-        name="4-View MV",
-        description="Generate front, left, right, and back views instead of a single image or variants.",
+        name="Legacy MV",
+        description="Legacy multiview flag kept only so older files load cleanly in the Lite addon.",
         default=False,
     )
     imagegen_seed_step: IntProperty(
         name="Seed Step",
-        description="Seed increment for single-image variants. Generate 4-View MV uses one seed across its four view prompts.",
+        description="Seed increment for single-image variants.",
         default=1,
         min=1,
         max=1000000,
@@ -6062,8 +6165,7 @@ class NYMPHSV2_OT_generate_image(bpy.types.Operator):
         if state.is_busy or state.imagegen_is_busy:
             self.report({"WARNING"}, "Another request is already running.")
             return {"CANCELLED"}
-        if bool(getattr(state, "imagegen_generate_mv", False)):
-            return bpy.ops.nymphsv2.generate_mv_set()
+        state.imagegen_generate_mv = False
 
         backend = getattr(state, "imagegen_backend", "Z_IMAGE")
         breakout_auto_mode = False
@@ -6157,68 +6259,6 @@ class NYMPHSV2_OT_generate_image(bpy.types.Operator):
         state.imagegen_task_status = "queued"
         state.imagegen_output_path = ""
         state.imagegen_metadata_path = ""
-        _touch_ui()
-
-        worker = threading.Thread(
-            target=worker_target,
-            args=worker_args,
-            daemon=True,
-        )
-        worker.start()
-        _schedule_event_loop()
-        return {"FINISHED"}
-
-
-class NYMPHSV2_OT_generate_mv_set(bpy.types.Operator):
-    bl_idname = "nymphsv2.generate_mv_set"
-    bl_label = "Generate MV Set"
-    bl_description = "Generate front, left, right, and back images through the selected image backend and assign them to the multiview slots"
-
-    def execute(self, context):
-        state = context.scene.nymphs_state
-        if state.is_busy or state.imagegen_is_busy:
-            self.report({"WARNING"}, "Another request is already running.")
-            return {"CANCELLED"}
-
-        backend = getattr(state, "imagegen_backend", "Z_IMAGE")
-        try:
-            if not state.imagegen_prompt.strip():
-                raise RuntimeError("Enter an image-generation prompt first.")
-            if backend == "GEMINI":
-                _require_network_access(OPENROUTER_API_ROOT)
-                snapshot = _gemini_snapshot(state)
-                prompts = [
-                    (view_key, view_label, _build_mv_prompt(state, view_phrase))
-                    for view_key, view_label, view_phrase in IMAGEGEN_MV_VIEW_SPECS
-                ]
-                worker_target = _gemini_mv_worker
-                worker_args = (context.scene.name, snapshot, prompts)
-                generated = False
-                seed = None
-            else:
-                api_root = _normalize_api_root(_service_api_root(state, "n2d2"))
-                _require_network_access(api_root)
-                seed, generated = _imagegen_seed_value(state)
-                worker_target = _imagegen_mv_worker
-                worker_args = (context.scene.name, api_root, seed)
-        except Exception as exc:
-            state.imagegen_status_text = str(exc)
-            self.report({"ERROR"}, str(exc))
-            return {"CANCELLED"}
-
-        state.imagegen_is_busy = True
-        state.imagegen_started_at = time.time()
-        image_backend_label = _current_image_backend_label(state)
-        image_backend_detail = _current_image_backend_detail(state)
-        state.imagegen_status_text = f"Generating {image_backend_label} MV set..."
-        state.imagegen_task_status = "queued"
-        state.imagegen_task_stage = "Generating MV Set"
-        state.imagegen_task_detail = image_backend_detail or "Preparing front, left, right, and back prompts..."
-        state.imagegen_task_progress = "0/4"
-        state.imagegen_output_path = ""
-        state.imagegen_metadata_path = ""
-        if generated and seed is not None:
-            state.imagegen_seed = str(seed)
         _touch_ui()
 
         worker = threading.Thread(
@@ -6701,6 +6741,7 @@ class NYMPHSV2_OT_clear_image_prompt_field(bpy.types.Operator):
 
     def execute(self, context):
         state = context.scene.nymphs_state
+        _keep_imagegen_prompt_ui_open(state, self.target)
         _set_imagegen_prompt_value(state, self.target, "")
         state.imagegen_status_text = "Cleared guidance." if self.target == "guidance" else "Cleared image prompt."
         _touch_ui()
@@ -6723,6 +6764,7 @@ class NYMPHSV2_OT_open_image_prompt_text_block(bpy.types.Operator):
 
     def execute(self, context):
         state = context.scene.nymphs_state
+        _keep_imagegen_prompt_ui_open(state, self.target)
         text = _ensure_imagegen_text(state, self.target)
         opened = _open_text_in_editor(context, text)
         label = "guidance" if self.target == "guidance" else "prompt"
@@ -6751,6 +6793,7 @@ class NYMPHSV2_OT_pull_image_prompt_text_block(bpy.types.Operator):
 
     def execute(self, context):
         state = context.scene.nymphs_state
+        _keep_imagegen_prompt_ui_open(state, self.target)
         applied = []
         if _pull_imagegen_text_from_block(state, self.target):
             applied.append("guidance" if self.target == "guidance" else "prompt")
@@ -6805,6 +6848,7 @@ class NYMPHSV2_OT_edit_image_prompts(bpy.types.Operator):
 
     def execute(self, context):
         state = context.scene.nymphs_state
+        _keep_imagegen_prompt_ui_open(state, self.target)
         _set_imagegen_prompt_value(state, self.target, self.prompt)
         _touch_ui()
         return {"FINISHED"}
@@ -6877,6 +6921,54 @@ class NYMPHSV2_OT_pick_gemini_guide_image(bpy.types.Operator):
             return {"CANCELLED"}
         state.gemini_guide_image_path = normalized_path
         state.gemini_use_guide_image = True
+        _touch_ui()
+        return {"FINISHED"}
+
+
+class NYMPHSV2_OT_pick_zimage_guide_image(bpy.types.Operator):
+    bl_idname = "nymphsv2.pick_zimage_guide_image"
+    bl_label = "Pick Z-Image Guide"
+    bl_description = "Choose a guide image for Z-Image from the current generated-image folder"
+
+    filepath: StringProperty(subtype="FILE_PATH")
+    filter_glob: StringProperty(default="*.png;*.jpg;*.jpeg;*.webp;*.gif;*.bmp", options={"HIDDEN"})
+
+    def invoke(self, context, event):
+        state = context.scene.nymphs_state
+        current_path = _resolve_file_path(getattr(state, "zimage_guide_image_path", ""))
+        if current_path and os.path.isfile(current_path):
+            self.filepath = current_path
+        else:
+            self.filepath = os.path.join(_current_imagegen_folder(state), "")
+        context.window_manager.fileselect_add(self)
+        return {"RUNNING_MODAL"}
+
+    def execute(self, context):
+        state = context.scene.nymphs_state
+        selected_path = bpy.path.abspath((self.filepath or "").strip())
+        if not selected_path:
+            self.report({"ERROR"}, "Pick a Z-Image guide image first.")
+            return {"CANCELLED"}
+        try:
+            normalized_path, _guide_image = _zimage_guide_image_base64(selected_path)
+        except Exception as exc:
+            self.report({"ERROR"}, str(exc))
+            return {"CANCELLED"}
+        state.zimage_guide_image_path = normalized_path
+        state.zimage_use_guide_image = True
+        _touch_ui()
+        return {"FINISHED"}
+
+
+class NYMPHSV2_OT_clear_zimage_guide_image(bpy.types.Operator):
+    bl_idname = "nymphsv2.clear_zimage_guide_image"
+    bl_label = "Clear Z-Image Guide"
+    bl_description = "Clear the Z-Image guide image path"
+
+    def execute(self, context):
+        state = context.scene.nymphs_state
+        state.zimage_guide_image_path = ""
+        state.zimage_use_guide_image = False
         _touch_ui()
         return {"FINISHED"}
 
@@ -7295,10 +7387,7 @@ class NYMPHSV2_PT_image_generation(bpy.types.Panel):
                     warning = generation_box.box()
                     warning.label(text="Enable Blender online access to use Gemini.")
 
-                if image_backend == "Z_IMAGE":
-                    request = generation_box.box()
-                else:
-                    request = generation_box.column(align=True)
+                request = generation_box.column(align=True)
 
                 if image_backend == "Z_IMAGE":
                     settings_label_row = request.row(align=True)
@@ -7310,6 +7399,15 @@ class NYMPHSV2_PT_image_generation(bpy.types.Panel):
                     settings_preset_tools.operator("nymphsv2.save_imagegen_settings_preset", text="Save")
                     settings_preset_tools.operator("nymphsv2.delete_imagegen_settings_preset", text="Delete")
                     settings_preset_tools.operator("nymphsv2.open_imagegen_settings_presets_folder", text="Open")
+                    zimage_guide_box = request.column(align=True)
+                    zimage_guide_toggle = zimage_guide_box.row(align=True)
+                    zimage_guide_toggle.prop(state, "zimage_use_guide_image")
+                    if state.zimage_use_guide_image:
+                        zimage_guide_box.prop(state, "zimage_guide_image_path", text="Guide")
+                        zimage_guide_tools = zimage_guide_box.row(align=True)
+                        zimage_guide_tools.operator("nymphsv2.pick_zimage_guide_image", text="Pick")
+                        zimage_guide_tools.operator("nymphsv2.clear_zimage_guide_image", text="Clear")
+                        zimage_guide_box.prop(state, "zimage_img2img_strength")
                 else:
                     gemini_box = request.column(align=True)
                     _ensure_openrouter_api_key_loaded(state)
@@ -7332,7 +7430,7 @@ class NYMPHSV2_PT_image_generation(bpy.types.Panel):
                         guide_actions.operator("nymphsv2.pick_gemini_guide_image", text="Pick")
                         guide_actions.operator("nymphsv2.clear_gemini_guide_image", text="Clear")
 
-                prompts_box = request.box() if image_backend == "Z_IMAGE" else request.column(align=True)
+                prompts_box = request.column(align=True)
                 prompts_box.label(text="PROMPTS")
                 _sync_imagegen_prompt_preset(state, "imagegen_prompt_preset", PROMPT_KIND_SUBJECT)
                 _sync_imagegen_style_preset(state)
@@ -7358,7 +7456,7 @@ class NYMPHSV2_PT_image_generation(bpy.types.Panel):
                 clear_prompt = prompt_tools_secondary.operator("nymphsv2.clear_image_prompt_field", text="Clear")
                 clear_prompt.target = "prompt"
                 if (state.imagegen_prompt or "").strip():
-                    _draw_wrapped_lines(request, state.imagegen_prompt, prefix="Text: ", width=52, max_lines=1)
+                    _draw_wrapped_lines(request, state.imagegen_prompt, prefix="Text: ", width=52, max_lines=2)
                 else:
                     request.label(text="No prompt text yet.")
                 _sync_imagegen_prompt_preset(state, "imagegen_saved_prompt_preset", PROMPT_KIND_SAVED)
@@ -7376,18 +7474,12 @@ class NYMPHSV2_PT_image_generation(bpy.types.Panel):
 
                     seed_row = request.row(align=True)
                     seed_row.prop(state, "imagegen_seed", text="Seed")
-                variant_split = request.split(factor=0.62, align=True)
-                variant_row = variant_split.row(align=True)
+                variant_row = request.row(align=True)
                 variant_row.prop(state, "imagegen_variant_count")
-                mv_row = variant_split.row(align=True)
-                mv_row.prop(state, "imagegen_generate_mv")
                 if image_backend == "Z_IMAGE":
                     variant_row.prop(state, "imagegen_seed_step", text="Step")
 
-                if bool(getattr(state, "imagegen_generate_mv", False)):
-                    generate_label = "Generate 4-View MV"
-                else:
-                    generate_label = "Generate Image" if int(getattr(state, "imagegen_variant_count", 1)) <= 1 else "Generate Variants"
+                generate_label = "Generate Image" if int(getattr(state, "imagegen_variant_count", 1)) <= 1 else "Generate Variants"
                 primary_action = request.row(align=True)
                 primary_action.enabled = not state.is_busy and not state.imagegen_is_busy
                 primary_action.scale_y = 1.25
@@ -7440,7 +7532,7 @@ class NYMPHSV2_PT_image_generation(bpy.types.Panel):
             guidance_clear = guidance_tools_secondary.operator("nymphsv2.clear_image_prompt_field", text="Clear")
             guidance_clear.target = "guidance"
             if (state.part_extraction_guidance or "").strip():
-                _draw_wrapped_lines(parts_box, state.part_extraction_guidance, prefix="Text: ", width=52, max_lines=1)
+                _draw_wrapped_lines(parts_box, state.part_extraction_guidance, prefix="Text: ", width=52, max_lines=2)
             else:
                 parts_box.label(text="No guidance text yet.")
 
@@ -7898,7 +7990,6 @@ CLASSES = (
     NYMPHSV2_OT_run_shape_request,
     NYMPHSV2_OT_run_texture_request,
     NYMPHSV2_OT_generate_image,
-    NYMPHSV2_OT_generate_mv_set,
     NYMPHSV2_OT_clear_managed_prompt_presets,
     NYMPHSV2_OT_insert_saved_prompt,
     NYMPHSV2_OT_save_current_prompt,
@@ -7925,6 +8016,8 @@ CLASSES = (
     NYMPHSV2_OT_edit_image_prompts,
     NYMPHSV2_OT_preview_image_prompt,
     NYMPHSV2_OT_pick_gemini_guide_image,
+    NYMPHSV2_OT_pick_zimage_guide_image,
+    NYMPHSV2_OT_clear_zimage_guide_image,
     NYMPHSV2_OT_clear_gemini_guide_image,
     NYMPHSV2_OT_pick_part_master_image,
     NYMPHSV2_OT_use_current_image_as_part_master,
@@ -7970,7 +8063,7 @@ def register():
         bpy.utils.register_class(cls)
     bpy.types.Scene.nymphs_state = PointerProperty(type=NymphsV2State)
     if not bpy.app.timers.is_registered(_server_probe_timer):
-        bpy.app.timers.register(_server_probe_timer, persistent=True)
+        bpy.app.timers.register(_server_probe_timer, first_interval=0.2, persistent=True)
     if not bpy.app.timers.is_registered(_active_probe_timer):
         bpy.app.timers.register(_active_probe_timer, persistent=True)
     if not bpy.app.timers.is_registered(_gpu_probe_timer):
