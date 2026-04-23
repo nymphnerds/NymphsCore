@@ -249,4 +249,3 @@ See [`CHANGELOG.md`](CHANGELOG.md) for the full NymphsCore change history across
 | [NymphsExt](https://raw.githubusercontent.com/nymphnerds/NymphsExt/main/index.json) | Blender Extensions (install via repository URL) |
 | [NymphsCore](https://github.com/nymphnerds/NymphsCore) | Current Manager, runtime, and addon monorepo |
 | [Nymphs2D2](https://github.com/nymphnerds/Nymphs2D2) | 2D backend repo used for the `Z-Image` runtime |
-| [Hunyuan3D-2](https://github.com/nymphnerds/Hunyuan3D-2) | Managed multiview/texture backend fork |
