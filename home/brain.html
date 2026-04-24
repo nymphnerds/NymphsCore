@@ -296,21 +296,10 @@
   .hero-brain-wrap::before {
     content: "";
     position: absolute;
-    inset: 12% 10%;
+    inset: 14% 12%;
     background: radial-gradient(circle, rgba(99,227,95,0.18) 0%, rgba(85,223,240,0.12) 38%, transparent 72%);
-    filter: blur(26px);
-  }
-
-  .hero-brain-frame {
-    position: relative;
-    padding: 22px;
-    border-radius: 28px;
-    border: 1px solid rgba(85,223,240,0.12);
-    background:
-      radial-gradient(circle at 20% 20%, rgba(99,227,95,0.08), transparent 42%),
-      radial-gradient(circle at 80% 78%, rgba(85,223,240,0.08), transparent 40%),
-      linear-gradient(135deg, rgba(99,227,95,0.04) 0%, rgba(85,223,240,0.05) 100%);
-    box-shadow: 0 24px 70px rgba(0,0,0,0.24);
+    filter: blur(34px);
+    animation: brainGlowPulse 2.2s ease-in-out infinite;
   }
 
   .hero-brain-art {
@@ -318,6 +307,30 @@
     z-index: 1;
     width: 100%;
     filter: drop-shadow(0 24px 50px rgba(0,0,0,0.4));
+    transform-origin: center;
+    animation: brainPulse 2.2s ease-in-out infinite;
+  }
+
+  @keyframes brainPulse {
+    0%, 100% {
+      transform: scale(1);
+      filter: drop-shadow(0 24px 50px rgba(0,0,0,0.4));
+    }
+    50% {
+      transform: scale(1.1);
+      filter: drop-shadow(0 34px 78px rgba(0,0,0,0.58));
+    }
+  }
+
+  @keyframes brainGlowPulse {
+    0%, 100% {
+      opacity: 0.58;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 1;
+      transform: scale(1.22);
+    }
   }
 
   .section {
@@ -794,9 +807,7 @@
   </div>
 
   <div class="hero-brain-wrap" aria-hidden="true">
-    <div class="hero-brain-frame">
-      <img class="hero-brain-art" src="assets/NymphBrain.png" alt="">
-    </div>
+    <img class="hero-brain-art" src="assets/NymphBrain.png" alt="">
   </div>
 </section>
 
