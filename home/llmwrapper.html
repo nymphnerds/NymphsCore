@@ -830,6 +830,10 @@ J --> K["Local AI incorporates into response"]
       <span class="file-purpose">SQLite cache database for stored prompt results.</span>
     </div>
     <div class="file-item">
+      <span class="file-name">Nymphs-Brain/local-tools/remote_llm_mcp/cached_llm_mcp_server.py</span>
+      <span class="file-purpose">Bundled cached LLM MCP runtime written by the Brain installer.</span>
+    </div>
+    <div class="file-item">
       <span class="file-name">Nymphs-Brain/mcp/config/open-webui-tool-servers.json</span>
       <span class="file-purpose">Brain-managed Open WebUI tool routes, including llm-wrapper when enabled.</span>
     </div>
@@ -857,10 +861,16 @@ J --> K["Local AI incorporates into response"]
   <p class="section-sub">The easiest path is now inside NymphsCore Manager. Enter an OpenRouter key on the Brain page, apply it, and start or refresh Brain. The shell installer still exists for direct manual installs and advanced tweaking.</p>
 
   <div class="highlight-box" style="margin-bottom: 24px;">
-    <strong>Manager flow:</strong> Open the Brain page, enter your OpenRouter key on the one-line <code>OpenRouter key</code> row, click <code>Apply Key</code>, then start Brain or run <code>Update Stack</code>. When the key exists, Brain adds <code>llm-wrapper</code> to MCP, mcpo, and Open WebUI automatically. When the key is missing, Brain leaves the wrapper out and the rest of the stack still starts normally.
+    <strong>Manager flow:</strong> Open the Brain page, enter your OpenRouter key on the one-line <code>OpenRouter key</code> row, click <code>Apply Key</code>, then use <code>Manage Models</code> to choose the remote OpenRouter model for <code>llm-wrapper</code>. After that, start Brain or run <code>Update Stack</code>. When the key exists, Brain adds <code>llm-wrapper</code> to MCP, mcpo, and Open WebUI automatically. When the key is missing, Brain leaves the wrapper out and the rest of the stack still starts normally.
   </div>
 
-  <div class="code-block">
+  <div class="highlight-box">
+    <strong>Direct test:</strong> Once Brain is running, you can verify the wrapper itself with
+    <code>curl -s http://127.0.0.1:8099/llm-wrapper/llm_call -H 'Content-Type: application/json' -d '{"prompt":"Reply with exactly DIRECT_WRAPPER_TEST_OK and nothing else."}'</code>.
+    Run it twice and the second response should usually come back as a cache <code>HIT</code>.
+  </div>
+
+  <div class="code-block" style="margin-top: 24px;">
 <code># Manual shell flow
 # Step 1: Make the script executable
 cd /path/to/remote_llm_mcp
@@ -879,26 +889,22 @@ chmod +x install-llm-wrapper.sh
 </section>
 
 <section class="section section-alt">
-  <div class="section-tag">// Package contents</div>
-  <h2 class="section-title">What ships in the package.<br>What each file is for.</h2>
-  <p class="section-sub">The package includes install, uninstall, runtime, and legacy patch helpers for the wrapper stack.</p>
+  <div class="section-tag">// Runtime contents</div>
+  <h2 class="section-title">What Brain installs.<br>What each file is for.</h2>
+  <p class="section-sub">From the Manager path, Brain writes the cached runtime into its own install tree and wires the rest of the stack around it. The original shell bundle still exists as a manual fallback, but it is no longer the main setup story.</p>
 
   <div class="file-list">
     <div class="file-item">
-      <span class="file-name">install-llm-wrapper.sh</span>
-      <span class="file-purpose">Interactive installer with automatic configuration.</span>
-    </div>
-    <div class="file-item">
-      <span class="file-name">uninstall-llm-wrapper.sh</span>
-      <span class="file-purpose">Clean removal script.</span>
-    </div>
-    <div class="file-item">
       <span class="file-name">cached_llm_mcp_server.py</span>
-      <span class="file-purpose">The custom MCP server with prompt caching.</span>
+      <span class="file-purpose">The bundled MCP runtime that provides <code>llm_call</code>, <code>cache_stats</code>, and <code>cache_clear</code>.</span>
     </div>
     <div class="file-item">
-      <span class="file-name">patch-llm-wrapper.py</span>
-      <span class="file-purpose">Legacy MCP protocol fix for the older pip package.</span>
+      <span class="file-name">llm-wrapper.env</span>
+      <span class="file-purpose">Stores the OpenRouter key that turns the wrapper on.</span>
+    </div>
+    <div class="file-item">
+      <span class="file-name">open-webui-tool-servers.json</span>
+      <span class="file-purpose">Seed file that makes the Brain wrapper show up in Open WebUI tools when enabled.</span>
     </div>
   </div>
 </section>

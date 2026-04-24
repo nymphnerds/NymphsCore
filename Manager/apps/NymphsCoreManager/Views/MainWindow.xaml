@@ -717,7 +717,7 @@
                                FontWeight="SemiBold"
                                FontSize="14" />
                     <TextBlock Margin="0,8,0,0"
-                               Text="Setup installs the Brain tools, LM Studio runtime, MCP gateway, and WebUI wrappers only. After install, open the Brain page and use Manage Models to download or switch Act and Plan models."
+                               Text="Setup installs the Brain tools, LM Studio runtime, MCP gateway, WebUI wrappers, and bundled llm-wrapper runtime only. After install, open the Brain page and use Manage Models to download or switch local Plan/Act models and choose the remote llm-wrapper model."
                                TextWrapping="Wrap"
                                FontSize="13"
                                Style="{StaticResource MutedText}" />
@@ -1178,21 +1178,21 @@
                   </StackPanel>
                 </DockPanel>
 
-                <TextBlock Margin="0,10,0,0"
+                <TextBlock Margin="0,8,0,0"
                            Text="{Binding BrainEndpointsText}"
                            FontSize="12"
                            FontFamily="Consolas"
                            Foreground="#5B554D"
                            TextWrapping="Wrap" />
 
-                <Grid Margin="0,12,0,0">
+                <Grid Margin="0,10,0,0">
                   <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
                   </Grid.RowDefinitions>
                   <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="10" />
+                    <ColumnDefinition Width="8" />
                     <ColumnDefinition Width="*" />
                   </Grid.ColumnDefinitions>
 
@@ -1202,7 +1202,7 @@
                           BorderBrush="#E5DAC8"
                           BorderThickness="1"
                           CornerRadius="14"
-                          Padding="14">
+                          Padding="12">
                     <StackPanel>
                       <DockPanel LastChildFill="True">
                         <Border DockPanel.Dock="Right"
@@ -1216,13 +1216,13 @@
                         </Border>
                         <TextBlock Text="LLM Server"
                                    FontWeight="SemiBold"
-                                   FontSize="16"
+                                   FontSize="15"
                                    Foreground="#1E1C18" />
                       </DockPanel>
-                      <TextBlock Margin="0,10,0,0"
+                      <TextBlock Margin="0,6,0,0"
                                  Text="{Binding BrainLlmDetailText}"
                                  TextWrapping="Wrap"
-                                 FontSize="13"
+                                 FontSize="12"
                                  Style="{StaticResource MutedText}" />
                     </StackPanel>
                   </Border>
@@ -1233,7 +1233,7 @@
                           BorderBrush="#E5DAC8"
                           BorderThickness="1"
                           CornerRadius="14"
-                          Padding="14">
+                          Padding="12">
                     <StackPanel>
                       <DockPanel LastChildFill="True">
                         <Border DockPanel.Dock="Right"
@@ -1247,25 +1247,25 @@
                         </Border>
                         <TextBlock Text="MCP Gateway"
                                    FontWeight="SemiBold"
-                                   FontSize="16"
+                                   FontSize="15"
                                    Foreground="#1E1C18" />
                       </DockPanel>
-                      <TextBlock Margin="0,10,0,0"
+                      <TextBlock Margin="0,6,0,0"
                                  Text="{Binding BrainMcpDetailText}"
                                  TextWrapping="Wrap"
-                                 FontSize="13"
+                                 FontSize="12"
                                  Style="{StaticResource MutedText}" />
                     </StackPanel>
                   </Border>
 
                   <Border Grid.Row="1"
                           Grid.Column="0"
-                          Margin="0,8,0,0"
+                          Margin="0,6,0,0"
                           Background="#FFFDFC"
                           BorderBrush="#E5DAC8"
                           BorderThickness="1"
                           CornerRadius="14"
-                          Padding="14">
+                          Padding="12">
                     <StackPanel>
                       <DockPanel LastChildFill="True">
                         <Border DockPanel.Dock="Right"
@@ -1279,25 +1279,25 @@
                         </Border>
                         <TextBlock Text="Open WebUI"
                                    FontWeight="SemiBold"
-                                   FontSize="16"
+                                   FontSize="15"
                                    Foreground="#1E1C18" />
                       </DockPanel>
-                      <TextBlock Margin="0,10,0,0"
+                      <TextBlock Margin="0,6,0,0"
                                  Text="{Binding BrainWebUiDetailText}"
                                  TextWrapping="Wrap"
-                                 FontSize="13"
+                                 FontSize="12"
                                  Style="{StaticResource MutedText}" />
                     </StackPanel>
                   </Border>
 
                   <Border Grid.Row="1"
                           Grid.Column="2"
-                          Margin="0,8,0,0"
+                          Margin="0,6,0,0"
                           Background="#FFFDFC"
                           BorderBrush="#E5DAC8"
                           BorderThickness="1"
                           CornerRadius="14"
-                          Padding="14">
+                          Padding="12">
                     <StackPanel>
                       <DockPanel LastChildFill="True">
                         <Border DockPanel.Dock="Right"
@@ -1311,19 +1311,19 @@
                         </Border>
                         <TextBlock Text="Current Model"
                                    FontWeight="SemiBold"
-                                   FontSize="16"
+                                   FontSize="15"
                                    Foreground="#1E1C18" />
                       </DockPanel>
-                      <TextBlock Margin="0,10,0,0"
+                      <TextBlock Margin="0,6,0,0"
                                  Text="{Binding BrainModelDetailText}"
                                  TextWrapping="Wrap"
-                                 FontSize="13"
+                                 FontSize="12"
                                  Style="{StaticResource MutedText}" />
                     </StackPanel>
                   </Border>
                 </Grid>
 
-                <Grid Margin="0,12,0,0">
+                <Grid Margin="0,10,0,0">
                   <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="8" />
@@ -1357,6 +1357,39 @@
                           Style="{StaticResource SecondaryActionButton}"
                           Command="{Binding UpdateBrainWebUiCommand}"
                           Content="Update Stack" />
+                </Grid>
+
+                <Grid Margin="0,10,0,0">
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="10" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="10" />
+                    <ColumnDefinition Width="120" />
+                  </Grid.ColumnDefinitions>
+
+                  <TextBlock Grid.Column="0"
+                             VerticalAlignment="Center"
+                             Text="OpenRouter key"
+                             FontWeight="SemiBold"
+                             FontSize="13"
+                             Foreground="#3F382F"
+                             ToolTip="Optional. Enables the Brain llm-wrapper tool when a valid OpenRouter key is present." />
+
+                  <PasswordBox Grid.Column="2"
+                               Padding="8,6"
+                               FontSize="13"
+                               VerticalAlignment="Center"
+                               ToolTip="Optional. Apply an OpenRouter key here to enable llm-wrapper in Brain, Open WebUI, and generated MCP configs."
+                               PasswordChanged="OnBrainOpenRouterApiKeyChanged" />
+
+                  <Button Grid.Column="4"
+                          Height="36"
+                          HorizontalAlignment="Stretch"
+                          Style="{StaticResource SecondaryActionButton}"
+                          Command="{Binding ApplyBrainOpenRouterKeyCommand}"
+                          ToolTip="Write the current OpenRouter key into the Brain secret file without starting or refreshing services."
+                          Content="Apply Key" />
                 </Grid>
               </StackPanel>
             </Border>

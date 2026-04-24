@@ -774,6 +774,7 @@
   <ul class="nav-links">
     <li><a href="#vram">Size Guide</a></li>
     <li><a href="#models">Models</a></li>
+    <li><a href="llmwrapper.html">LLM Wrapper</a></li>
     <li><a href="#quick-start">Quick Start</a></li>
     <li><a href="#urls" class="nav-cta">Local URLs</a></li>
   </ul>
@@ -788,7 +789,7 @@
     <p class="hero-sub">Start the stack, manage models, check service status, and keep your <strong>Nymphs Brain</strong> workflow predictable without digging through shell scripts every time you need to run something.</p>
     <div class="cta-row">
       <a href="#vram" class="btn-primary">See the size guide →</a>
-      <a href="#models" class="btn-ghost">Check model fit</a>
+      <a href="llmwrapper.html" class="btn-ghost">Open LLM wrapper</a>
     </div>
     <div class="stat-row">
       <div>
@@ -1021,7 +1022,7 @@
   <div class="command-group">
     <div class="group-head">
       <h3>LM Studio Commands</h3>
-      <p class="group-note">This is the local model server layer, including model selection and launch control.</p>
+      <p class="group-note">This is the local model server layer, including local Plan and Act model selection plus launch control through the shared Brain model manager.</p>
     </div>
     <div class="table-shell">
       <div class="table-wrap">
@@ -1030,7 +1031,7 @@
             <tr><th>Command</th><th>What It Does</th></tr>
           </thead>
           <tbody>
-            <tr><td><code>lms-model</code></td><td>Interactive menu to manage models, including download, selection, and removal.</td></tr>
+            <tr><td><code>lms-model</code></td><td>Interactive menu to manage local Plan/Act models and the optional remote llm-wrapper model, including download, selection, and removal.</td></tr>
             <tr><td><code>lms-start</code></td><td>Starts the AI model server and loads a model.</td></tr>
             <tr><td><code>lms-stop</code></td><td>Stops the AI model server.</td></tr>
           </tbody>
@@ -1043,7 +1044,7 @@
   <div class="command-group">
     <div class="group-head">
       <h3>MCP Gateway Commands</h3>
-      <p class="group-note">This layer starts the full Brain tool stack: filesystem, memory, web-forager, context7, and llm-wrapper, plus the mcpo OpenAPI bridge for Open WebUI.</p>
+      <p class="group-note">This layer starts the Brain tool stack: filesystem, memory, web-forager, context7, and the mcpo OpenAPI bridge for Open WebUI. If an OpenRouter key is configured, it also enables llm-wrapper.</p>
     </div>
     <div class="table-shell">
       <div class="table-wrap">
@@ -1052,7 +1053,7 @@
             <tr><th>Command</th><th>What It Does</th></tr>
           </thead>
           <tbody>
-            <tr><td><code>mcp-start</code></td><td>Starts the MCP gateway, the mcpo OpenAPI bridge, and all 5 Brain tools.</td></tr>
+            <tr><td><code>mcp-start</code></td><td>Starts the MCP gateway, the mcpo OpenAPI bridge, and the Brain tools. <code>llm-wrapper</code> joins the stack only when an OpenRouter key has been configured.</td></tr>
             <tr><td><code>mcp-status</code></td><td>Shows MCP status and URLs.</td></tr>
             <tr><td><code>mcp-stop</code></td><td>Stops the MCP gateway.</td></tr>
           </tbody>

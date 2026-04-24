@@ -8,6 +8,8 @@ CONTEXT_LENGTH="16384"
 CONTEXT_SET="0"
 DOWNLOAD_MODEL="0"
 QUIET="0"
+LLM_WRAPPER_MODEL="${NYMPHS_BRAIN_LLM_WRAPPER_MODEL:-openai/gpt-4o-mini}"
+OPENROUTER_API_KEY="${NYMPHS_BRAIN_OPENROUTER_API_KEY:-}"
 
 usage() {
   cat <<'EOF'
@@ -21,6 +23,8 @@ Options:
   --quant QUANT           Quantization suffix. Default: q4_k_m
   --context N             Context length. Default: 16384
   --download-model        Download the selected model now
+  --llm-wrapper-model ID  Default OpenRouter model for delegated llm-wrapper calls
+  --openrouter-api-key K  Seed/update the llm-wrapper OpenRouter API key
   --quiet                 Reduce chatter where possible
   -h, --help              Show this help
 EOF
@@ -48,6 +52,14 @@ while [[ $# -gt 0 ]]; do
     --download-model)
       DOWNLOAD_MODEL="1"
       shift
+      ;;
+    --llm-wrapper-model)
+      LLM_WRAPPER_MODEL="${2:?Missing value for --llm-wrapper-model}"
+      shift 2
+      ;;
+    --openrouter-api-key)
+      OPENROUTER_API_KEY="${2:?Missing value for --openrouter-api-key}"
+      shift 2
       ;;
     --quiet)
       QUIET="1"
@@ -90,6 +102,7 @@ OPEN_WEBUI_HOST="${NYMPHS_BRAIN_OPEN_WEBUI_HOST:-127.0.0.1}"
 OPEN_WEBUI_PORT="${NYMPHS_BRAIN_OPEN_WEBUI_PORT:-8081}"
 MCP_HOST="${NYMPHS_BRAIN_MCP_HOST:-${NYMPHS_BRAIN_MCPO_HOST:-127.0.0.1}}"
 MCP_PORT="${NYMPHS_BRAIN_MCP_PORT:-${NYMPHS_BRAIN_MCPO_PORT:-8100}}"
+MCPO_OPENAPI_PORT="${NYMPHS_BRAIN_MCPO_OPENAPI_PORT:-8099}"
 LMSTUDIO_API_BASE_URL="${NYMPHS_BRAIN_LMSTUDIO_API_BASE_URL:-http://127.0.0.1:1234/v1}"
 
 export PATH="${BIN_DIR}:${LOCAL_BIN_DIR}:${LOCAL_NODE_DIR}/bin:${NPM_GLOBAL}/bin:${PATH}"
@@ -242,6 +255,68 @@ PYEOF
   chmod 600 "${path}" || true
 }
 
+ensure_llm_wrapper_secret_file() {
+  local path="$1"
+
+  mkdir -p "$(dirname "${path}")"
+
+  if [[ -n "${OPENROUTER_API_KEY}" ]]; then
+    cat > "${path}" <<EOF
+# Nymphs-Brain llm-wrapper configuration
+OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+EOF
+    chmod 600 "${path}" || true
+    return 0
+  fi
+
+  if [[ ! -f "${path}" ]]; then
+    cat > "${path}" <<'EOF'
+# Nymphs-Brain llm-wrapper configuration
+# Add your OpenRouter key, then restart the MCP stack.
+OPENROUTER_API_KEY=
+EOF
+    chmod 600 "${path}" || true
+  fi
+}
+
+secret_file_has_openrouter_key() {
+  local path="$1"
+
+  [[ -f "${path}" ]] || return 1
+
+  awk -F '=' '
+    $1 == "OPENROUTER_API_KEY" {
+      value = $2
+      sub(/^[[:space:]]+/, "", value)
+      sub(/[[:space:]]+$/, "", value)
+      if (value != "") {
+        found = 1
+      }
+    }
+    END { exit(found ? 0 : 1) }
+  ' "${path}"
+}
+
+install_remote_llm_bundle() {
+  local bundle_source_dir
+  local bundle_target_dir="${LOCAL_TOOLS_DIR}/remote_llm_mcp"
+
+  bundle_source_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/remote_llm_mcp"
+
+  if [[ ! -d "${bundle_source_dir}" ]]; then
+    echo "Bundled remote_llm_mcp directory is missing at ${bundle_source_dir}" >&2
+    exit 1
+  fi
+
+  mkdir -p "${bundle_target_dir}"
+  cp "${bundle_source_dir}/"* "${bundle_target_dir}/"
+  chmod +x \
+    "${bundle_target_dir}/cached_llm_mcp_server.py" \
+    "${bundle_target_dir}/install-llm-wrapper.sh" \
+    "${bundle_target_dir}/uninstall-llm-wrapper.sh"
+  "${MCP_VENV_DIR}/bin/python3" -m py_compile "${bundle_target_dir}/cached_llm_mcp_server.py"
+}
+
 ensure_python_venv() {
   local venv_dir="$1"
   local label="$2"
@@ -277,6 +352,7 @@ EXISTING_PLAN_MODEL_ID=""
 EXISTING_PLAN_CONTEXT_LENGTH=""
 EXISTING_ACT_MODEL_ID=""
 EXISTING_ACT_CONTEXT_LENGTH=""
+EXISTING_LLM_WRAPPER_MODEL=""
 EXISTING_PRIMARY_MODEL_ROLE="plan"
 
 if [[ -f "${PROFILE_CONFIG_FILE}" ]]; then
@@ -286,6 +362,7 @@ if [[ -f "${PROFILE_CONFIG_FILE}" ]]; then
   EXISTING_PLAN_CONTEXT_LENGTH="${PLAN_CONTEXT_LENGTH:-}"
   EXISTING_ACT_MODEL_ID="${ACT_MODEL_ID:-}"
   EXISTING_ACT_CONTEXT_LENGTH="${ACT_CONTEXT_LENGTH:-}"
+  EXISTING_LLM_WRAPPER_MODEL="${LLM_WRAPPER_MODEL:-}"
   EXISTING_PRIMARY_MODEL_ROLE="${PRIMARY_MODEL_ROLE:-plan}"
 fi
 
@@ -296,7 +373,7 @@ if [[ "${MODEL_ID}" == "auto" && "${DOWNLOAD_MODEL}" == "1" ]]; then
 elif [[ "${MODEL_ID}" == "auto" ]]; then
   MODEL_ID=""
   echo "No Brain model configured during install."
-  echo "Use the Manager Brain page 'Manage Models' action after install to download/select Plan and Act models."
+  echo "Use the Manager Brain page 'Manage Models' action after install to choose local Plan/Act models and the optional remote llm-wrapper model."
 fi
 
 DL_TARGET=""
@@ -330,7 +407,8 @@ ensure_python_venv "${VENV_DIR}" "Nymphs-Brain"
 "${VENV_DIR}/bin/pip" install --upgrade pip requests huggingface_hub
 
 ensure_python_venv "${MCP_VENV_DIR}" "Nymphs-Brain MCP"
-"${MCP_VENV_DIR}/bin/pip" install --upgrade pip mcp-proxy web-forager
+"${MCP_VENV_DIR}/bin/pip" install --upgrade pip mcp-proxy web-forager mcpo requests
+install_remote_llm_bundle
 
 ensure_python_venv "${OPEN_WEBUI_VENV_DIR}" "Open WebUI"
 "${OPEN_WEBUI_VENV_DIR}/bin/pip" install --upgrade pip open-webui aiosqlite
@@ -344,10 +422,17 @@ add_lmstudio_paths
 echo "Installing MCP helper packages into ${NPM_GLOBAL}"
 npm install -g --prefix="${NPM_GLOBAL}" \
   @modelcontextprotocol/server-filesystem \
-  @modelcontextprotocol/server-memory
+  @modelcontextprotocol/server-memory \
+  @upstash/context7-mcp
 
 ensure_secret_file "${SECRET_DIR}/webui-secret-key" 32
+ensure_llm_wrapper_secret_file "${SECRET_DIR}/llm-wrapper.env"
 WEBUI_SECRET_KEY="$(tr -d '\r\n' < "${SECRET_DIR}/webui-secret-key")"
+LLM_WRAPPER_ENABLED="0"
+
+if secret_file_has_openrouter_key "${SECRET_DIR}/llm-wrapper.env"; then
+  LLM_WRAPPER_ENABLED="1"
+fi
 
 cat > "${MCP_CONFIG_DIR}/mcp-proxy-servers.json" <<EOF
 {
@@ -373,6 +458,27 @@ cat > "${MCP_CONFIG_DIR}/mcp-proxy-servers.json" <<EOF
     "web-forager": {
       "command": "${MCP_VENV_DIR}/bin/web-forager",
       "args": ["serve"]
+    },
+    "context7": {
+      "command": "${LOCAL_NODE_DIR}/bin/node",
+      "args": [
+        "${NPM_GLOBAL}/lib/node_modules/@upstash/context7-mcp/dist/index.js"
+      ]
+    },
+    "llm-wrapper": {
+      "command": "bash",
+      "args": [
+        "-lc",
+        "if [[ -f \"\${LLM_WRAPPER_SECRET_FILE}\" ]]; then set -a; source \"\${LLM_WRAPPER_SECRET_FILE}\"; set +a; fi; exec \"\${MCP_VENV_DIR}/bin/python3\" \"\${CACHED_LLM_SERVER_PATH}\" --model \"\${LLM_WRAPPER_MODEL}\" --timeout 120 --cache-ttl 3600 --cache-dir \"\${LLM_WRAPPER_CACHE_DIR}\" --limit-user-prompt-length 2000"
+      ],
+      "env": {
+        "MCP_VENV_DIR": "${MCP_VENV_DIR}",
+        "CACHED_LLM_SERVER_PATH": "${LOCAL_TOOLS_DIR}/remote_llm_mcp/cached_llm_mcp_server.py",
+        "LLM_WRAPPER_CACHE_DIR": "${MCP_DATA_DIR}/llm_cache",
+        "LLM_WRAPPER_SECRET_FILE": "${SECRET_DIR}/llm-wrapper.env",
+        "LLM_WRAPPER_MODEL": "${LLM_WRAPPER_MODEL}",
+        "LLM_API_BASE_URL": "https://openrouter.ai/api/v1"
+      }
     }
   }
 }
@@ -398,27 +504,254 @@ cat > "${MCP_CONFIG_DIR}/cline-mcp-settings.json" <<EOF
       "type": "streamableHttp",
       "disabled": false,
       "timeout": 60
+    },
+    "context7": {
+      "url": "http://${MCP_HOST}:${MCP_PORT}/servers/context7/mcp",
+      "type": "streamableHttp",
+      "disabled": false,
+      "timeout": 60
+    },
+    "llm-wrapper": {
+      "url": "http://${MCP_HOST}:${MCP_PORT}/servers/llm-wrapper/mcp",
+      "type": "streamableHttp",
+      "disabled": false,
+      "timeout": 60
     }
   }
 }
 EOF
 
+CLINE_GLOBAL_SETTINGS="${HOME}/.config/Code/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json"
+if [[ -f "${CLINE_GLOBAL_SETTINGS}" ]]; then
+  "${PYTHON_BIN}" - "${CLINE_GLOBAL_SETTINGS}" "${MCP_PORT}" <<'PYEOF'
+import json
+import sys
+from pathlib import Path
+
+settings_path = Path(sys.argv[1])
+port = sys.argv[2]
+settings = json.loads(settings_path.read_text(encoding="utf-8"))
+servers = settings.setdefault("mcpServers", {})
+
+servers.update(
+    {
+        "filesystem": {
+            "url": f"http://127.0.0.1:{port}/servers/filesystem/mcp",
+            "type": "streamableHttp",
+            "disabled": False,
+            "timeout": 60,
+        },
+        "memory": {
+            "url": f"http://127.0.0.1:{port}/servers/memory/mcp",
+            "type": "streamableHttp",
+            "disabled": False,
+            "timeout": 60,
+        },
+        "web-forager": {
+            "url": f"http://127.0.0.1:{port}/servers/web-forager/mcp",
+            "type": "streamableHttp",
+            "disabled": False,
+            "timeout": 60,
+        },
+        "context7": {
+            "url": f"http://127.0.0.1:{port}/servers/context7/mcp",
+            "type": "streamableHttp",
+            "disabled": False,
+            "timeout": 60,
+        },
+        "llm-wrapper": {
+            "url": f"http://127.0.0.1:{port}/servers/llm-wrapper/mcp",
+            "type": "streamableHttp",
+            "disabled": False,
+            "timeout": 60,
+        },
+    }
+)
+
+settings_path.parent.mkdir(parents=True, exist_ok=True)
+settings_path.write_text(json.dumps(settings, indent=2) + "\n", encoding="utf-8")
+PYEOF
+fi
+
+cat > "${MCP_CONFIG_DIR}/mcpo-servers.json" <<EOF
+{
+  "mcpServers": {
+    "filesystem": {
+      "type": "streamable-http",
+      "url": "http://127.0.0.1:${MCP_PORT}/servers/filesystem/mcp"
+    },
+    "memory": {
+      "type": "streamable-http",
+      "url": "http://127.0.0.1:${MCP_PORT}/servers/memory/mcp"
+    },
+    "web-forager": {
+      "type": "streamable-http",
+      "url": "http://127.0.0.1:${MCP_PORT}/servers/web-forager/mcp"
+    },
+    "context7": {
+      "type": "streamable-http",
+      "url": "http://127.0.0.1:${MCP_PORT}/servers/context7/mcp"
+    },
+    "llm-wrapper": {
+      "type": "streamable-http",
+      "url": "http://127.0.0.1:${MCP_PORT}/servers/llm-wrapper/mcp"
+    }
+  }
+}
+EOF
+
+cat > "${MCP_CONFIG_DIR}/open-webui-tool-servers.json" <<EOF
+[
+  {
+    "type": "openapi",
+    "url": "http://127.0.0.1:${MCPO_OPENAPI_PORT}/filesystem",
+    "path": "openapi.json",
+    "spec_type": "url",
+    "spec": "",
+    "auth_type": "none",
+    "key": "",
+    "config": { "enable": true },
+    "info": {
+      "id": "nymphs-brain-filesystem",
+      "name": "Nymphs Brain Filesystem",
+      "description": "Filesystem tools exposed by Nymphs-Brain mcpo."
+    }
+  },
+  {
+    "type": "openapi",
+    "url": "http://127.0.0.1:${MCPO_OPENAPI_PORT}/memory",
+    "path": "openapi.json",
+    "spec_type": "url",
+    "spec": "",
+    "auth_type": "none",
+    "key": "",
+    "config": { "enable": true },
+    "info": {
+      "id": "nymphs-brain-memory",
+      "name": "Nymphs Brain Memory",
+      "description": "Memory tools exposed by Nymphs-Brain mcpo."
+    }
+  },
+  {
+    "type": "openapi",
+    "url": "http://127.0.0.1:${MCPO_OPENAPI_PORT}/web-forager",
+    "path": "openapi.json",
+    "spec_type": "url",
+    "spec": "",
+    "auth_type": "none",
+    "key": "",
+    "config": { "enable": true },
+    "info": {
+      "id": "nymphs-brain-web-forager",
+      "name": "Nymphs Brain Web Forager",
+      "description": "Web Forager tools exposed by Nymphs-Brain mcpo."
+    }
+  },
+  {
+    "type": "openapi",
+    "url": "http://127.0.0.1:${MCPO_OPENAPI_PORT}/context7",
+    "path": "openapi.json",
+    "spec_type": "url",
+    "spec": "",
+    "auth_type": "none",
+    "key": "",
+    "config": { "enable": true },
+    "info": {
+      "id": "nymphs-brain-context7",
+      "name": "Nymphs Brain Context7",
+      "description": "Context7 documentation tools exposed by Nymphs-Brain mcpo."
+    }
+  },
+  {
+    "type": "openapi",
+    "url": "http://127.0.0.1:${MCPO_OPENAPI_PORT}/llm-wrapper",
+    "path": "openapi.json",
+    "spec_type": "url",
+    "spec": "",
+    "auth_type": "none",
+    "key": "",
+    "config": { "enable": true },
+    "info": {
+      "id": "nymphs-brain-llm-wrapper",
+      "name": "Nymphs Brain LLM Wrapper",
+      "description": "Remote model delegation tools exposed by Nymphs-Brain mcpo."
+    }
+  }
+]
+EOF
+
 cat > "${MCP_CONFIG_DIR}/open-webui-mcp-servers.md" <<EOF
 Nymphs-Brain MCP servers for Open WebUI
 
-Add these in Admin Settings -> External Tools
+Open WebUI launch now seeds Brain tool connections automatically from:
+
+- ${MCP_CONFIG_DIR}/open-webui-tool-servers.json
+
+Those seeded OpenAPI tool server entries point at mcpo routes:
+
+- Filesystem: http://${MCP_HOST}:${MCPO_OPENAPI_PORT}/filesystem
+- Memory: http://${MCP_HOST}:${MCPO_OPENAPI_PORT}/memory
+- Web Forager: http://${MCP_HOST}:${MCPO_OPENAPI_PORT}/web-forager
+- Context7: http://${MCP_HOST}:${MCPO_OPENAPI_PORT}/context7
+- LLM Wrapper: http://${MCP_HOST}:${MCPO_OPENAPI_PORT}/llm-wrapper
+
+If you prefer Open WebUI native MCP instead of OpenAPI, add these manually in Admin Settings -> External Tools:
+
 Type: MCP (Streamable HTTP)
 Auth: None
 
 - Filesystem: http://${MCP_HOST}:${MCP_PORT}/servers/filesystem/mcp
 - Memory: http://${MCP_HOST}:${MCP_PORT}/servers/memory/mcp
 - Web Forager: http://${MCP_HOST}:${MCP_PORT}/servers/web-forager/mcp
+- Context7: http://${MCP_HOST}:${MCP_PORT}/servers/context7/mcp
+- LLM Wrapper: http://${MCP_HOST}:${MCP_PORT}/servers/llm-wrapper/mcp
 
 Notes
 - Open WebUI default URL: http://localhost:${OPEN_WEBUI_PORT}
-- These endpoints bind to localhost only.
-- Cline can use the same endpoints with transport type streamableHttp.
+- mcpo default URL: http://localhost:${MCPO_OPENAPI_PORT}
+- Cline uses the direct MCP endpoints with transport type streamableHttp.
+- llm-wrapper requires a valid OpenRouter key in ${SECRET_DIR}/llm-wrapper.env.
 EOF
+
+if [[ "${LLM_WRAPPER_ENABLED}" != "1" ]]; then
+  "${PYTHON_BIN}" - "${MCP_CONFIG_DIR}" "${CLINE_GLOBAL_SETTINGS}" <<'PYEOF'
+import json
+import sys
+from pathlib import Path
+
+config_dir = Path(sys.argv[1])
+cline_global_settings = Path(sys.argv[2])
+
+for name in [
+    "mcp-proxy-servers.json",
+    "cline-mcp-settings.json",
+    "mcpo-servers.json",
+    "open-webui-tool-servers.json",
+]:
+    path = config_dir / name
+    if not path.exists():
+        continue
+
+    data = json.loads(path.read_text(encoding="utf-8"))
+
+    if name == "open-webui-tool-servers.json":
+      data = [
+          item
+          for item in data
+          if item.get("info", {}).get("id") != "nymphs-brain-llm-wrapper"
+      ]
+    else:
+      servers = data.get("mcpServers", {})
+      servers.pop("llm-wrapper", None)
+
+    path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+
+if cline_global_settings.exists():
+    data = json.loads(cline_global_settings.read_text(encoding="utf-8"))
+    data.setdefault("mcpServers", {}).pop("llm-wrapper", None)
+    cline_global_settings.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+PYEOF
+fi
 
 if [[ "${DOWNLOAD_MODEL}" == "1" && -n "${DL_TARGET}" ]]; then
   if ! command -v lms >/dev/null 2>&1; then
@@ -484,6 +817,7 @@ INITIAL_PLAN_MODEL_ID="${EXISTING_PLAN_MODEL_ID}"
 INITIAL_PLAN_CONTEXT_LENGTH="${EXISTING_PLAN_CONTEXT_LENGTH}"
 INITIAL_ACT_MODEL_ID="${EXISTING_ACT_MODEL_ID}"
 INITIAL_ACT_CONTEXT_LENGTH="${EXISTING_ACT_CONTEXT_LENGTH}"
+INITIAL_LLM_WRAPPER_MODEL="${EXISTING_LLM_WRAPPER_MODEL:-${LLM_WRAPPER_MODEL}}"
 INITIAL_PRIMARY_MODEL_ROLE="${EXISTING_PRIMARY_MODEL_ROLE:-plan}"
 
 if [[ -n "${MODEL_ID}" ]]; then
@@ -496,6 +830,7 @@ PLAN_MODEL_ID="${INITIAL_PLAN_MODEL_ID}"
 PLAN_CONTEXT_LENGTH="${INITIAL_PLAN_CONTEXT_LENGTH}"
 ACT_MODEL_ID="${INITIAL_ACT_MODEL_ID}"
 ACT_CONTEXT_LENGTH="${INITIAL_ACT_CONTEXT_LENGTH}"
+LLM_WRAPPER_MODEL="${INITIAL_LLM_WRAPPER_MODEL}"
 PRIMARY_MODEL_ROLE="${INITIAL_PRIMARY_MODEL_ROLE}"
 EOF
 
@@ -516,6 +851,7 @@ PLAN_MODEL_ID="__MODEL_ID__"
 PLAN_CONTEXT_LENGTH="__CONTEXT_LENGTH__"
 ACT_MODEL_ID=""
 ACT_CONTEXT_LENGTH=""
+LLM_WRAPPER_MODEL=""
 
 if [[ -f "${PROFILE_CONFIG_FILE}" ]]; then
   # shellcheck disable=SC1090
@@ -969,6 +1305,7 @@ update_lms_start_script() {
   local plan_context_length=""
   local act_model_id=""
   local act_context_length=""
+  local llm_wrapper_model=""
   local primary_model_role="plan"
 
   if [[ -f "${profile_config_path}" ]]; then
@@ -990,6 +1327,7 @@ PLAN_MODEL_ID="${plan_model_id}"
 PLAN_CONTEXT_LENGTH="${plan_context_length}"
 ACT_MODEL_ID="${act_model_id}"
 ACT_CONTEXT_LENGTH="${act_context_length}"
+LLM_WRAPPER_MODEL="${llm_wrapper_model:-${LLM_WRAPPER_MODEL}}"
 PRIMARY_MODEL_ROLE="${primary_model_role}"
 EOF
   echo "Updated ${role} model profile."
@@ -1172,6 +1510,64 @@ run_add_change_model() {
   finalize_selected_model "${role}"
 }
 
+set_remote_llm_wrapper_model() {
+  local current_remote_model=""
+  local role="remote"
+  local selected_remote_model=""
+  local selected_choice=""
+
+  current_remote_model="$("${INSTALL_ROOT}/bin/lms-get-profile" remote 2>/dev/null || true)"
+
+  echo
+  echo "Set Remote llm-wrapper Model"
+  echo "Current remote model: ${current_remote_model:-${LLM_WRAPPER_MODEL:-none}}"
+  echo
+  echo "1) openai/gpt-4o-mini"
+  echo "2) anthropic/claude-3.5-sonnet"
+  echo "3) openai/gpt-4o"
+  echo "4) google/gemini-flash-1.5"
+  echo "5) deepseek/deepseek-chat"
+  echo "6) nvidia/nemotron-3-super-120b-a12b:free"
+  echo "7) anthropic/claude-3-haiku"
+  echo "8) Enter custom OpenRouter model"
+  echo "9) Clear remote model override"
+  echo "10) Back"
+  echo
+
+  read -rp "Enter your choice (1-10): " selected_choice
+
+  case "${selected_choice}" in
+    1) selected_remote_model="openai/gpt-4o-mini" ;;
+    2) selected_remote_model="anthropic/claude-3.5-sonnet" ;;
+    3) selected_remote_model="openai/gpt-4o" ;;
+    4) selected_remote_model="google/gemini-flash-1.5" ;;
+    5) selected_remote_model="deepseek/deepseek-chat" ;;
+    6) selected_remote_model="nvidia/nemotron-3-super-120b-a12b:free" ;;
+    7) selected_remote_model="anthropic/claude-3-haiku" ;;
+    8)
+      read -rp "Enter custom OpenRouter model id (provider/model): " selected_remote_model
+      selected_remote_model="${selected_remote_model//[$'\r\n']/}"
+      selected_remote_model="${selected_remote_model#"${selected_remote_model%%[![:space:]]*}"}"
+      selected_remote_model="${selected_remote_model%"${selected_remote_model##*[![:space:]]}"}"
+      if [[ -z "${selected_remote_model}" ]]; then
+        echo "Custom remote model cannot be empty."
+        return
+      fi
+      ;;
+    9)
+      "${INSTALL_ROOT}/bin/lms-set-profile" "${role}" clear
+      return
+      ;;
+    10) return ;;
+    *)
+      echo "Invalid choice. Please try again."
+      return
+      ;;
+  esac
+
+  "${INSTALL_ROOT}/bin/lms-set-profile" "${role}" "${selected_remote_model}"
+}
+
 clear_plan_model() {
   "${INSTALL_ROOT}/bin/lms-set-profile" plan clear
   echo "Plan model cleared."
@@ -1199,10 +1595,11 @@ main() {
     echo "4) Download New Model For Act"
     echo "5) Clear Plan Model"
     echo "6) Clear Act Model"
-    echo "7) Remove Models"
-    echo "8) Exit"
+    echo "7) Set Remote llm-wrapper Model"
+    echo "8) Remove Models"
+    echo "9) Exit"
     echo
-    read -rp "Enter your choice (1-8): " choice
+    read -rp "Enter your choice (1-9): " choice
 
     case "${choice}" in
       1) use_downloaded_model_menu "plan" ;;
@@ -1211,8 +1608,9 @@ main() {
       4) run_add_change_model "act" "" ;;
       5) clear_plan_model ;;
       6) clear_act_model ;;
-      7) remove_models_menu ;;
-      8) return ;;
+      7) set_remote_llm_wrapper_model ;;
+      8) remove_models_menu ;;
+      9) return ;;
       *) echo "Invalid choice. Please try again." ;;
     esac
   done
@@ -1233,6 +1631,7 @@ PLAN_MODEL_ID=""
 PLAN_CONTEXT_LENGTH=""
 ACT_MODEL_ID=""
 ACT_CONTEXT_LENGTH=""
+LLM_WRAPPER_MODEL=""
 
 if [[ -f "${PROFILE_CONFIG_FILE}" ]]; then
   # shellcheck disable=SC1090
@@ -1247,12 +1646,16 @@ case "${role}" in
   act)
     printf '%s\n' "${ACT_MODEL_ID}"
     ;;
+  remote|llm-wrapper|wrapper)
+    printf '%s\n' "${LLM_WRAPPER_MODEL}"
+    ;;
   all)
     printf 'plan: %s (context %s)\n' "${PLAN_MODEL_ID:-none}" "${PLAN_CONTEXT_LENGTH:-none}"
     printf 'act: %s (context %s)\n' "${ACT_MODEL_ID:-none}" "${ACT_CONTEXT_LENGTH:-none}"
+    printf 'remote llm-wrapper: %s\n' "${LLM_WRAPPER_MODEL:-none}"
     ;;
   *)
-    echo "Usage: lms-get-profile [plan|act]" >&2
+    echo "Usage: lms-get-profile [plan|act|remote]" >&2
     exit 1
     ;;
 esac
@@ -1304,6 +1707,7 @@ PLAN_MODEL_ID=""
 PLAN_CONTEXT_LENGTH=""
 ACT_MODEL_ID=""
 ACT_CONTEXT_LENGTH=""
+LLM_WRAPPER_MODEL=""
 PRIMARY_MODEL_ROLE="plan"
 
 if [[ -f "${PROFILE_CONFIG_FILE}" ]]; then
@@ -1312,9 +1716,9 @@ if [[ -f "${PROFILE_CONFIG_FILE}" ]]; then
 fi
 
 case "${ROLE}" in
-  plan|act) ;;
+  plan|act|remote|llm-wrapper|wrapper) ;;
   *)
-    echo "Role must be 'plan' or 'act'." >&2
+    echo "Role must be 'plan', 'act', or 'remote'." >&2
     exit 1
     ;;
 esac
@@ -1323,7 +1727,9 @@ if [[ "${MODEL_KEY}" == "clear" || "${MODEL_KEY}" == "none" || "${MODEL_KEY}" ==
   MODEL_KEY=""
 fi
 
-if [[ -z "${CONTEXT_LENGTH}" ]]; then
+if [[ "${ROLE}" == "remote" || "${ROLE}" == "llm-wrapper" || "${ROLE}" == "wrapper" ]]; then
+  CONTEXT_LENGTH=""
+elif [[ -z "${CONTEXT_LENGTH}" ]]; then
   if [[ "${ROLE}" == "plan" ]]; then
     CONTEXT_LENGTH="${PLAN_CONTEXT_LENGTH:-16384}"
   else
@@ -1334,9 +1740,11 @@ fi
 if [[ "${ROLE}" == "plan" ]]; then
   PLAN_MODEL_ID="${MODEL_KEY}"
   PLAN_CONTEXT_LENGTH="${MODEL_KEY:+${CONTEXT_LENGTH}}"
-else
+elif [[ "${ROLE}" == "act" ]]; then
   ACT_MODEL_ID="${MODEL_KEY}"
   ACT_CONTEXT_LENGTH="${MODEL_KEY:+${CONTEXT_LENGTH}}"
+else
+  LLM_WRAPPER_MODEL="${MODEL_KEY}"
 fi
 
 mkdir -p "$(dirname "${PROFILE_CONFIG_FILE}")"
@@ -1345,6 +1753,7 @@ PLAN_MODEL_ID="${PLAN_MODEL_ID}"
 PLAN_CONTEXT_LENGTH="${PLAN_CONTEXT_LENGTH}"
 ACT_MODEL_ID="${ACT_MODEL_ID}"
 ACT_CONTEXT_LENGTH="${ACT_CONTEXT_LENGTH}"
+LLM_WRAPPER_MODEL="${LLM_WRAPPER_MODEL}"
 PRIMARY_MODEL_ROLE="${PRIMARY_MODEL_ROLE}"
 EOF
 
@@ -1353,9 +1762,17 @@ if [[ "${ROLE}" == "act" && -n "${ACT_MODEL_ID}" ]]; then
 fi
 
 if [[ -n "${MODEL_KEY}" ]]; then
-  echo "Updated ${ROLE} profile: ${MODEL_KEY} (context ${CONTEXT_LENGTH})"
+  if [[ "${ROLE}" == "remote" || "${ROLE}" == "llm-wrapper" || "${ROLE}" == "wrapper" ]]; then
+    echo "Updated remote llm-wrapper profile: ${MODEL_KEY}"
+  else
+    echo "Updated ${ROLE} profile: ${MODEL_KEY} (context ${CONTEXT_LENGTH})"
+  fi
 else
-  echo "Cleared ${ROLE} profile."
+  if [[ "${ROLE}" == "remote" || "${ROLE}" == "llm-wrapper" || "${ROLE}" == "wrapper" ]]; then
+    echo "Cleared remote llm-wrapper profile."
+  else
+    echo "Cleared ${ROLE} profile."
+  fi
 fi
 WRAPEOF
 
@@ -1380,50 +1797,120 @@ INSTALL_ROOT="$(dirname "${SCRIPT_DIR}")"
 MCP_VENV_DIR="${INSTALL_ROOT}/mcp-venv"
 MCP_CONFIG_DIR="${INSTALL_ROOT}/mcp/config"
 MCP_LOG_DIR="${INSTALL_ROOT}/mcp/logs"
-SECRET_DIR="${INSTALL_ROOT}/secrets"
 MCP_HOST="${NYMPHS_BRAIN_MCP_HOST:-${NYMPHS_BRAIN_MCPO_HOST:-__MCP_HOST__}}"
 MCP_PORT="${NYMPHS_BRAIN_MCP_PORT:-${NYMPHS_BRAIN_MCPO_PORT:-__MCP_PORT__}}"
 OPEN_WEBUI_PORT="${NYMPHS_BRAIN_OPEN_WEBUI_PORT:-__OPEN_WEBUI_PORT__}"
-PID_FILE="${MCP_LOG_DIR}/mcp-proxy.pid"
-LOG_FILE="${MCP_LOG_DIR}/mcp-proxy.log"
+MCPO_OPENAPI_PORT="${NYMPHS_BRAIN_MCPO_OPENAPI_PORT:-__MCPO_OPENAPI_PORT__}"
+MCP_PID_FILE="${MCP_LOG_DIR}/mcp-proxy.pid"
+MCP_LOG_FILE="${MCP_LOG_DIR}/mcp-proxy.log"
+MCPO_PID_FILE="${MCP_LOG_DIR}/mcpo.pid"
+MCPO_LOG_FILE="${MCP_LOG_DIR}/mcpo.log"
+MCP_CONFIG_FILE="${MCP_CONFIG_DIR}/mcp-proxy-servers.json"
+MCPO_CONFIG_FILE="${MCP_CONFIG_DIR}/mcpo-servers.json"
 
-is_running() {
-  [[ -f "${PID_FILE}" ]] && kill -0 "$(cat "${PID_FILE}")" >/dev/null 2>&1
+is_mcp_running() {
+  [[ -f "${MCP_PID_FILE}" ]] && kill -0 "$(cat "${MCP_PID_FILE}")" >/dev/null 2>&1
+}
+
+is_mcpo_running() {
+  [[ -f "${MCPO_PID_FILE}" ]] && kill -0 "$(cat "${MCPO_PID_FILE}")" >/dev/null 2>&1
+}
+
+mcpo_probe_url() {
+  echo "http://${MCP_HOST}:${MCPO_OPENAPI_PORT}/filesystem/openapi.json"
+}
+
+wait_for_url() {
+  local url="$1"
+  local attempts="$2"
+
+  for _ in $(seq 1 "${attempts}"); do
+    if curl -fsS "${url}" >/dev/null 2>&1; then
+      return 0
+    fi
+    sleep 1
+  done
+
+  return 1
+}
+
+has_llm_wrapper() {
+  [[ -f "${MCP_CONFIG_FILE}" ]] && grep -q '"llm-wrapper"' "${MCP_CONFIG_FILE}"
 }
 
 mkdir -p "${MCP_LOG_DIR}"
 
-if is_running; then
+if is_mcp_running; then
   echo "Nymphs-Brain MCP gateway is already running at http://${MCP_HOST}:${MCP_PORT}"
-  exit 0
+else
+  if [[ ! -x "${MCP_VENV_DIR}/bin/mcp-proxy" ]]; then
+    echo "mcp-proxy is not installed at ${MCP_VENV_DIR}/bin/mcp-proxy. Rerun install_nymphs_brain.sh." >&2
+    exit 1
+  fi
+
+  if [[ ! -f "${MCP_CONFIG_FILE}" ]]; then
+    echo "MCP config is missing at ${MCP_CONFIG_FILE}. Rerun install_nymphs_brain.sh." >&2
+    exit 1
+  fi
+
+  echo "Starting Nymphs-Brain MCP gateway at http://${MCP_HOST}:${MCP_PORT}"
+  nohup "${MCP_VENV_DIR}/bin/mcp-proxy" \
+    --host "${MCP_HOST}" \
+    --port "${MCP_PORT}" \
+    --allow-origin "http://localhost:${OPEN_WEBUI_PORT}" \
+    --allow-origin "http://127.0.0.1:${OPEN_WEBUI_PORT}" \
+    --named-server-config "${MCP_CONFIG_FILE}" \
+    > "${MCP_LOG_FILE}" 2>&1 &
+
+  echo "$!" > "${MCP_PID_FILE}"
 fi
 
-if [[ ! -x "${MCP_VENV_DIR}/bin/mcp-proxy" ]]; then
-  echo "mcp-proxy is not installed at ${MCP_VENV_DIR}/bin/mcp-proxy. Rerun install_nymphs_brain.sh." >&2
+if ! wait_for_url "http://${MCP_HOST}:${MCP_PORT}/status" 60; then
+  echo "MCP gateway did not become ready in time. See ${MCP_LOG_FILE}" >&2
   exit 1
 fi
 
-echo "Starting Nymphs-Brain MCP gateway at http://${MCP_HOST}:${MCP_PORT}"
-nohup "${MCP_VENV_DIR}/bin/mcp-proxy" \
-  --host "${MCP_HOST}" \
-  --port "${MCP_PORT}" \
-  --allow-origin "http://localhost:${OPEN_WEBUI_PORT}" \
-  --allow-origin "http://127.0.0.1:${OPEN_WEBUI_PORT}" \
-  --named-server-config "${MCP_CONFIG_DIR}/mcp-proxy-servers.json" \
-  > "${LOG_FILE}" 2>&1 &
-
-echo "$!" > "${PID_FILE}"
-
-for _ in $(seq 1 60); do
-  if curl -fsS "http://${MCP_HOST}:${MCP_PORT}/status" >/dev/null 2>&1; then
-    echo "Nymphs-Brain MCP gateway is ready."
-    exit 0
+if is_mcpo_running; then
+  echo "Nymphs-Brain mcpo OpenAPI bridge is already running at http://${MCP_HOST}:${MCPO_OPENAPI_PORT}"
+else
+  if [[ ! -x "${MCP_VENV_DIR}/bin/mcpo" ]]; then
+    echo "mcpo is not installed at ${MCP_VENV_DIR}/bin/mcpo. Rerun install_nymphs_brain.sh." >&2
+    exit 1
   fi
-  sleep 1
-done
 
-echo "MCP gateway did not become ready in time. See ${LOG_FILE}" >&2
-exit 1
+  if [[ ! -f "${MCPO_CONFIG_FILE}" ]]; then
+    echo "mcpo config is missing at ${MCPO_CONFIG_FILE}. Rerun install_nymphs_brain.sh." >&2
+    exit 1
+  fi
+
+  echo "Starting Nymphs-Brain mcpo OpenAPI bridge at http://${MCP_HOST}:${MCPO_OPENAPI_PORT}"
+  nohup "${MCP_VENV_DIR}/bin/mcpo" \
+    --host "${MCP_HOST}" \
+    --port "${MCPO_OPENAPI_PORT}" \
+    --config "${MCPO_CONFIG_FILE}" \
+    > "${MCPO_LOG_FILE}" 2>&1 &
+
+  echo "$!" > "${MCPO_PID_FILE}"
+fi
+
+if ! wait_for_url "$(mcpo_probe_url)" 60; then
+  echo "mcpo did not become ready in time. See ${MCPO_LOG_FILE}" >&2
+  exit 1
+fi
+
+echo ""
+echo "=========================================="
+echo "Nymphs-Brain MCP stack is running:"
+echo "  MCP gateway:    http://${MCP_HOST}:${MCP_PORT}"
+echo "  OpenAPI bridge: http://${MCP_HOST}:${MCPO_OPENAPI_PORT}"
+echo "  Filesystem API: http://${MCP_HOST}:${MCPO_OPENAPI_PORT}/filesystem"
+echo "  Memory API:     http://${MCP_HOST}:${MCPO_OPENAPI_PORT}/memory"
+echo "  Web Forager:    http://${MCP_HOST}:${MCPO_OPENAPI_PORT}/web-forager"
+echo "  Context7 API:   http://${MCP_HOST}:${MCPO_OPENAPI_PORT}/context7"
+if has_llm_wrapper; then
+  echo "  LLM Wrapper:    http://${MCP_HOST}:${MCPO_OPENAPI_PORT}/llm-wrapper"
+fi
+echo "=========================================="
 WRAPEOF
 
 cat > "${BIN_DIR}/mcp-stop" <<'WRAPEOF'
@@ -1434,7 +1921,14 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 INSTALL_ROOT="$(dirname "${SCRIPT_DIR}")"
 MCP_HOST="${NYMPHS_BRAIN_MCP_HOST:-${NYMPHS_BRAIN_MCPO_HOST:-__MCP_HOST__}}"
 MCP_PORT="${NYMPHS_BRAIN_MCP_PORT:-${NYMPHS_BRAIN_MCPO_PORT:-__MCP_PORT__}}"
-PID_FILE="${INSTALL_ROOT}/mcp/logs/mcp-proxy.pid"
+MCPO_OPENAPI_PORT="${NYMPHS_BRAIN_MCPO_OPENAPI_PORT:-__MCPO_OPENAPI_PORT__}"
+MCP_PID_FILE="${INSTALL_ROOT}/mcp/logs/mcp-proxy.pid"
+MCPO_PID_FILE="${INSTALL_ROOT}/mcp/logs/mcpo.pid"
+MCP_CONFIG_FILE="${INSTALL_ROOT}/mcp/config/mcp-proxy-servers.json"
+
+has_llm_wrapper() {
+  [[ -f "${MCP_CONFIG_FILE}" ]] && grep -q '"llm-wrapper"' "${MCP_CONFIG_FILE}"
+}
 
 stop_pid() {
   local pid="$1"
@@ -1458,7 +1952,8 @@ stop_pid() {
 }
 
 port_pids() {
-  ss -ltnp 2>/dev/null | awk -v target=":${MCP_PORT}" '
+  local target_port="$1"
+  ss -ltnp 2>/dev/null | awk -v target=":${target_port}" '
     index($4, target) {
       if (match($0, /pid=[0-9]+/)) {
         print substr($0, RSTART + 4, RLENGTH - 4)
@@ -1467,33 +1962,42 @@ port_pids() {
   ' | sort -u
 }
 
-echo "Stopping Nymphs-Brain MCP gateway..."
+echo "Stopping Nymphs-Brain MCP stack..."
 
-stopped_any=0
+stop_service() {
+  local label="$1"
+  local pid_file="$2"
+  local port="$3"
+  local probe_url="$4"
+  local stopped_any=0
 
-if [[ -f "${PID_FILE}" ]]; then
-  stop_pid "$(cat "${PID_FILE}" 2>/dev/null || true)"
-  stopped_any=1
-fi
+  if [[ -f "${pid_file}" ]]; then
+    stop_pid "$(cat "${pid_file}" 2>/dev/null || true)"
+    stopped_any=1
+  fi
 
-while read -r pid; do
-  [[ -n "${pid}" ]] || continue
-  stop_pid "${pid}"
-  stopped_any=1
-done < <(port_pids)
+  while read -r pid; do
+    [[ -n "${pid}" ]] || continue
+    stop_pid "${pid}"
+    stopped_any=1
+  done < <(port_pids "${port}")
 
-rm -f "${PID_FILE}"
+  rm -f "${pid_file}"
 
-if curl -fsS "http://${MCP_HOST}:${MCP_PORT}/status" >/dev/null 2>&1; then
-  echo "MCP gateway still appears to be running on port ${MCP_PORT}." >&2
-  exit 1
-fi
+  if curl -fsS "${probe_url}" >/dev/null 2>&1; then
+    echo "${label} still appears to be running on port ${port}." >&2
+    exit 1
+  fi
 
-if [[ "${stopped_any}" -eq 1 ]]; then
-  echo "Nymphs-Brain MCP gateway stopped."
-else
-  echo "Nymphs-Brain MCP gateway is not running."
-fi
+  if [[ "${stopped_any}" -eq 1 ]]; then
+    echo "${label} stopped."
+  else
+    echo "${label} is not running."
+  fi
+}
+
+stop_service "Nymphs-Brain mcpo OpenAPI bridge" "${MCPO_PID_FILE}" "${MCPO_OPENAPI_PORT}" "http://${MCP_HOST}:${MCPO_OPENAPI_PORT}/filesystem/openapi.json"
+stop_service "Nymphs-Brain MCP gateway" "${MCP_PID_FILE}" "${MCP_PORT}" "http://${MCP_HOST}:${MCP_PORT}/status"
 WRAPEOF
 
 cat > "${BIN_DIR}/mcp-status" <<'WRAPEOF'
@@ -1504,26 +2008,56 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 INSTALL_ROOT="$(dirname "${SCRIPT_DIR}")"
 MCP_HOST="${NYMPHS_BRAIN_MCP_HOST:-${NYMPHS_BRAIN_MCPO_HOST:-__MCP_HOST__}}"
 MCP_PORT="${NYMPHS_BRAIN_MCP_PORT:-${NYMPHS_BRAIN_MCPO_PORT:-__MCP_PORT__}}"
-PID_FILE="${INSTALL_ROOT}/mcp/logs/mcp-proxy.pid"
+MCPO_OPENAPI_PORT="${NYMPHS_BRAIN_MCPO_OPENAPI_PORT:-__MCPO_OPENAPI_PORT__}"
+MCP_PID_FILE="${INSTALL_ROOT}/mcp/logs/mcp-proxy.pid"
+MCPO_PID_FILE="${INSTALL_ROOT}/mcp/logs/mcpo.pid"
 
-if [[ -f "${PID_FILE}" ]] && kill -0 "$(cat "${PID_FILE}")" >/dev/null 2>&1; then
-  echo "MCP proxy: running"
+if [[ -f "${MCP_PID_FILE}" ]] && kill -0 "$(cat "${MCP_PID_FILE}")" >/dev/null 2>&1; then
+  echo "MCP proxy: running (pid $(cat "${MCP_PID_FILE}"))"
 else
   echo "MCP proxy: stopped"
 fi
 
-echo "MCP gateway URL: http://${MCP_HOST}:${MCP_PORT}"
-echo "MCP status URL: http://${MCP_HOST}:${MCP_PORT}/status"
+if [[ -f "${MCPO_PID_FILE}" ]] && kill -0 "$(cat "${MCPO_PID_FILE}")" >/dev/null 2>&1; then
+  echo "mcpo OpenAPI: running (pid $(cat "${MCPO_PID_FILE}"))"
+else
+  echo "mcpo OpenAPI: stopped"
+fi
+
+echo ""
+echo "MCP gateway URL:    http://${MCP_HOST}:${MCP_PORT}"
+echo "MCP status URL:     http://${MCP_HOST}:${MCP_PORT}/status"
+echo "OpenAPI bridge URL: http://${MCP_HOST}:${MCPO_OPENAPI_PORT}"
+echo "OpenAPI probe URL:  http://${MCP_HOST}:${MCPO_OPENAPI_PORT}/filesystem/openapi.json"
+echo "OpenAPI docs:"
+echo "- filesystem:  http://${MCP_HOST}:${MCPO_OPENAPI_PORT}/filesystem/docs"
+echo "- memory:      http://${MCP_HOST}:${MCPO_OPENAPI_PORT}/memory/docs"
+echo "- web-forager: http://${MCP_HOST}:${MCPO_OPENAPI_PORT}/web-forager/docs"
+echo "- context7:    http://${MCP_HOST}:${MCPO_OPENAPI_PORT}/context7/docs"
+if has_llm_wrapper; then
+  echo "- llm-wrapper: http://${MCP_HOST}:${MCPO_OPENAPI_PORT}/llm-wrapper/docs"
+fi
+echo ""
 echo "Streamable HTTP endpoints:"
 echo "- filesystem: http://${MCP_HOST}:${MCP_PORT}/servers/filesystem/mcp"
 echo "- memory: http://${MCP_HOST}:${MCP_PORT}/servers/memory/mcp"
 echo "- web-forager: http://${MCP_HOST}:${MCP_PORT}/servers/web-forager/mcp"
+echo "- context7: http://${MCP_HOST}:${MCP_PORT}/servers/context7/mcp"
+if has_llm_wrapper; then
+  echo "- llm-wrapper: http://${MCP_HOST}:${MCP_PORT}/servers/llm-wrapper/mcp"
+fi
 echo "Legacy SSE endpoints:"
 echo "- filesystem: http://${MCP_HOST}:${MCP_PORT}/servers/filesystem/sse"
 echo "- memory: http://${MCP_HOST}:${MCP_PORT}/servers/memory/sse"
 echo "- web-forager: http://${MCP_HOST}:${MCP_PORT}/servers/web-forager/sse"
+echo "- context7: http://${MCP_HOST}:${MCP_PORT}/servers/context7/sse"
+if has_llm_wrapper; then
+  echo "- llm-wrapper: http://${MCP_HOST}:${MCP_PORT}/servers/llm-wrapper/sse"
+fi
 echo "MCP config: ${INSTALL_ROOT}/mcp/config/mcp-proxy-servers.json"
+echo "mcpo config: ${INSTALL_ROOT}/mcp/config/mcpo-servers.json"
 echo "Cline config template: ${INSTALL_ROOT}/mcp/config/cline-mcp-settings.json"
+echo "Open WebUI tool seed: ${INSTALL_ROOT}/mcp/config/open-webui-tool-servers.json"
 echo "Open WebUI setup note: ${INSTALL_ROOT}/mcp/config/open-webui-mcp-servers.md"
 WRAPEOF
 
@@ -1541,13 +2075,55 @@ OPEN_WEBUI_HOST="${NYMPHS_BRAIN_OPEN_WEBUI_HOST:-__OPEN_WEBUI_HOST__}"
 OPEN_WEBUI_PORT="${NYMPHS_BRAIN_OPEN_WEBUI_PORT:-__OPEN_WEBUI_PORT__}"
 MCP_HOST="${NYMPHS_BRAIN_MCP_HOST:-${NYMPHS_BRAIN_MCPO_HOST:-__MCP_HOST__}}"
 MCP_PORT="${NYMPHS_BRAIN_MCP_PORT:-${NYMPHS_BRAIN_MCPO_PORT:-__MCP_PORT__}}"
+MCPO_OPENAPI_PORT="${NYMPHS_BRAIN_MCPO_OPENAPI_PORT:-__MCPO_OPENAPI_PORT__}"
 LMSTUDIO_API_BASE_URL="${NYMPHS_BRAIN_LMSTUDIO_API_BASE_URL:-__LMSTUDIO_API_BASE_URL__}"
 PID_FILE="${OPEN_WEBUI_LOG_DIR}/open-webui.pid"
 LOG_FILE="${OPEN_WEBUI_LOG_DIR}/open-webui.log"
 WEBUI_SECRET_KEY_FILE="${SECRET_DIR}/webui-secret-key"
+TOOL_SERVER_CONNECTIONS_FILE="${INSTALL_ROOT}/mcp/config/open-webui-tool-servers.json"
 
 is_running() {
   [[ -f "${PID_FILE}" ]] && kill -0 "$(cat "${PID_FILE}")" >/dev/null 2>&1
+}
+
+seed_tool_server_connections() {
+  if [[ ! -f "${TOOL_SERVER_CONNECTIONS_FILE}" ]]; then
+    echo "Open WebUI tool server seed file is missing at ${TOOL_SERVER_CONNECTIONS_FILE}. Rerun install_nymphs_brain.sh." >&2
+    return 1
+  fi
+
+  DATA_DIR="${OPEN_WEBUI_DATA_DIR}" TOOL_SERVER_CONNECTIONS_FILE="${TOOL_SERVER_CONNECTIONS_FILE}" \
+    "${OPEN_WEBUI_VENV_DIR}/bin/python3" - <<'PYEOF'
+import json
+import os
+from pathlib import Path
+
+payload = json.loads(Path(os.environ["TOOL_SERVER_CONNECTIONS_FILE"]).read_text(encoding="utf-8"))
+
+from open_webui.config import ENABLE_DIRECT_CONNECTIONS, TOOL_SERVER_CONNECTIONS
+
+managed_ids = {
+    item.get("info", {}).get("id")
+    for item in payload
+    if item.get("info", {}).get("id")
+}
+
+current = list(TOOL_SERVER_CONNECTIONS.value or [])
+preserved = [
+    item
+    for item in current
+    if item.get("info", {}).get("id") not in managed_ids
+]
+merged = preserved + payload
+
+if current != merged:
+    TOOL_SERVER_CONNECTIONS.value = merged
+    TOOL_SERVER_CONNECTIONS.save()
+
+if ENABLE_DIRECT_CONNECTIONS.value is not True:
+    ENABLE_DIRECT_CONNECTIONS.value = True
+    ENABLE_DIRECT_CONNECTIONS.save()
+PYEOF
 }
 
 mkdir -p "${OPEN_WEBUI_LOG_DIR}"
@@ -1568,6 +2144,7 @@ if [[ ! -s "${WEBUI_SECRET_KEY_FILE}" ]]; then
 fi
 
 "${SCRIPT_DIR}/mcp-start"
+seed_tool_server_connections
 
 WEBUI_SECRET_KEY="$(tr -d '\r\n' < "${WEBUI_SECRET_KEY_FILE}")"
 
@@ -1575,6 +2152,7 @@ echo "Starting Open WebUI at http://${OPEN_WEBUI_HOST}:${OPEN_WEBUI_PORT}"
 nohup env \
   DATA_DIR="${OPEN_WEBUI_DATA_DIR}" \
   WEBUI_SECRET_KEY="${WEBUI_SECRET_KEY}" \
+  ENABLE_DIRECT_CONNECTIONS="True" \
   OPENAI_API_BASE_URL="${LMSTUDIO_API_BASE_URL}" \
   OPENAI_API_KEY="lm-studio" \
   UVICORN_WORKERS="1" \
@@ -1589,9 +2167,9 @@ for _ in $(seq 1 90); do
   if curl -fsS "http://${OPEN_WEBUI_HOST}:${OPEN_WEBUI_PORT}" >/dev/null 2>&1; then
     echo "Open WebUI is ready."
     echo "Open this URL from Windows: http://localhost:${OPEN_WEBUI_PORT}"
-    echo "Then add MCP (Streamable HTTP) servers from:"
-    echo "${INSTALL_ROOT}/mcp/config/open-webui-mcp-servers.md"
-    echo "Recommended first URL: http://${MCP_HOST}:${MCP_PORT}/servers/filesystem/mcp"
+    echo "Brain OpenAPI tool servers were seeded automatically from:"
+    echo "${TOOL_SERVER_CONNECTIONS_FILE}"
+    echo "mcpo base URL: http://${MCP_HOST}:${MCPO_OPENAPI_PORT}"
     exit 0
   fi
   sleep 1
@@ -1667,6 +2245,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 INSTALL_ROOT="$(dirname "${SCRIPT_DIR}")"
 OPEN_WEBUI_HOST="${NYMPHS_BRAIN_OPEN_WEBUI_HOST:-__OPEN_WEBUI_HOST__}"
 OPEN_WEBUI_PORT="${NYMPHS_BRAIN_OPEN_WEBUI_PORT:-__OPEN_WEBUI_PORT__}"
+MCPO_OPENAPI_PORT="${NYMPHS_BRAIN_MCPO_OPENAPI_PORT:-__MCPO_OPENAPI_PORT__}"
 PID_FILE="${INSTALL_ROOT}/open-webui-data/logs/open-webui.pid"
 
 if [[ -f "${PID_FILE}" ]] && kill -0 "$(cat "${PID_FILE}")" >/dev/null 2>&1; then
@@ -1677,8 +2256,10 @@ fi
 
 echo "Open WebUI URL: http://${OPEN_WEBUI_HOST}:${OPEN_WEBUI_PORT}"
 echo "Windows URL: http://localhost:${OPEN_WEBUI_PORT}"
+echo "mcpo OpenAPI bridge: http://127.0.0.1:${MCPO_OPENAPI_PORT}"
 echo "Open WebUI data: ${INSTALL_ROOT}/open-webui-data"
 echo "Open WebUI log: ${INSTALL_ROOT}/open-webui-data/logs/open-webui.log"
+echo "Open WebUI tool server seed: ${INSTALL_ROOT}/mcp/config/open-webui-tool-servers.json"
 echo "Open WebUI MCP setup note: ${INSTALL_ROOT}/mcp/config/open-webui-mcp-servers.md"
 WRAPEOF
 
@@ -1693,6 +2274,7 @@ OPEN_WEBUI_HOST="${NYMPHS_BRAIN_OPEN_WEBUI_HOST:-__OPEN_WEBUI_HOST__}"
 OPEN_WEBUI_PORT="${NYMPHS_BRAIN_OPEN_WEBUI_PORT:-__OPEN_WEBUI_PORT__}"
 MCP_HOST="${NYMPHS_BRAIN_MCP_HOST:-${NYMPHS_BRAIN_MCPO_HOST:-__MCP_HOST__}}"
 MCP_PORT="${NYMPHS_BRAIN_MCP_PORT:-${NYMPHS_BRAIN_MCPO_PORT:-__MCP_PORT__}}"
+MCPO_OPENAPI_PORT="${NYMPHS_BRAIN_MCPO_OPENAPI_PORT:-__MCPO_OPENAPI_PORT__}"
 CURL_CHECK_ARGS=(--silent --show-error --fail --connect-timeout 2 --max-time 5)
 
 PLAN_MODEL_ID="__MODEL_ID__"
@@ -1766,11 +2348,18 @@ fi
 
 echo "Act model: ${ACT_MODEL_ID:-none} (context ${ACT_CONTEXT_LENGTH:-none})"
 echo "Plan model: ${PLAN_MODEL_ID:-none} (context ${PLAN_CONTEXT_LENGTH:-none})"
+echo "Remote llm-wrapper model: ${LLM_WRAPPER_MODEL:-none}"
 
 if curl "${CURL_CHECK_ARGS[@]}" "http://${MCP_HOST}:${MCP_PORT}/status" >/dev/null 2>&1; then
   echo "MCP proxy: running"
 else
   echo "MCP proxy: stopped"
+fi
+
+if curl "${CURL_CHECK_ARGS[@]}" "http://${MCP_HOST}:${MCPO_OPENAPI_PORT}/filesystem/openapi.json" >/dev/null 2>&1; then
+  echo "OpenAPI proxy: running"
+else
+  echo "OpenAPI proxy: stopped"
 fi
 
 if curl "${CURL_CHECK_ARGS[@]}" "http://${OPEN_WEBUI_HOST}:${OPEN_WEBUI_PORT}" >/dev/null 2>&1; then
@@ -1801,12 +2390,15 @@ sed -i "s|__MODEL_ID__|${MODEL_ID}|g" "${BIN_DIR}/lms-start"
 sed -i "s|__CONTEXT_LENGTH__|${CONTEXT_LENGTH}|g" "${BIN_DIR}/lms-start"
 sed -i "s|__MODEL_ID__|${MODEL_ID}|g" "${BIN_DIR}/brain-status"
 sed -i "s|__CONTEXT_LENGTH__|${CONTEXT_LENGTH}|g" "${BIN_DIR}/brain-status"
-sed -i "s|__MCP_HOST__|${MCP_HOST}|g" "${BIN_DIR}/mcp-start" "${BIN_DIR}/mcp-status" "${BIN_DIR}/open-webui-start" "${BIN_DIR}/brain-status"
-sed -i "s|__MCP_PORT__|${MCP_PORT}|g" "${BIN_DIR}/mcp-start" "${BIN_DIR}/mcp-status" "${BIN_DIR}/open-webui-start" "${BIN_DIR}/brain-status"
+sed -i "s|__MCP_HOST__|${MCP_HOST}|g" "${BIN_DIR}/mcp-start" "${BIN_DIR}/mcp-stop" "${BIN_DIR}/mcp-status" "${BIN_DIR}/open-webui-start" "${BIN_DIR}/brain-status"
+sed -i "s|__MCP_PORT__|${MCP_PORT}|g" "${BIN_DIR}/mcp-start" "${BIN_DIR}/mcp-stop" "${BIN_DIR}/mcp-status" "${BIN_DIR}/open-webui-start" "${BIN_DIR}/brain-status"
+sed -i "s|__MCPO_OPENAPI_PORT__|${MCPO_OPENAPI_PORT}|g" "${BIN_DIR}/mcp-start" "${BIN_DIR}/mcp-stop" "${BIN_DIR}/mcp-status" "${BIN_DIR}/open-webui-start" "${BIN_DIR}/open-webui-status" "${BIN_DIR}/brain-status"
 sed -i "s|__OPEN_WEBUI_HOST__|${OPEN_WEBUI_HOST}|g" "${BIN_DIR}/open-webui-start" "${BIN_DIR}/open-webui-status" "${BIN_DIR}/brain-status"
 sed -i "s|__OPEN_WEBUI_PORT__|${OPEN_WEBUI_PORT}|g" "${BIN_DIR}/mcp-start" "${BIN_DIR}/open-webui-start" "${BIN_DIR}/open-webui-status" "${BIN_DIR}/brain-status"
 sed -i "s|__LMSTUDIO_API_BASE_URL__|${LMSTUDIO_API_BASE_URL}|g" "${BIN_DIR}/open-webui-start"
-cp "$0" "${INSTALL_ROOT}/brain-installer.sh"
+if [[ "$(readlink -f "$0")" != "$(readlink -f "${INSTALL_ROOT}/brain-installer.sh")" ]]; then
+  cp "$0" "${INSTALL_ROOT}/brain-installer.sh"
+fi
 chmod +x \
   "${INSTALL_ROOT}/brain-installer.sh" \
   "${BIN_DIR}/brain-refresh" \
@@ -1838,6 +2430,7 @@ Quantization: ${QUANTIZATION}
 Plan context length: ${INITIAL_PLAN_CONTEXT_LENGTH:-none}
 Act context length: ${INITIAL_ACT_CONTEXT_LENGTH:-none}
 Model download during install: ${DOWNLOAD_MODEL}
+llm-wrapper default model: ${LLM_WRAPPER_MODEL}
 LM Studio CLI location: user profile managed by LM Studio
 Commands:
 - ${BIN_DIR}/brain-refresh
@@ -1857,11 +2450,15 @@ Commands:
 - ${BIN_DIR}/open-webui-update
 - ${BIN_DIR}/brain-status
 Open WebUI URL: http://localhost:${OPEN_WEBUI_PORT}
+mcpo OpenAPI bridge: http://localhost:${MCPO_OPENAPI_PORT}
 MCP gateway URL: http://localhost:${MCP_PORT}
 Primary Streamable HTTP endpoints:
 - http://localhost:${MCP_PORT}/servers/filesystem/mcp
 - http://localhost:${MCP_PORT}/servers/memory/mcp
 - http://localhost:${MCP_PORT}/servers/web-forager/mcp
+- http://localhost:${MCP_PORT}/servers/context7/mcp
+$(if [[ "${LLM_WRAPPER_ENABLED}" == "1" ]]; then echo "- http://localhost:${MCP_PORT}/servers/llm-wrapper/mcp"; fi)
+Open WebUI seeded tool config: ${MCP_CONFIG_DIR}/open-webui-tool-servers.json
 EOF
 
 echo "Nymphs-Brain setup complete."
@@ -1872,6 +2469,8 @@ echo "Set plan/act model profiles: ${BIN_DIR}/lms-set-profile"
 echo "Update LM Studio CLI/runtime: ${BIN_DIR}/lms-update"
 echo "Stop LM Studio cleanly: ${BIN_DIR}/lms-stop"
 echo "Start MCP proxy: ${BIN_DIR}/mcp-start"
+echo "mcpo OpenAPI bridge: http://localhost:${MCPO_OPENAPI_PORT}"
 echo "Start Open WebUI: ${BIN_DIR}/open-webui-start"
 echo "Update Open WebUI: ${BIN_DIR}/open-webui-update"
+echo "Open WebUI seeded tool config: ${MCP_CONFIG_DIR}/open-webui-tool-servers.json"
 echo "Run chat wrapper: ${BIN_DIR}/nymph-chat"

@@ -114,7 +114,9 @@ If selected, `Nymphs-Brain` now includes:
 - an LM Studio-backed local LLM runtime
 - Open WebUI on `http://localhost:8081`
 - a local MCP gateway for tool access from Cline/Open WebUI
+- optional OpenRouter-backed `llm-wrapper` delegation with local prompt caching
 - helper commands under `/home/nymph/Nymphs-Brain/bin`
+- a bundled `remote_llm_mcp` runtime under `Manager/scripts/remote_llm_mcp`
 
 The installer and runtime wrappers use LM Studio's normal CLI flow for model fetch and server start. No separate manual daemon bootstrap step should be needed.
 
@@ -139,9 +141,10 @@ Useful Brain commands:
 
 The current Brain stack supports:
 
-- one `Act` model
-- one optional `Plan` model
-- loading only `Act` or both `Act` + `Plan` from the Linux-side Brain config
+- one local `Plan` model
+- one optional local `Act` model
+- one optional remote `llm-wrapper` model through OpenRouter
+- loading only the assigned local roles from the Linux-side Brain config
 
 ### Runtime Tools
 
@@ -162,9 +165,27 @@ Use the dedicated `Brain` page to:
 - check Brain `LLM`, `MCP`, `Open WebUI`, and model status
 - start or stop the Brain stack
 - start or stop Open WebUI
-- open the role-aware `Manage Models` terminal flow
+- enter an optional OpenRouter key for `llm-wrapper`
+- open the role-aware `Manage Models` terminal flow for local and remote models
 - update the Linux-side Brain stack components
 - inspect the Brain activity log
+
+The intended Manager-first flow is:
+
+1. install Brain from the Manager
+2. optionally enter an OpenRouter key on the Brain page and click `Apply Key`
+3. use `Manage Models` to choose local `Plan` / `Act` roles and the optional remote `llm-wrapper` model
+4. start Brain or run `Update Stack`
+
+If no OpenRouter key is present, Brain skips `llm-wrapper` and still starts the rest of the stack normally.
+
+You can verify the wrapper directly from WSL with:
+
+```bash
+curl -s http://127.0.0.1:8099/llm-wrapper/llm_call \
+  -H 'Content-Type: application/json' \
+  -d '{"prompt":"Reply with exactly DIRECT_WRAPPER_TEST_OK and nothing else."}'
+```
 
 ### Logs And Troubleshooting
 

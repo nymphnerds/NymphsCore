@@ -45,4 +45,6 @@ public sealed class InstallSettings
     public string BrainQuantization { get; set; } = "q4_k_m";
 
     public int BrainContextLength { get; set; } = 16384;
+
+    public string OpenRouterApiKey { get; set; } = string.Empty;
 }

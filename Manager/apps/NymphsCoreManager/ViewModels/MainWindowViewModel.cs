@@ -36,6 +36,7 @@ public sealed class MainWindowViewModel : ViewModelBase
     private readonly AsyncRelayCommand _startBrainLlmCommand;
     private readonly AsyncRelayCommand _openBrainWebUiCommand;
     private readonly AsyncRelayCommand _updateBrainWebUiCommand;
+    private readonly AsyncRelayCommand _applyBrainOpenRouterKeyCommand;
     private readonly RelayCommand _changeBrainModelCommand;
     private readonly AsyncRelayCommand _stopBrainLlmCommand;
     private readonly RelayCommand _backCommand;
@@ -89,10 +90,12 @@ public sealed class MainWindowViewModel : ViewModelBase
     private string _brainLoadedModel = "Not checked";
     private string _brainActModel = "unknown";
     private string _brainPlanModel = "unknown";
+    private string _brainRemoteModel = "unknown";
     private RuntimeBackendStatus _zImageRuntimeStatus = RuntimeBackendStatus.Unknown("zimage", "Z-Image", "Open Runtime Tools to check status.");
     private RuntimeBackendStatus _trellisRuntimeStatus = RuntimeBackendStatus.Unknown("trellis", "TRELLIS.2", "Open Runtime Tools to check status.");
     private string _brainRuntimeStatusText = "Status: Not checked";
     private string _brainRuntimeModelText = "Model: Not checked";
+    private string _brainOpenRouterApiKey = string.Empty;
 
     public MainWindowViewModel(InstallerWorkflowService workflowService)
     {
@@ -118,6 +121,7 @@ public sealed class MainWindowViewModel : ViewModelBase
         _startBrainLlmCommand = new AsyncRelayCommand(StartBrainLlmAsync, CanStartBrainLlm);
         _openBrainWebUiCommand = new AsyncRelayCommand(OpenBrainWebUiAsync, CanOpenBrainWebUi);
         _updateBrainWebUiCommand = new AsyncRelayCommand(UpdateBrainWebUiAsync, CanUpdateBrainWebUi);
+        _applyBrainOpenRouterKeyCommand = new AsyncRelayCommand(ApplyBrainOpenRouterKeyAsync, CanApplyBrainOpenRouterKey);
         _changeBrainModelCommand = new RelayCommand(OpenBrainModelManager, CanManageBrainModels);
         _stopBrainLlmCommand = new AsyncRelayCommand(StopBrainLlmAsync, CanStopBrainLlm);
         _backCommand = new RelayCommand(GoBack, CanGoBack);
@@ -178,6 +182,8 @@ public sealed class MainWindowViewModel : ViewModelBase
     public AsyncRelayCommand OpenBrainWebUiCommand => _openBrainWebUiCommand;
 
     public AsyncRelayCommand UpdateBrainWebUiCommand => _updateBrainWebUiCommand;
+
+    public AsyncRelayCommand ApplyBrainOpenRouterKeyCommand => _applyBrainOpenRouterKeyCommand;
 
     public RelayCommand ChangeBrainModelCommand => _changeBrainModelCommand;
 
@@ -518,7 +524,7 @@ public sealed class MainWindowViewModel : ViewModelBase
                 return "Nymphs-Brain is optional and will not be installed. Core Blender/backend features are unaffected.";
             }
 
-            return $"Experimental Nymphs-Brain will install to {BrainInstallRoot}. Model download and Act/Plan selection happen afterward from the Brain page with Manage Models.";
+            return $"Experimental Nymphs-Brain will install to {BrainInstallRoot}. Local Plan/Act selection and remote llm-wrapper model selection happen afterward from the Brain page with Manage Models.";
         }
     }
 
@@ -650,13 +656,35 @@ public sealed class MainWindowViewModel : ViewModelBase
         private set => SetProperty(ref _brainRuntimeModelText, value);
     }
 
+    public string BrainOpenRouterApiKey
+    {
+        get => _brainOpenRouterApiKey;
+        set
+        {
+            var normalized = value?.Trim() ?? string.Empty;
+            if (SetProperty(ref _brainOpenRouterApiKey, normalized))
+            {
+                OnPropertyChanged(nameof(HasBrainOpenRouterApiKey));
+                OnPropertyChanged(nameof(BrainOpenRouterKeyStatus));
+                RaiseCommandStateChanged();
+            }
+        }
+    }
+
+    public bool HasBrainOpenRouterApiKey => !string.IsNullOrWhiteSpace(BrainOpenRouterApiKey);
+
+    public string BrainOpenRouterKeyStatus =>
+        HasBrainOpenRouterApiKey
+            ? "A new OpenRouter key is loaded in this Manager session. Apply Key writes it now; Start Brain or Update Stack will rebuild the Brain wrapper config around it."
+            : "OpenRouter key is optional. Without one, Brain skips llm-wrapper and keeps the rest of the stack running normally.";
+
     public string BrainHeaderBadgeText => CapitalizeStatus(_brainInstallState);
 
     public string BrainHeaderBadgeBackground => GetBrainStatusBadgeBackground(_brainInstallState);
 
     public string BrainDashboardSummary => IsBrainInstalled
-        ? "Local coding model, MCP gateway, and WebUI controls for Cline and Brain workflows."
-        : "Install Nymphs-Brain to unlock the local coding model, MCP gateway, and browser UI.";
+        ? "Local coding model, MCP gateway, WebUI, and optional OpenRouter tool bridge for Cline and Brain workflows."
+        : "Install Nymphs-Brain to unlock the local coding model, MCP gateway, browser UI, and optional OpenRouter tools.";
 
     public string BrainPrimaryActionText => IsAnyBrainServiceRunning
         ? "Stop Brain"
@@ -714,7 +742,9 @@ public sealed class MainWindowViewModel : ViewModelBase
         ? "#B74322"
         : IsBrainChatModelLoaded
             ? "#235756"
-            : HasConfiguredActModel() || HasConfiguredPlanModel() || HasLoadedEmbeddingOnly()
+            : HasConfiguredActModel() || HasConfiguredPlanModel()
+                ? "#235756"
+                : HasLoadedEmbeddingOnly()
                 ? "#B7791F"
                 : "#6B6259";
 
@@ -820,6 +850,11 @@ public sealed class MainWindowViewModel : ViewModelBase
     private bool CanUpdateBrainWebUi()
     {
         return CanRunManagedRuntimeAction() && IsBrainInstalled;
+    }
+
+    private bool CanApplyBrainOpenRouterKey()
+    {
+        return CanRunManagedRuntimeAction() && IsBrainInstalled && HasBrainOpenRouterApiKey;
     }
 
     private bool CanStopBrainLlm()
@@ -1027,6 +1062,7 @@ public sealed class MainWindowViewModel : ViewModelBase
             HuggingFaceToken = HuggingFaceToken,
             WslConfigMode = WslConfigMode.KeepExisting,
             BrainInstallRoot = BrainInstallRoot,
+            OpenRouterApiKey = BrainOpenRouterApiKey,
         };
     }
 
@@ -1052,7 +1088,7 @@ public sealed class MainWindowViewModel : ViewModelBase
             StatusMessage = "No managed runtime install detected yet.";
             AppendInstallLog(StatusMessage);
             ApplyRuntimeBackendStatuses(new Dictionary<string, RuntimeBackendStatus>());
-            SetBrainRuntimeSnapshot("missing", "stopped", "Not available", null, null, "stopped", "stopped");
+            SetBrainRuntimeSnapshot("missing", "stopped", "Not available", null, null, null, "stopped", "stopped");
             RaiseCommandStateChanged();
             return;
         }
@@ -1094,7 +1130,7 @@ public sealed class MainWindowViewModel : ViewModelBase
         catch (Exception ex)
         {
             RuntimeToolsSummary = "Runtime tool status check failed. Use the log panel and log folder to see what failed.";
-            SetBrainRuntimeSnapshot("unknown", "unknown", "Not checked", null, null, "unknown", "unknown");
+            SetBrainRuntimeSnapshot("unknown", "unknown", "Not checked", null, null, null, "unknown", "unknown");
             StatusMessage = "Runtime tool status check failed.";
             LogLines.Add($"ERROR: {ex.Message}");
             AppendInstallLog($"ERROR: {ex}");
@@ -1114,7 +1150,7 @@ public sealed class MainWindowViewModel : ViewModelBase
             PostInstallActionSummary = string.Empty;
             StatusMessage = "No managed runtime install detected yet.";
             AppendInstallLog(StatusMessage);
-            SetBrainRuntimeSnapshot("missing", "stopped", "Not available", null, null, "stopped", "stopped");
+            SetBrainRuntimeSnapshot("missing", "stopped", "Not available", null, null, null, "stopped", "stopped");
             RaiseCommandStateChanged();
             return;
         }
@@ -1180,7 +1216,7 @@ public sealed class MainWindowViewModel : ViewModelBase
         }
         catch (Exception ex)
         {
-            SetBrainRuntimeSnapshot("unknown", "unknown", "Not available", null, null, "unknown", "unknown");
+            SetBrainRuntimeSnapshot("unknown", "unknown", "Not available", null, null, null, "unknown", "unknown");
             AppendInstallLog($"Nymphs-Brain status check warning: {ex.Message}");
         }
     }
@@ -1196,10 +1232,11 @@ public sealed class MainWindowViewModel : ViewModelBase
         var model = FindStatusValue(lines, "Model loaded:") ?? "unknown";
         var actModel = FindStatusValue(lines, "Act model:");
         var planModel = FindStatusValue(lines, "Plan model:");
+        var remoteModel = FindStatusValue(lines, "Remote llm-wrapper model:");
         var mcp = FindStatusValue(lines, "MCP proxy:") ?? "unknown";
         var webUi = FindStatusValue(lines, "Open WebUI:") ?? "unknown";
 
-        SetBrainRuntimeSnapshot(install, llm, model, actModel, planModel, mcp, webUi);
+        SetBrainRuntimeSnapshot(install, llm, model, actModel, planModel, remoteModel, mcp, webUi);
     }
 
     private static string? FindStatusValue(IEnumerable<string> lines, string prefix)
@@ -1262,25 +1299,49 @@ public sealed class MainWindowViewModel : ViewModelBase
     {
         var hasAct = HasUsableBrainRoleModel(_brainActModel);
         var hasPlan = HasUsableBrainRoleModel(_brainPlanModel);
+        var hasRemote = HasUsableBrainRoleModel(_brainRemoteModel);
         var loadedText = HasReportedBrainModel() ? _brainLoadedModel : "unknown";
 
         if (hasAct || hasPlan)
         {
-            var actText = hasAct ? _brainActModel : "none";
-            var planText = hasPlan ? _brainPlanModel : "none";
-            return $"Plan: {planText}\nAct: {actText}";
+            return BuildAssignedBrainModelLines(hasPlan, hasAct, hasRemote);
         }
 
-        return $"Loaded: {loadedText}";
+        return hasRemote
+            ? $"Loaded: {loadedText}\nRemote: {_brainRemoteModel}"
+            : $"Loaded: {loadedText}";
     }
 
     private string BuildConfiguredBrainModelDetailText()
     {
         var hasAct = HasConfiguredActModel();
         var hasPlan = HasConfiguredPlanModel();
-        var actText = hasAct ? _brainActModel : "none";
-        var planText = hasPlan ? _brainPlanModel : "none";
-        return $"Plan: {planText}\nAct: {actText}";
+        var hasRemote = HasUsableBrainRoleModel(_brainRemoteModel);
+        return BuildAssignedBrainModelLines(hasPlan, hasAct, hasRemote);
+    }
+
+    private string BuildAssignedBrainModelLines(bool hasPlan, bool hasAct, bool hasRemote)
+    {
+        var lines = new List<string>();
+
+        if (hasPlan)
+        {
+            lines.Add($"Plan: {_brainPlanModel}");
+        }
+
+        if (hasAct)
+        {
+            lines.Add($"Act: {_brainActModel}");
+        }
+
+        if (hasRemote)
+        {
+            lines.Add($"Remote: {_brainRemoteModel}");
+        }
+
+        return lines.Count > 0
+            ? string.Join('\n', lines)
+            : "No models assigned yet.";
     }
 
     private static bool HasUsableBrainRoleModel(string? value)
@@ -1346,7 +1407,7 @@ public sealed class MainWindowViewModel : ViewModelBase
                normalized.Contains("embed", StringComparison.Ordinal);
     }
 
-    private void SetBrainRuntimeSnapshot(string install, string llm, string model, string? actModel, string? planModel, string mcp, string webUi)
+    private void SetBrainRuntimeSnapshot(string install, string llm, string model, string? actModel, string? planModel, string? remoteModel, string mcp, string webUi)
     {
         _brainInstallState = NormalizeBrainStatus(install);
         _brainLlmState = NormalizeBrainStatus(llm);
@@ -1355,6 +1416,7 @@ public sealed class MainWindowViewModel : ViewModelBase
         _brainLoadedModel = NormalizeLoadedBrainModel(model);
         _brainActModel = NormalizeBrainRoleModel(actModel);
         _brainPlanModel = NormalizeBrainRoleModel(planModel);
+        _brainRemoteModel = NormalizeBrainRoleModel(remoteModel);
 
         BrainRuntimeStatusText = $"Status: {CapitalizeStatus(_brainInstallState)} / LLM {_brainLlmState} / WebUI {_brainWebUiState} / MCP {_brainMcpState}";
         BrainRuntimeModelText = $"Model: {_brainLoadedModel}";
@@ -1616,8 +1678,17 @@ public sealed class MainWindowViewModel : ViewModelBase
             return;
         }
 
+        var startTools = new List<string>();
+        if (HasBrainOpenRouterApiKey)
+        {
+            startTools.Add("brain-refresh");
+        }
+
+        startTools.Add("lms-start");
+        startTools.Add("mcp-start");
+
         await RunNymphsBrainToolSequenceAsync(
-            ["lms-start", "mcp-start"],
+            startTools,
             "Starting Nymphs-Brain services...",
             "Nymphs-Brain services started.",
             "Nymphs-Brain services failed to start.").ConfigureAwait(true);
@@ -1657,7 +1728,7 @@ public sealed class MainWindowViewModel : ViewModelBase
         {
             _workflowService.OpenNymphsBrainModelManager(settings);
             StatusMessage = "Opened Nymphs-Brain model manager in a terminal.";
-            PostInstallActionSummary = "Use the terminal window to download, switch, or remove Brain models. When you finish there, click Brain in the left sidebar again to reload the selected Plan/Act profile.";
+            PostInstallActionSummary = "Use the terminal window to download, switch, or remove Brain models. When you finish there, click Brain in the left sidebar again to reload the selected local and remote Brain model profile.";
             AppendInstallLog("Opened Nymphs-Brain model manager terminal.");
         }
         catch (Exception ex)
@@ -1677,6 +1748,16 @@ public sealed class MainWindowViewModel : ViewModelBase
             "Updating Nymphs-Brain stack...",
             "Nymphs-Brain stack update completed.",
             "Nymphs-Brain stack update failed.").ConfigureAwait(true);
+    }
+
+    private async Task ApplyBrainOpenRouterKeyAsync()
+    {
+        EnsureBrainToolsActive();
+        await RunNymphsBrainToolActionAsync(
+            "brain-apply-openrouter-key",
+            "Applying OpenRouter key to Nymphs-Brain...",
+            "OpenRouter key applied to the Nymphs-Brain secret file.",
+            "OpenRouter key update failed.").ConfigureAwait(true);
     }
 
     private async Task StopBrainLlmAsync()
@@ -1864,6 +1945,7 @@ public sealed class MainWindowViewModel : ViewModelBase
                 BrainModelId = "auto",
                 BrainQuantization = "q4_k_m",
                 BrainContextLength = 16384,
+                OpenRouterApiKey = BrainOpenRouterApiKey,
                 ModuleOnlyRun = _moduleOnlyRun,
             };
 
@@ -1898,6 +1980,10 @@ public sealed class MainWindowViewModel : ViewModelBase
                     : "Model prefetch: disabled");
             AppendInstallLog(BuildWslConfigLogLine(settings));
             AppendInstallLog(BuildBrainInstallLogLine(settings));
+            AppendInstallLog(
+                string.IsNullOrWhiteSpace(settings.OpenRouterApiKey)
+                    ? "OpenRouter key: not provided"
+                    : "OpenRouter key: provided for Brain llm-wrapper");
 
             var progress = new Progress<string>(line =>
             {
@@ -2198,7 +2284,7 @@ public sealed class MainWindowViewModel : ViewModelBase
             case 7:
                 CurrentStepTitle = "Brain";
                 CurrentStepSubtitle =
-                    "Manage the local coding model, MCP gateway, and browser UI for Nymphs-Brain.";
+                    "Manage the local coding model, MCP gateway, browser UI, and optional OpenRouter tools for Nymphs-Brain.";
                 PrimaryButtonText = "Close";
                 break;
         }
@@ -2223,6 +2309,7 @@ public sealed class MainWindowViewModel : ViewModelBase
         _startBrainLlmCommand.RaiseCanExecuteChanged();
         _openBrainWebUiCommand.RaiseCanExecuteChanged();
         _updateBrainWebUiCommand.RaiseCanExecuteChanged();
+        _applyBrainOpenRouterKeyCommand.RaiseCanExecuteChanged();
         _changeBrainModelCommand.RaiseCanExecuteChanged();
         _stopBrainLlmCommand.RaiseCanExecuteChanged();
         _backCommand.RaiseCanExecuteChanged();
@@ -2427,7 +2514,7 @@ public sealed class MainWindowViewModel : ViewModelBase
 
         return settings.DownloadBrainModelNow
             ? $"Nymphs-Brain: enabled, install root={settings.BrainInstallRoot}, model download requested."
-            : $"Nymphs-Brain: enabled, install root={settings.BrainInstallRoot}, model selection handled later with Manage Models.";
+            : $"Nymphs-Brain: enabled, install root={settings.BrainInstallRoot}, local and remote model selection handled later with Manage Models.";
     }
 
     private static UpdateCheckPresentation BuildFriendlyUpdateCheckSummary(IEnumerable<string> lines)

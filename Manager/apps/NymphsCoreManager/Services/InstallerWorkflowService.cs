@@ -362,6 +362,12 @@ public sealed class InstallerWorkflowService
             scriptArguments.Add("--download-model");
         }
 
+        if (!string.IsNullOrWhiteSpace(settings.OpenRouterApiKey))
+        {
+            scriptArguments.Add("--openrouter-api-key");
+            scriptArguments.Add(settings.OpenRouterApiKey);
+        }
+
         // Detect actual GPU VRAM from Windows (not WSL) for correct LLM recommendations
         var gpuVramMb = GetDetectedGpuVramMb();
 
@@ -386,7 +392,7 @@ public sealed class InstallerWorkflowService
         progress.Report(gpuVramMb > 0
             ? $"Nymphs-Brain: detected {gpuVramMb} MB GPU VRAM from Windows for model recommendations."
             : "Nymphs-Brain: GPU VRAM detection failed, using WSL fallback.");
-        progress.Report("Nymphs-Brain: tools will be installed now. Use the Brain page Manage Models action after install to download/select Plan and Act models.");
+        progress.Report("Nymphs-Brain: tools will be installed now. Use the Brain page Manage Models action after install to choose local Plan/Act models and the optional remote llm-wrapper model.");
 
         var result = await _processRunner.RunAsync(
             fileName: "wsl.exe",
@@ -1202,17 +1208,56 @@ public sealed class InstallerWorkflowService
             return $"timeout --foreground 120s {ToBashSingleQuoted(toolPath)}";
         }
 
+        if (toolName == "brain-apply-openrouter-key")
+        {
+            if (string.IsNullOrWhiteSpace(settings.OpenRouterApiKey))
+            {
+                return "echo 'OpenRouter API key is missing.' >&2; exit 2";
+            }
+
+            var secretDir = $"{settings.BrainInstallRoot}/secrets";
+            var secretFile = $"{secretDir}/llm-wrapper.env";
+            var keyLine = $"OPENROUTER_API_KEY={settings.OpenRouterApiKey}";
+
+            return new StringBuilder()
+                .Append("mkdir -p ")
+                .Append(ToBashSingleQuoted(secretDir))
+                .Append("; ")
+                .Append("printf '%s\\n' ")
+                .Append(ToBashSingleQuoted("# Nymphs-Brain llm-wrapper configuration"))
+                .Append(" ")
+                .Append(ToBashSingleQuoted(keyLine))
+                .Append(" > ")
+                .Append(ToBashSingleQuoted(secretFile))
+                .Append("; ")
+                .Append("chmod 600 ")
+                .Append(ToBashSingleQuoted(secretFile))
+                .Append("; ")
+                .Append("echo 'OpenRouter key updated for Nymphs-Brain llm-wrapper.'")
+                .ToString();
+        }
+
         if (toolName == "brain-refresh")
         {
             var brainScript = RequireScript("install_nymphs_brain.sh");
             var wslBrainScriptPath = ConvertWindowsPathToWsl(brainScript)
                 ?? throw new InvalidOperationException($"Could not convert script path for WSL: {brainScript}");
-            return $"if [[ -x {ToBashSingleQuoted(toolPath)} ]]; then " +
-                   $"{ToBashSingleQuoted(toolPath)}; " +
-                   "else " +
-                   "echo 'Nymphs-Brain brain-refresh missing; bootstrapping wrapper refresh from packaged installer.'; " +
-                   $"bash {ToBashSingleQuoted(wslBrainScriptPath)} --install-root {ToBashSingleQuoted(settings.BrainInstallRoot)} --quiet; " +
-                   "fi";
+            var commandBuilder = new StringBuilder()
+                .Append("echo 'Refreshing Nymphs-Brain from the Manager-packaged installer...'; ")
+                .Append("bash ")
+                .Append(ToBashSingleQuoted(wslBrainScriptPath))
+                .Append(" --install-root ")
+                .Append(ToBashSingleQuoted(settings.BrainInstallRoot))
+                .Append(" --quiet");
+
+            if (!string.IsNullOrWhiteSpace(settings.OpenRouterApiKey))
+            {
+                commandBuilder
+                    .Append(" --openrouter-api-key ")
+                    .Append(ToBashSingleQuoted(settings.OpenRouterApiKey));
+            }
+
+            return commandBuilder.ToString();
         }
 
         return ToBashSingleQuoted(toolPath);
@@ -1220,7 +1265,7 @@ public sealed class InstallerWorkflowService
 
     private static string BuildNymphsBrainToolPreflight(InstallSettings settings, string toolName, string toolPath)
     {
-        if (toolName == "brain-refresh")
+        if (toolName is "brain-refresh" or "brain-apply-openrouter-key")
         {
             return string.Empty;
         }
@@ -1278,6 +1323,7 @@ public sealed class InstallerWorkflowService
     {
         return toolName is
             "lms-start" or
+            "brain-apply-openrouter-key" or
             "brain-refresh" or
             "lms-update" or
             "lms-stop" or

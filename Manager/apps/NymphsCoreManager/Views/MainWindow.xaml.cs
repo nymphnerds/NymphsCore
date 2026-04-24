@@ -98,6 +98,16 @@ public partial class MainWindow : Window
         _viewModel.HuggingFaceToken = passwordBox.Password;
     }
 
+    private void OnBrainOpenRouterApiKeyChanged(object sender, RoutedEventArgs e)
+    {
+        if (_viewModel is null || sender is not PasswordBox passwordBox)
+        {
+            return;
+        }
+
+        _viewModel.BrainOpenRouterApiKey = passwordBox.Password;
+    }
+
     private static T? FindDescendant<T>(DependencyObject root) where T : DependencyObject
     {
         for (var i = 0; i < VisualTreeHelper.GetChildrenCount(root); i++)

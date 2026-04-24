@@ -264,6 +264,28 @@ Why it matters:
 - the Brain module is now part of the user-facing docs and not just an internal experimental thread
 - Blender-first users can still ignore it completely without affecting the main backend install
 
+### 2026-04-24 Brain llm-wrapper integrated as a Manager-first feature
+Source: follow-up Brain installer work after testing `context7`, `mcpo`, Open WebUI seeding, and the new cached remote wrapper runtime on live Windows + WSL installs.
+
+Documented changes:
+
+- integrated the dropped `remote_llm_mcp` bundle into the repo as a tracked NymphsCore component
+- changed the Brain installer to copy and launch the bundled `cached_llm_mcp_server.py` runtime instead of the older pip-only path
+- added a compact Brain-page `OpenRouter key` row plus `Apply Key` action in Manager
+- made `llm-wrapper` optional so Brain still starts cleanly when no OpenRouter key is present
+- added remote `llm-wrapper` model selection to the same `Manage Models` flow that already handles local `Plan` / `Act`
+- updated Brain status so the Manager card shows the assigned remote model when present
+- verified Open WebUI tool-server seeding for `filesystem`, `memory`, `web-forager`, `context7`, and `llm-wrapper`
+- documented the direct wrapper test endpoint and confirmed cache `MISS` / `HIT` behavior
+- refreshed Brain docs, HTML pages, README copy, and the bundled wrapper README around the Manager-first setup path
+
+Why it matters:
+
+- `llm-wrapper` is now part of the actual NymphsCore Brain product path instead of a sidecar shell-thread
+- Brain can expose local and remote model roles from one central management surface
+- users can enable or skip the remote delegation layer without destabilizing the rest of Brain
+- repo docs now describe the same workflow people actually use in the Manager UI
+
 ### 2026-04-18 commercial docs and addon preset cleanup
 Source: remote repository cleanup for the planned commercial Blender addon product.
 
