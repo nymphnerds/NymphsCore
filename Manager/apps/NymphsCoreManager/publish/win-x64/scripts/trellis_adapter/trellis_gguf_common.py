@@ -232,6 +232,30 @@ def patch_hf_local_path_validation() -> None:
         return
 
 
+def patch_trellis2_gguf_dinov3() -> None:
+    import torch
+
+    from trellis2_gguf.modules import image_feature_extractor
+
+    def patched_dino_extract_features(self, image: torch.Tensor) -> torch.Tensor:
+        from torch.nn import functional as F
+
+        image = image.to(self.model.embeddings.patch_embeddings.weight.dtype)
+        hidden_states = self.model.embeddings(image, bool_masked_pos=None)
+        position_embeddings = self.model.rope_embeddings(image)
+
+        layers = self.model.layer if hasattr(self.model, "layer") else self.model.model.layer
+        for layer_module in layers:
+            hidden_states = layer_module(
+                hidden_states,
+                position_embeddings=position_embeddings,
+            )
+
+        return F.layer_norm(hidden_states, hidden_states.shape[-1:])
+
+    image_feature_extractor.DinoV3FeatureExtractor.extract_features = patched_dino_extract_features
+
+
 def ensure_trellis2_gguf_ready(model_root: Path) -> None:
     import torch  # noqa: F401
 
@@ -239,6 +263,7 @@ def ensure_trellis2_gguf_ready(model_root: Path) -> None:
     patch_hf_local_path_validation()
     try:
         from trellis2_gguf.pipelines import Trellis2ImageTo3DPipeline  # noqa: F401
+        patch_trellis2_gguf_dinov3()
     except ImportError as exc:
         raise RuntimeError(
             "trellis2_gguf is not installed in this TRELLIS runtime. "
