@@ -5,7 +5,7 @@ Live Blender addon implementation for Nymphs.
 bl_info = {
     "name": "Nymphs",
     "author": "Nymphs3D",
-    "version": (1, 1, 168),
+    "version": (1, 1, 169),
     "blender": (4, 2, 0),
     "location": "View3D > Sidebar > Nymphs",
     "description": "Blender client for NymphsCore image, shape, and texture backends",
