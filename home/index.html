@@ -627,6 +627,17 @@
     border: 1px solid rgba(85,223,240,0.2);
   }
 
+  a.feature-tag {
+    text-decoration: none;
+    transition: border-color 0.15s, color 0.15s, background 0.15s;
+  }
+
+  a.feature-tag:hover {
+    color: var(--light);
+    border-color: rgba(99,227,95,0.32);
+    background: rgba(99,227,95,0.10);
+  }
+
   .audience-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -796,6 +807,7 @@
   <ul class="nav-links">
     <li><a href="#workflow">Workflow</a></li>
     <li><a href="#features">Features</a></li>
+    <li><a href="brain.html">Brain Guide</a></li>
     <li><a href="#fit">Who it's for</a></li>
     <li><a href="https://github.com/nymphnerds/NymphsCore" class="nav-cta">GitHub ↗</a></li>
   </ul>
@@ -931,7 +943,7 @@
       <div class="feature-icon teal">🧠</div>
       <div class="feature-title">Optional Brain layer</div>
       <div class="feature-desc">Nymphs-Brain adds a local LLM, MCP, and Open WebUI ecosystem for people who want it, without replacing the main Blender pipeline.</div>
-      <div class="feature-tag">Optional add-on</div>
+      <a href="brain.html" class="feature-tag">Open Brain guide</a>
       <img class="brain-card-art" src="assets/NymphBrain.png" alt="">
     </div>
   </div>
