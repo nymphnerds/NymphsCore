@@ -5,7 +5,7 @@ Live Blender addon implementation for Nymphs.
 bl_info = {
     "name": "Nymphs",
     "author": "Nymphs3D",
-    "version": (1, 1, 163),
+    "version": (1, 1, 164),
     "blender": (4, 2, 0),
     "location": "View3D > Sidebar > Nymphs",
     "description": "Blender client for NymphsCore image, shape, and texture backends",
@@ -7358,13 +7358,12 @@ class NYMPHSV2_PT_image_generation(bpy.types.Panel):
         image_backend = getattr(state, "imagegen_backend", "Z_IMAGE")
 
         if image_backend == "Z_IMAGE":
+            runtime_box = panel.box()
+            runtime_box.label(text="Z-Image Runtime")
             if not zimage_runtime_ready:
                 state.show_image_generation = False
-                hint = panel.box()
-                hint.label(text="Start Z-Image in Runtimes.")
-                _draw_service_control_row(hint, state, "n2d2")
-            else:
-                _draw_service_control_row(panel, state, "n2d2")
+                runtime_box.label(text="Start Z-Image before generating.")
+            _draw_service_control_row(runtime_box, state, "n2d2")
 
         generation_box = panel.box()
         generation_box.prop(
