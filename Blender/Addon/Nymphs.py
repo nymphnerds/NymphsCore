@@ -5,7 +5,7 @@ Live Blender addon implementation for Nymphs.
 bl_info = {
     "name": "Nymphs",
     "author": "Nymphs3D",
-    "version": (1, 1, 172),
+    "version": (1, 1, 173),
     "blender": (4, 2, 0),
     "location": "View3D > Sidebar > Nymphs",
     "description": "Blender client for NymphsCore image, shape, and texture backends",
@@ -7412,9 +7412,6 @@ class NYMPHSV2_PT_image_generation(bpy.types.Panel):
             request = generation_box.column(align=True)
 
             if image_backend == "Z_IMAGE":
-                request.label(text="Profile")
-                settings_preset_row = request.row(align=True)
-                settings_preset_row.prop(state, "imagegen_settings_preset", text="")
                 settings_preset_tools = request.row(align=True)
                 settings_preset_tools.operator("nymphsv2.save_imagegen_settings_preset", text="Save")
                 settings_preset_tools.operator("nymphsv2.delete_imagegen_settings_preset", text="Delete")
