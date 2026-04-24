@@ -7386,9 +7386,6 @@ class NYMPHSV2_PT_image_generation(bpy.types.Panel):
             else:
                 _draw_service_control_row(panel, state, "n2d2")
 
-        if image_backend == "Z_IMAGE" and not zimage_runtime_ready and state.show_image_generation:
-            state.show_image_generation = False
-
         generation_box = panel.box()
         generation_box.prop(
             state,
