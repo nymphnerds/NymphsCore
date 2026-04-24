@@ -5,7 +5,7 @@ Live Blender addon implementation for Nymphs.
 bl_info = {
     "name": "Nymphs",
     "author": "Nymphs3D",
-    "version": (1, 1, 170),
+    "version": (1, 1, 171),
     "blender": (4, 2, 0),
     "location": "View3D > Sidebar > Nymphs",
     "description": "Blender client for NymphsCore image, shape, and texture backends",
@@ -7359,6 +7359,10 @@ class NYMPHSV2_PT_image_generation(bpy.types.Panel):
         panel = layout.column(align=True)
         image_backend = _imagegen_backend_key(state)
         zimage_runtime_ready = _service_runtime_is_available(state, "n2d2")
+        show_generation = bool(
+            getattr(state, "show_image_generation", False)
+            and (image_backend != "Z_IMAGE" or zimage_runtime_ready)
+        )
         top = _draw_imagegen_status_box(panel, state)
 
         backend_row = top.row(align=True)
@@ -7366,8 +7370,6 @@ class NYMPHSV2_PT_image_generation(bpy.types.Panel):
         image_backend = _imagegen_backend_key(state)
 
         if image_backend == "Z_IMAGE":
-            if not zimage_runtime_ready:
-                state.show_image_generation = False
             try:
                 _sync_imagegen_settings_preset(state)
                 profile_label_row = top.row(align=True)
@@ -7386,10 +7388,10 @@ class NYMPHSV2_PT_image_generation(bpy.types.Panel):
             state,
             "show_image_generation",
             text="Image Generation",
-            icon="TRIA_DOWN" if state.show_image_generation else "TRIA_RIGHT",
+            icon="TRIA_DOWN" if show_generation else "TRIA_RIGHT",
             emboss=False,
         )
-        if state.show_image_generation:
+        if show_generation:
             _sync_imagegen_prompt_preset(state)
             if image_backend == "Z_IMAGE":
                 _ensure_imagegen_profile_defaults(state)
