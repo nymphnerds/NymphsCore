@@ -643,7 +643,7 @@
       <div class="badge"><div class="badge-dot"></div>Cloud model bridge · Prompt cache · OpenRouter</div>
     </div>
     <h1>Cached LLM Wrapper.<br><em>Smart cloud delegation without losing local flow.</em></h1>
-    <p class="hero-sub">Keep everyday work on your local model, then hand off the expensive reasoning jobs to stronger cloud models only when needed. The wrapper adds <strong>prompt caching</strong>, <strong>one-shot tool calls</strong>, and a clean MCP path back into your local Brain stack.</p>
+  <p class="hero-sub">Keep everyday work on your local model, then hand off the expensive reasoning jobs to stronger cloud models only when needed. The wrapper adds <strong>prompt caching</strong>, <strong>one-shot tool calls</strong>, and a clean MCP path back into your local Brain stack through <strong>Manager or shell setup</strong>.</p>
     <div class="cta-row">
       <a href="#install" class="btn-primary">See installation →</a>
       <a href="#models" class="btn-ghost">Browse cloud models</a>
@@ -654,7 +654,7 @@
     <div class="hero-panel-inner">
       <div class="hero-panel-label">// Why it exists</div>
       <div class="hero-panel-title">Use local by default.<br>Escalate only when it matters.</div>
-      <p class="hero-panel-text">This wrapper keeps the Brain stack grounded in local inference while still letting you reach GPT, Claude, Gemini, DeepSeek, and free OpenRouter options for the hard stuff.</p>
+      <p class="hero-panel-text">This wrapper keeps the Brain stack grounded in local inference while still letting you reach GPT, Claude, Gemini, DeepSeek, and free OpenRouter options for the hard stuff when you choose to enable it.</p>
       <ul class="hero-points">
         <li>Identical prompts return instantly from local cache.</li>
         <li><code>llm_call</code> stays one-shot to avoid recursive loops.</li>
@@ -775,6 +775,18 @@ J --> K["Local AI incorporates into response"]
       <span class="model-best-for">Quick responses</span>
       <div class="model-cost">~$0.25 / 1M tokens</div>
     </div>
+    <div class="card">
+      <span class="model-number">7</span>
+      <div class="card-title">openai/gpt-4o-mini</div>
+      <span class="model-best-for">Lightweight GPT-4</span>
+      <div class="model-cost">~$0.15 / 1M tokens</div>
+    </div>
+    <div class="card">
+      <span class="model-number">9</span>
+      <div class="card-title">Custom OpenRouter model</div>
+      <span class="model-best-for">Bring your own model ID</span>
+      <div class="model-cost">Varies by provider and model</div>
+    </div>
   </div>
 </section>
 
@@ -802,7 +814,7 @@ J --> K["Local AI incorporates into response"]
 <section class="section section-alt">
   <div class="section-tag">// Config</div>
   <h2 class="section-title">Files created.<br>Defaults worth knowing.</h2>
-  <p class="section-sub">Installation drops a few core files into the Brain stack and gives you a small set of cache-related defaults that can be tuned later.</p>
+  <p class="section-sub">Installation drops a few core files into the Brain stack and gives you a small set of cache-related defaults that can be tuned later. If no OpenRouter key is present, the Brain stack simply skips the wrapper instead of blocking startup.</p>
 
   <div class="file-list" style="margin-bottom: 26px;">
     <div class="file-item">
@@ -816,6 +828,10 @@ J --> K["Local AI incorporates into response"]
     <div class="file-item">
       <span class="file-name">Nymphs-Brain/mcp/data/llm_cache/prompt_cache.sqlite</span>
       <span class="file-purpose">SQLite cache database for stored prompt results.</span>
+    </div>
+    <div class="file-item">
+      <span class="file-name">Nymphs-Brain/mcp/config/open-webui-tool-servers.json</span>
+      <span class="file-purpose">Brain-managed Open WebUI tool routes, including llm-wrapper when enabled.</span>
     </div>
   </div>
 
@@ -837,11 +853,16 @@ J --> K["Local AI incorporates into response"]
 
 <section class="section" id="install">
   <div class="section-tag">// Install</div>
-  <h2 class="section-title">Installation.<br>Three clear steps.</h2>
-  <p class="section-sub">The installer asks for your OpenRouter API key and which hosted model to use, then wires the wrapper into the Brain stack.</p>
+  <h2 class="section-title">Enable it.<br>Manager first, shell if you want.</h2>
+  <p class="section-sub">The easiest path is now inside NymphsCore Manager. Enter an OpenRouter key on the Brain page, apply it, and start or refresh Brain. The shell installer still exists for direct manual installs and advanced tweaking.</p>
+
+  <div class="highlight-box" style="margin-bottom: 24px;">
+    <strong>Manager flow:</strong> Open the Brain page, enter your OpenRouter key on the one-line <code>OpenRouter key</code> row, click <code>Apply Key</code>, then start Brain or run <code>Update Stack</code>. When the key exists, Brain adds <code>llm-wrapper</code> to MCP, mcpo, and Open WebUI automatically. When the key is missing, Brain leaves the wrapper out and the rest of the stack still starts normally.
+  </div>
 
   <div class="code-block">
-<code># Step 1: Make the script executable
+<code># Manual shell flow
+# Step 1: Make the script executable
 cd /path/to/remote_llm_mcp
 chmod +x install-llm-wrapper.sh
 
@@ -853,7 +874,7 @@ chmod +x install-llm-wrapper.sh
   </div>
 
   <div class="highlight-box">
-    <strong>WSL support:</strong> The installer automatically detects WSL and adjusts the MCP proxy binding so Windows applications can connect correctly through localhost forwarding.
+    <strong>WSL support:</strong> The shell installer automatically detects WSL and adjusts the MCP proxy binding so Windows applications can connect correctly through localhost forwarding.
   </div>
 </section>
 
