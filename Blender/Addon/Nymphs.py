@@ -7371,8 +7371,13 @@ class NYMPHSV2_PT_image_generation(bpy.types.Panel):
 
         panel = layout.column(align=True)
         image_backend = getattr(state, "imagegen_backend", "Z_IMAGE")
-        zimage_runtime_ready = image_backend != "Z_IMAGE" or _service_runtime_is_available(state, "n2d2")
+        zimage_runtime_ready = _service_runtime_is_available(state, "n2d2")
         _draw_imagegen_status_box(panel, state)
+
+        backend_row = panel.row(align=True)
+        backend_row.prop(state, "imagegen_backend", text="Runtime", expand=True)
+        image_backend = getattr(state, "imagegen_backend", "Z_IMAGE")
+
         if image_backend == "Z_IMAGE":
             if not zimage_runtime_ready:
                 hint = panel.box()
@@ -7393,10 +7398,6 @@ class NYMPHSV2_PT_image_generation(bpy.types.Panel):
             emboss=False,
         )
         if state.show_image_generation:
-            backend_row = generation_box.row(align=True)
-            backend_row.prop(state, "imagegen_backend", expand=True)
-            image_backend = getattr(state, "imagegen_backend", "Z_IMAGE")
-
             _sync_imagegen_prompt_preset(state)
             if image_backend == "Z_IMAGE":
                 _ensure_imagegen_profile_defaults(state)
