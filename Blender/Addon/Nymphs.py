@@ -1917,6 +1917,24 @@ def _open_text_in_editor(context, text):
                 space.show_word_wrap = True
             except Exception:
                 pass
+            try:
+                text.current_line_index = 0
+                text.current_character = 0
+                text.select_end_line_index = 0
+                text.select_end_character = 0
+            except Exception:
+                pass
+            try:
+                space.top = 0
+            except Exception:
+                pass
+            try:
+                window_region = next((region for region in target_area.regions if region.type == "WINDOW"), None)
+                if window_region is not None:
+                    with context.temp_override(area=target_area, region=window_region, space_data=space):
+                        bpy.ops.text.jump(line=1)
+            except Exception:
+                pass
             return True
     return False
 
