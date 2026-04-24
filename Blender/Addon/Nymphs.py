@@ -5,7 +5,7 @@ Live Blender addon implementation for Nymphs.
 bl_info = {
     "name": "Nymphs",
     "author": "Nymphs3D",
-    "version": (1, 1, 169),
+    "version": (1, 1, 170),
     "blender": (4, 2, 0),
     "location": "View3D > Sidebar > Nymphs",
     "description": "Blender client for NymphsCore image, shape, and texture backends",
@@ -7368,19 +7368,18 @@ class NYMPHSV2_PT_image_generation(bpy.types.Panel):
         if image_backend == "Z_IMAGE":
             if not zimage_runtime_ready:
                 state.show_image_generation = False
-                try:
-                    _sync_imagegen_settings_preset(state)
-                    profile_label_row = top.row(align=True)
-                    profile_label_row.label(text="Profile")
-                    profile_label_row.operator("nymphsv2.load_imagegen_settings_preset", text="Apply")
-                    profile_row = top.row(align=True)
-                    profile_row.prop(state, "imagegen_settings_preset", text="")
-                except Exception:
-                    top.label(text="Profile unavailable.")
+            try:
+                _sync_imagegen_settings_preset(state)
+                profile_label_row = top.row(align=True)
+                profile_label_row.label(text="Profile")
+                profile_label_row.operator("nymphsv2.load_imagegen_settings_preset", text="Apply")
+                profile_row = top.row(align=True)
+                profile_row.prop(state, "imagegen_settings_preset", text="")
+            except Exception:
+                top.label(text="Profile unavailable.")
+            if not zimage_runtime_ready:
                 top.label(text="Start Z-Image in Runtimes.")
-                _draw_service_control_row(top, state, "n2d2")
-            else:
-                _draw_service_control_row(top, state, "n2d2")
+            _draw_service_control_row(top, state, "n2d2")
 
         generation_box = panel.box()
         generation_box.prop(
