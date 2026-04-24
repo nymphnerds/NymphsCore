@@ -16,7 +16,9 @@ Tracked adapter files:
 
 ```text
 api_server_trellis.py
+api_server_trellis_gguf.py
 run_official_image_to_3d.py
 run_official_shape_only.py
+trellis_gguf_common.py
 trellis_official_common.py
 ```

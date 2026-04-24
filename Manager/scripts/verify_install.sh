@@ -88,7 +88,9 @@ verify_trellis() {
   require_file "${TRELLIS_DIR}/.git"
   require_file "${TRELLIS_DIR}/.venv/bin/python"
   require_file "${TRELLIS_DIR}/scripts/api_server_trellis.py"
+  require_file "${TRELLIS_DIR}/scripts/api_server_trellis_gguf.py"
   require_file "${TRELLIS_DIR}/scripts/trellis_official_common.py"
+  require_file "${TRELLIS_DIR}/scripts/trellis_gguf_common.py"
 
   (
     cd "${TRELLIS_DIR}"
@@ -96,7 +98,7 @@ verify_trellis() {
     configure_cuda_env
     configure_hf_env
     python --version
-    python -m py_compile scripts/api_server_trellis.py scripts/trellis_official_common.py scripts/run_official_image_to_3d.py scripts/run_official_shape_only.py
+    python -m py_compile scripts/api_server_trellis.py scripts/api_server_trellis_gguf.py scripts/trellis_official_common.py scripts/trellis_gguf_common.py scripts/run_official_image_to_3d.py scripts/run_official_shape_only.py
     python - <<'PY'
 import importlib
 import json
@@ -113,6 +115,9 @@ for module_name in (
     "cv2",
     "kornia",
     "timm",
+    "trellis2_gguf",
+    "gguf",
+    "rembg",
 ):
     importlib.import_module(module_name)
 
@@ -140,6 +145,7 @@ print("Runtime imports available for TRELLIS.2.")
 print("Shared-cache TRELLIS model bundle is present.")
 PY
     python scripts/api_server_trellis.py --help >/dev/null
+    python scripts/api_server_trellis_gguf.py --help >/dev/null
   )
 }
 

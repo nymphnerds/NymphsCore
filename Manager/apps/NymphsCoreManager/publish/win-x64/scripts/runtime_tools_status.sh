@@ -142,6 +142,20 @@ PY
   )
 }
 
+probe_trellis_gguf_runtime() {
+  (
+    cd "${TRELLIS_DIR}"
+    source .venv/bin/activate
+    configure_nymphs3d_hf_env
+    python - <<'PY' >/dev/null 2>&1
+import importlib
+
+for module_name in ("trellis2_gguf", "gguf", "rembg"):
+    importlib.import_module(module_name)
+PY
+  )
+}
+
 check_zimage() {
   if [[ ! -d "${N2D2_DIR}/.git" ]]; then
     emit_status "zimage" "Z-Image" "no" "no" "no" "Repo is missing from the managed runtime."
@@ -174,6 +188,16 @@ check_trellis() {
 
   if [[ ! -f "${TRELLIS_DIR}/scripts/api_server_trellis.py" ]]; then
     emit_status "trellis" "TRELLIS.2" "no" "no" "no" "Managed TRELLIS adapter scripts are missing. Run repair or update the manager package."
+    return
+  fi
+
+  if [[ ! -f "${TRELLIS_DIR}/scripts/api_server_trellis_gguf.py" ]]; then
+    emit_status "trellis" "TRELLIS.2" "yes" "yes" "no" "Official runtime is present, but the optional GGUF adapter is missing. Run repair to enable TRELLIS.2 GGUF."
+    return
+  fi
+
+  if ! probe_trellis_gguf_runtime; then
+    emit_status "trellis" "TRELLIS.2" "yes" "yes" "no" "Official runtime is present, but optional GGUF runtime packages are missing. Run repair to enable TRELLIS.2 GGUF."
     return
   fi
 
