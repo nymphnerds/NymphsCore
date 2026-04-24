@@ -5,7 +5,7 @@ Live Blender addon implementation for Nymphs.
 bl_info = {
     "name": "Nymphs",
     "author": "Nymphs3D",
-    "version": (1, 1, 162),
+    "version": (1, 1, 163),
     "blender": (4, 2, 0),
     "location": "View3D > Sidebar > Nymphs",
     "description": "Blender client for NymphsCore image, shape, and texture backends",
@@ -2001,12 +2001,23 @@ def _trellis_seed_value(state):
 
 def _imagegen_seed_value(state, *, fallback_seed=None):
     seed = fallback_seed if fallback_seed is not None else _parse_optional_seed(state.imagegen_seed)
-    if seed is not None:
+    if seed is not None and seed < 0:
+        raise RuntimeError("Z-Image seed must be 0 for random, blank for random, or a positive whole number.")
+    if seed is not None and seed > 0:
         return seed, False
     generated = int(time.time() * 1000) % 2147483647
     if generated <= 0:
         generated = 1
     return generated, True
+
+
+def _imagegen_single_seed_value(state):
+    seed = _parse_optional_seed(getattr(state, "imagegen_seed", ""))
+    if seed is None or seed == 0:
+        return None
+    if seed < 0:
+        raise RuntimeError("Z-Image seed must be 0 for random, blank for random, or a positive whole number.")
+    return seed
 
 
 def _sanitize_name_fragment(value, fallback="result"):
@@ -2122,7 +2133,7 @@ def _blender_path_is_file(state, raw_path):
 
 def _build_imagegen_payload(state):
     prompt = _resolved_imagegen_prompt(state)
-    return _build_imagegen_payload_for_prompt(state, prompt=prompt)
+    return _build_imagegen_payload_for_prompt(state, prompt=prompt, seed=_imagegen_single_seed_value(state))
 
 
 def _build_imagegen_payload_for_prompt(state, *, prompt, seed=None):
@@ -5596,8 +5607,8 @@ class NymphsV2State(bpy.types.PropertyGroup):
         max=20.0,
     )
     imagegen_seed: StringProperty(
-        name="Seed (optional)",
-        description="Leave blank for a random image. Enter a number to repeat a result or generate related variants.",
+        name="Seed",
+        description="Z-Image seed. Leave blank or enter 0 for random; enter a positive whole number to repeat a result or generate related variants.",
         default="",
     )
     imagegen_variant_count: IntProperty(
@@ -5614,7 +5625,7 @@ class NymphsV2State(bpy.types.PropertyGroup):
     )
     imagegen_seed_step: IntProperty(
         name="Seed Step",
-        description="Seed increment for single-image variants.",
+        description="For Z-Image variants, add this amount to the starting seed for each next image.",
         default=1,
         min=1,
         max=1000000,
@@ -7348,6 +7359,7 @@ class NYMPHSV2_PT_image_generation(bpy.types.Panel):
 
         if image_backend == "Z_IMAGE":
             if not zimage_runtime_ready:
+                state.show_image_generation = False
                 hint = panel.box()
                 hint.label(text="Start Z-Image in Runtimes.")
                 _draw_service_control_row(hint, state, "n2d2")
@@ -7456,19 +7468,19 @@ class NYMPHSV2_PT_image_generation(bpy.types.Panel):
                 settings_row.prop(state, "imagegen_guidance_scale")
 
                 seed_row = request.row(align=True)
-                seed_row.prop(state, "imagegen_seed", text="Seed")
+                seed_row.prop(state, "imagegen_seed", text="Seed (0=random)")
             variant_row = request.row(align=True)
             variant_row.prop(state, "imagegen_variant_count")
             if image_backend == "Z_IMAGE":
-                variant_row.prop(state, "imagegen_seed_step", text="Step")
+                variant_row.prop(state, "imagegen_seed_step", text="Seed Step")
 
             generate_label = "Generate Image" if int(getattr(state, "imagegen_variant_count", 1)) <= 1 else "Generate Variants"
+            _draw_imagegen_folder_actions(request)
             primary_action = request.row(align=True)
             runtime_ready = image_backend != "Z_IMAGE" or zimage_runtime_ready
             primary_action.enabled = runtime_ready and not state.is_busy and not state.imagegen_is_busy
-            primary_action.scale_y = 1.25
+            primary_action.scale_y = 1.65
             primary_action.operator("nymphsv2.generate_image", text=generate_label, icon="RENDER_STILL")
-            _draw_imagegen_folder_actions(request)
 
         if image_backend == "GEMINI":
             parts_box = panel.box()
