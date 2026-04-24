@@ -5,7 +5,7 @@ Live Blender addon implementation for Nymphs.
 bl_info = {
     "name": "Nymphs",
     "author": "Nymphs3D",
-    "version": (1, 1, 171),
+    "version": (1, 1, 172),
     "blender": (4, 2, 0),
     "location": "View3D > Sidebar > Nymphs",
     "description": "Blender client for NymphsCore image, shape, and texture backends",
@@ -1662,6 +1662,17 @@ def _ensure_imagegen_profile_defaults(state):
     if current_steps <= 1 and profile_steps > current_steps:
         state.imagegen_steps = profile_steps
     return key
+
+
+def _on_imagegen_settings_preset_changed(self, context):
+    state = self
+    preset = _imagegen_settings_preset_data(_sync_imagegen_settings_preset(state))
+    values = preset.get("values", {})
+    if not values:
+        return
+    _apply_imagegen_settings_preset(state, values)
+    state.imagegen_status_text = f"Loaded profile: {preset['label']}"
+    _touch_ui()
 
 
 def _trellis_shape_preset_dir():
@@ -5577,6 +5588,7 @@ class NymphsV2State(bpy.types.PropertyGroup):
         name="Generation Profile",
         description="Load a reusable Z-Image profile. Built-in profiles can switch Nunchaku rank, image size, steps, and variants.",
         items=_imagegen_settings_preset_items,
+        update=_on_imagegen_settings_preset_changed,
     )
     imagegen_width: IntProperty(
         name="Width",
@@ -7372,9 +7384,7 @@ class NYMPHSV2_PT_image_generation(bpy.types.Panel):
         if image_backend == "Z_IMAGE":
             try:
                 _sync_imagegen_settings_preset(state)
-                profile_label_row = top.row(align=True)
-                profile_label_row.label(text="Profile")
-                profile_label_row.operator("nymphsv2.load_imagegen_settings_preset", text="Apply")
+                top.label(text="Profile")
                 profile_row = top.row(align=True)
                 profile_row.prop(state, "imagegen_settings_preset", text="")
             except Exception:
@@ -7402,9 +7412,7 @@ class NYMPHSV2_PT_image_generation(bpy.types.Panel):
             request = generation_box.column(align=True)
 
             if image_backend == "Z_IMAGE":
-                settings_label_row = request.row(align=True)
-                settings_label_row.label(text="Profile")
-                settings_label_row.operator("nymphsv2.load_imagegen_settings_preset", text="Apply")
+                request.label(text="Profile")
                 settings_preset_row = request.row(align=True)
                 settings_preset_row.prop(state, "imagegen_settings_preset", text="")
                 settings_preset_tools = request.row(align=True)
