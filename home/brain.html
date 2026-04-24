@@ -1043,7 +1043,7 @@
   <div class="command-group">
     <div class="group-head">
       <h3>MCP Gateway Commands</h3>
-      <p class="group-note">This layer exposes the tool server with filesystem, memory, web-forager, and context7.</p>
+      <p class="group-note">This layer starts the full Brain tool stack: filesystem, memory, web-forager, context7, and llm-wrapper, plus the mcpo OpenAPI bridge for Open WebUI.</p>
     </div>
     <div class="table-shell">
       <div class="table-wrap">
@@ -1052,20 +1052,20 @@
             <tr><th>Command</th><th>What It Does</th></tr>
           </thead>
           <tbody>
-            <tr><td><code>mcp-start</code></td><td>Starts the MCP gateway with 4 tools: filesystem, memory, web-forager, and context7.</td></tr>
+            <tr><td><code>mcp-start</code></td><td>Starts the MCP gateway, the mcpo OpenAPI bridge, and all 5 Brain tools.</td></tr>
             <tr><td><code>mcp-status</code></td><td>Shows MCP status and URLs.</td></tr>
             <tr><td><code>mcp-stop</code></td><td>Stops the MCP gateway.</td></tr>
           </tbody>
         </table>
       </div>
-      <p class="table-caption"><strong>Default settings:</strong> port <code>8100</code>, URL <a href="http://localhost:8100">http://localhost:8100</a>.</p>
+      <p class="table-caption"><strong>Default settings:</strong> MCP runs on <code>8100</code> and mcpo runs on <code>8099</code>.</p>
     </div>
   </div>
 
   <div class="command-group">
     <div class="group-head">
       <h3>Open WebUI Commands</h3>
-      <p class="group-note">This is the local chat layer for talking to your running stack once the services are up.</p>
+      <p class="group-note">This is the local chat layer for talking to your running stack once the services are up. Brain now seeds the WebUI tool connections automatically through mcpo-backed OpenAPI routes.</p>
     </div>
     <div class="table-shell">
       <div class="table-wrap">
@@ -1080,6 +1080,7 @@
         </table>
       </div>
       <p class="table-caption"><strong>Default settings:</strong> port <code>8081</code>, URL <a href="http://localhost:8081">http://localhost:8081</a>.</p>
+      <p class="table-caption"><strong>Tool setup:</strong> <code>open-webui-start</code> seeds the Brain OpenAPI tool connections automatically from <code>/home/nymph/Nymphs-Brain/mcp/config/open-webui-tool-servers.json</code>.</p>
     </div>
   </div>
 </section>
@@ -1104,6 +1105,11 @@
       <div class="link-card-label">Model API</div>
       <div class="link-card-title">LM Studio API</div>
       <div class="link-card-url">http://localhost:1234/v1</div>
+    </a>
+    <a class="link-card" href="llmwrapper.html">
+      <div class="link-card-label">Cloud Delegation</div>
+      <div class="link-card-title">Cached LLM Wrapper</div>
+      <div class="link-card-url">Open wrapper guide</div>
     </a>
   </div>
 </section>
