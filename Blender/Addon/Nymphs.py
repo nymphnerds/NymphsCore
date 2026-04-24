@@ -5,7 +5,7 @@ Live Blender addon implementation for Nymphs.
 bl_info = {
     "name": "Nymphs",
     "author": "Nymphs3D",
-    "version": (1, 1, 161),
+    "version": (1, 1, 162),
     "blender": (4, 2, 0),
     "location": "View3D > Sidebar > Nymphs",
     "description": "Blender client for NymphsCore image, shape, and texture backends",
@@ -113,6 +113,7 @@ DEFAULT_IMAGEGEN_STYLE_PRESET = "__none__"
 PROMPT_KIND_SUBJECT = "subject"
 PROMPT_KIND_STYLE = "style"
 PROMPT_KIND_SAVED = "saved"
+RETIRED_IMAGEGEN_PROMPT_PRESET_KEYS = {"character_part_breakout"}
 PROMPT_KIND_LABELS = {
     PROMPT_KIND_SUBJECT: "Subject",
     PROMPT_KIND_STYLE: "Style",
@@ -1251,6 +1252,14 @@ def _prompt_preset_text(data):
     return str(data.get("prompt") or data.get("style") or data.get("text") or "").strip()
 
 
+def _is_retired_imagegen_prompt_preset(kind, key, name=""):
+    if kind != PROMPT_KIND_SUBJECT:
+        return False
+    normalized_key = _imagegen_preset_slug(key)
+    normalized_name = _imagegen_preset_slug(name)
+    return normalized_key in RETIRED_IMAGEGEN_PROMPT_PRESET_KEYS or normalized_name in RETIRED_IMAGEGEN_PROMPT_PRESET_KEYS
+
+
 def _prompt_preset_payload(name, kind, prompt, description=""):
     payload = {
         "name": name,
@@ -1339,6 +1348,8 @@ def _load_imagegen_prompt_presets():
                     if inferred_key.startswith(old_prefix):
                         inferred_key = inferred_key[len(old_prefix):]
                 name = str(data.get("name") or data.get("label") or inferred_key.replace("_", " ").title()).strip()
+                if _is_retired_imagegen_prompt_preset(kind, inferred_key or name, name):
+                    continue
                 prompt = _prompt_preset_text(data)
                 if not prompt:
                     continue
@@ -2414,45 +2425,6 @@ def _gemini_safe_response_for_metadata(detail):
             if isinstance(image_url, dict) and image_url.get("url"):
                 image_url["url"] = "<omitted>"
     return safe_detail
-
-
-def _character_part_breakout_variant_prompts(base_prompt, variant_count):
-    instructions = []
-    for index in range(max(1, variant_count)):
-        if index == 0:
-            instructions.append(
-                "Request target: render only the neutral anatomy base body in a clean A-pose or T-pose for a game asset base mesh reference. "
-                "Use simplified non-explicit anatomy. "
-                "Exactly one centered subject only. "
-                "Critical exclusions: no second character, no clothing, no accessories, no weapons, no props, no staff, no separate items, and no side-by-side layout."
-            )
-        elif index == 1:
-            instructions.append(
-                "Request target: render only the hair or hairstyle asset from the character design. "
-                "Exactly one centered subject only. "
-                "Critical exclusions: no head, no face, no body, no mannequin, no clothing, no accessories, no second item, and no side-by-side layout."
-            )
-        else:
-            instructions.append(
-                "Request target: render only one different remaining item from the character design that has "
-                "not been depicted yet. Prioritize clothing, armor pieces, accessories, weapons, and carried props. "
-                "Exactly one centered subject only. "
-                "Critical exclusions: do not render the body. Do not render hair unless hair is the chosen target. "
-                "Do not include a full character, a second item, or a side-by-side layout."
-            )
-    return [f"{base_prompt.rstrip()}\n\n{instruction}" for instruction in instructions]
-
-
-def _character_part_breakout_auto_prompt(base_prompt):
-    return (
-        f"{base_prompt.rstrip()}\n\n"
-        "Request mode: automatic breakout set. "
-        "Return the full character breakout as multiple separate images in one response. "
-        "Generate as many images as needed to cover the anatomy base body, hair, and each major wearable or carried item. "
-        "Start with the anatomy base body, then hair, then the remaining items. "
-        "Exactly one centered subject per image. "
-        "Critical exclusions: no side-by-side layouts, no combined items, and no full character plus prop in the same image."
-    )
 
 
 def _part_extraction_planning_prompt(
@@ -6206,7 +6178,6 @@ class NYMPHSV2_OT_generate_image(bpy.types.Operator):
         state.imagegen_generate_mv = False
 
         backend = getattr(state, "imagegen_backend", "Z_IMAGE")
-        breakout_auto_mode = False
         try:
             variant_count = max(1, int(getattr(state, "imagegen_variant_count", 1)))
             assign_first_output = False
@@ -6216,14 +6187,7 @@ class NYMPHSV2_OT_generate_image(bpy.types.Operator):
                 if not prompt:
                     raise RuntimeError("Enter an image-generation prompt first.")
                 snapshot = _gemini_snapshot(state)
-                preset_key = _sync_imagegen_prompt_preset(state)
-                _preset_kind, preset_id = _split_prompt_preset_key(preset_key)
-                if preset_id == "character_part_breakout":
-                    payload = [_character_part_breakout_auto_prompt(prompt)]
-                    assign_first_output = True
-                    breakout_auto_mode = True
-                else:
-                    payload = [prompt for _index in range(variant_count)]
+                payload = [prompt for _index in range(variant_count)]
                 worker_target = _gemini_imagegen_worker
                 worker_args = (context.scene.name, snapshot, payload, assign_first_output)
                 generated = False
@@ -6233,26 +6197,7 @@ class NYMPHSV2_OT_generate_image(bpy.types.Operator):
                 _require_network_access(api_root)
                 _ensure_imagegen_profile_defaults(state)
                 seed_step = max(1, int(getattr(state, "imagegen_seed_step", 1)))
-                preset_key = _sync_imagegen_prompt_preset(state)
-                _preset_kind, preset_id = _split_prompt_preset_key(preset_key)
-                if preset_id == "character_part_breakout":
-                    prompt_sequence = _character_part_breakout_variant_prompts(_resolved_imagegen_prompt(state), variant_count)
-                    if variant_count > 1:
-                        base_seed, generated = _imagegen_seed_value(state)
-                        payload = [
-                            _build_imagegen_payload_for_prompt(
-                                state,
-                                prompt=prompt_sequence[index],
-                                seed=base_seed + (index * seed_step),
-                            )
-                            for index in range(variant_count)
-                        ]
-                    else:
-                        payload = _build_imagegen_payload_for_prompt(state, prompt=prompt_sequence[0])
-                        generated = False
-                        base_seed = None
-                    assign_first_output = variant_count > 1
-                elif variant_count > 1:
+                if variant_count > 1:
                     base_seed, generated = _imagegen_seed_value(state)
                     prompt_sequence = [_resolved_imagegen_prompt(state) for _ in range(variant_count)]
                     payload = [
@@ -6278,12 +6223,7 @@ class NYMPHSV2_OT_generate_image(bpy.types.Operator):
         state.imagegen_started_at = time.time()
         image_backend_label = _current_image_backend_label(state)
         image_backend_detail = _current_image_backend_detail(state)
-        if breakout_auto_mode:
-            state.imagegen_status_text = f"Generating {image_backend_label} breakout set..."
-            state.imagegen_task_stage = "Generating Breakout Set"
-            state.imagegen_task_detail = image_backend_detail or "Requesting the full breakout set..."
-            state.imagegen_task_progress = ""
-        elif variant_count > 1:
+        if variant_count > 1:
             state.imagegen_status_text = f"Generating {variant_count} {image_backend_label} variants..."
             state.imagegen_task_stage = "Generating Variants"
             state.imagegen_task_detail = image_backend_detail or "Waiting for image backend progress..."
