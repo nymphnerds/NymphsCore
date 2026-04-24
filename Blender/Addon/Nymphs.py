@@ -5,7 +5,7 @@ Live Blender addon implementation for Nymphs.
 bl_info = {
     "name": "Nymphs",
     "author": "Nymphs3D",
-    "version": (1, 1, 165),
+    "version": (1, 1, 166),
     "blender": (4, 2, 0),
     "location": "View3D > Sidebar > Nymphs",
     "description": "Blender client for NymphsCore image, shape, and texture backends",
@@ -7339,6 +7339,13 @@ def _draw_imagegen_folder_actions(layout):
     action_row.operator("nymphsv2.clear_imagegen_folder", text="Clear Folder")
 
 
+def _imagegen_backend_key(state):
+    backend = (getattr(state, "imagegen_backend", "") or "Z_IMAGE").strip()
+    if backend not in {"Z_IMAGE", "GEMINI"}:
+        backend = "Z_IMAGE"
+    return backend
+
+
 class NYMPHSV2_PT_image_generation(bpy.types.Panel):
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
@@ -7350,13 +7357,13 @@ class NYMPHSV2_PT_image_generation(bpy.types.Panel):
         layout = self.layout
 
         panel = layout.column(align=True)
-        image_backend = getattr(state, "imagegen_backend", "Z_IMAGE")
+        image_backend = _imagegen_backend_key(state)
         zimage_runtime_ready = _service_runtime_is_available(state, "n2d2")
         top = _draw_imagegen_status_box(panel, state)
 
         backend_row = top.row(align=True)
         backend_row.prop(state, "imagegen_backend", text="Runtime", expand=True)
-        image_backend = getattr(state, "imagegen_backend", "Z_IMAGE")
+        image_backend = _imagegen_backend_key(state)
 
         if image_backend == "Z_IMAGE":
             if not zimage_runtime_ready:
