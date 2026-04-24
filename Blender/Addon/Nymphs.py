@@ -5,7 +5,7 @@ Live Blender addon implementation for Nymphs.
 bl_info = {
     "name": "Nymphs",
     "author": "Nymphs3D",
-    "version": (1, 1, 157),
+    "version": (1, 1, 161),
     "blender": (4, 2, 0),
     "location": "View3D > Sidebar > Nymphs",
     "description": "Blender client for NymphsCore image, shape, and texture backends",
@@ -133,28 +133,33 @@ IMAGEGEN_PROMPT_PRESETS = {
         "label": "Clean Asset Reference",
         "description": "General-purpose asset prompt for props, creatures, buildings, and objects",
         "prompt": (
-            "single game asset reference, centered subject, isolated on a plain light background, "
-            "clean readable silhouette, whole subject visible, consistent design, soft even lighting, "
-            "minimal shadows, no scenery, no text, clear shape language, "
-            "designed for 3D modeling reference"
+            "single game asset reference, exactly one centered subject, whole subject visible, "
+            "orthographic front-readable presentation, clean readable silhouette, clear material zones, "
+            "pure white empty background, soft even neutral lighting, minimal contact shadow only if needed, "
+            "designed for 3D modeling reference. No scenery, no room, no floor plane, no horizon line, "
+            "no gradient backdrop, no decorative frame, no text, no labels, no extra objects."
         ),
     },
     "stylized_prop": {
         "label": "Prop Asset",
         "description": "Readable prop/object prompt for game assets",
         "prompt": (
-            "single game prop asset, centered, isolated on a plain light background, clean silhouette, "
-            "readable materials, simple appealing shapes, soft even lighting, "
-            "clear front-facing design, no scenery, no text"
+            "single game prop asset, exactly one centered object, complete object visible, "
+            "clear front-facing design, clean silhouette, readable materials, simple appealing shapes, "
+            "pure white empty background, soft even neutral lighting. No scenery, no room, no floor plane, "
+            "no horizon line, no gradient backdrop, no decorative frame, no text, no labels, no extra objects."
         ),
     },
     "character_asset": {
         "label": "Character Asset",
         "description": "Readable full-character prompt for image-to-3D workflows",
         "prompt": (
-            "single original character reference, full body, centered, head to toe visible, clean silhouette, "
-            "simple plain light background, soft even lighting, readable costume design, clear limb separation, "
-            "appealing proportions, no scenery, no props crossing the body, designed for 3D modeling reference"
+            "single original character asset reference, full body, centered, head to toe visible, "
+            "front-facing symmetrical neutral A-pose or relaxed T-pose, arms slightly away from torso, "
+            "straight readable legs, feet visible, clean silhouette, clear limb separation, readable costume design, "
+            "pure white empty background, soft even neutral lighting, designed for 3D modeling reference. "
+            "No action pose, no perspective drama, no cropped limbs, no scenery, no room, no floor plane, "
+            "no horizon line, no gradient backdrop, no text, no labels, no props crossing the body."
         ),
     },
     "character_master_reference": {
@@ -162,40 +167,30 @@ IMAGEGEN_PROMPT_PRESETS = {
         "description": "Full-character master image for guided part extraction",
         "prompt": (
             "Create one complete master character reference image from the character description below. "
-            "Show the full character as one cohesive design, centered, head to toe visible, front-readable, "
-            "with the complete outfit, hair, facial hair, weapons, accessories, and carried props included together. "
-            "Use a clean plain light background, soft even lighting, readable silhouette, clear materials, and enough space around the character. "
-            "This image will be used as the canonical source for later guided part extraction, so keep the design consistent and complete. "
+            "Show exactly one full character as one cohesive design, centered, head to toe visible, front-facing, "
+            "symmetrical, in a neutral A-pose or relaxed T-pose with arms slightly away from the torso. "
+            "Include the complete outfit, hair, facial hair, weapons, accessories, and carried props, but keep every item readable "
+            "and avoid crossing or hiding the body silhouette. Use a pure white empty background, soft even neutral lighting, "
+            "readable silhouette, clear materials, and enough margin around the character. "
+            "This image will be used as the canonical source for guided part extraction, so keep the design consistent, complete, and uncluttered. "
             "Critical exclusions: do not make a parts sheet, grid, collage, lineup, turnaround, catalog page, or separate item layout. "
-            "Do not split the clothing, hair, weapons, or props into separate images. "
-            "Do not add labels, text, scenery, extra characters, duplicate versions, or extra floating items. "
+            "Do not split the clothing, hair, weapons, or props into separate images. Do not use an action pose or dramatic perspective. "
+            "Do not add labels, text, scenery, rooms, floor planes, horizon lines, gradient backdrops, extra characters, duplicate versions, or floating items. "
             "Character description: "
         ),
     },
-    "character_part_breakout": {
-        "label": "Character Part Breakout",
-        "description": "Generates separate anatomy base, hair, clothing, weapon, and prop reference images from a character description",
+    "character_sheet": {
+        "label": "Character Sheet",
+        "description": "Clean multi-view character sheet for modeling reference",
         "prompt": (
-            "Create separate standalone asset reference images from the character description below. "
-            "Each generated image must contain exactly one thing from the character design. "
-            "One image should be the complete neutral anatomy base body for a game asset in a clean A-pose or T-pose, "
-            "centered, head-to-toe visible, with simplified non-explicit anatomy suitable for base mesh modeling reference, "
-            "with no clothing, armor, accessories, weapons, hair, censor bars, black bars, blur, stickers, or coverings. "
-            "Hair must be generated as its own separate standalone image, never attached to the anatomy base body. "
-            "Every other generated image should be exactly one isolated character part: one hairstyle or hair asset, "
-            "one clothing garment, one armor piece, one accessory, one weapon, or one carried object from the same character design. "
-            "Return a full breakout set as multiple separate images in one request, generating as many images as needed "
-            "to cover the anatomy base body, hair, and each major wearable or carried item from the design. "
-            "Start with the anatomy base body, then hair, then remaining items. "
-            "For the anatomy base body, keep it neutral, front-readable, uncluttered, and appropriate as a base mesh game asset reference. "
-            "For hair, clothing, armor, accessories, weapons, and props, show only the item itself, centered, complete, "
-            "unobstructed, and not worn by a person or mannequin. "
-            "Use a plain light background, soft even studio lighting, clean readable silhouette, clear materials, "
-            "and asset-reference framing suitable for 3D modeling. "
-            "Critical exclusions: do not make a parts sheet, lineup, grid, collage, catalog page, or multi-item layout. "
-            "Do not combine the anatomy base body with hair, clothing, or props in the same image. "
-            "Never place more than one item in the same image. "
-            "No duplicate items, no text, no labels, no scenery, and no mannequin unless structurally unavoidable. "
+            "Create a clean character model sheet from the character description below. "
+            "Show the same character in three aligned orthographic views: front view, side view, and back view. "
+            "Use a neutral A-pose or relaxed T-pose in every view, symmetrical stance, arms slightly away from the torso, "
+            "straight readable legs, feet visible, and consistent proportions across all views. "
+            "Keep the sheet minimal and functional for 3D modeling reference, with clear costume shapes, hair silhouette, accessories, and material zones. "
+            "Use a pure white empty background, soft even neutral lighting, and simple evenly spaced columns. "
+            "Critical exclusions: no scenery, no room, no floor plane, no horizon line, no gradient backdrop, no decorative frame, "
+            "no action pose, no perspective view, no duplicate poses beyond the three views, no separate item callouts, no text labels unless absolutely necessary. "
             "Character description: "
         ),
     },
@@ -203,27 +198,30 @@ IMAGEGEN_PROMPT_PRESETS = {
         "label": "Creature Asset",
         "description": "Creature/monster prompt with a readable whole-body shape",
         "prompt": (
-            "single creature reference, whole creature visible, centered, isolated on a plain light background, "
-            "clean readable silhouette, clear anatomy, distinctive shape language, soft even lighting, minimal shadows, "
-            "designed as a 3D creature reference, no scenery, no text"
+            "single creature asset reference, exactly one whole creature visible, centered, front-readable neutral pose, "
+            "clean readable silhouette, clear anatomy, distinctive shape language, pure white empty background, "
+            "soft even neutral lighting, minimal contact shadow only if needed, designed as a 3D creature reference. "
+            "No scenery, no room, no floor plane, no horizon line, no gradient backdrop, no text, no labels, no extra objects."
         ),
     },
     "building_asset": {
         "label": "Building Asset",
         "description": "Isolated building or environment-piece prompt",
         "prompt": (
-            "single building asset, centered, isolated on a plain light background, full structure visible, "
-            "clean silhouette, readable roof and wall shapes, clear material zones, soft even lighting, "
-            "designed for 3D modeling reference, no surrounding scene, no text"
+            "single building or modular environment asset, exactly one structure centered, full structure visible, "
+            "orthographic front-readable asset presentation, clean silhouette, readable roof and wall shapes, clear material zones, "
+            "pure white empty background, soft even neutral lighting, designed for 3D modeling reference. "
+            "No surrounding scene, no landscape, no street, no sky, no floor plane, no horizon line, no gradient backdrop, no text, no labels."
         ),
     },
     "hard_surface_asset": {
         "label": "Hard Surface Asset",
         "description": "Vehicle, machine, robot, or sci-fi object prompt",
         "prompt": (
-            "single hard-surface asset reference, centered, isolated on a plain light background, whole object visible, "
-            "clean silhouette, readable mechanical forms, consistent proportions, clear panel lines and material breaks, "
-            "soft studio lighting, designed for 3D modeling reference, no scenery, no text"
+            "single hard-surface asset reference, exactly one vehicle, machine, robot, or sci-fi object centered, whole object visible, "
+            "orthographic front-readable asset presentation, clean silhouette, readable mechanical forms, consistent proportions, "
+            "clear panel lines and material breaks, pure white empty background, soft even neutral lighting, designed for 3D modeling reference. "
+            "No scenery, no room, no floor plane, no horizon line, no gradient backdrop, no text, no labels, no extra objects."
         ),
     },
 }
@@ -1485,8 +1483,20 @@ def _compose_imagegen_prompt(prompt_text, style_text):
     return _strip_imagegen_prompt_markers(prompt_text or "")
 
 
+GEMINI_IMAGE_ASSET_GUARDRAIL = (
+    "Gemini image asset constraints: create an isolated asset/reference image only. "
+    "Use a pure white or flat paper-white empty background. Do not generate scenery, landscapes, rooms, studio sets, "
+    "floor planes, horizon lines, gradient backdrops, decorative frames, cast-shadow drama, text, labels, captions, "
+    "watermarks, extra subjects, or unrelated props. Keep the subject fully visible, centered, uncluttered, and suitable for 3D modeling reference."
+)
+
+
 def _resolved_imagegen_prompt(state):
-    return _strip_imagegen_prompt_markers(getattr(state, "imagegen_prompt", "") or "")
+    prompt = _strip_imagegen_prompt_markers(getattr(state, "imagegen_prompt", "") or "")
+    if (getattr(state, "imagegen_backend", "Z_IMAGE") or "Z_IMAGE") == "GEMINI" and prompt:
+        if GEMINI_IMAGE_ASSET_GUARDRAIL not in prompt:
+            prompt = f"{prompt}\n\n{GEMINI_IMAGE_ASSET_GUARDRAIL}"
+    return prompt
 
 
 def _imagegen_settings_preset_dir():
