@@ -232,6 +232,24 @@ def patch_hf_local_path_validation() -> None:
         return
 
 
+def patch_o_voxel_tiled_converter() -> None:
+    try:
+        import o_voxel.convert as convert
+    except Exception:
+        return
+
+    if hasattr(convert, "tiled_flexible_dual_grid_to_mesh"):
+        return
+    if not hasattr(convert, "flexible_dual_grid_to_mesh"):
+        return
+
+    def tiled_flexible_dual_grid_to_mesh(*args, **kwargs):
+        kwargs.pop("tile_size", None)
+        return convert.flexible_dual_grid_to_mesh(*args, **kwargs)
+
+    convert.tiled_flexible_dual_grid_to_mesh = tiled_flexible_dual_grid_to_mesh
+
+
 def patch_trellis2_gguf_dinov3() -> None:
     import torch
 
@@ -261,6 +279,7 @@ def ensure_trellis2_gguf_ready(model_root: Path) -> None:
 
     install_standalone_comfy_stubs(model_root)
     patch_hf_local_path_validation()
+    patch_o_voxel_tiled_converter()
     try:
         from trellis2_gguf.pipelines import Trellis2ImageTo3DPipeline  # noqa: F401
         patch_trellis2_gguf_dinov3()
