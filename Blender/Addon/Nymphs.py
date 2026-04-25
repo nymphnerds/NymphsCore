@@ -5,7 +5,7 @@ Live Blender addon implementation for Nymphs.
 bl_info = {
     "name": "Nymphs",
     "author": "Nymphs3D",
-    "version": (1, 1, 188),
+    "version": (1, 1, 189),
     "blender": (4, 2, 0),
     "location": "View3D > Sidebar > Nymphs",
     "description": "Blender client for NymphsCore image, shape, and texture backends",
@@ -2151,6 +2151,35 @@ def _imagegen_output_path(provider="image", suffix=".png"):
     if not os.path.exists(candidate):
         return candidate
     return os.path.join(_imagegen_output_dir(), f"{stamp}-{stem}-{int(time.time() * 1000) % 100000}{suffix}")
+
+
+def _copy_imagegen_result_to_local_folder(state, output_path, metadata_path=""):
+    source_path = _to_blender_accessible_path(state, output_path)
+    if not source_path:
+        return "", ""
+
+    source_metadata = _to_blender_accessible_path(state, metadata_path)
+    try:
+        source_abs = os.path.abspath(source_path) if not source_path.startswith("\\\\") else source_path
+        output_dir_abs = os.path.abspath(_imagegen_output_dir())
+        if not source_path.startswith("\\\\") and os.path.dirname(source_abs) == output_dir_abs:
+            local_output = source_path
+        else:
+            _, ext = os.path.splitext(source_path)
+            local_output = _imagegen_output_path("zimage", ext or ".png")
+            shutil.copy2(source_path, local_output)
+
+        local_metadata = ""
+        if source_metadata and os.path.exists(source_metadata):
+            local_metadata = os.path.splitext(local_output)[0] + ".json"
+            if os.path.abspath(source_metadata) != os.path.abspath(local_metadata):
+                shutil.copy2(source_metadata, local_metadata)
+            else:
+                local_metadata = source_metadata
+
+        return local_output, local_metadata
+    except Exception:
+        return source_path, source_metadata
 
 
 def _current_imagegen_folder(state):
@@ -4976,8 +5005,11 @@ def _imagegen_worker(scene_name, api_root, payload, assign_first_output=False):
 
             metadata_path = (detail.get("metadata_path") or "").strip()
             state = _active_state(scene_name)
-            blender_output_path = _to_blender_accessible_path(state, output_path)
-            blender_metadata_path = _to_blender_accessible_path(state, metadata_path)
+            blender_output_path, blender_metadata_path = _copy_imagegen_result_to_local_folder(
+                state,
+                output_path,
+                metadata_path,
+            )
             if not first_output_path:
                 first_output_path = blender_output_path
                 first_metadata_path = blender_metadata_path
@@ -5358,8 +5390,11 @@ def _imagegen_mv_worker(scene_name, api_root, seed):
                 raise RuntimeError(f"Z-Image did not return an output path for the {view_label.lower()} view.")
             metadata_path = (detail.get("metadata_path") or "").strip()
             state = _active_state(scene_name)
-            blender_output_path = _to_blender_accessible_path(state, output_path)
-            blender_metadata_path = _to_blender_accessible_path(state, metadata_path)
+            blender_output_path, blender_metadata_path = _copy_imagegen_result_to_local_folder(
+                state,
+                output_path,
+                metadata_path,
+            )
             assigned[view_key] = blender_output_path
             metadata_paths[view_key] = blender_metadata_path
             if blender_output_path:
