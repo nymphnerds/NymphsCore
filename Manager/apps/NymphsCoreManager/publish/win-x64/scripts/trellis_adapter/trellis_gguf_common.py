@@ -305,7 +305,13 @@ def install_standalone_comfy_stubs(model_root: Path) -> None:
                     config_file = os.path.join(os.path.dirname(model_file), basename + ".json")
                 return config_file, model_file, False
             if basename in REQUIRED_SUPPORT_MODEL_BASENAMES:
-                config_file, model_file = _resolve_required_support_model(basename)
+                try:
+                    config_file, model_file = _resolve_required_support_model(basename, local_files_only=True)
+                except Exception as exc:
+                    raise FileNotFoundError(
+                        f"Required TRELLIS.2 GGUF support checkpoint {basename} is not installed. "
+                        "Open NymphsCore Manager > Runtime Tools and fetch/repair TRELLIS.2 GGUF models before retexturing."
+                    ) from exc
                 return config_file, model_file, False
             raise FileNotFoundError(
                 f"Cannot resolve TRELLIS GGUF model {basename} "

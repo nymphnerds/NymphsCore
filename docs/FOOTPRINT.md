@@ -4,7 +4,7 @@ This document explains the current local disk footprint for the NymphsCore Manag
 
 The current public runtime stack is:
 
-- `TRELLIS.2` for single-image image-to-3D and texture/retexture workflows
+- `TRELLIS.2 GGUF` for single-image image-to-3D and texture/retexture workflows
 - `Z-Image` / Nunchaku for local image generation
 
 Older experimental lanes and local development experiments are not part of this baseline.
@@ -107,14 +107,15 @@ Practical advice:
 
 The current product baseline should be read like this:
 
-- `TRELLIS.2` owns the built-in 3D lane
+- `TRELLIS.2 GGUF` owns the built-in 3D lane
 - `Z-Image` / Nunchaku is kept for local image generation
 
 The manager UI currently lists these major download groups:
 
 - `u2net` helper model: about `168 MB`
 - `Tongyi-MAI/Z-Image-Turbo`: about `31 GB`
-- `TRELLIS.2` model bundle: a large shared-cache download whose exact size depends on upstream snapshot changes
+- `nunchaku-ai/nunchaku-z-image-turbo`: about `15 GB` in the current local Hugging Face cache
+- `TRELLIS.2 GGUF` model bundle: size depends on which quantization bundles are selected
 
 Runtime and environment pieces include:
 
@@ -123,6 +124,43 @@ Runtime and environment pieces include:
 - CUDA 13.0 in WSL: about `4.9 GB`
 
 These numbers are approximate. Upstream repositories and model snapshots can change size.
+
+## TRELLIS.2 GGUF Model Footprint
+
+The managed GGUF runtime uses the Hugging Face model repo:
+
+- `Aero-Ex/Trellis2-GGUF`: https://huggingface.co/Aero-Ex/Trellis2-GGUF
+- `microsoft/TRELLIS.2-4B` support checkpoint: https://huggingface.co/microsoft/TRELLIS.2-4B
+
+The addon can show only GGUF quants that the running backend reports as present on disk. If a selected quant is missing, generation now stops and tells the user to download that quant from Manager `Runtime Tools` instead of starting an invisible background download.
+
+Each selectable GGUF quant pulls the matching `shape`, `refiner`, and `texture` GGUF files. Current upstream per-file GGUF sizes are approximately:
+
+| Quant | Size per GGUF file | Approx. five-file quant bundle |
+| --- | ---: | ---: |
+| `Q4_K_M` | `789 MB` | `3.9 GB` |
+| `Q5_K_M` | `948 MB` | `4.7 GB` |
+| `Q6_K` | `1.12 GB` | `5.6 GB` |
+| `Q8_0` | `1.43 GB` | `7.2 GB` |
+
+The GGUF runtime also needs shared support files that are not repeated for every quant:
+
+| Shared file group | Approx. size |
+| --- | ---: |
+| DINOv3 vision encoder in `Aero-Ex/Trellis2-GGUF` | `1.21 GB` |
+| Stage decoders in `Aero-Ex/Trellis2-GGUF` | about `2.6 GB` total |
+| Required retexture support encoder from `microsoft/TRELLIS.2-4B` | `709 MB` |
+| Small JSON/config files | small |
+
+Practical TRELLIS.2 GGUF planning numbers:
+
+| Selection | Approx. GGUF model/cache footprint |
+| --- | ---: |
+| Shared files + `Q4_K_M` | about `8.4 GB` |
+| Shared files + `Q5_K_M` | about `9.2 GB` |
+| Shared files + `Q6_K` | about `10.1 GB` |
+| Shared files + `Q8_0` | about `11.7 GB` |
+| Shared files + all four quants | about `25 GB` |
 
 ## Generated Output Growth
 

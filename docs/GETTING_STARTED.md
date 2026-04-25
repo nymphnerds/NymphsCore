@@ -162,7 +162,7 @@ With prefetch off:
 - large model downloads happen later
 - the first backend launch from the manager or addon can feel slow
 
-The optional Hugging Face token box is only for downloads that need your Hugging Face account access. The manager uses it for the current run and does not write it permanently into the distro.
+The optional Hugging Face token box is only for downloads that need your Hugging Face account access. The Manager saves it in your Windows user profile so future Manager downloads and addon-launched local runtimes can reuse it; it is not written permanently into the WSL distro.
 
 ### Experimental Nymphs-Brain
 

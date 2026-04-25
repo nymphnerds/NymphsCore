@@ -22,6 +22,7 @@ public sealed class MainWindowViewModel : ViewModelBase
     private const string BrainInstallRoot = "/home/nymph/Nymphs-Brain";
 
     private readonly InstallerWorkflowService _workflowService;
+    private readonly SharedSecretsService _sharedSecretsService;
     private readonly AsyncRelayCommand _primaryCommand;
     private readonly AsyncRelayCommand _checkForUpdatesCommand;
     private readonly RelayCommand _addOptionalModulesCommand;
@@ -105,6 +106,7 @@ public sealed class MainWindowViewModel : ViewModelBase
     public MainWindowViewModel(InstallerWorkflowService workflowService)
     {
         _workflowService = workflowService;
+        _sharedSecretsService = new SharedSecretsService();
         _installSessionLogPath = _workflowService.CreateInstallSessionLogPath();
 
         SystemChecks = new ObservableCollection<SystemCheckItem>();
@@ -147,11 +149,34 @@ public sealed class MainWindowViewModel : ViewModelBase
         InitializeWslConfigChoices();
         InitializeBrainChoices();
         InitializeTrellisGgufQuantChoices();
+        LoadSharedSecrets();
 
         RecomputeStepState();
     }
 
     public Action? RequestClose { get; set; }
+
+    private void LoadSharedSecrets()
+    {
+        var secrets = _sharedSecretsService.Load();
+        _huggingFaceToken = secrets.HuggingFaceToken?.Trim() ?? string.Empty;
+        _brainOpenRouterApiKey = secrets.OpenRouterApiKey?.Trim() ?? string.Empty;
+        OnPropertyChanged(nameof(HuggingFaceToken));
+        OnPropertyChanged(nameof(HuggingFaceTokenStatus));
+        OnPropertyChanged(nameof(BrainOpenRouterApiKey));
+        OnPropertyChanged(nameof(HasBrainOpenRouterApiKey));
+        OnPropertyChanged(nameof(BrainOpenRouterKeyStatus));
+    }
+
+    private void SaveSharedSecrets()
+    {
+        _sharedSecretsService.Save(
+            new SharedSecrets
+            {
+                HuggingFaceToken = HuggingFaceToken,
+                OpenRouterApiKey = BrainOpenRouterApiKey,
+            });
+    }
 
     public ObservableCollection<SystemCheckItem> SystemChecks { get; }
 
@@ -418,6 +443,7 @@ public sealed class MainWindowViewModel : ViewModelBase
             var normalized = value?.Trim() ?? string.Empty;
             if (SetProperty(ref _huggingFaceToken, normalized))
             {
+                SaveSharedSecrets();
                 OnPropertyChanged(nameof(HuggingFaceTokenStatus));
             }
         }
@@ -426,7 +452,7 @@ public sealed class MainWindowViewModel : ViewModelBase
     public string HuggingFaceTokenStatus =>
         string.IsNullOrWhiteSpace(HuggingFaceToken)
             ? "No Hugging Face token entered. Installer downloads will use anonymous access."
-            : "A Hugging Face token is attached for installer-time downloads only.";
+            : "Hugging Face token saved for Manager downloads and addon-launched local runtimes.";
 
     public TrellisGgufQuantOption? SelectedTrellisGgufQuantOption
     {
@@ -718,6 +744,7 @@ public sealed class MainWindowViewModel : ViewModelBase
             var normalized = value?.Trim() ?? string.Empty;
             if (SetProperty(ref _brainOpenRouterApiKey, normalized))
             {
+                SaveSharedSecrets();
                 OnPropertyChanged(nameof(HasBrainOpenRouterApiKey));
                 OnPropertyChanged(nameof(BrainOpenRouterKeyStatus));
                 RaiseCommandStateChanged();
@@ -729,7 +756,7 @@ public sealed class MainWindowViewModel : ViewModelBase
 
     public string BrainOpenRouterKeyStatus =>
         HasBrainOpenRouterApiKey
-            ? "A new OpenRouter key is loaded in this Manager session. Apply Key writes it now; Start Brain or Update Stack will rebuild the Brain wrapper config around it."
+            ? "OpenRouter key saved for the Manager, Brain tools, and the Blender addon. Apply Key refreshes the Brain secret file now."
             : "OpenRouter key is optional. Without one, Brain skips llm-wrapper and keeps the rest of the stack running normally.";
 
     public string BrainHeaderBadgeText => CapitalizeStatus(_brainInstallState);

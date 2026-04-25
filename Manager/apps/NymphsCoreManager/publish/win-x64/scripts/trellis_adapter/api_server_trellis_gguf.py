@@ -228,7 +228,15 @@ def clear_cached_pipeline() -> None:
 
 
 def get_pipeline(quant: str, *, include_texture: bool):
-    model_root = resolve_gguf_model_root(local_files_only=False, quant=quant, include_texture=include_texture)
+    available = available_gguf_quants(include_texture=include_texture)
+    if quant not in available:
+        available_text = ", ".join(available) if available else "none"
+        raise RuntimeError(
+            f"TRELLIS.2 GGUF {quant} is not installed on disk. "
+            f"Installed GGUF quants: {available_text}. "
+            "Open NymphsCore Manager > Runtime Tools and download this TRELLIS.2 GGUF quant before generating."
+        )
+    model_root = resolve_gguf_model_root(local_files_only=True, quant=quant, include_texture=include_texture)
     key = (str(model_root), quant)
     if PIPELINE_CACHE["key"] == key and PIPELINE_CACHE["pipeline"] is not None:
         return PIPELINE_CACHE["pipeline"]

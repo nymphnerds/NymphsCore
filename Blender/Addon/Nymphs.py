@@ -657,22 +657,30 @@ def _trellis_runtime_is_gguf(state):
 
 
 def _parse_trellis_available_gguf_quants(raw):
+    value = (raw or "").strip()
+    if value == "__none__":
+        return []
     valid = {item[0] for item in TRELLIS_GGUF_QUANT_ITEMS}
     values = [
         part.strip()
-        for part in (raw or "").split(",")
+        for part in value.split(",")
         if part.strip() in valid
     ]
     return values or [item[0] for item in TRELLIS_GGUF_QUANT_ITEMS]
 
 
 def _trellis_gguf_quant_items(self, context):
-    available = set(_parse_trellis_available_gguf_quants(getattr(self, "service_trellis_available_gguf_quants", "")))
+    raw = getattr(self, "service_trellis_available_gguf_quants", "")
+    available = set(_parse_trellis_available_gguf_quants(raw))
+    if (raw or "").strip() == "__none__":
+        return [(DEFAULT_TRELLIS_GGUF_QUANT, "No GGUF quant installed", "Download a TRELLIS.2 GGUF quant in NymphsCore Manager Runtime Tools.")]
     return [item for item in TRELLIS_GGUF_QUANT_ITEMS if item[0] in available]
 
 
 def _sync_trellis_available_gguf_quant(state):
     available = _parse_trellis_available_gguf_quants(getattr(state, "service_trellis_available_gguf_quants", ""))
+    if not available:
+        return
     current = getattr(state, "trellis_gguf_quant", DEFAULT_TRELLIS_GGUF_QUANT)
     if current not in available:
         state.trellis_gguf_quant = DEFAULT_TRELLIS_GGUF_QUANT if DEFAULT_TRELLIS_GGUF_QUANT in available else available[0]
@@ -1058,12 +1066,53 @@ def _on_n2d2_model_config_changed(self, context):
     _restart_n2d2_after_model_change(context, self)
 
 
+def _addon_config_dir():
+    return bpy.utils.user_resource("CONFIG", path="nymphs", create=True)
+
+
 def _openrouter_config_path():
-    config_dir = bpy.utils.user_resource("CONFIG", path="nymphs", create=True)
-    return os.path.join(config_dir, "openrouter.json")
+    return os.path.join(_addon_config_dir(), "openrouter.json")
+
+
+def _shared_secrets_config_path():
+    local_app_data = (os.environ.get("LOCALAPPDATA") or "").strip()
+    if not local_app_data:
+        return ""
+    return os.path.join(local_app_data, "NymphsCore", "shared-secrets.json")
+
+
+def _load_shared_secrets_config():
+    path = _shared_secrets_config_path()
+    if not path:
+        return {}
+    try:
+        with open(path, "r", encoding="utf-8") as handle:
+            data = json.load(handle)
+    except Exception:
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def _save_shared_secrets_config(**changes):
+    path = _shared_secrets_config_path()
+    if not path:
+        return
+    try:
+        data = _load_shared_secrets_config()
+        data.update({key: (value or "").strip() for key, value in changes.items()})
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w", encoding="utf-8") as handle:
+            json.dump(data, handle, indent=2)
+            handle.write("\n")
+    except Exception:
+        pass
 
 
 def _load_openrouter_api_key_config():
+    shared_data = _load_shared_secrets_config()
+    shared = str(shared_data.get("openrouter_api_key") or shared_data.get("OpenRouterApiKey") or "").strip()
+    if shared:
+        return shared
     try:
         with open(_openrouter_config_path(), "r", encoding="utf-8") as handle:
             data = json.load(handle)
@@ -1073,6 +1122,7 @@ def _load_openrouter_api_key_config():
 
 
 def _save_openrouter_api_key_config(api_key):
+    _save_shared_secrets_config(openrouter_api_key=api_key)
     try:
         path = _openrouter_config_path()
         with open(path, "w", encoding="utf-8") as handle:
@@ -1095,6 +1145,11 @@ def _ensure_openrouter_api_key_loaded(state):
             state.openrouter_api_key = api_key
         except Exception:
             pass
+
+
+def _load_huggingface_token_config():
+    shared_data = _load_shared_secrets_config()
+    return str(shared_data.get("huggingface_token") or shared_data.get("HuggingFaceToken") or "").strip()
 
 
 def _part_guidance_block_lines():
@@ -3465,7 +3520,7 @@ def _trellis_available_gguf_quants_from_info(info):
         for quant in (info.get("available_gguf_quants") or [])
         if str(quant).strip() in valid
     ]
-    return ",".join(values)
+    return ",".join(values) if values else "__none__"
 
 
 def _backend_family(info):
@@ -4275,6 +4330,12 @@ def _compose_wsl_launch(state, service_key):
         'export PATH="$CUDA_HOME/bin:$PATH"; '
         'export LD_LIBRARY_PATH="$CUDA_HOME/lib64:$LD_LIBRARY_PATH"; '
     )
+    hf_token = _load_huggingface_token_config()
+    if hf_token:
+        exports += (
+            f"export NYMPHS3D_HF_TOKEN={shlex.quote(hf_token)}; "
+            f"export HF_TOKEN={shlex.quote(hf_token)}; "
+        )
 
     if service_key == "n2d2":
         repo_path = _normalized_repo_path(
@@ -5574,7 +5635,6 @@ class NymphsV2State(bpy.types.PropertyGroup):
         name="GGUF Quant",
         description="Quantization level used by the TRELLIS.2 GGUF adapter.",
         items=_trellis_gguf_quant_items,
-        default=DEFAULT_TRELLIS_GGUF_QUANT,
     )
     n2d2_model_preset: EnumProperty(
         name="Model Choice",
@@ -7352,6 +7412,7 @@ class NYMPHSV2_OT_edit_image_prompts(bpy.types.Operator):
 
     def invoke(self, context, event):
         state = context.scene.nymphs_state
+        _keep_imagegen_prompt_ui_open(state, self.target)
         text = _linked_imagegen_text(state, self.target)
         self.prompt = _text_to_prompt_value(text) if text is not None else getattr(
             state,
