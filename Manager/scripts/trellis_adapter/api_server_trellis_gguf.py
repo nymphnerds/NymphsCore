@@ -292,7 +292,7 @@ def remove_floor_like_components(mesh: trimesh.Trimesh, *, enabled: bool) -> tri
     return trimesh.util.concatenate(kept)
 
 
-def export_geometry(mesh_with_voxel, remesh_resolution: int, *, remove_floor_plane: bool) -> bytes:
+def mesh_vertices_faces_numpy(mesh_with_voxel):
     import numpy as np
 
     verts = mesh_with_voxel.vertices
@@ -303,7 +303,33 @@ def export_geometry(mesh_with_voxel, remesh_resolution: int, *, remove_floor_pla
         faces = faces.cpu().numpy()
     verts = np.asarray(verts, dtype=np.float32)
     faces = np.asarray(faces, dtype=np.int32)
+    return verts, faces
 
+
+def mesh_to_trimesh(verts, faces) -> trimesh.Trimesh:
+    mesh = trimesh.Trimesh(vertices=verts, faces=faces, process=True)
+    mesh.visual = trimesh.visual.TextureVisuals(material=trimesh.visual.material.PBRMaterial(doubleSided=True))
+    return mesh
+
+
+def export_trimesh(mesh: trimesh.Trimesh, *, remove_floor_plane: bool) -> bytes:
+    mesh = remove_floor_like_components(mesh, enabled=remove_floor_plane)
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".glb") as handle:
+        temp_path = Path(handle.name)
+    try:
+        mesh.export(str(temp_path))
+        return read_file_bytes(temp_path)
+    finally:
+        temp_path.unlink(missing_ok=True)
+
+
+def export_geometry_official_style(mesh_with_voxel, *, remove_floor_plane: bool) -> bytes:
+    verts, faces = mesh_vertices_faces_numpy(mesh_with_voxel)
+    return export_trimesh(mesh_to_trimesh(verts, faces), remove_floor_plane=remove_floor_plane)
+
+
+def export_geometry_remeshed(mesh_with_voxel, remesh_resolution: int, *, remove_floor_plane: bool) -> bytes:
+    verts, faces = mesh_vertices_faces_numpy(mesh_with_voxel)
     try:
         import cumesh
         from cumesh import CuMesh
@@ -346,23 +372,19 @@ def export_geometry(mesh_with_voxel, remesh_resolution: int, *, remove_floor_pla
     except Exception as exc:
         print(f"[trellis-gguf-api] cumesh cleanup skipped ({exc})")
 
-    x = verts[:, 0].copy()
-    y = verts[:, 1].copy()
-    z = verts[:, 2].copy()
-    verts[:, 0] = -x
-    verts[:, 1] = z
-    verts[:, 2] = y
+    return export_trimesh(mesh_to_trimesh(verts, faces), remove_floor_plane=remove_floor_plane)
 
-    mesh = trimesh.Trimesh(vertices=verts, faces=faces, process=True)
-    mesh = remove_floor_like_components(mesh, enabled=remove_floor_plane)
-    mesh.visual = trimesh.visual.TextureVisuals(material=trimesh.visual.material.PBRMaterial(doubleSided=True))
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".glb") as handle:
-        temp_path = Path(handle.name)
+
+def export_geometry(mesh_with_voxel, remesh_resolution: int, *, remove_floor_plane: bool) -> bytes:
     try:
-        mesh.export(str(temp_path))
-        return read_file_bytes(temp_path)
-    finally:
-        temp_path.unlink(missing_ok=True)
+        return export_geometry_official_style(mesh_with_voxel, remove_floor_plane=remove_floor_plane)
+    except Exception as exc:
+        print(f"[trellis-gguf-api] official-style shape export failed ({exc}); using remesh fallback")
+        return export_geometry_remeshed(
+            mesh_with_voxel,
+            remesh_resolution,
+            remove_floor_plane=remove_floor_plane,
+        )
 
 
 def export_textured_geometry(mesh_with_voxel, texture_size: int, decimation_target: int) -> bytes:
