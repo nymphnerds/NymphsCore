@@ -5,7 +5,7 @@ Live Blender addon implementation for Nymphs.
 bl_info = {
     "name": "Nymphs",
     "author": "Nymphs3D",
-    "version": (1, 1, 190),
+    "version": (1, 1, 191),
     "blender": (4, 2, 0),
     "location": "View3D > Sidebar > Nymphs",
     "description": "Blender client for NymphsCore image, shape, and texture backends",
@@ -1197,6 +1197,14 @@ def _strip_imagegen_prompt_markers(text):
     return value.strip()
 
 
+def _unwrap_imagegen_prompt_markers(text):
+    value = (text or "").strip()
+    value = re.sub(r"\n?\[Auto (?:Subject|Style)\]\n?", "\n", value)
+    value = re.sub(r"\n?\[/Auto (?:Subject|Style)\]\n?", "\n", value)
+    value = re.sub(r"\n{3,}", "\n\n", value)
+    return value.strip()
+
+
 def _sync_imagegen_managed_prompt_blocks(state):
     global IMAGEGEN_PROMPT_SYNC_GUARD
     if IMAGEGEN_PROMPT_SYNC_GUARD:
@@ -1539,7 +1547,7 @@ def _sync_imagegen_style_preset(state):
 
 
 def _compose_imagegen_prompt(prompt_text, style_text):
-    return _strip_imagegen_prompt_markers(prompt_text or "")
+    return _unwrap_imagegen_prompt_markers(prompt_text or "")
 
 
 GEMINI_IMAGE_ASSET_GUARDRAIL = (
@@ -1551,7 +1559,7 @@ GEMINI_IMAGE_ASSET_GUARDRAIL = (
 
 
 def _resolved_imagegen_prompt(state):
-    prompt = _strip_imagegen_prompt_markers(getattr(state, "imagegen_prompt", "") or "")
+    prompt = _unwrap_imagegen_prompt_markers(getattr(state, "imagegen_prompt", "") or "")
     if (getattr(state, "imagegen_backend", "Z_IMAGE") or "Z_IMAGE") == "GEMINI" and prompt:
         if GEMINI_IMAGE_ASSET_GUARDRAIL not in prompt:
             prompt = f"{prompt}\n\n{GEMINI_IMAGE_ASSET_GUARDRAIL}"
