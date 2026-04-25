@@ -544,6 +544,13 @@ public sealed class InstallerWorkflowService
         CancellationToken cancellationToken,
         string backend = "all")
     {
+        if (!string.Equals(settings.DistroName, ManagedDistroName, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException(
+                $"Model downloads are pinned to the canonical {ManagedDistroName} WSL distro. " +
+                $"Current target was '{settings.DistroName}'. Open or repair the {ManagedDistroName} install before fetching models.");
+        }
+
         var prefetchScript = RequireScript("prefetch_models.sh");
         var wslPrefetchScriptPath = ConvertWindowsPathToWsl(prefetchScript)
             ?? throw new InvalidOperationException($"Could not convert script path for WSL: {prefetchScript}");
@@ -575,7 +582,7 @@ public sealed class InstallerWorkflowService
             "/bin/bash", "-lc", bashCommand,
         };
 
-        progress.Report($"Model prefetch: downloading {FriendlyBackendLabel(normalizedBackend)} model weights only. TRELLIS GGUF quant: {trellisQuant}. Runtime repair is not part of this step.");
+        progress.Report($"Model prefetch: downloading {FriendlyBackendLabel(normalizedBackend)} model weights only into WSL distro {ManagedDistroName}. TRELLIS GGUF quant: {trellisQuant}. Runtime repair is not part of this step.");
 
         var result = await _processRunner.RunAsync(
             fileName: "wsl.exe",
@@ -1493,35 +1500,15 @@ public sealed class InstallerWorkflowService
         return candidates.FirstOrDefault(File.Exists) ?? candidates[0];
     }
 
-    private static bool IsManagedDistroAlias(string distroName)
+    private static bool IsCanonicalManagedDistro(string distroName)
     {
-        if (string.IsNullOrWhiteSpace(distroName))
-        {
-            return false;
-        }
-
-        if (string.Equals(distroName, ManagedDistroName, StringComparison.OrdinalIgnoreCase))
-        {
-            return true;
-        }
-
-        // Legacy lite distros are separate installs and must not be reused as the
-        // canonical managed runtime.
-        if (!distroName.StartsWith(ManagedDistroName, StringComparison.OrdinalIgnoreCase))
-        {
-            return false;
-        }
-
-        var suffix = distroName[ManagedDistroName.Length..];
-        return suffix.Length > 0 && suffix.All(char.IsDigit);
+        return string.Equals(distroName, ManagedDistroName, StringComparison.OrdinalIgnoreCase);
     }
 
     private static string? FindManagedDistroName(IEnumerable<string> distros)
     {
         return distros
-            .Where(IsManagedDistroAlias)
-            .OrderBy(name => string.Equals(name, ManagedDistroName, StringComparison.OrdinalIgnoreCase) ? 0 : 1)
-            .ThenBy(name => name.Length)
+            .Where(IsCanonicalManagedDistro)
             .FirstOrDefault();
     }
 
