@@ -113,6 +113,17 @@ def optional_float(payload: dict[str, Any], key: str, default: float) -> float:
     return float(value)
 
 
+def optional_bool(payload: dict[str, Any], key: str, default: bool) -> bool:
+    value = payload.get(key, default)
+    if value in {"", None}:
+        return default
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return bool(value)
+    return str(value).strip().lower() not in {"0", "false", "no", "off"}
+
+
 def resolve_seed(payload: dict[str, Any]) -> int:
     seed = optional_int(payload, "seed", -1)
     return random.randint(1, 2**31 - 1) if seed <= 0 else seed
@@ -234,8 +245,11 @@ def get_pipeline(quant: str, *, include_texture: bool):
     return pipeline
 
 
-def remove_floor_like_components(mesh: trimesh.Trimesh) -> trimesh.Trimesh:
-    if str(os.environ.get("TRELLIS_GGUF_REMOVE_FLOOR_PLANE", "1")).strip().lower() in {"0", "false", "no"}:
+def remove_floor_like_components(mesh: trimesh.Trimesh, *, enabled: bool) -> trimesh.Trimesh:
+    env_value = os.environ.get("TRELLIS_GGUF_REMOVE_FLOOR_PLANE")
+    if env_value is not None:
+        enabled = str(env_value).strip().lower() not in {"0", "false", "no", "off"}
+    if not enabled:
         return mesh
     if mesh.faces is None or len(mesh.faces) == 0:
         return mesh
@@ -278,7 +292,7 @@ def remove_floor_like_components(mesh: trimesh.Trimesh) -> trimesh.Trimesh:
     return trimesh.util.concatenate(kept)
 
 
-def export_geometry(mesh_with_voxel, remesh_resolution: int) -> bytes:
+def export_geometry(mesh_with_voxel, remesh_resolution: int, *, remove_floor_plane: bool) -> bytes:
     import numpy as np
 
     verts = mesh_with_voxel.vertices
@@ -340,7 +354,7 @@ def export_geometry(mesh_with_voxel, remesh_resolution: int) -> bytes:
     verts[:, 2] = y
 
     mesh = trimesh.Trimesh(vertices=verts, faces=faces, process=True)
-    mesh = remove_floor_like_components(mesh)
+    mesh = remove_floor_like_components(mesh, enabled=remove_floor_plane)
     mesh.visual = trimesh.visual.TextureVisuals(material=trimesh.visual.material.PBRMaterial(doubleSided=True))
     with tempfile.NamedTemporaryFile(delete=False, suffix=".glb") as handle:
         temp_path = Path(handle.name)
@@ -430,7 +444,11 @@ def run_shape_request(payload: dict[str, Any]) -> bytes:
         )[0]
 
     set_task(status="processing", stage="exporting_mesh", detail="Exporting mesh...", progress_current=4, progress_total=5, progress_percent=85.0)
-    return export_geometry(mesh_with_voxel, optional_int(payload, "remesh_resolution", 768))
+    return export_geometry(
+        mesh_with_voxel,
+        optional_int(payload, "remesh_resolution", 768),
+        remove_floor_plane=optional_bool(payload, "remove_floor_plane", True),
+    )
 
 
 def run_retexture_request(payload: dict[str, Any]) -> bytes:
