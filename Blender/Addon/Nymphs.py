@@ -5,7 +5,7 @@ Live Blender addon implementation for Nymphs.
 bl_info = {
     "name": "Nymphs",
     "author": "Nymphs3D",
-    "version": (1, 1, 173),
+    "version": (1, 1, 188),
     "blender": (4, 2, 0),
     "location": "View3D > Sidebar > Nymphs",
     "description": "Blender client for NymphsCore image, shape, and texture backends",
@@ -22,6 +22,7 @@ import queue
 import re
 import shlex
 import shutil
+import struct
 import subprocess
 import tempfile
 import threading
@@ -72,7 +73,7 @@ CACHE_MISS = object()
 PART_GUIDANCE_SYNC_GUARD = False
 IMAGEGEN_PROMPT_SYNC_GUARD = False
 
-DEFAULT_WSL_DISTRO = "NymphsCore"
+DEFAULT_WSL_DISTRO = "NymphsCore_Lite"
 DEFAULT_WSL_USER = "nymph"
 DEFAULT_REPO_N2D2_PATH = "~/Z-Image"
 DEFAULT_REPO_TRELLIS_PATH = "~/TRELLIS.2"
@@ -82,6 +83,8 @@ DEFAULT_N2D2_MODEL_ID = "Tongyi-MAI/Z-Image-Turbo"
 DEFAULT_N2D2_MODEL_VARIANT = ""
 DEFAULT_N2D2_NUNCHAKU_RANK = "32"
 DEFAULT_N2D2_MODEL_PRESET = "zimage_nunchaku_r32"
+DEFAULT_TRELLIS_RUNTIME = "GGUF"
+DEFAULT_TRELLIS_GGUF_QUANT = "Q5_K_M"
 OPENROUTER_API_ROOT = "https://openrouter.ai/api/v1"
 GEMINI_MODEL_IDS = {
     "gemini_2_5_flash_image": "google/gemini-2.5-flash-image",
@@ -123,6 +126,7 @@ NO_PROMPT_PRESET_KEY = "__none__"
 WSL_DISTRO_ITEMS = []
 N2D2_PRESET_SYNC_GUARD = False
 N2D2_AUTORESTART_GUARD = False
+TRELLIS_PRESET_APPLY_GUARD = False
 IMAGEGEN_MV_VIEW_SPECS = (
     ("front", "Front", "front view"),
     ("left", "Left", "left side view"),
@@ -388,124 +392,162 @@ IMAGEGEN_SETTINGS_PRESETS = {
     },
 }
 LEGACY_IMAGEGEN_SETTINGS_PRESET_KEYS = {"turbo_mv_source"}
-DEFAULT_TRELLIS_SHAPE_PRESET = "official_default_1024_cascade"
+DEFAULT_TRELLIS_SHAPE_PRESET = "baseline_1024_cascade"
+TRELLIS_SAMPLER_ITEMS = (
+    ("default", "Default", "Use the sampler from the loaded TRELLIS pipeline config"),
+    ("euler", "Euler", "Euler flow sampler"),
+    ("heun", "Heun", "Heun flow sampler, GGUF runtime only"),
+    ("rk4", "RK4", "Fourth-order Runge-Kutta sampler, GGUF runtime only"),
+    ("rk5", "RK5", "Fifth-order Runge-Kutta sampler, GGUF runtime only"),
+)
+
+
+def _trellis_preset_values(
+    pipeline_type,
+    *,
+    tokens=49152,
+    texture_resolution="1024",
+    texture_size="2048",
+    faces=500000,
+    cleanup=True,
+    foreground=0.85,
+    sparse_resolution="auto",
+    sampler="default",
+    ss_sampler="default",
+    shape_sampler="default",
+    tex_sampler="default",
+    shape_export_mode="auto",
+    remesh_resolution="768",
+    export_remesh=True,
+    export_remesh_band=1.0,
+    export_remesh_project=0.0,
+    texture_alpha_mode="OPAQUE",
+    texture_double_sided=True,
+    texture_bake_vertices=False,
+    texture_custom_normals=False,
+    texture_uv_method="Xatlas",
+    texture_uv_angle=60.0,
+    texture_inpainting="telea",
+    ss_steps=12,
+    ss_guidance=7.5,
+    ss_rescale=0.7,
+    ss_start=0.6,
+    ss_end=1.0,
+    ss_timing=5.0,
+    shape_steps=12,
+    shape_guidance=7.5,
+    shape_rescale=0.5,
+    shape_start=0.6,
+    shape_end=1.0,
+    shape_timing=3.0,
+    tex_steps=12,
+    tex_guidance=1.0,
+    tex_rescale=0.0,
+    tex_start=0.6,
+    tex_end=0.9,
+    tex_timing=3.0,
+):
+    return {
+        "trellis_pipeline_type": pipeline_type,
+        "trellis_max_tokens": tokens,
+        "trellis_texture_resolution": str(texture_resolution),
+        "trellis_texture_size": str(texture_size),
+        "trellis_decimation_target": faces,
+        "trellis_remove_floor_plane": cleanup,
+        "trellis_foreground_ratio": foreground,
+        "trellis_sparse_structure_resolution": str(sparse_resolution),
+        "trellis_sampler": sampler,
+        "trellis_ss_sampler": ss_sampler,
+        "trellis_shape_sampler": shape_sampler,
+        "trellis_tex_sampler": tex_sampler,
+        "trellis_shape_export_mode": shape_export_mode,
+        "trellis_remesh_resolution": str(remesh_resolution),
+        "trellis_export_remesh": export_remesh,
+        "trellis_export_remesh_band": export_remesh_band,
+        "trellis_export_remesh_project": export_remesh_project,
+        "trellis_texture_alpha_mode": texture_alpha_mode,
+        "trellis_texture_double_sided": texture_double_sided,
+        "trellis_texture_bake_vertices": texture_bake_vertices,
+        "trellis_texture_custom_normals": texture_custom_normals,
+        "trellis_texture_uv_method": texture_uv_method,
+        "trellis_texture_uv_angle": texture_uv_angle,
+        "trellis_texture_inpainting": texture_inpainting,
+        "trellis_ss_sampling_steps": ss_steps,
+        "trellis_ss_guidance_strength": ss_guidance,
+        "trellis_ss_guidance_rescale": ss_rescale,
+        "trellis_ss_guidance_interval_start": ss_start,
+        "trellis_ss_guidance_interval_end": ss_end,
+        "trellis_ss_rescale_t": ss_timing,
+        "trellis_shape_sampling_steps": shape_steps,
+        "trellis_shape_guidance_strength": shape_guidance,
+        "trellis_shape_guidance_rescale": shape_rescale,
+        "trellis_shape_guidance_interval_start": shape_start,
+        "trellis_shape_guidance_interval_end": shape_end,
+        "trellis_shape_rescale_t": shape_timing,
+        "trellis_tex_sampling_steps": tex_steps,
+        "trellis_tex_guidance_strength": tex_guidance,
+        "trellis_tex_guidance_rescale": tex_rescale,
+        "trellis_tex_guidance_interval_start": tex_start,
+        "trellis_tex_guidance_interval_end": tex_end,
+        "trellis_tex_rescale_t": tex_timing,
+    }
+
+
 TRELLIS_SHAPE_PRESETS = {
-    "official_fast_512": {
-        "label": "Official Fast 512",
-        "description": "Fastest shipped TRELLIS lane using the upstream sampler defaults.",
-        "values": {
-            "trellis_pipeline_type": "512",
-            "trellis_max_tokens": 49152,
-            "trellis_texture_size": "2048",
-            "trellis_decimation_target": 500000,
-            "trellis_ss_sampling_steps": 12,
-            "trellis_ss_guidance_strength": 7.5,
-            "trellis_ss_guidance_rescale": 0.7,
-            "trellis_ss_guidance_interval_start": 0.6,
-            "trellis_ss_guidance_interval_end": 1.0,
-            "trellis_ss_rescale_t": 5.0,
-            "trellis_shape_sampling_steps": 12,
-            "trellis_shape_guidance_strength": 7.5,
-            "trellis_shape_guidance_rescale": 0.5,
-            "trellis_shape_guidance_interval_start": 0.6,
-            "trellis_shape_guidance_interval_end": 1.0,
-            "trellis_shape_rescale_t": 3.0,
-            "trellis_tex_sampling_steps": 12,
-            "trellis_tex_guidance_strength": 1.0,
-            "trellis_tex_guidance_rescale": 0.0,
-            "trellis_tex_guidance_interval_start": 0.6,
-            "trellis_tex_guidance_interval_end": 0.9,
-            "trellis_tex_rescale_t": 3.0,
-        },
+    "preview_512": {
+        "label": "Preview 512",
+        "description": "Fast GGUF preview for checking crop, orientation, and the broad silhouette before spending time on a full cascade run.",
+        "values": _trellis_preset_values("512", texture_resolution="512", texture_size="1024", faces=250000),
     },
-    "official_direct_1024": {
-        "label": "Official Direct 1024",
-        "description": "Single-stage 1024 lane using the upstream sampler defaults.",
-        "values": {
-            "trellis_pipeline_type": "1024",
-            "trellis_max_tokens": 49152,
-            "trellis_texture_size": "2048",
-            "trellis_decimation_target": 500000,
-            "trellis_ss_sampling_steps": 12,
-            "trellis_ss_guidance_strength": 7.5,
-            "trellis_ss_guidance_rescale": 0.7,
-            "trellis_ss_guidance_interval_start": 0.6,
-            "trellis_ss_guidance_interval_end": 1.0,
-            "trellis_ss_rescale_t": 5.0,
-            "trellis_shape_sampling_steps": 12,
-            "trellis_shape_guidance_strength": 7.5,
-            "trellis_shape_guidance_rescale": 0.5,
-            "trellis_shape_guidance_interval_start": 0.6,
-            "trellis_shape_guidance_interval_end": 1.0,
-            "trellis_shape_rescale_t": 3.0,
-            "trellis_tex_sampling_steps": 12,
-            "trellis_tex_guidance_strength": 1.0,
-            "trellis_tex_guidance_rescale": 0.0,
-            "trellis_tex_guidance_interval_start": 0.6,
-            "trellis_tex_guidance_interval_end": 0.9,
-            "trellis_tex_rescale_t": 3.0,
-        },
+    "baseline_1024_cascade": {
+        "label": "Baseline 1024 Cascade",
+        "description": "Default GGUF recipe: upstream sampler defaults, 1024 cascade structure, 2K texture export, and moderate face count.",
+        "values": _trellis_preset_values("1024_cascade"),
     },
-    "official_default_1024_cascade": {
-        "label": "Official Default 1024 Cascade",
-        "description": "Matches the upstream default pipeline type and shipped sampler defaults.",
-        "values": {
-            "trellis_pipeline_type": "1024_cascade",
-            "trellis_max_tokens": 49152,
-            "trellis_texture_size": "2048",
-            "trellis_decimation_target": 500000,
-            "trellis_ss_sampling_steps": 12,
-            "trellis_ss_guidance_strength": 7.5,
-            "trellis_ss_guidance_rescale": 0.7,
-            "trellis_ss_guidance_interval_start": 0.6,
-            "trellis_ss_guidance_interval_end": 1.0,
-            "trellis_ss_rescale_t": 5.0,
-            "trellis_shape_sampling_steps": 12,
-            "trellis_shape_guidance_strength": 7.5,
-            "trellis_shape_guidance_rescale": 0.5,
-            "trellis_shape_guidance_interval_start": 0.6,
-            "trellis_shape_guidance_interval_end": 1.0,
-            "trellis_shape_rescale_t": 3.0,
-            "trellis_tex_sampling_steps": 12,
-            "trellis_tex_guidance_strength": 1.0,
-            "trellis_tex_guidance_rescale": 0.0,
-            "trellis_tex_guidance_interval_start": 0.6,
-            "trellis_tex_guidance_interval_end": 0.9,
-            "trellis_tex_rescale_t": 3.0,
-        },
+    "safe_16gb_1024_cascade": {
+        "label": "16GB Safe 1024",
+        "description": "Lower-cost GGUF baseline for 16 GB cards: keeps the 1024 cascade but restrains texture size and mesh density.",
+        "values": _trellis_preset_values("1024_cascade", tokens=49152, texture_resolution="1024", texture_size="1024", faces=350000),
     },
-    "experimental_1536_cascade": {
-        "label": "Experimental 1536 Cascade",
-        "description": "Higher-detail experimental cascade path with a larger token budget.",
-        "values": {
-            "trellis_pipeline_type": "1536_cascade",
-            "trellis_max_tokens": 98304,
-            "trellis_texture_size": "2048",
-            "trellis_decimation_target": 750000,
-            "trellis_ss_sampling_steps": 12,
-            "trellis_ss_guidance_strength": 7.5,
-            "trellis_ss_guidance_rescale": 0.7,
-            "trellis_ss_guidance_interval_start": 0.6,
-            "trellis_ss_guidance_interval_end": 1.0,
-            "trellis_ss_rescale_t": 5.0,
-            "trellis_shape_sampling_steps": 12,
-            "trellis_shape_guidance_strength": 7.5,
-            "trellis_shape_guidance_rescale": 0.5,
-            "trellis_shape_guidance_interval_start": 0.6,
-            "trellis_shape_guidance_interval_end": 1.0,
-            "trellis_shape_rescale_t": 3.0,
-            "trellis_tex_sampling_steps": 12,
-            "trellis_tex_guidance_strength": 1.0,
-            "trellis_tex_guidance_rescale": 0.0,
-            "trellis_tex_guidance_interval_start": 0.6,
-            "trellis_tex_guidance_interval_end": 0.9,
-            "trellis_tex_rescale_t": 3.0,
-        },
+    "quality_1024_cascade": {
+        "label": "Quality 1024",
+        "description": "Higher-detail GGUF recipe for final-looking assets when the baseline shape is good and you can spend more memory.",
+        "values": _trellis_preset_values("1024_cascade", tokens=65536, shape_steps=16, ss_steps=14, tex_steps=16, tex_guidance=1.25, faces=750000),
     },
+    "lowpoly_game_asset": {
+        "label": "Lowpoly Game Asset",
+        "description": "Compact GGUF export target for real-time previews, props, and fast Blender iteration.",
+        "values": _trellis_preset_values("1024_cascade", tokens=49152, texture_size="1024", faces=150000, tex_steps=12),
+    },
+}
+LEGACY_TRELLIS_SHAPE_PRESET_KEYS = {
+    "official_fast_512",
+    "fast_512_lowpoly",
+    "fast_512_texture",
+    "official_direct_1024",
+    "direct_1024_conservative",
+    "direct_1024_crisp",
+    "official_default_1024_cascade",
+    "quality_1024_texture",
+    "texture_strong_follow",
+    "texture_loose_painterly",
+    "character_balanced",
+    "character_thin_details",
+    "creature_organic",
+    "hard_surface_crisp",
+    "small_prop_clean",
+    "large_prop_detail",
+    "noisy_image_cleanup",
+    "preserve_raw_compare",
+    "mesh_cleanup_test",
+    "highpoly_bake_source",
+    "official_comparison",
+    "experimental_1536_cascade",
+    "experimental_1536_max",
 }
 SERVICE_LABELS = {
     "n2d2": "Z-Image",
-    "trellis": "TRELLIS.2",
+    "trellis": "TRELLIS.2 GGUF",
 }
 SERVICE_PROP_PREFIXES = {
     "n2d2": "service_n2d2",
@@ -574,6 +616,8 @@ def _sync_shape_texture_state(state):
 
 
 def _launch_backend_label(state):
+    if (getattr(state, "trellis_runtime", DEFAULT_TRELLIS_RUNTIME) or DEFAULT_TRELLIS_RUNTIME) == "GGUF":
+        return "TRELLIS.2 GGUF"
     return "TRELLIS.2"
 
 
@@ -607,6 +651,10 @@ def _service_port(state, service_key):
     if service_key == "trellis":
         return "8094"
     return "8090"
+
+
+def _trellis_runtime_is_gguf(state):
+    return True
 
 
 def _n2d2_model_family(model_id: str | None) -> str:
@@ -1696,8 +1744,28 @@ def _current_trellis_shape_preset_values(state):
     return {
         "trellis_pipeline_type": getattr(state, "trellis_pipeline_type", "1024_cascade"),
         "trellis_max_tokens": int(getattr(state, "trellis_max_tokens", 49152)),
+        "trellis_texture_resolution": str(getattr(state, "trellis_texture_resolution", "1024")),
         "trellis_texture_size": str(getattr(state, "trellis_texture_size", "2048")),
         "trellis_decimation_target": int(getattr(state, "trellis_decimation_target", 500000)),
+        "trellis_remove_floor_plane": bool(getattr(state, "trellis_remove_floor_plane", True)),
+        "trellis_foreground_ratio": float(getattr(state, "trellis_foreground_ratio", 0.85)),
+        "trellis_sparse_structure_resolution": str(getattr(state, "trellis_sparse_structure_resolution", "auto")),
+        "trellis_sampler": str(getattr(state, "trellis_sampler", "default")),
+        "trellis_ss_sampler": str(getattr(state, "trellis_ss_sampler", "default")),
+        "trellis_shape_sampler": str(getattr(state, "trellis_shape_sampler", "default")),
+        "trellis_tex_sampler": str(getattr(state, "trellis_tex_sampler", "default")),
+        "trellis_shape_export_mode": str(getattr(state, "trellis_shape_export_mode", "auto")),
+        "trellis_remesh_resolution": str(getattr(state, "trellis_remesh_resolution", "768")),
+        "trellis_export_remesh": bool(getattr(state, "trellis_export_remesh", True)),
+        "trellis_export_remesh_band": float(getattr(state, "trellis_export_remesh_band", 1.0)),
+        "trellis_export_remesh_project": float(getattr(state, "trellis_export_remesh_project", 0.0)),
+        "trellis_texture_alpha_mode": str(getattr(state, "trellis_texture_alpha_mode", "OPAQUE")),
+        "trellis_texture_double_sided": bool(getattr(state, "trellis_texture_double_sided", True)),
+        "trellis_texture_bake_vertices": bool(getattr(state, "trellis_texture_bake_vertices", False)),
+        "trellis_texture_custom_normals": bool(getattr(state, "trellis_texture_custom_normals", False)),
+        "trellis_texture_uv_method": str(getattr(state, "trellis_texture_uv_method", "Xatlas")),
+        "trellis_texture_uv_angle": float(getattr(state, "trellis_texture_uv_angle", 60.0)),
+        "trellis_texture_inpainting": str(getattr(state, "trellis_texture_inpainting", "telea")),
         "trellis_ss_sampling_steps": int(getattr(state, "trellis_ss_sampling_steps", 12)),
         "trellis_ss_guidance_strength": float(getattr(state, "trellis_ss_guidance_strength", 7.5)),
         "trellis_ss_guidance_rescale": float(getattr(state, "trellis_ss_guidance_rescale", 0.7)),
@@ -1767,7 +1835,7 @@ def _load_trellis_shape_presets():
                 if not filename.lower().endswith(".json"):
                     continue
                 key = os.path.splitext(filename)[0]
-                if key in TRELLIS_SHAPE_PRESETS:
+                if key in TRELLIS_SHAPE_PRESETS or key in LEGACY_TRELLIS_SHAPE_PRESET_KEYS:
                     continue
                 path = os.path.join(preset_dir, filename)
                 try:
@@ -1826,6 +1894,24 @@ def _sync_trellis_shape_preset(state):
     except Exception:
         pass
     return key
+
+
+def _on_trellis_shape_preset_changed(self, context):
+    global TRELLIS_PRESET_APPLY_GUARD
+    if TRELLIS_PRESET_APPLY_GUARD:
+        return
+    TRELLIS_PRESET_APPLY_GUARD = True
+    try:
+        preset = _trellis_shape_preset_data(getattr(self, "trellis_shape_preset", ""))
+        values = preset.get("values", {})
+        if values:
+            _apply_trellis_shape_preset(self, values)
+            self.status_text = (
+                f"Loaded TRELLIS preset: {preset['label']} "
+                f"({self.trellis_pipeline_type}, tokens {self.trellis_max_tokens})"
+            )
+    finally:
+        TRELLIS_PRESET_APPLY_GUARD = False
 
 
 def _imagegen_text_field_name(target):
@@ -3172,11 +3258,17 @@ def _selected_texture_service_key(state):
     return "trellis"
 
 
+def _with_trellis_runtime_payload(state, payload):
+    if _trellis_runtime_is_gguf(state):
+        payload["gguf_quant"] = getattr(state, "trellis_gguf_quant", DEFAULT_TRELLIS_GGUF_QUANT)
+    return payload
+
+
 def _build_shape_payload(state):
     image_path = _trellis_image_source_path(state, allow_front_fallback=False)
     if not image_path.strip():
         raise RuntimeError("Select one source image for TRELLIS shape generation.")
-    return {
+    return _with_trellis_runtime_payload(state, {
         "image": _file_to_base64(image_path),
         "pipeline_type": getattr(state, "trellis_pipeline_type", "512"),
         "seed": _trellis_seed_value(state),
@@ -3185,6 +3277,25 @@ def _build_shape_payload(state):
         "max_num_tokens": int(getattr(state, "trellis_max_tokens", 49152)),
         "texture_size": int(getattr(state, "trellis_texture_size", "2048")),
         "decimation_target": int(getattr(state, "trellis_decimation_target", 500000)),
+        "foreground_ratio": float(getattr(state, "trellis_foreground_ratio", 0.85)),
+        "sparse_structure_resolution": str(getattr(state, "trellis_sparse_structure_resolution", "auto")),
+        "sampler": str(getattr(state, "trellis_sampler", "default")),
+        "sparse_structure_sampler": str(getattr(state, "trellis_ss_sampler", "default")),
+        "shape_sampler": str(getattr(state, "trellis_shape_sampler", "default")),
+        "tex_sampler": str(getattr(state, "trellis_tex_sampler", "default")),
+        "shape_export_mode": str(getattr(state, "trellis_shape_export_mode", "auto")),
+        "remesh_resolution": int(getattr(state, "trellis_remesh_resolution", "768")),
+        "export_remesh": bool(getattr(state, "trellis_export_remesh", True)),
+        "export_remesh_band": float(getattr(state, "trellis_export_remesh_band", 1.0)),
+        "export_remesh_project": float(getattr(state, "trellis_export_remesh_project", 0.0)),
+        "texture_alpha_mode": str(getattr(state, "trellis_texture_alpha_mode", "OPAQUE")),
+        "texture_double_sided": bool(getattr(state, "trellis_texture_double_sided", True)),
+        "texture_bake_vertices": bool(getattr(state, "trellis_texture_bake_vertices", False)),
+        "texture_custom_normals": bool(getattr(state, "trellis_texture_custom_normals", False)),
+        "texture_uv_method": str(getattr(state, "trellis_texture_uv_method", "Xatlas")),
+        "texture_uv_angle": float(getattr(state, "trellis_texture_uv_angle", 60.0)),
+        "texture_inpainting": str(getattr(state, "trellis_texture_inpainting", "telea")),
+        "remove_floor_plane": bool(getattr(state, "trellis_remove_floor_plane", True)),
         "ss_sampling_steps": int(getattr(state, "trellis_ss_sampling_steps", 12)),
         "ss_guidance_strength": float(getattr(state, "trellis_ss_guidance_strength", 7.5)),
         "ss_guidance_rescale": float(getattr(state, "trellis_ss_guidance_rescale", 0.7)),
@@ -3203,7 +3314,7 @@ def _build_shape_payload(state):
         "tex_guidance_interval_start": float(getattr(state, "trellis_tex_guidance_interval_start", 0.6)),
         "tex_guidance_interval_end": float(getattr(state, "trellis_tex_guidance_interval_end", 0.9)),
         "tex_rescale_t": float(getattr(state, "trellis_tex_rescale_t", 3.0)),
-    }
+    })
 
 
 def _build_texture_payload(state, mesh_b64, mesh_format="glb"):
@@ -3222,15 +3333,25 @@ def _build_texture_payload(state, mesh_b64, mesh_format="glb"):
     if not image_path.strip():
         raise RuntimeError("TRELLIS texturing needs one guidance image.")
     payload["image"] = _file_to_base64(image_path)
-    return payload
+    return _with_trellis_runtime_payload(state, payload)
 
 
 def _texture_option_payload(state, include_use_remesh=False):
-    return {
+    payload = {
         "texture_resolution": int(getattr(state, "trellis_texture_resolution", 1024)),
         "texture_size": int(getattr(state, "trellis_texture_size", 2048)),
         "seed": _trellis_seed_value(state),
         "decimation_target": int(getattr(state, "trellis_decimation_target", 500000)),
+        "foreground_ratio": float(getattr(state, "trellis_foreground_ratio", 0.85)),
+        "sampler": str(getattr(state, "trellis_sampler", "default")),
+        "tex_sampler": str(getattr(state, "trellis_tex_sampler", "default")),
+        "texture_alpha_mode": str(getattr(state, "trellis_texture_alpha_mode", "OPAQUE")),
+        "texture_double_sided": bool(getattr(state, "trellis_texture_double_sided", True)),
+        "texture_bake_vertices": bool(getattr(state, "trellis_texture_bake_vertices", False)),
+        "texture_custom_normals": bool(getattr(state, "trellis_texture_custom_normals", False)),
+        "texture_uv_method": str(getattr(state, "trellis_texture_uv_method", "Xatlas")),
+        "texture_uv_angle": float(getattr(state, "trellis_texture_uv_angle", 60.0)),
+        "texture_inpainting": str(getattr(state, "trellis_texture_inpainting", "telea")),
         "tex_sampling_steps": int(getattr(state, "trellis_tex_sampling_steps", 12)),
         "tex_guidance_strength": float(getattr(state, "trellis_tex_guidance_strength", 1.0)),
         "tex_guidance_rescale": float(getattr(state, "trellis_tex_guidance_rescale", 0.0)),
@@ -3238,6 +3359,9 @@ def _texture_option_payload(state, include_use_remesh=False):
         "tex_guidance_interval_end": float(getattr(state, "trellis_tex_guidance_interval_end", 0.9)),
         "tex_rescale_t": float(getattr(state, "trellis_tex_rescale_t", 3.0)),
     }
+    if include_use_remesh:
+        payload["use_remesh"] = bool(getattr(state, "texture_use_remesh", False))
+    return payload
 
 
 def _summarize_server_info(info):
@@ -3265,8 +3389,13 @@ def _summarize_server_info(info):
     model_path = info.get("model_path", "unknown")
     subfolder = info.get("subfolder", "unknown")
     capabilities = _server_capabilities_from_info(info)
+    runtime_bits = []
+    if str(backend_name).strip().lower() == "trellis.2-gguf":
+        runtime_bits.append(f"quant={info.get('gguf_quant', 'unknown')}")
+        runtime_bits.append(f"attn={info.get('attention_backend', 'unknown')}")
+    runtime_text = f" | {' | '.join(runtime_bits)}" if runtime_bits else ""
     return (
-        f"{status} | {model_path} | {subfolder} | "
+        f"{status} | {model_path} | {subfolder}{runtime_text} | "
         f"shape={capabilities['shape']} | tex={capabilities['texture']} | "
         f"retexture={capabilities['retexture']} | mv={capabilities['multiview']} | "
         f"text={capabilities['text']}"
@@ -3277,7 +3406,7 @@ def _backend_family(info):
     backend_name = str(info.get("backend", "")).strip().lower()
     if backend_name == "nymphs2d2":
         return "Nymphs2D2"
-    if backend_name == "trellis.2":
+    if backend_name in {"trellis.2", "trellis.2-gguf"}:
         return "TRELLIS.2"
     blob = f"{info.get('model_path', '')} {info.get('subfolder', '')}".lower()
     if "trellis" in blob:
@@ -3752,34 +3881,14 @@ def _runtime_vram_estimate(state, service_key):
         return estimate, basis, mode, caveat
 
     if service_key == "trellis":
-        pipeline_type = getattr(state, "trellis_pipeline_type", "512")
-        if state.shape_generate_texture:
-            if pipeline_type == "512":
-                return (
-                    "16 GB verified",
-                    "Basis: local test",
-                    "Shape + texture",
-                    "The official TRELLIS 512 full path completed locally on a 16 GB card in this branch.",
-                )
+        if _trellis_runtime_is_gguf(state):
+            quant = getattr(state, "trellis_gguf_quant", DEFAULT_TRELLIS_GGUF_QUANT)
             return (
-                "16 GB uncertain",
-                "Basis: local + inferred",
+                "16 GB target",
+                f"Basis: GGUF {quant} + FlashAttention",
                 "Shape + texture",
-                "1024 cascade shape is proven locally, but higher TRELLIS texture modes still need more validation on 16 GB.",
+                "The GGUF adapter reports FlashAttention and uses the managed GGUF model bundle.",
             )
-        if pipeline_type == "1024_cascade":
-            return (
-                "16 GB verified",
-                "Basis: local test",
-                "Shape only",
-                "The TRELLIS 1024 cascade shape path completed locally on a 16 GB card in this branch.",
-            )
-        return (
-            "16 GB verified",
-            "Basis: local test",
-            "Shape only",
-            "The TRELLIS 512 shape path completed locally on a 16 GB card in this branch.",
-        )
 
     return (
         "Unknown",
@@ -4148,9 +4257,10 @@ def _compose_wsl_launch(state, service_key):
     else:
         repo_path = state.repo_trellis_path.strip() or DEFAULT_REPO_TRELLIS_PATH
         python_path = _resolved_user_path(state.trellis_python_path.strip() or DEFAULT_TRELLIS_PYTHON_PATH, state)
+        script_name = "scripts/api_server_trellis_gguf.py"
         parts = [
             python_path,
-            "scripts/api_server_trellis.py",
+            script_name,
             "--host",
             "0.0.0.0",
             "--port",
@@ -4158,6 +4268,8 @@ def _compose_wsl_launch(state, service_key):
             "--python-path",
             python_path,
         ]
+        if _trellis_runtime_is_gguf(state):
+            parts.extend(["--gguf-quant", getattr(state, "trellis_gguf_quant", DEFAULT_TRELLIS_GGUF_QUANT)])
 
     cmd = " ".join(shlex.quote(part) for part in parts)
     if service_key == "n2d2":
@@ -4172,9 +4284,9 @@ def _stop_shell_for_service(service_key, port):
     if service_key == "trellis":
         return (
             common +
-            f'pkill -f "scripts/api_server_trellis.py --host 0.0.0.0 --port {port}" >/dev/null 2>&1 || true; '
-            'pkill -f "python scripts/api_server_trellis.py" >/dev/null 2>&1 || true; '
-            'pkill -f "python3 scripts/api_server_trellis.py" >/dev/null 2>&1 || true'
+            f'pkill -f "scripts/api_server_trellis_gguf.py --host 0.0.0.0 --port {port}" >/dev/null 2>&1 || true; '
+            'pkill -f "python scripts/api_server_trellis_gguf.py" >/dev/null 2>&1 || true; '
+            'pkill -f "python3 scripts/api_server_trellis_gguf.py" >/dev/null 2>&1 || true'
         )
     return (
         common +
@@ -4571,6 +4683,182 @@ def _gpu_probe_timer():
     return GPU_REFRESH_SECONDS
 
 
+def _glb_json_and_binary(path):
+    try:
+        with open(path, "rb") as handle:
+            data = handle.read()
+        if len(data) < 20:
+            return None, None
+        magic, version, _total_length = struct.unpack_from("<4sII", data, 0)
+        if magic != b"glTF" or version != 2:
+            return None, None
+        json_length, json_type = struct.unpack_from("<II", data, 12)
+        if json_type != 0x4E4F534A:
+            return None, None
+        json_start = 20
+        json_end = json_start + json_length
+        tree = json.loads(data[json_start:json_end].decode("utf-8"))
+        binary = b""
+        chunk_offset = json_end
+        while chunk_offset + 8 <= len(data):
+            chunk_length, chunk_type = struct.unpack_from("<II", data, chunk_offset)
+            chunk_start = chunk_offset + 8
+            chunk_end = chunk_start + chunk_length
+            if chunk_type == 0x004E4942:
+                binary = data[chunk_start:chunk_end]
+                break
+            chunk_offset = chunk_end
+        return tree, binary
+    except Exception:
+        return None, None
+
+
+def _glb_texture_source_index(tree, texture_info):
+    if not isinstance(texture_info, dict):
+        return None
+    texture_index = texture_info.get("index")
+    textures = tree.get("textures") or []
+    if not isinstance(texture_index, int) or texture_index < 0 or texture_index >= len(textures):
+        return None
+    texture = textures[texture_index]
+    if isinstance(texture.get("source"), int):
+        return texture["source"]
+    webp = ((texture.get("extensions") or {}).get("EXT_texture_webp") or {})
+    return webp.get("source") if isinstance(webp.get("source"), int) else None
+
+
+def _glb_image_suffix(mime_type):
+    mime_type = (mime_type or "").lower()
+    if "webp" in mime_type:
+        return ".webp"
+    if "jpeg" in mime_type or "jpg" in mime_type:
+        return ".jpg"
+    return ".png"
+
+
+def _extract_glb_image(tree, binary, mesh_path, image_index, label):
+    images = tree.get("images") or []
+    buffer_views = tree.get("bufferViews") or []
+    if not isinstance(image_index, int) or image_index < 0 or image_index >= len(images):
+        return ""
+    image = images[image_index]
+    view_index = image.get("bufferView")
+    if not isinstance(view_index, int) or view_index < 0 or view_index >= len(buffer_views):
+        return ""
+    view = buffer_views[view_index]
+    offset = int(view.get("byteOffset", 0))
+    length = int(view.get("byteLength", 0))
+    if length <= 0 or offset < 0 or offset + length > len(binary):
+        return ""
+    stem = os.path.splitext(mesh_path)[0]
+    output_path = f"{stem}-{label}{_glb_image_suffix(image.get('mimeType'))}"
+    with open(output_path, "wb") as handle:
+        handle.write(binary[offset : offset + length])
+    return output_path
+
+
+def _principled_input(node, *names):
+    for name in names:
+        socket = node.inputs.get(name)
+        if socket is not None:
+            return socket
+    return None
+
+
+def _material_has_image_texture_nodes(material):
+    if material is None or not getattr(material, "use_nodes", False):
+        return False
+    node_tree = getattr(material, "node_tree", None)
+    if node_tree is None:
+        return False
+    return any(getattr(node, "type", "") == "TEX_IMAGE" and getattr(node, "image", None) for node in node_tree.nodes)
+
+
+def _mesh_objects_have_image_materials(mesh_objects):
+    for obj in mesh_objects:
+        if obj.type != "MESH" or obj.data is None:
+            continue
+        for slot in getattr(obj, "material_slots", []):
+            if _material_has_image_texture_nodes(getattr(slot, "material", None)):
+                return True
+    return False
+
+
+def _apply_extracted_glb_material(mesh_objects, mesh_path):
+    if _mesh_objects_have_image_materials(mesh_objects):
+        return False
+    tree, binary = _glb_json_and_binary(mesh_path)
+    if not tree or not binary:
+        return False
+    materials = tree.get("materials") or []
+    if not materials:
+        return False
+    pbr = (materials[0].get("pbrMetallicRoughness") or {})
+    base_image_index = _glb_texture_source_index(tree, pbr.get("baseColorTexture"))
+    mr_image_index = _glb_texture_source_index(tree, pbr.get("metallicRoughnessTexture"))
+    if base_image_index is None:
+        return False
+
+    base_path = _extract_glb_image(tree, binary, mesh_path, base_image_index, "baseColor")
+    mr_path = _extract_glb_image(tree, binary, mesh_path, mr_image_index, "metallicRoughness") if mr_image_index is not None else ""
+    if not base_path:
+        return False
+
+    base_image = bpy.data.images.load(base_path, check_existing=True)
+    mr_image = bpy.data.images.load(mr_path, check_existing=True) if mr_path else None
+    if base_image is not None:
+        base_image.colorspace_settings.name = "sRGB"
+    if mr_image is not None:
+        mr_image.colorspace_settings.name = "Non-Color"
+
+    material = bpy.data.materials.new(f"Nymphs Texture {time.strftime('%H%M%S')}")
+    material.use_nodes = True
+    material.blend_method = "OPAQUE"
+    material.use_screen_refraction = False
+    nodes = material.node_tree.nodes
+    links = material.node_tree.links
+    for node in list(nodes):
+        nodes.remove(node)
+    output = nodes.new("ShaderNodeOutputMaterial")
+    output.location = (420, 0)
+    principled = nodes.new("ShaderNodeBsdfPrincipled")
+    principled.location = (120, 0)
+    links.new(principled.outputs["BSDF"], output.inputs["Surface"])
+
+    base_node = nodes.new("ShaderNodeTexImage")
+    base_node.location = (-420, 120)
+    base_node.image = base_image
+    base_socket = _principled_input(principled, "Base Color")
+    alpha_socket = _principled_input(principled, "Alpha")
+    if base_socket is not None:
+        links.new(base_node.outputs["Color"], base_socket)
+    if alpha_socket is not None:
+        links.new(base_node.outputs["Alpha"], alpha_socket)
+
+    if mr_image is not None:
+        mr_node = nodes.new("ShaderNodeTexImage")
+        mr_node.location = (-420, -160)
+        mr_node.image = mr_image
+        separate = nodes.new("ShaderNodeSeparateColor")
+        separate.location = (-120, -160)
+        links.new(mr_node.outputs["Color"], separate.inputs["Color"])
+        roughness_socket = _principled_input(principled, "Roughness")
+        metallic_socket = _principled_input(principled, "Metallic")
+        if roughness_socket is not None:
+            links.new(separate.outputs["Green"], roughness_socket)
+        if metallic_socket is not None:
+            links.new(separate.outputs["Blue"], metallic_socket)
+
+    applied = False
+    for obj in mesh_objects:
+        if obj.type != "MESH" or obj.data is None:
+            continue
+        obj.data.materials.clear()
+        obj.data.materials.append(material)
+        applied = True
+    return applied
+
+
 def _import_result(event):
     before_names = set(bpy.data.objects.keys())
     bpy.ops.import_scene.gltf(filepath=event.mesh_path)
@@ -4582,6 +4870,9 @@ def _import_result(event):
 
     for obj in latest_roots:
         _show_object_tree(obj)
+
+    mesh_objects = [obj for obj in imported_objects if obj.type == "MESH"]
+    material_restored = _apply_extracted_glb_material(mesh_objects, event.mesh_path)
 
     state = _active_state(event.scene_name)
     if event.hide_source and event.source_object_name:
@@ -4605,6 +4896,8 @@ def _import_result(event):
         state.saw_real_backend_progress = False
         state.generation_request_finished_locally = True
         state.status_text = "Mesh imported into Blender."
+        if material_restored:
+            state.status_text = "Mesh imported into Blender with embedded texture material."
         if event.update_shape_result:
             state.last_result = "Imported latest result"
             state.shape_output_path = event.mesh_path
@@ -5134,7 +5427,7 @@ class NymphsV2State(bpy.types.PropertyGroup):
     launch_backend: EnumProperty(
         name="Backend",
         items=(
-            ("BACKEND_TRELLIS", "TRELLIS.2", "Launch the official TRELLIS adapter backend"),
+            ("BACKEND_TRELLIS", "TRELLIS.2 GGUF", "Launch the managed TRELLIS.2 GGUF adapter backend"),
         ),
         default="BACKEND_TRELLIS",
     )
@@ -5193,6 +5486,25 @@ class NymphsV2State(bpy.types.PropertyGroup):
         name="TRELLIS Python",
         description="Python executable used to launch TRELLIS. Change this only if TRELLIS uses a different virtual environment.",
         default=DEFAULT_TRELLIS_PYTHON_PATH,
+    )
+    trellis_runtime: EnumProperty(
+        name="TRELLIS Runtime",
+        description="TRELLIS uses the managed GGUF runtime.",
+        items=(
+            ("GGUF", "GGUF", "Use the quantized TRELLIS.2 GGUF adapter"),
+        ),
+        default=DEFAULT_TRELLIS_RUNTIME,
+    )
+    trellis_gguf_quant: EnumProperty(
+        name="GGUF Quant",
+        description="Quantization level used by the TRELLIS.2 GGUF adapter.",
+        items=(
+            ("Q4_K_M", "Q4_K_M", "Smallest local GGUF bundle"),
+            ("Q5_K_M", "Q5_K_M", "Balanced 16 GB test target"),
+            ("Q6_K", "Q6_K", "Heavier, higher precision"),
+            ("Q8_0", "Q8_0", "Largest GGUF option"),
+        ),
+        default=DEFAULT_TRELLIS_GGUF_QUANT,
     )
     n2d2_model_preset: EnumProperty(
         name="Model Choice",
@@ -5278,13 +5590,14 @@ class NymphsV2State(bpy.types.PropertyGroup):
         name="TRELLIS Preset",
         description="Load a TRELLIS shape preset. This updates the pipeline type, token budget, and sampler settings.",
         items=_trellis_shape_preset_items,
+        update=_on_trellis_shape_preset_changed,
     )
     trellis_pipeline_type: EnumProperty(
         name="Resolution",
         items=(
             ("512", "512", "Fastest verified TRELLIS shape/texturing lane"),
             ("1024", "1024", "Direct 1024 TRELLIS lane"),
-            ("1024_cascade", "1024 Cascade", "Official default higher-detail TRELLIS shape lane"),
+            ("1024_cascade", "1024 Cascade", "Default higher-detail TRELLIS GGUF shape lane"),
             ("1536_cascade", "1536 Cascade", "Experimental higher-detail TRELLIS shape lane"),
         ),
         default="1024_cascade",
@@ -5321,6 +5634,48 @@ class NymphsV2State(bpy.types.PropertyGroup):
         min=4096,
         max=131072,
     )
+    trellis_foreground_ratio: FloatProperty(
+        name="Foreground",
+        description="GGUF image-prep crop/padding ratio. Lower crops tighter; higher keeps more surrounding area.",
+        default=0.85,
+        min=0.60,
+        max=1.00,
+        precision=2,
+    )
+    trellis_sparse_structure_resolution: EnumProperty(
+        name="Sparse Res",
+        description="GGUF sparse structure grid resolution. Auto follows TRELLIS defaults; 64 can preserve more broad structure but costs more VRAM.",
+        items=(
+            ("auto", "Auto", "Use the runtime default for the selected pipeline"),
+            ("32", "32", "Lower sparse grid, usually faster and lighter"),
+            ("64", "64", "Higher sparse grid, heavier and experimental"),
+        ),
+        default="auto",
+    )
+    trellis_sampler: EnumProperty(
+        name="Sampler",
+        description="GGUF global sampler override. Stage-specific sampler choices override this.",
+        items=TRELLIS_SAMPLER_ITEMS,
+        default="default",
+    )
+    trellis_ss_sampler: EnumProperty(
+        name="Sampler",
+        description="GGUF sampler override for the coarse structure pass.",
+        items=TRELLIS_SAMPLER_ITEMS,
+        default="default",
+    )
+    trellis_shape_sampler: EnumProperty(
+        name="Sampler",
+        description="GGUF sampler override for the shape pass.",
+        items=TRELLIS_SAMPLER_ITEMS,
+        default="default",
+    )
+    trellis_tex_sampler: EnumProperty(
+        name="Sampler",
+        description="GGUF sampler override for the texture pass.",
+        items=TRELLIS_SAMPLER_ITEMS,
+        default="default",
+    )
     trellis_decimation_target: IntProperty(
         name="Decimation Target",
         description="Target face count after simplification. Lower values export lighter meshes, higher values keep more geometry.",
@@ -5328,19 +5683,137 @@ class NymphsV2State(bpy.types.PropertyGroup):
         min=10000,
         max=2000000,
     )
-    show_trellis_advanced_sampling: BoolProperty(
-        name="Advanced TRELLIS Controls",
-        description="Show the expert TRELLIS guidance knobs. Most users can leave these alone and rely on presets plus Steps and Guidance.",
+    trellis_shape_export_mode: EnumProperty(
+        name="Shape Export",
+        description="GGUF shape-only export mode. Auto preserves raw topology unless export fails; Remesh explicitly rebuilds topology.",
+        items=(
+            ("preserve", "Preserve", "Raw GGUF mesh export with Blender orientation"),
+            ("remesh", "Remesh", "Rebuild topology with the GGUF remesh path"),
+            ("auto", "Auto Fallback", "Try Preserve first, then fall back to Remesh if export fails"),
+        ),
+        default="auto",
+    )
+    trellis_remesh_resolution: EnumProperty(
+        name="Remesh Res",
+        description="GGUF remesh grid resolution for shape-only remesh export.",
+        items=(
+            ("512", "512", "Faster, lighter remesh"),
+            ("768", "768", "Balanced remesh resolution"),
+            ("1024", "1024", "Denser remesh, slower and heavier"),
+        ),
+        default="768",
+    )
+    trellis_export_remesh: BoolProperty(
+        name="Remesh Export",
+        description="Use o-voxel remeshing during textured GLB export. Can improve topology but may change silhouettes.",
+        default=True,
+    )
+    trellis_export_remesh_band: FloatProperty(
+        name="Remesh Band",
+        description="o-voxel remesh band width for textured export.",
+        default=1.0,
+        min=0.1,
+        max=5.0,
+        precision=2,
+    )
+    trellis_export_remesh_project: FloatProperty(
+        name="Project Back",
+        description="How strongly o-voxel remesh vertices project back to the original surface during textured export.",
+        default=0.0,
+        min=0.0,
+        max=1.0,
+        precision=2,
+    )
+    trellis_texture_alpha_mode: EnumProperty(
+        name="Alpha",
+        description="Texture material alpha mode for GGUF retexture postprocess.",
+        items=(
+            ("OPAQUE", "Opaque", "Force opaque material"),
+            ("BLEND", "Blend", "Use blended transparency"),
+            ("MASK", "Mask", "Use alpha clipping/masking"),
+        ),
+        default="OPAQUE",
+    )
+    trellis_texture_double_sided: BoolProperty(
+        name="Double Sided",
+        description="Write textured materials as double-sided where the backend supports it.",
+        default=True,
+    )
+    trellis_texture_bake_vertices: BoolProperty(
+        name="Bake Vertices",
+        description="GGUF retexture option to bake color data onto vertices instead of only texture maps.",
+        default=False,
+    )
+    trellis_texture_custom_normals: BoolProperty(
+        name="Custom Normals",
+        description="GGUF retexture option to preserve/write custom normals during postprocess.",
+        default=False,
+    )
+    trellis_texture_uv_method: EnumProperty(
+        name="UV Method",
+        description="GGUF retexture UV unwrap method.",
+        items=(
+            ("Xatlas", "Xatlas", "Use xatlas UV unwrapping"),
+            ("Smart", "Smart", "Use Blender Smart UV if available in backend"),
+            ("Blender", "Blender", "Use Blender UV unwrap if available in backend"),
+        ),
+        default="Xatlas",
+    )
+    trellis_texture_uv_angle: FloatProperty(
+        name="UV Angle",
+        description="GGUF texture UV chart cone angle in degrees.",
+        default=60.0,
+        min=5.0,
+        max=180.0,
+        precision=1,
+    )
+    trellis_texture_inpainting: EnumProperty(
+        name="Inpaint",
+        description="Texture padding/inpainting method for GGUF texture postprocess.",
+        items=(
+            ("telea", "Telea", "OpenCV Telea inpainting"),
+            ("ns", "Navier-Stokes", "OpenCV Navier-Stokes inpainting"),
+        ),
+        default="telea",
+    )
+    trellis_remove_floor_plane: BoolProperty(
+        name="Remove Floor Plane",
+        description="Remove accidental wide, flat base-plane components from GGUF shape-only exports.",
+        default=True,
+    )
+    show_trellis_cleanup: BoolProperty(
+        name="Mesh Cleanup",
+        description="Show GGUF mesh cleanup controls for removing accidental flat planes and debris.",
+        default=False,
+    )
+    show_trellis_generation_settings: BoolProperty(
+        name="Generation",
+        description="Show resolution, seed, and token budget settings.",
+        default=False,
+    )
+    show_trellis_shape_pass: BoolProperty(
+        name="Shape Pass",
+        description="Show the main TRELLIS shape refinement controls.",
+        default=False,
+    )
+    show_trellis_texture_pass: BoolProperty(
+        name="Texture Pass",
+        description="Show TRELLIS texture sampling controls.",
+        default=False,
+    )
+    show_trellis_export_settings: BoolProperty(
+        name="Export Settings",
+        description="Show texture size and exported mesh face target settings.",
         default=False,
     )
     show_trellis_stage_overrides: BoolProperty(
-        name="Expert Stage Overrides",
-        description="Show separate controls for TRELLIS's early coarse pass. Leave this off unless you want to tune the early structure pass separately from the main shape pass.",
+        name="Structure Pass",
+        description="Show the early coarse structure controls. This runs before shape refinement and affects broad silhouette and volume. Most users should rely on presets.",
         default=False,
     )
     trellis_ss_sampling_steps: IntProperty(
         name="Sparse Steps",
-        description="How long TRELLIS spends on the early coarse structure pass before the main shape refinement begins. Usually only adjust this if you are using Expert Stage Overrides.",
+        description="How long TRELLIS spends on the early coarse structure pass before the main shape refinement begins.",
         default=12,
         min=1,
         max=50,
@@ -5788,7 +6261,16 @@ def _service_display_name(service_key):
 def _runtime_card_name(state, service_key):
     if service_key == "n2d2":
         return f"Z-Image Turbo / {_short_n2d2_runtime_label(state)}"
-    return "TRELLIS.2"
+    if _trellis_runtime_is_gguf(state):
+        return f"TRELLIS.2 GGUF / {getattr(state, 'trellis_gguf_quant', DEFAULT_TRELLIS_GGUF_QUANT)}"
+    return f"TRELLIS.2 GGUF / {DEFAULT_TRELLIS_GGUF_QUANT}"
+
+
+def _trellis_configured_runtime_label(state):
+    if _trellis_runtime_is_gguf(state):
+        quant = getattr(state, "trellis_gguf_quant", DEFAULT_TRELLIS_GGUF_QUANT)
+        return f"GGUF {quant}"
+    return f"GGUF {DEFAULT_TRELLIS_GGUF_QUANT}"
 
 
 def _backend_display_name(label):
@@ -7742,6 +8224,32 @@ def _n2d2_loaded_runtime_label(summary):
     return runtime.replace("_", " ").title()
 
 
+def _trellis_loaded_runtime_label(summary):
+    if not _service_summary_is_ready(summary):
+        return ""
+    lowered = summary.lower()
+    if "quant=" not in lowered and "attn=" not in lowered:
+        if "trellis" in lowered:
+            return f"GGUF {DEFAULT_TRELLIS_GGUF_QUANT}"
+        return ""
+
+    quant = ""
+    attn = ""
+    for part in summary.split("|"):
+        part = part.strip()
+        if part.startswith("quant="):
+            quant = part.split("=", 1)[1].strip()
+        elif part.startswith("attn="):
+            attn = part.split("=", 1)[1].strip()
+
+    label = "GGUF"
+    if quant:
+        label = f"{label} {quant}"
+    if attn:
+        label = f"{label} / {attn}"
+    return label
+
+
 def _n2d2_loaded_model_label(summary):
     if not _service_summary_is_ready(summary):
         return ""
@@ -7767,6 +8275,10 @@ def _draw_service_block(layout, state, service_key):
     box = layout.box()
 
     box.label(text=runtime_label)
+    if service_key == "trellis":
+        loaded_runtime = _trellis_loaded_runtime_label(summary)
+        if loaded_runtime:
+            box.label(text=f"Loaded: {loaded_runtime}"[:160])
     config_row = box.row(align=True)
     config_row.label(text=f"Port: {_service_port(state, service_key)}")
     config_row.prop(
@@ -7789,6 +8301,9 @@ def _draw_service_block(layout, state, service_key):
         if live_progress:
             _draw_wrapped_lines(details, live_progress, prefix="Progress: ", width=44, max_lines=2)
         if service_key == "trellis":
+            _draw_labeled_prop(details, state, "trellis_runtime", "Runtime")
+            if _trellis_runtime_is_gguf(state):
+                _draw_labeled_prop(details, state, "trellis_gguf_quant", "GGUF Quant")
             _draw_labeled_prop(details, state, "repo_trellis_path", "Repo Path")
             _draw_labeled_prop(details, state, "trellis_python_path", "Python Path")
         else:
@@ -7827,11 +8342,15 @@ class NYMPHSV2_PT_shape(bpy.types.Panel):
             active_family = _launch_backend_label(state)
         if not _service_runtime_is_available(state, selected_service):
             warn = panel.box()
-            warn.label(text=f"Start {_service_display_name(selected_service)} in Runtimes.")
+            warn.label(text=f"Configured: {_trellis_configured_runtime_label(state)}"[:160])
             _draw_service_control_row(warn, state, selected_service)
             return
 
         _draw_service_control_row(panel, state, selected_service)
+        runtime_summary = _trellis_loaded_runtime_label(_service_get(state, "trellis", "backend_summary", "Unavailable"))
+        if not runtime_summary:
+            runtime_summary = _trellis_configured_runtime_label(state)
+        panel.label(text=f"Runtime: {runtime_summary}"[:160])
 
         if not caps["shape"] or caps["texture_only"]:
             warn = panel.box()
@@ -7853,63 +8372,141 @@ class NYMPHSV2_PT_shape(bpy.types.Panel):
             if state.shape_generate_texture:
                 request.label(text="Shape requests will run without texture on this server.")
 
-        trellis_opts = panel.box()
-        preset_row = trellis_opts.row(align=True)
-        preset_row.prop(state, "trellis_shape_preset", text="")
-        preset_row.operator("nymphsv2.load_trellis_shape_preset", text="Apply")
-        preset_tools = trellis_opts.row(align=True)
+        preset_box = panel.box()
+        preset_box.prop(state, "trellis_shape_preset", text="Preset")
+        preset_tools = preset_box.row(align=True)
         preset_tools.operator("nymphsv2.save_trellis_shape_preset", text="Save")
         preset_tools.operator("nymphsv2.delete_trellis_shape_preset", text="Delete")
         preset_tools.operator("nymphsv2.open_trellis_shape_presets_folder", text="Open")
-        trellis_opts.prop(state, "trellis_pipeline_type")
-        seed_row = trellis_opts.row(align=True)
-        seed_row.prop(state, "trellis_seed", text="Seed")
-        trellis_opts.prop(state, "trellis_max_tokens", text="Tokens")
 
-        early_pass = trellis_opts.column(align=True)
-        early_pass.separator()
-        early_pass.label(text="Early Pass")
-        row = early_pass.row(align=True)
-        row.prop(state, "trellis_ss_sampling_steps", text="Steps")
-        row.prop(state, "trellis_ss_guidance_strength", text="Image")
-        early_pass.prop(state, "trellis_ss_guidance_rescale", text="Rescale")
-        interval_row = early_pass.row(align=True)
-        interval_row.prop(state, "trellis_ss_guidance_interval_start", text="Start")
-        interval_row.prop(state, "trellis_ss_guidance_interval_end", text="End")
-        early_pass.prop(state, "trellis_ss_rescale_t", text="Timing")
+        generation = panel.box()
+        generation.prop(
+            state,
+            "show_trellis_generation_settings",
+            text="Generation",
+            icon="TRIA_DOWN" if state.show_trellis_generation_settings else "TRIA_RIGHT",
+            emboss=False,
+        )
+        if state.show_trellis_generation_settings:
+            generation.prop(state, "trellis_pipeline_type", text="Resolution")
+            seed_row = generation.row(align=True)
+            seed_row.prop(state, "trellis_seed", text="Seed")
+            generation.prop(state, "trellis_max_tokens", text="Tokens")
+            if _trellis_runtime_is_gguf(state):
+                generation.prop(state, "trellis_foreground_ratio", slider=True)
+                generation.prop(state, "trellis_sparse_structure_resolution")
+                generation.prop(state, "trellis_sampler", text="Global Sampler")
 
-        shape_pass = trellis_opts.column(align=True)
-        shape_pass.separator()
-        shape_pass.label(text="Shape Pass")
-        row = shape_pass.row(align=True)
-        row.prop(state, "trellis_shape_sampling_steps", text="Steps")
-        row.prop(state, "trellis_shape_guidance_strength", text="Image")
-        shape_pass.prop(state, "trellis_shape_guidance_rescale", text="Rescale")
-        interval_row = shape_pass.row(align=True)
-        interval_row.prop(state, "trellis_shape_guidance_interval_start", text="Start")
-        interval_row.prop(state, "trellis_shape_guidance_interval_end", text="End")
-        shape_pass.prop(state, "trellis_shape_rescale_t", text="Timing")
+        structure_pass = panel.box()
+        structure_pass.prop(
+            state,
+            "show_trellis_stage_overrides",
+            text="Structure Pass",
+            icon="TRIA_DOWN" if state.show_trellis_stage_overrides else "TRIA_RIGHT",
+            emboss=False,
+        )
+        if state.show_trellis_stage_overrides:
+            if _trellis_runtime_is_gguf(state):
+                structure_pass.prop(state, "trellis_ss_sampler")
+            row = structure_pass.row(align=True)
+            row.prop(state, "trellis_ss_sampling_steps", text="Steps")
+            row.prop(state, "trellis_ss_guidance_strength", text="Image")
+            structure_pass.prop(state, "trellis_ss_guidance_rescale", text="Rescale")
+            interval_row = structure_pass.row(align=True)
+            interval_row.prop(state, "trellis_ss_guidance_interval_start", text="Start")
+            interval_row.prop(state, "trellis_ss_guidance_interval_end", text="End")
+            structure_pass.prop(state, "trellis_ss_rescale_t", text="Timing")
+
+        shape_pass = panel.box()
+        shape_pass.prop(
+            state,
+            "show_trellis_shape_pass",
+            text="Shape Pass",
+            icon="TRIA_DOWN" if state.show_trellis_shape_pass else "TRIA_RIGHT",
+            emboss=False,
+        )
+        if state.show_trellis_shape_pass:
+            if _trellis_runtime_is_gguf(state):
+                shape_pass.prop(state, "trellis_shape_sampler")
+            row = shape_pass.row(align=True)
+            row.prop(state, "trellis_shape_sampling_steps", text="Steps")
+            row.prop(state, "trellis_shape_guidance_strength", text="Image")
+            shape_pass.prop(state, "trellis_shape_guidance_rescale", text="Rescale")
+            interval_row = shape_pass.row(align=True)
+            interval_row.prop(state, "trellis_shape_guidance_interval_start", text="Start")
+            interval_row.prop(state, "trellis_shape_guidance_interval_end", text="End")
+            shape_pass.prop(state, "trellis_shape_rescale_t", text="Timing")
 
         if state.shape_generate_texture:
-            texture_pass = trellis_opts.column(align=True)
-            texture_pass.separator()
-            texture_pass.label(text="Texture Pass")
-            row = texture_pass.row(align=True)
-            row.prop(state, "trellis_tex_sampling_steps", text="Steps")
-            row.prop(state, "trellis_tex_guidance_strength", text="Image")
-            texture_pass.prop(state, "trellis_tex_guidance_rescale", text="Rescale")
-            interval_row = texture_pass.row(align=True)
-            interval_row.prop(state, "trellis_tex_guidance_interval_start", text="Start")
-            interval_row.prop(state, "trellis_tex_guidance_interval_end", text="End")
-            texture_pass.prop(state, "trellis_tex_rescale_t", text="Timing")
-            texture_pass.prop(state, "trellis_texture_size")
-            texture_pass.prop(state, "trellis_decimation_target", text="Faces")
+            texture_pass = panel.box()
+            texture_pass.prop(
+                state,
+                "show_trellis_texture_pass",
+                text="Texture Pass",
+                icon="TRIA_DOWN" if state.show_trellis_texture_pass else "TRIA_RIGHT",
+                emboss=False,
+            )
+            if state.show_trellis_texture_pass:
+                texture_pass.prop(state, "trellis_texture_resolution", text="Working Res")
+                if _trellis_runtime_is_gguf(state):
+                    texture_pass.prop(state, "trellis_tex_sampler")
+                row = texture_pass.row(align=True)
+                row.prop(state, "trellis_tex_sampling_steps", text="Steps")
+                row.prop(state, "trellis_tex_guidance_strength", text="Image")
+                texture_pass.prop(state, "trellis_tex_guidance_rescale", text="Rescale")
+                interval_row = texture_pass.row(align=True)
+                interval_row.prop(state, "trellis_tex_guidance_interval_start", text="Start")
+                interval_row.prop(state, "trellis_tex_guidance_interval_end", text="End")
+                texture_pass.prop(state, "trellis_tex_rescale_t", text="Timing")
+
+        export_settings = panel.box()
+        export_settings.prop(
+            state,
+            "show_trellis_export_settings",
+            text="Export Settings",
+            icon="TRIA_DOWN" if state.show_trellis_export_settings else "TRIA_RIGHT",
+            emboss=False,
+        )
+        if state.show_trellis_export_settings:
+            if state.shape_generate_texture:
+                export_settings.prop(state, "trellis_texture_size")
+                export_settings.prop(state, "trellis_export_remesh")
+                if state.trellis_export_remesh:
+                    remesh_row = export_settings.row(align=True)
+                    remesh_row.prop(state, "trellis_export_remesh_band", text="Band")
+                    remesh_row.prop(state, "trellis_export_remesh_project", text="Project")
+                if _trellis_runtime_is_gguf(state):
+                    export_settings.prop(state, "trellis_texture_alpha_mode")
+                    export_settings.prop(state, "trellis_texture_double_sided")
+                    export_settings.prop(state, "trellis_texture_uv_method")
+                    export_settings.prop(state, "trellis_texture_uv_angle")
+                    export_settings.prop(state, "trellis_texture_inpainting")
+                    export_settings.prop(state, "trellis_texture_bake_vertices")
+                    export_settings.prop(state, "trellis_texture_custom_normals")
+            export_settings.prop(state, "trellis_decimation_target", text="Faces")
+
+        if _trellis_runtime_is_gguf(state):
+            cleanup = panel.box()
+            cleanup.prop(
+                state,
+                "show_trellis_cleanup",
+                text="Mesh Cleanup",
+                icon="TRIA_DOWN" if state.show_trellis_cleanup else "TRIA_RIGHT",
+                emboss=False,
+            )
+            if state.show_trellis_cleanup:
+                cleanup.prop(state, "trellis_shape_export_mode")
+                if state.trellis_shape_export_mode in {"remesh", "auto"}:
+                    cleanup.prop(state, "trellis_remesh_resolution")
+                cleanup.prop(state, "trellis_remove_floor_plane", text="Remove Flat Debris")
 
         action = panel.row()
         action.enabled = not state.is_busy and not state.imagegen_is_busy
+        action.scale_y = 1.65
         action.operator(
             "nymphsv2.run_shape_request",
             text="Generate Shape + Texture" if texture_requested else "Generate Shape",
+            icon="OUTLINER_OB_MESH",
         )
 
         if state.shape_output_path:
@@ -7942,11 +8539,15 @@ class NYMPHSV2_PT_texture(bpy.types.Panel):
             active_family = "TRELLIS.2"
         if not _service_runtime_is_available(state, selected_service):
             warn = panel.box()
-            warn.label(text=f"Start {_service_display_name(selected_service)} in Runtimes.")
+            warn.label(text=f"Configured: {_trellis_configured_runtime_label(state)}"[:160])
             _draw_service_control_row(warn, state, selected_service)
             return
 
         _draw_service_control_row(panel, state, selected_service)
+        runtime_summary = _trellis_loaded_runtime_label(_service_get(state, "trellis", "backend_summary", "Unavailable"))
+        if not runtime_summary:
+            runtime_summary = _trellis_configured_runtime_label(state)
+        panel.label(text=f"Runtime: {runtime_summary}"[:160])
 
         info = panel.box()
         info.label(text=f"Retexture Selected Mesh with {_service_display_name(selected_service)}")
@@ -7969,9 +8570,13 @@ class NYMPHSV2_PT_texture(bpy.types.Panel):
 
         texture_opts = panel.box()
         texture_opts.label(text="TRELLIS Texture Options")
+        if _trellis_runtime_is_gguf(state):
+            texture_opts.prop(state, "trellis_foreground_ratio", slider=True)
         texture_opts.prop(state, "trellis_texture_resolution")
         texture_opts.prop(state, "trellis_texture_size")
         texture_opts.prop(state, "trellis_seed")
+        if _trellis_runtime_is_gguf(state):
+            texture_opts.prop(state, "trellis_tex_sampler", text="Sampler")
         row = texture_opts.row(align=True)
         row.prop(state, "trellis_tex_sampling_steps", text="Steps")
         row.prop(state, "trellis_tex_guidance_strength", text="Follow Image")
@@ -7989,10 +8594,19 @@ class NYMPHSV2_PT_texture(bpy.types.Panel):
             interval_row.prop(state, "trellis_tex_guidance_interval_end", text="End")
             texture_opts.prop(state, "trellis_tex_rescale_t", text="Rescale T")
             texture_opts.prop(state, "trellis_decimation_target")
+            if _trellis_runtime_is_gguf(state):
+                texture_opts.prop(state, "trellis_texture_alpha_mode")
+                texture_opts.prop(state, "trellis_texture_double_sided")
+                texture_opts.prop(state, "trellis_texture_uv_method")
+                texture_opts.prop(state, "trellis_texture_uv_angle")
+                texture_opts.prop(state, "trellis_texture_inpainting")
+                texture_opts.prop(state, "trellis_texture_bake_vertices")
+                texture_opts.prop(state, "trellis_texture_custom_normals")
 
         action = panel.row()
         action.enabled = not state.is_busy and not state.imagegen_is_busy and caps["retexture"]
-        action.operator("nymphsv2.run_texture_request", text="Retexture Selected Mesh")
+        action.scale_y = 1.65
+        action.operator("nymphsv2.run_texture_request", text="Retexture Selected Mesh", icon="TEXTURE")
 
         _draw_request_status(panel, state)
 
