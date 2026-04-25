@@ -47,7 +47,7 @@ venv_trellis="${repo_trellis}/.venv"
 cuda_dir="${NYMPHS3D_CUDA_HOME}"
 
 hf_zimage="${NYMPHS3D_HF_CACHE_DIR}/models--Tongyi-MAI--Z-Image-Turbo"
-hf_trellis="${NYMPHS3D_HF_CACHE_DIR}/models--microsoft--TRELLIS.2-4B"
+hf_trellis="${NYMPHS3D_HF_CACHE_DIR}/models--Aero-Ex--Trellis2-GGUF"
 u2net_dir="${NYMPHS3D_U2NET_DIR}"
 
 repo_n2d2_no_venv_bytes=$(( $(bytes_or_zero "$repo_n2d2") - $(bytes_or_zero "$venv_n2d2") ))
@@ -71,7 +71,7 @@ print_group "Core repos and runtime weight" \
 
 print_group "Model and helper caches to defer" \
   "HF Z-Image Turbo" "$hf_zimage" \
-  "HF TRELLIS.2-4B" "$hf_trellis" \
+  "HF TRELLIS.2 GGUF" "$hf_trellis" \
   "u2net" "$u2net_dir"
 
 echo

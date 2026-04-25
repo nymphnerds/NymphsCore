@@ -84,12 +84,10 @@ PY
 }
 
 verify_trellis() {
-  echo "Verifying TRELLIS.2..."
+  echo "Verifying TRELLIS.2 GGUF..."
   require_file "${TRELLIS_DIR}/.git"
   require_file "${TRELLIS_DIR}/.venv/bin/python"
-  require_file "${TRELLIS_DIR}/scripts/api_server_trellis.py"
   require_file "${TRELLIS_DIR}/scripts/api_server_trellis_gguf.py"
-  require_file "${TRELLIS_DIR}/scripts/trellis_official_common.py"
   require_file "${TRELLIS_DIR}/scripts/trellis_gguf_common.py"
 
   (
@@ -98,12 +96,14 @@ verify_trellis() {
     configure_cuda_env
     configure_hf_env
     python --version
-    python -m py_compile scripts/api_server_trellis.py scripts/api_server_trellis_gguf.py scripts/trellis_official_common.py scripts/trellis_gguf_common.py scripts/run_official_image_to_3d.py scripts/run_official_shape_only.py
+    python -m py_compile scripts/api_server_trellis_gguf.py scripts/trellis_gguf_common.py
     python - <<'PY'
 import importlib
-import json
+import sys
 from pathlib import Path
-from huggingface_hub import snapshot_download
+
+sys.path.insert(0, str(Path.cwd() / "scripts"))
+from trellis_gguf_common import resolve_gguf_model_root
 
 for module_name in (
     "cumesh",
@@ -121,30 +121,19 @@ for module_name in (
 ):
     importlib.import_module(module_name)
 
-try:
-    root = Path(snapshot_download(repo_id="microsoft/TRELLIS.2-4B", local_files_only=True))
-except Exception:
-    root = Path("models/trellis2")
-    if not root.exists():
-        raise
-
-required = {root / "pipeline.json", root / "texturing_pipeline.json"}
-for config_name in ("pipeline.json", "texturing_pipeline.json"):
-    config = json.loads((root / config_name).read_text())
-    args = config.get("args", {})
-    for model_ref in (args.get("models") or {}).values():
-        if isinstance(model_ref, str) and model_ref.startswith("ckpts/"):
-            required.add(root / f"{model_ref}.json")
-            required.add(root / f"{model_ref}.safetensors")
-
+root = resolve_gguf_model_root(local_files_only=True, include_texture=True)
+required = [
+    root / "pipeline.json",
+    root / "texturing_pipeline.json",
+    root / "Vision" / "dinov3-vitl16-pretrain-lvd1689m.safetensors",
+]
 missing = sorted(str(path.relative_to(root)) for path in required if not path.exists())
 if missing:
-    raise RuntimeError(f"Missing TRELLIS model files: {', '.join(missing[:8])}")
+    raise RuntimeError(f"Missing TRELLIS GGUF model files: {', '.join(missing[:8])}")
 
-print("Runtime imports available for TRELLIS.2.")
-print("Shared-cache TRELLIS model bundle is present.")
+print("Runtime imports available for TRELLIS.2 GGUF.")
+print("Shared-cache TRELLIS GGUF model bundle is present.")
 PY
-    python scripts/api_server_trellis.py --help >/dev/null
     python scripts/api_server_trellis_gguf.py --help >/dev/null
   )
 }
@@ -205,12 +194,12 @@ if [[ -n "${SMOKE_TEST_BACKEND}" ]]; then
 else
   echo "Smoke test skipped."
   echo "Run ${ROOT_DIR}/scripts/verify_install.sh --smoke-test zimage for a Z-Image API startup check."
-  echo "Run ${ROOT_DIR}/scripts/verify_install.sh --smoke-test trellis for a TRELLIS API startup check."
+  echo "Run ${ROOT_DIR}/scripts/verify_install.sh --smoke-test trellis for a TRELLIS GGUF API startup check."
 fi
 
 echo "Post-install verification passed."
 echo "- All managed repos exist"
-echo "- Z-Image Turbo via Nunchaku and TRELLIS.2 venvs are present"
+echo "- Z-Image Turbo via Nunchaku and TRELLIS.2 GGUF venvs are present"
 echo "- Core API entrypoints compile"
 echo "- Critical runtime imports succeed"
-echo "- Required prefetched model snapshots and local TRELLIS bundle are present"
+echo "- Required prefetched model snapshots and local TRELLIS GGUF bundle are present"

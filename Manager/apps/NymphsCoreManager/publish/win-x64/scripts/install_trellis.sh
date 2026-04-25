@@ -10,7 +10,6 @@ REPO_URL="${NYMPHS3D_TRELLIS_REPO_URL}"
 REPO_BRANCH="${NYMPHS3D_TRELLIS_REPO_BRANCH}"
 UTILS3D_REF="${NYMPHS3D_TRELLIS_UTILS3D_REF:-9a4eb15e4021b67b12c460c7057d642626897ec8}"
 INSTALL_FLASH_ATTN="${NYMPHS3D_TRELLIS_INSTALL_FLASH_ATTN:-yes}"
-INSTALL_GGUF_RUNTIME="${NYMPHS3D_TRELLIS_INSTALL_GGUF_RUNTIME:-yes}"
 GGUF_RUNTIME_DIR="${NYMPHS3D_TRELLIS_GGUF_RUNTIME_DIR:-${REPO_DIR}/.cache/trellis-gguf-runtime}"
 TRELLIS2_GGUF_REPO_URL="${NYMPHS3D_TRELLIS2_GGUF_REPO_URL:-https://github.com/Aero-Ex/ComfyUI-Trellis2-GGUF.git}"
 TRELLIS2_GGUF_REPO_REF="${NYMPHS3D_TRELLIS2_GGUF_REPO_REF:-main}"
@@ -51,21 +50,7 @@ install_trellis_gguf_runtime() {
   local site_packages=""
   local loader_target=""
 
-  case "${INSTALL_GGUF_RUNTIME}" in
-    yes|true|1)
-      ;;
-    no|false|0)
-      echo "Skipping optional TRELLIS.2 GGUF runtime install."
-      return
-      ;;
-    *)
-      echo "Unknown NYMPHS3D_TRELLIS_INSTALL_GGUF_RUNTIME value: ${INSTALL_GGUF_RUNTIME}"
-      echo "Use one of: yes, no"
-      exit 1
-      ;;
-  esac
-
-  echo "Installing optional TRELLIS.2 GGUF runtime dependencies"
+  echo "Installing TRELLIS.2 GGUF runtime dependencies"
   "${VENV_PIP}" install \
     gguf \
     rembg \
@@ -357,12 +342,8 @@ git submodule update --init --recursive o-voxel/third_party/eigen
 ADAPTER_SOURCE_DIR="${ROOT_DIR}/scripts/trellis_adapter"
 ADAPTER_TARGET_DIR="${REPO_DIR}/scripts"
 ADAPTER_FILES=(
-  api_server_trellis.py
   api_server_trellis_gguf.py
-  trellis_official_common.py
   trellis_gguf_common.py
-  run_official_image_to_3d.py
-  run_official_shape_only.py
 )
 
 echo "Syncing managed TRELLIS adapter scripts"
@@ -536,8 +517,7 @@ fi
 install_trellis_gguf_runtime
 
 echo "Running TRELLIS adapter entrypoint sanity check"
-"${VENV_PYTHON}" scripts/api_server_trellis.py --help >/dev/null
 "${VENV_PYTHON}" scripts/api_server_trellis_gguf.py --help >/dev/null
 
 echo
-echo "TRELLIS.2 install complete."
+echo "TRELLIS.2 GGUF install complete."

@@ -98,7 +98,7 @@ if [[ "$remove_models" -eq 1 ]]; then
   cleanup_glob "${NYMPHS3D_HF_CACHE_DIR}/models--Tencent-Hunyuan--Hunyuan3D-2.1*"
   cleanup_glob "${NYMPHS3D_HF_CACHE_DIR}/models--Tencent-Hunyuan--HunyuanDiT-v1.1-Diffusers-Distilled*"
   cleanup_glob "${NYMPHS3D_HF_CACHE_DIR}/models--playgroundai--playground-v2.5-1024px-aesthetic*"
-  cleanup_glob "${NYMPHS3D_HF_CACHE_DIR}/models--microsoft--TRELLIS.2-4B*"
+  cleanup_glob "${NYMPHS3D_HF_CACHE_DIR}/models--Aero-Ex--Trellis2-GGUF*"
   cleanup_path "${NYMPHS3D_U2NET_DIR}"
   cleanup_path "${NYMPHS3D_TRELLIS_DIR}/models"
 fi

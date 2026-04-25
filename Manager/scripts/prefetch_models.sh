@@ -192,7 +192,7 @@ prefetch_nymphs2d2_model() {
   )
 }
 
-prefetch_trellis_model_bundle() {
+prefetch_trellis_gguf_model_bundle() {
   (
     cd "${TRELLIS_DIR}"
     source .venv/bin/activate
@@ -202,11 +202,19 @@ prefetch_trellis_model_bundle() {
 import os
 import sys
 import threading
-from huggingface_hub import snapshot_download
+from pathlib import Path
 
 token = sys.argv[1] or None
 cache_dir = sys.argv[2]
-repo_id = "microsoft/TRELLIS.2-4B"
+sys.path.insert(0, str(Path.cwd() / "scripts"))
+from trellis_gguf_common import DEFAULT_GGUF_QUANT, GGUF_MODEL_REPO_ID, resolve_gguf_model_root
+
+if token:
+    os.environ["HF_TOKEN"] = token
+    os.environ["HUGGING_FACE_HUB_TOKEN"] = token
+
+repo_id = GGUF_MODEL_REPO_ID
+quant = os.getenv("TRELLIS_GGUF_QUANT") or DEFAULT_GGUF_QUANT
 stop_event = threading.Event()
 
 def cache_size_bytes(path: str) -> int:
@@ -237,11 +245,11 @@ def heartbeat(start_size: int) -> None:
         last_size = current_size
 
 start_size = cache_size_bytes(cache_dir)
-print(f"Prefetching {repo_id} into shared HF cache", flush=True)
+print(f"Prefetching {repo_id} ({quant}) into shared HF cache", flush=True)
 thread = threading.Thread(target=heartbeat, args=(start_size,), daemon=True)
 thread.start()
 try:
-    snapshot_download(repo_id=repo_id, token=token)
+    resolve_gguf_model_root(local_files_only=False, quant=quant, include_texture=True)
 finally:
     stop_event.set()
     thread.join(timeout=1)
@@ -276,8 +284,8 @@ echo "Prefetching core backend model weights..."
 echo "Prefetching Z-Image Turbo default model..."
 prefetch_nymphs2d2_model
 
-echo "Prefetching TRELLIS.2 model bundle..."
-prefetch_trellis_model_bundle
+echo "Prefetching TRELLIS.2 GGUF model bundle..."
+prefetch_trellis_gguf_model_bundle
 
 echo "Prefetching rembg u2net model..."
 prefetch_rembg_u2net
