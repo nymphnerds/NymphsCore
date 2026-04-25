@@ -5,7 +5,7 @@ Live Blender addon implementation for Nymphs.
 bl_info = {
     "name": "Nymphs",
     "author": "Nymphs3D",
-    "version": (1, 1, 189),
+    "version": (1, 1, 190),
     "blender": (4, 2, 0),
     "location": "View3D > Sidebar > Nymphs",
     "description": "Blender client for NymphsCore image, shape, and texture backends",
@@ -7888,10 +7888,7 @@ class NYMPHSV2_PT_image_generation(bpy.types.Panel):
         panel = layout.column(align=True)
         image_backend = _imagegen_backend_key(state)
         zimage_runtime_ready = _service_runtime_is_available(state, "n2d2")
-        show_generation = bool(
-            getattr(state, "show_image_generation", False)
-            and (image_backend != "Z_IMAGE" or zimage_runtime_ready)
-        )
+        show_generation = image_backend != "Z_IMAGE" or zimage_runtime_ready
         top = _draw_imagegen_status_box(panel, state)
 
         backend_row = top.row(align=True)
@@ -7910,22 +7907,16 @@ class NYMPHSV2_PT_image_generation(bpy.types.Panel):
                 top.label(text="Start Z-Image in Runtimes.")
             _draw_service_control_row(top, state, "n2d2")
 
-        generation_box = panel.box()
-        generation_box.prop(
-            state,
-            "show_image_generation",
-            text="Image Generation",
-            icon="TRIA_DOWN" if show_generation else "TRIA_RIGHT",
-            emboss=False,
-        )
         if show_generation:
             _sync_imagegen_prompt_preset(state)
             if image_backend == "Z_IMAGE":
                 _ensure_imagegen_profile_defaults(state)
             elif not _online_access_enabled():
+                generation_box = panel.box()
                 warning = generation_box.box()
                 warning.label(text="Enable Blender online access to use Gemini.")
 
+            generation_box = panel.box()
             request = generation_box.column(align=True)
 
             if image_backend == "Z_IMAGE":
