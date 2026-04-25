@@ -113,6 +113,13 @@ def optional_float(payload: dict[str, Any], key: str, default: float) -> float:
     return float(value)
 
 
+def optional_string(payload: dict[str, Any], key: str, default: str = "") -> str:
+    value = payload.get(key, default)
+    if value in {"", None}:
+        return default
+    return str(value).strip()
+
+
 def optional_bool(payload: dict[str, Any], key: str, default: bool) -> bool:
     value = payload.get(key, default)
     if value in {"", None}:
@@ -340,7 +347,14 @@ def export_geometry_official_style(mesh_with_voxel, *, remove_floor_plane: bool)
     return export_trimesh(mesh_to_trimesh(verts, faces), remove_floor_plane=remove_floor_plane)
 
 
-def export_geometry_remeshed(mesh_with_voxel, remesh_resolution: int, *, remove_floor_plane: bool) -> bytes:
+def export_geometry_remeshed(
+    mesh_with_voxel,
+    remesh_resolution: int,
+    *,
+    remove_floor_plane: bool,
+    remesh_band: float = 0.0,
+    remesh_project: float = 0.9,
+) -> bytes:
     verts, faces = mesh_vertices_faces_numpy(mesh_with_voxel)
     try:
         import cumesh
@@ -357,7 +371,7 @@ def export_geometry_remeshed(mesh_with_voxel, remesh_resolution: int, *, remove_
             aabb_max = vt.max(dim=0).values
             center = (aabb_min + aabb_max) / 2.0
             scale = (aabb_max - aabb_min).max().item()
-            band = 2 if remesh_resolution >= 768 else 1
+            band = remesh_band if remesh_band > 0 else (2 if remesh_resolution >= 768 else 1)
             remesh_scale = (remesh_resolution + 3 * band) / remesh_resolution * scale
             cm.init(
                 *cumesh.remeshing.remesh_narrow_band_dc(
@@ -367,7 +381,7 @@ def export_geometry_remeshed(mesh_with_voxel, remesh_resolution: int, *, remove_
                     scale=remesh_scale,
                     resolution=remesh_resolution,
                     band=band,
-                    project_back=0.9,
+                    project_back=remesh_project,
                     bvh=bvh,
                 )
             )
@@ -388,19 +402,48 @@ def export_geometry_remeshed(mesh_with_voxel, remesh_resolution: int, *, remove_
     return export_trimesh(mesh_to_trimesh(verts, faces), remove_floor_plane=remove_floor_plane)
 
 
-def export_geometry(mesh_with_voxel, remesh_resolution: int, *, remove_floor_plane: bool) -> bytes:
+def export_geometry(
+    mesh_with_voxel,
+    remesh_resolution: int,
+    *,
+    remove_floor_plane: bool,
+    export_mode: str = "auto",
+    remesh_band: float = 0.0,
+    remesh_project: float = 0.9,
+) -> bytes:
+    export_mode = (export_mode or "auto").strip().lower()
+    if export_mode == "remesh":
+        return export_geometry_remeshed(
+            mesh_with_voxel,
+            remesh_resolution,
+            remove_floor_plane=remove_floor_plane,
+            remesh_band=remesh_band,
+            remesh_project=remesh_project,
+        )
     try:
         return export_geometry_official_style(mesh_with_voxel, remove_floor_plane=remove_floor_plane)
     except Exception as exc:
+        if export_mode != "auto":
+            raise
         print(f"[trellis-gguf-api] official-style shape export failed ({exc}); using remesh fallback")
         return export_geometry_remeshed(
             mesh_with_voxel,
             remesh_resolution,
             remove_floor_plane=remove_floor_plane,
+            remesh_band=remesh_band,
+            remesh_project=remesh_project,
         )
 
 
-def export_textured_geometry(mesh_with_voxel, texture_size: int, decimation_target: int) -> bytes:
+def export_textured_geometry(
+    mesh_with_voxel,
+    texture_size: int,
+    decimation_target: int,
+    *,
+    export_remesh: bool,
+    remesh_band: float,
+    remesh_project: float,
+) -> bytes:
     with tempfile.NamedTemporaryFile(delete=False, suffix=".glb") as handle:
         temp_path = Path(handle.name)
     try:
@@ -428,9 +471,9 @@ def export_textured_geometry(mesh_with_voxel, texture_size: int, decimation_targ
             aabb=[[-0.5, -0.5, -0.5], [0.5, 0.5, 0.5]],
             decimation_target=decimation_target,
             texture_size=texture_size,
-            remesh=True,
-            remesh_band=1,
-            remesh_project=0,
+            remesh=export_remesh,
+            remesh_band=remesh_band,
+            remesh_project=remesh_project,
             verbose=True,
         )
         material = getattr(getattr(glb, "visual", None), "material", None)
@@ -463,6 +506,12 @@ def run_shape_request(payload: dict[str, Any]) -> bytes:
     pipeline = get_pipeline(quant, include_texture=texture_requested)
     seed = resolve_seed(payload)
     max_num_tokens = optional_int(payload, "max_num_tokens", 150000)
+    sparse_resolution_raw = optional_string(payload, "sparse_structure_resolution", "auto").lower()
+    sparse_structure_resolution = optional_int(payload, "sparse_structure_resolution", 32) if sparse_resolution_raw not in {"", "auto"} else 32
+    sampler = optional_string(payload, "sampler", "default")
+    sparse_structure_sampler = optional_string(payload, "sparse_structure_sampler", "default")
+    shape_sampler = optional_string(payload, "shape_sampler", "default")
+    tex_sampler = optional_string(payload, "tex_sampler", "default")
 
     set_task(
         status="processing",
@@ -479,16 +528,24 @@ def run_shape_request(payload: dict[str, Any]) -> bytes:
                 seed=seed,
                 pipeline_type=pipeline_type,
                 max_num_tokens=max_num_tokens,
+                sparse_structure_resolution=sparse_structure_resolution,
                 sparse_structure_sampler_params=sampler_params(payload, "ss_", default_steps=25),
                 shape_slat_sampler_params=sampler_params(payload, "shape_", default_steps=25),
                 tex_slat_sampler_params=sampler_params(payload, "tex_", default_steps=12),
                 generate_texture_slat=True,
+                sampler=sampler,
+                sparse_structure_sampler=sparse_structure_sampler,
+                shape_sampler=shape_sampler,
+                tex_sampler=tex_sampler,
             )[0]
             set_task(status="processing", stage="exporting_textured_mesh", detail="Exporting textured mesh...", progress_current=4, progress_total=5, progress_percent=85.0)
             return export_textured_geometry(
                 out_mesh,
                 texture_size=optional_int(payload, "texture_size", 2048),
                 decimation_target=optional_int(payload, "decimation_target", 500000),
+                export_remesh=optional_bool(payload, "export_remesh", True),
+                remesh_band=optional_float(payload, "export_remesh_band", 1.0),
+                remesh_project=optional_float(payload, "export_remesh_project", 0.0),
             )
 
         mesh_with_voxel = pipeline.run(
@@ -496,9 +553,13 @@ def run_shape_request(payload: dict[str, Any]) -> bytes:
             seed=seed,
             pipeline_type=pipeline_type,
             max_num_tokens=max_num_tokens,
+            sparse_structure_resolution=sparse_structure_resolution,
             sparse_structure_sampler_params=sampler_params(payload, "ss_", default_steps=25),
             shape_slat_sampler_params=sampler_params(payload, "shape_", default_steps=25),
             generate_texture_slat=False,
+            sampler=sampler,
+            sparse_structure_sampler=sparse_structure_sampler,
+            shape_sampler=shape_sampler,
         )[0]
 
     set_task(status="processing", stage="exporting_mesh", detail="Exporting mesh...", progress_current=4, progress_total=5, progress_percent=85.0)
@@ -506,6 +567,9 @@ def run_shape_request(payload: dict[str, Any]) -> bytes:
         mesh_with_voxel,
         optional_int(payload, "remesh_resolution", 768),
         remove_floor_plane=optional_bool(payload, "remove_floor_plane", True),
+        export_mode=optional_string(payload, "shape_export_mode", "auto"),
+        remesh_band=optional_float(payload, "export_remesh_band", 0.0),
+        remesh_project=optional_float(payload, "export_remesh_project", 0.9),
     )
 
 
@@ -532,6 +596,14 @@ def run_retexture_request(payload: dict[str, Any]) -> bytes:
                 tex_slat_sampler_params=sampler_params(payload, "tex_", default_steps=12),
                 resolution=optional_int(payload, "texture_resolution", 1024),
                 texture_size=optional_int(payload, "texture_size", 2048),
+                texture_alpha_mode=optional_string(payload, "texture_alpha_mode", "OPAQUE"),
+                double_side_material=optional_bool(payload, "texture_double_sided", True),
+                bake_on_vertices=optional_bool(payload, "texture_bake_vertices", False),
+                use_custom_normals=optional_bool(payload, "texture_custom_normals", False),
+                uv_unwrap_method=optional_string(payload, "texture_uv_method", "Xatlas"),
+                mesh_cluster_threshold_cone_half_angle_rad=optional_float(payload, "texture_uv_angle", 60.0),
+                sampler=optional_string(payload, "tex_sampler", optional_string(payload, "sampler", "default")),
+                inpainting=optional_string(payload, "texture_inpainting", "telea"),
             )
         with tempfile.NamedTemporaryFile(delete=False, suffix=".glb") as handle:
             out_path = Path(handle.name)
