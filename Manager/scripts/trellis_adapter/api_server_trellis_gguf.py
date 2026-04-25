@@ -17,6 +17,7 @@ from typing import Any
 import torch
 import trimesh
 from PIL import Image
+import o_voxel
 
 from trellis_gguf_common import (
     DEFAULT_GGUF_QUANT,
@@ -350,6 +351,32 @@ def export_geometry(mesh_with_voxel, remesh_resolution: int) -> bytes:
         temp_path.unlink(missing_ok=True)
 
 
+def export_textured_geometry(mesh_with_voxel, texture_size: int, decimation_target: int) -> bytes:
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".glb") as handle:
+        temp_path = Path(handle.name)
+    try:
+        mesh_with_voxel.simplify(16_777_216)
+        glb = o_voxel.postprocess.to_glb(
+            vertices=mesh_with_voxel.vertices,
+            faces=mesh_with_voxel.faces,
+            attr_volume=mesh_with_voxel.attrs,
+            coords=mesh_with_voxel.coords,
+            attr_layout=mesh_with_voxel.layout,
+            voxel_size=mesh_with_voxel.voxel_size,
+            aabb=[[-0.5, -0.5, -0.5], [0.5, 0.5, 0.5]],
+            decimation_target=decimation_target,
+            texture_size=texture_size,
+            remesh=True,
+            remesh_band=1,
+            remesh_project=0,
+            verbose=True,
+        )
+        glb.export(str(temp_path), extension_webp=True)
+        return read_file_bytes(temp_path)
+    finally:
+        temp_path.unlink(missing_ok=True)
+
+
 def run_shape_request(payload: dict[str, Any]) -> bytes:
     quant = resolve_gguf_quant(payload.get("gguf_quant"))
     pipeline_type = str(payload.get("pipeline_type") or "1024_cascade").strip()
@@ -386,13 +413,11 @@ def run_shape_request(payload: dict[str, Any]) -> bytes:
                 generate_texture_slat=True,
             )[0]
             set_task(status="processing", stage="exporting_textured_mesh", detail="Exporting textured mesh...", progress_current=4, progress_total=5, progress_percent=85.0)
-            with tempfile.NamedTemporaryFile(delete=False, suffix=".glb") as handle:
-                temp_path = Path(handle.name)
-            try:
-                out_mesh.export(str(temp_path))
-                return read_file_bytes(temp_path)
-            finally:
-                temp_path.unlink(missing_ok=True)
+            return export_textured_geometry(
+                out_mesh,
+                texture_size=optional_int(payload, "texture_size", 2048),
+                decimation_target=optional_int(payload, "decimation_target", 500000),
+            )
 
         mesh_with_voxel = pipeline.run(
             image=image,
