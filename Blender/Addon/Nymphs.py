@@ -8481,7 +8481,8 @@ class NYMPHSV2_PT_shape(bpy.types.Panel):
                 emboss=False,
             )
             if state.show_trellis_texture_pass:
-                texture_pass.prop(state, "trellis_texture_resolution", text="Working Res")
+                if not _trellis_runtime_is_gguf(state):
+                    texture_pass.prop(state, "trellis_texture_resolution", text="Working Res")
                 if _trellis_runtime_is_gguf(state):
                     texture_pass.prop(state, "trellis_tex_sampler")
                 row = texture_pass.row(align=True)
@@ -8510,16 +8511,10 @@ class NYMPHSV2_PT_shape(bpy.types.Panel):
                     remesh_row.prop(state, "trellis_export_remesh_band", text="Band")
                     remesh_row.prop(state, "trellis_export_remesh_project", text="Project")
                 if _trellis_runtime_is_gguf(state):
-                    export_settings.prop(state, "trellis_texture_alpha_mode")
-                    export_settings.prop(state, "trellis_texture_double_sided")
-                    export_settings.prop(state, "trellis_texture_uv_method")
                     export_settings.prop(state, "trellis_texture_uv_angle")
-                    export_settings.prop(state, "trellis_texture_inpainting")
-                    export_settings.prop(state, "trellis_texture_bake_vertices")
-                    export_settings.prop(state, "trellis_texture_custom_normals")
             export_settings.prop(state, "trellis_decimation_target", text="Faces")
 
-        if _trellis_runtime_is_gguf(state):
+        if _trellis_runtime_is_gguf(state) and not state.shape_generate_texture:
             cleanup = panel.box()
             cleanup.prop(
                 state,

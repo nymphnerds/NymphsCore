@@ -3,6 +3,7 @@ import base64
 import gc
 import io
 import json
+import math
 import os
 import random
 import tempfile
@@ -154,6 +155,18 @@ def sampler_params(payload: dict[str, Any], prefix: str, *, steps_key: str | Non
     if interval_start not in {"", None} and interval_end not in {"", None}:
         params["guidance_interval"] = [float(interval_start), float(interval_end)]
     return params
+
+
+def resolve_sparse_structure_resolution(payload: dict[str, Any], pipeline_type: str) -> int:
+    raw = optional_string(payload, "sparse_structure_resolution", "auto").lower()
+    if raw not in {"", "auto"}:
+        return optional_int(payload, "sparse_structure_resolution", 32)
+    return {
+        "512": 32,
+        "1024": 64,
+        "1024_cascade": 32,
+        "1536_cascade": 32,
+    }.get(pipeline_type, 32)
 
 
 def preprocess_image(image: Image.Image, *, fg_ratio: float, remove_background: bool, force_cpu: bool = False) -> Image.Image:
@@ -471,6 +484,7 @@ def export_textured_geometry(
     export_remesh: bool,
     remesh_band: float,
     remesh_project: float,
+    texture_uv_angle: float,
 ) -> bytes:
     with tempfile.NamedTemporaryFile(delete=False, suffix=".glb") as handle:
         temp_path = Path(handle.name)
@@ -502,6 +516,7 @@ def export_textured_geometry(
             remesh=export_remesh,
             remesh_band=remesh_band,
             remesh_project=remesh_project,
+            mesh_cluster_threshold_cone_half_angle_rad=math.radians(texture_uv_angle),
             verbose=True,
         )
         material = getattr(getattr(glb, "visual", None), "material", None)
@@ -534,8 +549,7 @@ def run_shape_request(payload: dict[str, Any]) -> bytes:
     pipeline = get_pipeline(quant, include_texture=texture_requested)
     seed = resolve_seed(payload)
     max_num_tokens = optional_int(payload, "max_num_tokens", 150000)
-    sparse_resolution_raw = optional_string(payload, "sparse_structure_resolution", "auto").lower()
-    sparse_structure_resolution = optional_int(payload, "sparse_structure_resolution", 32) if sparse_resolution_raw not in {"", "auto"} else 32
+    sparse_structure_resolution = resolve_sparse_structure_resolution(payload, pipeline_type)
     sampler = optional_string(payload, "sampler", "default")
     sparse_structure_sampler = optional_string(payload, "sparse_structure_sampler", "default")
     shape_sampler = optional_string(payload, "shape_sampler", "default")
@@ -574,6 +588,7 @@ def run_shape_request(payload: dict[str, Any]) -> bytes:
                 export_remesh=optional_bool(payload, "export_remesh", True),
                 remesh_band=optional_float(payload, "export_remesh_band", 1.0),
                 remesh_project=optional_float(payload, "export_remesh_project", 0.0),
+                texture_uv_angle=optional_float(payload, "texture_uv_angle", 60.0),
             )
 
         mesh_with_voxel = pipeline.run(
