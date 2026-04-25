@@ -1797,6 +1797,13 @@ def _seed_trellis_shape_presets():
         preset_dir = _trellis_shape_preset_dir()
     except Exception:
         return
+    for key in LEGACY_TRELLIS_SHAPE_PRESET_KEYS:
+        try:
+            path = _trellis_shape_preset_file(key)
+            if os.path.exists(path):
+                os.remove(path)
+        except Exception:
+            pass
     for key, data in TRELLIS_SHAPE_PRESETS.items():
         path = _trellis_shape_preset_file(key)
         if os.path.exists(path):

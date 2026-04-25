@@ -591,7 +591,7 @@ def run_retexture_request(payload: dict[str, Any]) -> bytes:
                 bake_on_vertices=optional_bool(payload, "texture_bake_vertices", False),
                 use_custom_normals=optional_bool(payload, "texture_custom_normals", False),
                 uv_unwrap_method=optional_string(payload, "texture_uv_method", "Xatlas"),
-                mesh_cluster_threshold_cone_half_angle_rad=optional_float(payload, "texture_uv_angle", 60.0),
+                mesh_cluster_threshold_cone_half_angle_rad=math.radians(optional_float(payload, "texture_uv_angle", 60.0)),
                 sampler=optional_string(payload, "tex_sampler", optional_string(payload, "sampler", "default")),
                 inpainting=optional_string(payload, "texture_inpainting", "telea"),
             )
