@@ -27,12 +27,16 @@ Source: fresh installer testing showed the TRELLIS.2 GGUF Runtime Tools card cou
 Changed:
 
 - added backend selection to `prefetch_models.sh` so Runtime Tools can fetch `zimage`, `trellis`, or `all`
+- added an installer TRELLIS.2 GGUF download selector, defaulting to `All quants`, so fresh installs can prefetch `Q4_K_M`, `Q5_K_M`, `Q6_K`, and `Q8_0` in one pass for later Blender-side switching
+- added the same TRELLIS.2 GGUF download selector to Runtime Tools so backend-specific `Fetch` no longer hides which quant set will be downloaded
+- made the TRELLIS.2 GGUF server report locally complete GGUF quants and filtered the Blender addon quant dropdown to only show available choices
+- bumped the branch addon feed to `1.1.197`
 - changed the Z-Image card fetch button to run only Z-Image model prefetch
 - changed the TRELLIS card fetch button to run only TRELLIS GGUF model prefetch when models are missing
-- changed the TRELLIS card to show `Repair` when the managed GGUF adapter is missing, and sync the packaged adapter scripts into the TRELLIS runtime instead of downloading unrelated models
+- changed the TRELLIS card to show `Repair` when the managed GGUF adapter or GGUF runtime packages are missing, and sync the packaged adapter scripts into the TRELLIS runtime instead of downloading unrelated models
 - tightened TRELLIS Runtime Tools status so either missing GGUF adapter file is reported as an adapter repair problem
 - fixed the TRELLIS adapter repair command to use an explicit `/home/<user>/TRELLIS.2/scripts` target path so it cannot collapse to `/scripts` if shell variable expansion fails
-- corrected the Runtime Tools summary so one ready backend no longer hides another backend that still needs attention
+- corrected the Runtime Tools summary and post-fetch success text so one ready backend or model-ready backend no longer hides another backend that still needs repair before smoke testing
 
 Validation:
 

@@ -49,6 +49,56 @@ def resolve_gguf_quant(raw: str | None = None) -> str:
     return quant
 
 
+def _hf_cache_repo_dir(repo_id: str) -> Path:
+    return Path.home() / ".cache" / "huggingface" / "hub" / f"models--{repo_id.replace('/', '--')}"
+
+
+def _candidate_gguf_roots() -> list[Path]:
+    roots: list[Path] = []
+    configured = (os.environ.get("TRELLIS_GGUF_MODEL_ROOT") or "").strip()
+    if configured:
+        roots.append(Path(configured).expanduser())
+
+    legacy = repo_root() / "models" / "trellis2-gguf"
+    roots.append(legacy)
+
+    snapshots = _hf_cache_repo_dir(GGUF_MODEL_REPO_ID) / "snapshots"
+    if snapshots.exists():
+        roots.extend(sorted((path for path in snapshots.iterdir() if path.is_dir()), reverse=True))
+
+    seen: set[Path] = set()
+    unique: list[Path] = []
+    for root in roots:
+        resolved = root.resolve() if root.exists() else root
+        if resolved not in seen:
+            unique.append(root)
+            seen.add(resolved)
+    return unique
+
+
+def gguf_quant_is_available(model_root: Path, quant: str, *, include_texture: bool = True) -> bool:
+    quant = resolve_gguf_quant(quant)
+    if not model_root.exists() or not (model_root / "pipeline.json").exists():
+        return False
+
+    required_dirs = ["shape", "refiner"]
+    if include_texture:
+        required_dirs.append("texture")
+    for dirname in required_dirs:
+        if not list((model_root / dirname).glob(f"*_{quant}.gguf")):
+            return False
+    return True
+
+
+def available_gguf_quants(*, include_texture: bool = True) -> list[str]:
+    available: set[str] = set()
+    for root in _candidate_gguf_roots():
+        for quant in VALID_GGUF_QUANTS:
+            if gguf_quant_is_available(root, quant, include_texture=include_texture):
+                available.add(quant)
+    return sorted(available)
+
+
 def resolve_gguf_model_root(*, local_files_only: bool = True, quant: str | None = None, include_texture: bool = True) -> Path:
     configured = (os.environ.get("TRELLIS_GGUF_MODEL_ROOT") or "").strip()
     if configured:

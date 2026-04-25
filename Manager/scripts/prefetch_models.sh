@@ -249,6 +249,7 @@ from trellis_gguf_common import (
     DEFAULT_GGUF_QUANT,
     GGUF_MODEL_REPO_ID,
     TRELLIS_SUPPORT_MODEL_REPO_ID,
+    VALID_GGUF_QUANTS,
     ensure_required_support_models,
     resolve_gguf_model_root,
 )
@@ -258,7 +259,8 @@ if token:
     os.environ["HUGGING_FACE_HUB_TOKEN"] = token
 
 repo_id = GGUF_MODEL_REPO_ID
-quant = os.getenv("TRELLIS_GGUF_QUANT") or DEFAULT_GGUF_QUANT
+raw_quant = (os.getenv("TRELLIS_GGUF_QUANT") or DEFAULT_GGUF_QUANT).strip()
+quants = sorted(VALID_GGUF_QUANTS) if raw_quant.lower() == "all" else [raw_quant]
 stop_event = threading.Event()
 
 def cache_size_bytes(path: str) -> int:
@@ -289,11 +291,13 @@ def heartbeat(start_size: int) -> None:
         last_size = current_size
 
 start_size = cache_size_bytes(cache_dir)
-print(f"Prefetching {repo_id} ({quant}) into shared HF cache", flush=True)
+print(f"Prefetching {repo_id} ({', '.join(quants)}) into shared HF cache", flush=True)
 thread = threading.Thread(target=heartbeat, args=(start_size,), daemon=True)
 thread.start()
 try:
-    resolve_gguf_model_root(local_files_only=False, quant=quant, include_texture=True)
+    for quant in quants:
+        print(f"Prefetching TRELLIS GGUF quant {quant}", flush=True)
+        resolve_gguf_model_root(local_files_only=False, quant=quant, include_texture=True)
     print(f"Prefetching TRELLIS GGUF support checkpoints from {TRELLIS_SUPPORT_MODEL_REPO_ID}", flush=True)
     for config_file, model_file in ensure_required_support_models(local_files_only=False):
         print(f"Support checkpoint ready: {config_file}", flush=True)

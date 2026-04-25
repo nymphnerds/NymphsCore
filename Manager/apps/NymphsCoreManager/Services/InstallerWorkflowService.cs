@@ -316,7 +316,7 @@ public sealed class InstallerWorkflowService
             }
         }
 
-        var environmentVariables = BuildInstallerTokenEnvironment(settings.HuggingFaceToken);
+        var environmentVariables = BuildInstallerEnvironment(settings);
         var githubToken = ResolveGitHubTokenFromEnvironment();
         if (!string.IsNullOrWhiteSpace(githubToken))
         {
@@ -552,6 +552,7 @@ public sealed class InstallerWorkflowService
         var tokenExport = string.IsNullOrWhiteSpace(settings.HuggingFaceToken)
             ? string.Empty
             : $"export NYMPHS3D_HF_TOKEN={ToBashSingleQuoted(settings.HuggingFaceToken.Trim())}; ";
+        var trellisQuant = NormalizeTrellisGgufPrefetchQuant(settings.TrellisGgufQuant);
 
         var bashCommand =
             "set -euo pipefail; " +
@@ -563,6 +564,7 @@ public sealed class InstallerWorkflowService
             "export NYMPHS3D_Z_IMAGE_DIR=\"$HOME/Z-Image\"; " +
             "export NYMPHS3D_N2D2_DIR=\"$NYMPHS3D_Z_IMAGE_DIR\"; " +
             "export NYMPHS3D_TRELLIS_DIR=\"$HOME/TRELLIS.2\"; " +
+            $"export TRELLIS_GGUF_QUANT={ToBashSingleQuoted(trellisQuant)}; " +
             $"bash {ToBashSingleQuoted(wslPrefetchScriptPath)} --backend {ToBashSingleQuoted(normalizedBackend)}";
 
         var arguments = new List<string>
@@ -573,7 +575,7 @@ public sealed class InstallerWorkflowService
             "/bin/bash", "-lc", bashCommand,
         };
 
-        progress.Report($"Model prefetch: downloading {FriendlyBackendLabel(normalizedBackend)} model weights only. Runtime repair is not part of this step.");
+        progress.Report($"Model prefetch: downloading {FriendlyBackendLabel(normalizedBackend)} model weights only. TRELLIS GGUF quant: {trellisQuant}. Runtime repair is not part of this step.");
 
         var result = await _processRunner.RunAsync(
             fileName: "wsl.exe",
@@ -602,6 +604,7 @@ public sealed class InstallerWorkflowService
             ?? throw new InvalidOperationException($"Could not convert adapter path for WSL: {sourceCommon}");
         var trellisRuntimeDir = $"/home/{settings.LinuxUser}/TRELLIS.2";
         var trellisScriptDir = $"{trellisRuntimeDir}/scripts";
+        var trellisQuant = NormalizeTrellisGgufRuntimeQuant(settings.TrellisGgufQuant);
 
         var bashCommand =
             "set -euo pipefail; " +
@@ -610,6 +613,7 @@ public sealed class InstallerWorkflowService
             $"export LOGNAME={ToBashSingleQuoted(settings.LinuxUser)}; " +
             $"export NYMPHS3D_RUNTIME_ROOT={ToBashSingleQuoted($"/home/{settings.LinuxUser}")}; " +
             $"export NYMPHS3D_TRELLIS_DIR={ToBashSingleQuoted(trellisRuntimeDir)}; " +
+            $"export TRELLIS_GGUF_QUANT={ToBashSingleQuoted(trellisQuant)}; " +
             $"mkdir -p {ToBashSingleQuoted(trellisScriptDir)}; " +
             $"install -m 644 {ToBashSingleQuoted(wslSourceApi)} {ToBashSingleQuoted($"{trellisScriptDir}/api_server_trellis_gguf.py")}; " +
             $"install -m 644 {ToBashSingleQuoted(wslSourceCommon)} {ToBashSingleQuoted($"{trellisScriptDir}/trellis_gguf_common.py")}; " +
@@ -658,6 +662,7 @@ public sealed class InstallerWorkflowService
             "export NYMPHS3D_Z_IMAGE_DIR=\"$HOME/Z-Image\"; " +
             "export NYMPHS3D_N2D2_DIR=\"$NYMPHS3D_Z_IMAGE_DIR\"; " +
             "export NYMPHS3D_TRELLIS_DIR=\"$HOME/TRELLIS.2\"; " +
+            $"export TRELLIS_GGUF_QUANT={ToBashSingleQuoted(NormalizeTrellisGgufRuntimeQuant(settings.TrellisGgufQuant))}; " +
             $"bash {ToBashSingleQuoted(wslSmokeScriptPath)} --backend {ToBashSingleQuoted(backend)}";
 
         var arguments = new List<string>
@@ -743,6 +748,7 @@ public sealed class InstallerWorkflowService
             "export NYMPHS3D_Z_IMAGE_DIR=\"$HOME/Z-Image\"; " +
             "export NYMPHS3D_N2D2_DIR=\"$NYMPHS3D_Z_IMAGE_DIR\"; " +
             "export NYMPHS3D_TRELLIS_DIR=\"$HOME/TRELLIS.2\"; " +
+            $"export TRELLIS_GGUF_QUANT={ToBashSingleQuoted(NormalizeTrellisGgufRuntimeQuant(settings.TrellisGgufQuant))}; " +
             $"bash {ToBashSingleQuoted(wslStatusScriptPath)}";
 
         var arguments = new List<string>
@@ -1187,14 +1193,20 @@ public sealed class InstallerWorkflowService
             cancellationToken: cancellationToken).ConfigureAwait(false);
     }
 
-    private static Dictionary<string, string?>? BuildInstallerTokenEnvironment(string? huggingFaceToken)
+    private static Dictionary<string, string?>? BuildInstallerEnvironment(InstallSettings settings)
     {
         Dictionary<string, string?>? environmentVariables = null;
 
-        if (!string.IsNullOrWhiteSpace(huggingFaceToken))
+        if (!string.IsNullOrWhiteSpace(settings.HuggingFaceToken))
         {
             environmentVariables ??= new Dictionary<string, string?>();
-            environmentVariables["NYMPHS3D_HF_TOKEN"] = huggingFaceToken.Trim();
+            environmentVariables["NYMPHS3D_HF_TOKEN"] = settings.HuggingFaceToken.Trim();
+        }
+
+        if (!string.IsNullOrWhiteSpace(settings.TrellisGgufQuant))
+        {
+            environmentVariables ??= new Dictionary<string, string?>();
+            environmentVariables["TRELLIS_GGUF_QUANT"] = NormalizeTrellisGgufPrefetchQuant(settings.TrellisGgufQuant);
         }
 
         var githubToken = ResolveGitHubTokenFromEnvironment();
@@ -1205,6 +1217,26 @@ public sealed class InstallerWorkflowService
         }
 
         return environmentVariables;
+    }
+
+    private static string NormalizeTrellisGgufPrefetchQuant(string? quant)
+    {
+        var normalized = (quant ?? "Q5_K_M").Trim().ToUpperInvariant();
+        return normalized switch
+        {
+            "ALL" => "all",
+            "Q4_K_M" => "Q4_K_M",
+            "Q5_K_M" => "Q5_K_M",
+            "Q6_K" => "Q6_K",
+            "Q8_0" => "Q8_0",
+            _ => "Q5_K_M",
+        };
+    }
+
+    private static string NormalizeTrellisGgufRuntimeQuant(string? quant)
+    {
+        var normalized = NormalizeTrellisGgufPrefetchQuant(quant);
+        return normalized == "all" ? "Q5_K_M" : normalized;
     }
 
     private static string? ResolveGitHubTokenFromEnvironment()

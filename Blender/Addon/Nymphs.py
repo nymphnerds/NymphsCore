@@ -5,7 +5,7 @@ Live Blender addon implementation for Nymphs.
 bl_info = {
     "name": "Nymphs",
     "author": "Nymphs3D",
-    "version": (1, 1, 191),
+    "version": (1, 1, 197),
     "blender": (4, 2, 0),
     "location": "View3D > Sidebar > Nymphs",
     "description": "Blender client for NymphsCore image, shape, and texture backends",
@@ -85,6 +85,12 @@ DEFAULT_N2D2_NUNCHAKU_RANK = "32"
 DEFAULT_N2D2_MODEL_PRESET = "zimage_nunchaku_r32"
 DEFAULT_TRELLIS_RUNTIME = "GGUF"
 DEFAULT_TRELLIS_GGUF_QUANT = "Q5_K_M"
+TRELLIS_GGUF_QUANT_ITEMS = (
+    ("Q4_K_M", "Q4_K_M", "Smallest local GGUF bundle"),
+    ("Q5_K_M", "Q5_K_M", "Balanced 16 GB test target"),
+    ("Q6_K", "Q6_K", "Heavier, higher precision"),
+    ("Q8_0", "Q8_0", "Largest GGUF option"),
+)
 OPENROUTER_API_ROOT = "https://openrouter.ai/api/v1"
 GEMINI_MODEL_IDS = {
     "gemini_2_5_flash_image": "google/gemini-2.5-flash-image",
@@ -650,6 +656,28 @@ def _trellis_runtime_is_gguf(state):
     return True
 
 
+def _parse_trellis_available_gguf_quants(raw):
+    valid = {item[0] for item in TRELLIS_GGUF_QUANT_ITEMS}
+    values = [
+        part.strip()
+        for part in (raw or "").split(",")
+        if part.strip() in valid
+    ]
+    return values or [item[0] for item in TRELLIS_GGUF_QUANT_ITEMS]
+
+
+def _trellis_gguf_quant_items(self, context):
+    available = set(_parse_trellis_available_gguf_quants(getattr(self, "service_trellis_available_gguf_quants", "")))
+    return [item for item in TRELLIS_GGUF_QUANT_ITEMS if item[0] in available]
+
+
+def _sync_trellis_available_gguf_quant(state):
+    available = _parse_trellis_available_gguf_quants(getattr(state, "service_trellis_available_gguf_quants", ""))
+    current = getattr(state, "trellis_gguf_quant", DEFAULT_TRELLIS_GGUF_QUANT)
+    if current not in available:
+        state.trellis_gguf_quant = DEFAULT_TRELLIS_GGUF_QUANT if DEFAULT_TRELLIS_GGUF_QUANT in available else available[0]
+
+
 def _n2d2_model_family(model_id: str | None) -> str:
     normalized = (model_id or DEFAULT_N2D2_MODEL_ID).strip().lower()
     if "z-image" in normalized:
@@ -820,6 +848,8 @@ def _drain_events():
                 for key, value in payload_b.items():
                     setattr(state, key, value)
                 _sync_shape_texture_state(state)
+                if "service_trellis_available_gguf_quants" in payload_b:
+                    _sync_trellis_available_gguf_quant(state)
                 if "part_extraction_plan_json" in payload_b:
                     _sync_part_extraction_items_from_plan(state)
         elif kind == "import":
@@ -3413,6 +3443,9 @@ def _summarize_server_info(info):
     if str(backend_name).strip().lower() == "trellis.2-gguf":
         runtime_bits.append(f"quant={info.get('gguf_quant', 'unknown')}")
         runtime_bits.append(f"attn={info.get('attention_backend', 'unknown')}")
+        available_quants = info.get("available_gguf_quants") or []
+        if available_quants:
+            runtime_bits.append(f"available={','.join(str(quant) for quant in available_quants)}")
     runtime_text = f" | {' | '.join(runtime_bits)}" if runtime_bits else ""
     return (
         f"{status} | {model_path} | {subfolder}{runtime_text} | "
@@ -3420,6 +3453,19 @@ def _summarize_server_info(info):
         f"retexture={capabilities['retexture']} | mv={capabilities['multiview']} | "
         f"text={capabilities['text']}"
     )
+
+
+def _trellis_available_gguf_quants_from_info(info):
+    backend_name = str(info.get("backend", "")).strip().lower()
+    if backend_name != "trellis.2-gguf":
+        return ""
+    valid = {item[0] for item in TRELLIS_GGUF_QUANT_ITEMS}
+    values = [
+        str(quant).strip()
+        for quant in (info.get("available_gguf_quants") or [])
+        if str(quant).strip() in valid
+    ]
+    return ",".join(values)
 
 
 def _backend_family(info):
@@ -4419,6 +4465,7 @@ def _backend_lifecycle(scene_name, proc, service_key):
                 scene_name,
                 service_key,
                 backend_summary=_summarize_server_info(info),
+                available_gguf_quants=_trellis_available_gguf_quants_from_info(info),
                 backend_family=capabilities["family"],
                 server_supports_shape=capabilities["shape"],
                 server_supports_texture=capabilities["texture"],
@@ -4504,6 +4551,7 @@ def _background_server_probe(scene_name, service_key):
             scene_name,
             service_key,
             backend_summary=_summarize_server_info(info),
+            available_gguf_quants=_trellis_available_gguf_quants_from_info(info),
             backend_family=capabilities["family"],
             server_supports_shape=capabilities["shape"],
             server_supports_texture=capabilities["texture"],
@@ -5477,6 +5525,7 @@ class NymphsV2State(bpy.types.PropertyGroup):
     service_trellis_launch_state: StringProperty(default="Stopped")
     service_trellis_launch_detail: StringProperty(default="TRELLIS.2 server is not running.")
     service_trellis_backend_summary: StringProperty(default="Unavailable")
+    service_trellis_available_gguf_quants: StringProperty(default="")
     launch_open_terminal: BoolProperty(
         name="Open Terminal Window",
         default=False,
@@ -5524,12 +5573,7 @@ class NymphsV2State(bpy.types.PropertyGroup):
     trellis_gguf_quant: EnumProperty(
         name="GGUF Quant",
         description="Quantization level used by the TRELLIS.2 GGUF adapter.",
-        items=(
-            ("Q4_K_M", "Q4_K_M", "Smallest local GGUF bundle"),
-            ("Q5_K_M", "Q5_K_M", "Balanced 16 GB test target"),
-            ("Q6_K", "Q6_K", "Heavier, higher precision"),
-            ("Q8_0", "Q8_0", "Largest GGUF option"),
-        ),
+        items=_trellis_gguf_quant_items,
         default=DEFAULT_TRELLIS_GGUF_QUANT,
     )
     n2d2_model_preset: EnumProperty(
@@ -6300,6 +6344,7 @@ def _start_service_process(context, state, service_key):
             context.scene.name,
             service_key,
             backend_summary=_summarize_server_info(info),
+            available_gguf_quants=_trellis_available_gguf_quants_from_info(info),
             backend_family=capabilities["family"],
             server_supports_shape=capabilities["shape"],
             server_supports_texture=capabilities["texture"],

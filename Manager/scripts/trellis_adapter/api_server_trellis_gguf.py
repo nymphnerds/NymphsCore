@@ -23,6 +23,7 @@ import o_voxel
 from trellis_gguf_common import (
     DEFAULT_GGUF_QUANT,
     GGUF_MODEL_REPO_ID,
+    available_gguf_quants,
     ensure_trellis2_gguf_ready,
     prepare_dinov3_dir,
     preferred_attention_backend,
@@ -629,6 +630,7 @@ def server_info() -> dict[str, Any]:
         "enable_t23d": False,
         "texture_only": False,
         "gguf_quant": quant,
+        "available_gguf_quants": available_gguf_quants(include_texture=True),
         "attention_backend": os.environ.get("ATTN_BACKEND") or preferred_attention_backend(),
         "sparse_attention_backend": os.environ.get("SPARSE_ATTN_BACKEND") or os.environ.get("ATTN_BACKEND") or preferred_attention_backend(),
         "model_ready": model_ready,
