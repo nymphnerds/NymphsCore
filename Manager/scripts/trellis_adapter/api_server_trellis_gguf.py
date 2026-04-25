@@ -233,6 +233,50 @@ def get_pipeline(quant: str, *, include_texture: bool):
     return pipeline
 
 
+def remove_floor_like_components(mesh: trimesh.Trimesh) -> trimesh.Trimesh:
+    if str(os.environ.get("TRELLIS_GGUF_REMOVE_FLOOR_PLANE", "1")).strip().lower() in {"0", "false", "no"}:
+        return mesh
+    if mesh.faces is None or len(mesh.faces) == 0:
+        return mesh
+
+    bounds = mesh.bounds
+    scene_extent = bounds[1] - bounds[0]
+    scene_height = float(scene_extent[2])
+    if scene_height <= 0:
+        return mesh
+
+    try:
+        components = mesh.split(only_watertight=False)
+    except Exception:
+        return mesh
+    if len(components) <= 1:
+        return mesh
+
+    floor_z = float(bounds[0][2])
+    z_tol = max(scene_height * 0.035, 0.01)
+    min_span_xy = max(float(scene_extent[0]), float(scene_extent[1])) * 0.55
+    min_area = max(float(mesh.area) * 0.05, 0.01)
+    kept = []
+    removed = 0
+
+    for component in components:
+        cb = component.bounds
+        ce = cb[1] - cb[0]
+        near_floor = float(cb[0][2]) <= floor_z + z_tol
+        flat = float(ce[2]) <= max(scene_height * 0.08, 0.02)
+        wide = max(float(ce[0]), float(ce[1])) >= min_span_xy
+        large = float(component.area) >= min_area
+        if near_floor and flat and wide and large:
+            removed += 1
+            continue
+        kept.append(component)
+
+    if not removed or not kept:
+        return mesh
+    print(f"[trellis-gguf-api] removed {removed} floor-like mesh component(s)")
+    return trimesh.util.concatenate(kept)
+
+
 def export_geometry(mesh_with_voxel, remesh_resolution: int) -> bytes:
     import numpy as np
 
@@ -295,6 +339,7 @@ def export_geometry(mesh_with_voxel, remesh_resolution: int) -> bytes:
     verts[:, 2] = y
 
     mesh = trimesh.Trimesh(vertices=verts, faces=faces, process=True)
+    mesh = remove_floor_like_components(mesh)
     mesh.visual = trimesh.visual.TextureVisuals(material=trimesh.visual.material.PBRMaterial(doubleSided=True))
     with tempfile.NamedTemporaryFile(delete=False, suffix=".glb") as handle:
         temp_path = Path(handle.name)
