@@ -409,15 +409,12 @@ def _trellis_preset_values(
     texture_resolution="1024",
     texture_size="2048",
     faces=500000,
-    cleanup=True,
     foreground=0.85,
     sparse_resolution="auto",
     sampler="default",
     ss_sampler="default",
     shape_sampler="default",
     tex_sampler="default",
-    shape_export_mode="auto",
-    remesh_resolution="768",
     export_remesh=True,
     export_remesh_band=1.0,
     export_remesh_project=0.0,
@@ -453,15 +450,12 @@ def _trellis_preset_values(
         "trellis_texture_resolution": str(texture_resolution),
         "trellis_texture_size": str(texture_size),
         "trellis_decimation_target": faces,
-        "trellis_remove_floor_plane": cleanup,
         "trellis_foreground_ratio": foreground,
         "trellis_sparse_structure_resolution": str(sparse_resolution),
         "trellis_sampler": sampler,
         "trellis_ss_sampler": ss_sampler,
         "trellis_shape_sampler": shape_sampler,
         "trellis_tex_sampler": tex_sampler,
-        "trellis_shape_export_mode": shape_export_mode,
-        "trellis_remesh_resolution": str(remesh_resolution),
         "trellis_export_remesh": export_remesh,
         "trellis_export_remesh_band": export_remesh_band,
         "trellis_export_remesh_project": export_remesh_project,
@@ -1755,15 +1749,12 @@ def _current_trellis_shape_preset_values(state):
         "trellis_texture_resolution": str(getattr(state, "trellis_texture_resolution", "1024")),
         "trellis_texture_size": str(getattr(state, "trellis_texture_size", "2048")),
         "trellis_decimation_target": int(getattr(state, "trellis_decimation_target", 500000)),
-        "trellis_remove_floor_plane": bool(getattr(state, "trellis_remove_floor_plane", True)),
         "trellis_foreground_ratio": float(getattr(state, "trellis_foreground_ratio", 0.85)),
         "trellis_sparse_structure_resolution": str(getattr(state, "trellis_sparse_structure_resolution", "auto")),
         "trellis_sampler": str(getattr(state, "trellis_sampler", "default")),
         "trellis_ss_sampler": str(getattr(state, "trellis_ss_sampler", "default")),
         "trellis_shape_sampler": str(getattr(state, "trellis_shape_sampler", "default")),
         "trellis_tex_sampler": str(getattr(state, "trellis_tex_sampler", "default")),
-        "trellis_shape_export_mode": str(getattr(state, "trellis_shape_export_mode", "auto")),
-        "trellis_remesh_resolution": str(getattr(state, "trellis_remesh_resolution", "768")),
         "trellis_export_remesh": bool(getattr(state, "trellis_export_remesh", True)),
         "trellis_export_remesh_band": float(getattr(state, "trellis_export_remesh_band", 1.0)),
         "trellis_export_remesh_project": float(getattr(state, "trellis_export_remesh_project", 0.0)),
@@ -3309,8 +3300,6 @@ def _build_shape_payload(state):
         "sparse_structure_sampler": str(getattr(state, "trellis_ss_sampler", "default")),
         "shape_sampler": str(getattr(state, "trellis_shape_sampler", "default")),
         "tex_sampler": str(getattr(state, "trellis_tex_sampler", "default")),
-        "shape_export_mode": str(getattr(state, "trellis_shape_export_mode", "auto")),
-        "remesh_resolution": int(getattr(state, "trellis_remesh_resolution", "768")),
         "export_remesh": bool(getattr(state, "trellis_export_remesh", True)),
         "export_remesh_band": float(getattr(state, "trellis_export_remesh_band", 1.0)),
         "export_remesh_project": float(getattr(state, "trellis_export_remesh_project", 0.0)),
@@ -3321,7 +3310,6 @@ def _build_shape_payload(state):
         "texture_uv_method": str(getattr(state, "trellis_texture_uv_method", "Xatlas")),
         "texture_uv_angle": float(getattr(state, "trellis_texture_uv_angle", 60.0)),
         "texture_inpainting": str(getattr(state, "trellis_texture_inpainting", "telea")),
-        "remove_floor_plane": bool(getattr(state, "trellis_remove_floor_plane", True)),
         "ss_sampling_steps": int(getattr(state, "trellis_ss_sampling_steps", 12)),
         "ss_guidance_strength": float(getattr(state, "trellis_ss_guidance_strength", 7.5)),
         "ss_guidance_rescale": float(getattr(state, "trellis_ss_guidance_rescale", 0.7)),
@@ -5715,26 +5703,6 @@ class NymphsV2State(bpy.types.PropertyGroup):
         min=10000,
         max=2000000,
     )
-    trellis_shape_export_mode: EnumProperty(
-        name="Shape Export",
-        description="GGUF shape-only export mode. Auto preserves raw topology unless export fails; Remesh explicitly rebuilds topology.",
-        items=(
-            ("preserve", "Preserve", "Raw GGUF mesh export with Blender orientation"),
-            ("remesh", "Remesh", "Rebuild topology with the GGUF remesh path"),
-            ("auto", "Auto Fallback", "Try Preserve first, then fall back to Remesh if export fails"),
-        ),
-        default="auto",
-    )
-    trellis_remesh_resolution: EnumProperty(
-        name="Remesh Res",
-        description="GGUF remesh grid resolution for shape-only remesh export.",
-        items=(
-            ("512", "512", "Faster, lighter remesh"),
-            ("768", "768", "Balanced remesh resolution"),
-            ("1024", "1024", "Denser remesh, slower and heavier"),
-        ),
-        default="768",
-    )
     trellis_export_remesh: BoolProperty(
         name="Remesh Export",
         description="Use o-voxel remeshing during textured GLB export. Can improve topology but may change silhouettes.",
@@ -5807,16 +5775,6 @@ class NymphsV2State(bpy.types.PropertyGroup):
             ("ns", "Navier-Stokes", "OpenCV Navier-Stokes inpainting"),
         ),
         default="telea",
-    )
-    trellis_remove_floor_plane: BoolProperty(
-        name="Remove Floor Plane",
-        description="Remove accidental wide, flat base-plane components from GGUF shape-only exports.",
-        default=True,
-    )
-    show_trellis_cleanup: BoolProperty(
-        name="Mesh Cleanup",
-        description="Show GGUF mesh cleanup controls for removing accidental flat planes and debris.",
-        default=False,
     )
     show_trellis_generation_settings: BoolProperty(
         name="Generation",
@@ -8502,21 +8460,6 @@ class NYMPHSV2_PT_shape(bpy.types.Panel):
                 if _trellis_runtime_is_gguf(state):
                     export_settings.prop(state, "trellis_texture_uv_angle")
             export_settings.prop(state, "trellis_decimation_target", text="Faces")
-
-        if _trellis_runtime_is_gguf(state) and not state.shape_generate_texture:
-            cleanup = panel.box()
-            cleanup.prop(
-                state,
-                "show_trellis_cleanup",
-                text="Mesh Cleanup",
-                icon="TRIA_DOWN" if state.show_trellis_cleanup else "TRIA_RIGHT",
-                emboss=False,
-            )
-            if state.show_trellis_cleanup:
-                cleanup.prop(state, "trellis_shape_export_mode")
-                if state.trellis_shape_export_mode in {"remesh", "auto"}:
-                    cleanup.prop(state, "trellis_remesh_resolution")
-                cleanup.prop(state, "trellis_remove_floor_plane", text="Remove Flat Debris")
 
         action = panel.row()
         action.enabled = not state.is_busy and not state.imagegen_is_busy

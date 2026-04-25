@@ -265,53 +265,6 @@ def get_pipeline(quant: str, *, include_texture: bool):
     return pipeline
 
 
-def remove_floor_like_components(mesh: trimesh.Trimesh, *, enabled: bool) -> trimesh.Trimesh:
-    env_value = os.environ.get("TRELLIS_GGUF_REMOVE_FLOOR_PLANE")
-    if env_value is not None:
-        enabled = str(env_value).strip().lower() not in {"0", "false", "no", "off"}
-    if not enabled:
-        return mesh
-    if mesh.faces is None or len(mesh.faces) == 0:
-        return mesh
-
-    bounds = mesh.bounds
-    scene_extent = bounds[1] - bounds[0]
-    scene_height = float(scene_extent[2])
-    if scene_height <= 0:
-        return mesh
-
-    try:
-        components = mesh.split(only_watertight=False)
-    except Exception:
-        return mesh
-    if len(components) <= 1:
-        return mesh
-
-    floor_z = float(bounds[0][2])
-    z_tol = max(scene_height * 0.035, 0.01)
-    min_span_xy = max(float(scene_extent[0]), float(scene_extent[1])) * 0.55
-    min_area = max(float(mesh.area) * 0.05, 0.01)
-    kept = []
-    removed = 0
-
-    for component in components:
-        cb = component.bounds
-        ce = cb[1] - cb[0]
-        near_floor = float(cb[0][2]) <= floor_z + z_tol
-        flat = float(ce[2]) <= max(scene_height * 0.08, 0.02)
-        wide = max(float(ce[0]), float(ce[1])) >= min_span_xy
-        large = float(component.area) >= min_area
-        if near_floor and flat and wide and large:
-            removed += 1
-            continue
-        kept.append(component)
-
-    if not removed or not kept:
-        return mesh
-    print(f"[trellis-gguf-api] removed {removed} floor-like mesh component(s)")
-    return trimesh.util.concatenate(kept)
-
-
 def mesh_vertices_faces_numpy(mesh_with_voxel):
     import numpy as np
 
@@ -343,8 +296,7 @@ def orient_vertices_for_blender(verts):
     return oriented
 
 
-def export_trimesh(mesh: trimesh.Trimesh, *, remove_floor_plane: bool) -> bytes:
-    mesh = remove_floor_like_components(mesh, enabled=remove_floor_plane)
+def export_trimesh(mesh: trimesh.Trimesh) -> bytes:
     with tempfile.NamedTemporaryFile(delete=False, suffix=".glb") as handle:
         temp_path = Path(handle.name)
     try:
@@ -368,18 +320,17 @@ def simplify_generated_mesh(mesh_with_voxel, decimation_target: int):
     return mesh_with_voxel
 
 
-def export_geometry_official_style(mesh_with_voxel, *, remove_floor_plane: bool, decimation_target: int) -> bytes:
+def export_geometry_official_style(mesh_with_voxel, *, decimation_target: int) -> bytes:
     mesh_with_voxel = simplify_generated_mesh(mesh_with_voxel, decimation_target)
     verts, faces = mesh_vertices_faces_numpy(mesh_with_voxel)
     verts = orient_vertices_for_blender(verts)
-    return export_trimesh(mesh_to_trimesh(verts, faces), remove_floor_plane=remove_floor_plane)
+    return export_trimesh(mesh_to_trimesh(verts, faces))
 
 
 def export_geometry_remeshed(
     mesh_with_voxel,
     remesh_resolution: int,
     *,
-    remove_floor_plane: bool,
     decimation_target: int,
     remesh_band: float = 0.0,
     remesh_project: float = 0.9,
@@ -433,14 +384,13 @@ def export_geometry_remeshed(
         print(f"[trellis-gguf-api] cumesh cleanup skipped ({exc})")
 
     verts = orient_vertices_for_blender(verts)
-    return export_trimesh(mesh_to_trimesh(verts, faces), remove_floor_plane=remove_floor_plane)
+    return export_trimesh(mesh_to_trimesh(verts, faces))
 
 
 def export_geometry(
     mesh_with_voxel,
     remesh_resolution: int,
     *,
-    remove_floor_plane: bool,
     decimation_target: int,
     export_mode: str = "auto",
     remesh_band: float = 0.0,
@@ -451,7 +401,6 @@ def export_geometry(
         return export_geometry_remeshed(
             mesh_with_voxel,
             remesh_resolution,
-            remove_floor_plane=remove_floor_plane,
             decimation_target=decimation_target,
             remesh_band=remesh_band,
             remesh_project=remesh_project,
@@ -459,7 +408,6 @@ def export_geometry(
     try:
         return export_geometry_official_style(
             mesh_with_voxel,
-            remove_floor_plane=remove_floor_plane,
             decimation_target=decimation_target,
         )
     except Exception as exc:
@@ -469,7 +417,6 @@ def export_geometry(
         return export_geometry_remeshed(
             mesh_with_voxel,
             remesh_resolution,
-            remove_floor_plane=remove_floor_plane,
             decimation_target=decimation_target,
             remesh_band=remesh_band,
             remesh_project=remesh_project,
@@ -609,7 +556,6 @@ def run_shape_request(payload: dict[str, Any]) -> bytes:
     return export_geometry(
         mesh_with_voxel,
         optional_int(payload, "remesh_resolution", 768),
-        remove_floor_plane=optional_bool(payload, "remove_floor_plane", True),
         decimation_target=optional_int(payload, "decimation_target", 500000),
         export_mode=optional_string(payload, "shape_export_mode", "auto"),
         remesh_band=optional_float(payload, "export_remesh_band", 0.0),
