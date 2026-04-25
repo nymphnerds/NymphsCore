@@ -25,6 +25,7 @@ from trellis_gguf_common import (
     GGUF_MODEL_REPO_ID,
     available_gguf_quants,
     ensure_trellis2_gguf_ready,
+    gguf_quant_is_available,
     prepare_dinov3_dir,
     preferred_attention_backend,
     resolve_gguf_model_root,
@@ -618,14 +619,18 @@ def server_info() -> dict[str, Any]:
     quant = resolve_gguf_quant(getattr(SERVER_ARGS, "gguf_quant", None))
     model_root = ""
     model_ready = False
+    texture_ready = False
     detail = ""
     try:
-        root = resolve_gguf_model_root(local_files_only=True, quant=quant, include_texture=True)
+        root = resolve_gguf_model_root(local_files_only=True, quant=quant, include_texture=False)
         model_root = str(root)
-        model_ready = (root / "pipeline.json").exists()
+        model_ready = gguf_quant_is_available(root, quant, include_texture=False)
+        texture_ready = gguf_quant_is_available(root, quant, include_texture=True)
     except Exception as exc:
         detail = str(exc)
 
+    shape_quants = available_gguf_quants(include_texture=False)
+    textured_quants = available_gguf_quants(include_texture=True)
     return {
         "status": "ready",
         "backend": "TRELLIS.2-GGUF",
@@ -638,12 +643,17 @@ def server_info() -> dict[str, Any]:
         "enable_t23d": False,
         "texture_only": False,
         "gguf_quant": quant,
-        "available_gguf_quants": available_gguf_quants(include_texture=True),
+        "available_gguf_quants": shape_quants,
+        "available_textured_gguf_quants": textured_quants,
         "attention_backend": os.environ.get("ATTN_BACKEND") or preferred_attention_backend(),
         "sparse_attention_backend": os.environ.get("SPARSE_ATTN_BACKEND") or os.environ.get("ATTN_BACKEND") or preferred_attention_backend(),
         "model_ready": model_ready,
+        "texture_model_ready": texture_ready,
         "model_detail": detail,
         "python_path": str(getattr(SERVER_ARGS, "python_path", "")),
+        "runtime_distro": os.environ.get("NYMPHS3D_WSL_DISTRO", ""),
+        "runtime_user": os.environ.get("NYMPHS3D_WSL_USER", ""),
+        "hf_home": os.environ.get("HF_HOME", str(Path.home() / ".cache" / "huggingface")),
     }
 
 

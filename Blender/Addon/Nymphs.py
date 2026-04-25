@@ -673,7 +673,10 @@ def _trellis_gguf_quant_items(self, context):
     raw = getattr(self, "service_trellis_available_gguf_quants", "")
     available = set(_parse_trellis_available_gguf_quants(raw))
     if (raw or "").strip() == "__none__":
-        return [(DEFAULT_TRELLIS_GGUF_QUANT, "No GGUF quant installed", "Download a TRELLIS.2 GGUF quant in NymphsCore Manager Runtime Tools.")]
+        current = getattr(self, "trellis_gguf_quant", DEFAULT_TRELLIS_GGUF_QUANT)
+        if current in {item[0] for item in TRELLIS_GGUF_QUANT_ITEMS}:
+            return [item for item in TRELLIS_GGUF_QUANT_ITEMS if item[0] == current]
+        return [(DEFAULT_TRELLIS_GGUF_QUANT, "No GGUF quant detected", "Download a TRELLIS.2 GGUF quant in NymphsCore Manager Runtime Tools, or check the selected WSL distro.")]
     return [item for item in TRELLIS_GGUF_QUANT_ITEMS if item[0] in available]
 
 
@@ -3498,6 +3501,9 @@ def _summarize_server_info(info):
     if str(backend_name).strip().lower() == "trellis.2-gguf":
         runtime_bits.append(f"quant={info.get('gguf_quant', 'unknown')}")
         runtime_bits.append(f"attn={info.get('attention_backend', 'unknown')}")
+        runtime_distro = info.get("runtime_distro")
+        if runtime_distro:
+            runtime_bits.append(f"distro={runtime_distro}")
         available_quants = info.get("available_gguf_quants") or []
         if available_quants:
             runtime_bits.append(f"available={','.join(str(quant) for quant in available_quants)}")
@@ -3520,6 +3526,9 @@ def _trellis_available_gguf_quants_from_info(info):
         for quant in (info.get("available_gguf_quants") or [])
         if str(quant).strip() in valid
     ]
+    loaded = str(info.get("gguf_quant") or "").strip()
+    if loaded in valid and loaded not in values:
+        values.append(loaded)
     return ",".join(values) if values else "__none__"
 
 
@@ -4329,6 +4338,8 @@ def _compose_wsl_launch(state, service_key):
         "export CUDA_HOME=/usr/local/cuda-13.0; "
         'export PATH="$CUDA_HOME/bin:$PATH"; '
         'export LD_LIBRARY_PATH="$CUDA_HOME/lib64:$LD_LIBRARY_PATH"; '
+        f"export NYMPHS3D_WSL_DISTRO={shlex.quote(_resolved_wsl_distro_name(state))}; "
+        f"export NYMPHS3D_WSL_USER={shlex.quote(_resolved_wsl_user_name(state))}; "
     )
     hf_token = _load_huggingface_token_config()
     if hf_token:
@@ -8368,6 +8379,8 @@ def _draw_service_block(layout, state, service_key):
     box = layout.box()
 
     box.label(text=runtime_label)
+    if service_key == "trellis":
+        box.label(text=f"WSL: {_resolved_wsl_distro_name(state)} / {_resolved_wsl_user_name(state)}"[:160])
     if service_key == "trellis":
         loaded_runtime = _trellis_loaded_runtime_label(summary)
         if loaded_runtime:
