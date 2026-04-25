@@ -1061,7 +1061,7 @@
                     </Grid.ColumnDefinitions>
                     <Button Grid.Column="0" Style="{StaticResource SecondaryActionButton}" Margin="0"
                             HorizontalAlignment="Stretch" VerticalAlignment="Top"
-                            Command="{Binding FetchModelsNowCommand}" Content="Fetch" />
+                            Command="{Binding FetchZImageModelsCommand}" Content="{Binding ZImageFetchButtonText}" />
                     <Button Grid.Column="2" Style="{StaticResource SecondaryActionButton}" Margin="0"
                             HorizontalAlignment="Stretch" VerticalAlignment="Top"
                             Command="{Binding TestZImageCommand}" Content="{Binding ZImageTestButtonText}" />
@@ -1101,7 +1101,7 @@
                     </Grid.ColumnDefinitions>
                     <Button Grid.Column="0" Style="{StaticResource SecondaryActionButton}" Margin="0"
                             HorizontalAlignment="Stretch" VerticalAlignment="Top"
-                            Command="{Binding FetchModelsNowCommand}" Content="Fetch" />
+                            Command="{Binding TrellisRuntimeActionCommand}" Content="{Binding TrellisFetchButtonText}" />
                     <Button Grid.Column="2" Style="{StaticResource SecondaryActionButton}" Margin="0"
                             HorizontalAlignment="Stretch" VerticalAlignment="Top"
                             Command="{Binding TestTrellisCommand}" Content="{Binding TrellisTestButtonText}" />

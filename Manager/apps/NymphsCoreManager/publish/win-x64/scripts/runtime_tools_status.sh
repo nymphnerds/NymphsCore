@@ -179,7 +179,7 @@ check_trellis() {
     return
   fi
 
-  if [[ ! -f "${TRELLIS_DIR}/scripts/api_server_trellis_gguf.py" ]]; then
+  if [[ ! -f "${TRELLIS_DIR}/scripts/api_server_trellis_gguf.py" || ! -f "${TRELLIS_DIR}/scripts/trellis_gguf_common.py" ]]; then
     emit_status "trellis" "TRELLIS.2 GGUF" "yes" "yes" "no" "Managed TRELLIS GGUF adapter is missing. Run repair or update the manager package."
     return
   fi

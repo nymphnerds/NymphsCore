@@ -11,6 +11,44 @@ HF_CACHE_DIR="${NYMPHS3D_HF_CACHE_DIR}"
 export HF_HUB_DISABLE_PROGRESS_BARS=1
 configure_nymphs3d_hf_env
 
+BACKEND="all"
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --backend)
+      if [[ $# -lt 2 ]]; then
+        echo "--backend requires one of: all, zimage, trellis" >&2
+        exit 2
+      fi
+      BACKEND="$2"
+      shift 2
+      ;;
+    --backend=*)
+      BACKEND="${1#*=}"
+      shift
+      ;;
+    --help|-h)
+      cat <<'EOF'
+Usage: prefetch_models.sh [--backend all|zimage|trellis]
+
+Downloads cached model weights for the selected backend. The default is all.
+EOF
+      exit 0
+      ;;
+    *)
+      echo "Unknown option: $1" >&2
+      exit 2
+      ;;
+  esac
+done
+
+case "${BACKEND}" in
+  all|zimage|trellis) ;;
+  *)
+    echo "Unknown backend '${BACKEND}'. Expected one of: all, zimage, trellis" >&2
+    exit 2
+    ;;
+esac
+
 cache_size_bytes() {
   local path="$1"
   if [[ ! -d "${path}" ]]; then
@@ -289,16 +327,22 @@ prefetch_rembg_u2net() {
   fi
 }
 
-echo "Prefetching core backend model weights..."
+echo "Prefetching core backend model weights (${BACKEND})..."
 
-echo "Prefetching Z-Image Turbo default model..."
-prefetch_nymphs2d2_model
+if [[ "${BACKEND}" == "all" || "${BACKEND}" == "zimage" ]]; then
+  echo "Prefetching Z-Image Turbo default model..."
+  prefetch_nymphs2d2_model
+fi
 
-echo "Prefetching TRELLIS.2 GGUF model bundle..."
-prefetch_trellis_gguf_model_bundle
+if [[ "${BACKEND}" == "all" || "${BACKEND}" == "trellis" ]]; then
+  echo "Prefetching TRELLIS.2 GGUF model bundle..."
+  prefetch_trellis_gguf_model_bundle
+fi
 
-echo "Prefetching rembg u2net model..."
-prefetch_rembg_u2net
+if [[ "${BACKEND}" == "all" || "${BACKEND}" == "trellis" ]]; then
+  echo "Prefetching rembg u2net model..."
+  prefetch_rembg_u2net
+fi
 
 echo
 echo "Core backend model prefetch complete."

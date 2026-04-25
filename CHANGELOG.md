@@ -8,6 +8,24 @@ This file focuses on user-facing and system-level changes rather than package-by
 
 Newest entries first.
 
+### 2026-04-25 Manager Runtime Tools backend-specific fetch fix
+Source: fresh installer testing showed the TRELLIS.2 GGUF Runtime Tools card could report a missing managed adapter, but pressing its `Fetch` button ran the all-backend model prefetch path and rechecked/downloaded Z-Image/Nunchaku weights before failing on the missing TRELLIS adapter helper.
+
+Changed:
+
+- added backend selection to `prefetch_models.sh` so Runtime Tools can fetch `zimage`, `trellis`, or `all`
+- changed the Z-Image card fetch button to run only Z-Image model prefetch
+- changed the TRELLIS card fetch button to run only TRELLIS GGUF model prefetch when models are missing
+- changed the TRELLIS card to show `Repair` when the managed GGUF adapter is missing, and sync the packaged adapter scripts into the TRELLIS runtime instead of downloading unrelated models
+- tightened TRELLIS Runtime Tools status so either missing GGUF adapter file is reported as an adapter repair problem
+- fixed the TRELLIS adapter repair command to use an explicit `/home/<user>/TRELLIS.2/scripts` target path so it cannot collapse to `/scripts` if shell variable expansion fails
+- corrected the Runtime Tools summary so one ready backend no longer hides another backend that still needs attention
+
+Validation:
+
+- verified `prefetch_models.sh --help` and shell syntax for the source and packaged script copy
+- Windows/.NET manager compile could not be run from this WSL shell because Windows executable interop is unavailable here
+
 ### 2026-04-25 TRELLIS GGUF shape/texture settings audit
 Source: live branch testing of the TRELLIS.2 GGUF Shape panel found several controls that either did not apply on the new GGUF path or behaved differently between shape-only and shape+texture runs.
 

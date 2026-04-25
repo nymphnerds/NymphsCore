@@ -31,6 +31,9 @@ public sealed class MainWindowViewModel : ViewModelBase
     private readonly AsyncRelayCommand _openBrainToolsCommand;
     private readonly AsyncRelayCommand _refreshBrainStatusCommand;
     private readonly AsyncRelayCommand _fetchModelsNowCommand;
+    private readonly AsyncRelayCommand _fetchZImageModelsCommand;
+    private readonly AsyncRelayCommand _fetchTrellisModelsCommand;
+    private readonly AsyncRelayCommand _repairTrellisAdapterCommand;
     private readonly AsyncRelayCommand _testZImageCommand;
     private readonly AsyncRelayCommand _testTrellisCommand;
     private readonly AsyncRelayCommand _startBrainLlmCommand;
@@ -116,6 +119,9 @@ public sealed class MainWindowViewModel : ViewModelBase
         _openBrainToolsCommand = new AsyncRelayCommand(OpenBrainToolsAsync, CanRunManagedRuntimeAction);
         _refreshBrainStatusCommand = new AsyncRelayCommand(RefreshBrainStatusAsync, CanRunManagedRuntimeAction);
         _fetchModelsNowCommand = new AsyncRelayCommand(RunFetchModelsNowAsync, CanRunManagedRuntimeAction);
+        _fetchZImageModelsCommand = new AsyncRelayCommand(() => RunFetchModelsNowAsync("zimage"), CanRunManagedRuntimeAction);
+        _fetchTrellisModelsCommand = new AsyncRelayCommand(() => RunFetchModelsNowAsync("trellis"), CanRunManagedRuntimeAction);
+        _repairTrellisAdapterCommand = new AsyncRelayCommand(RunTrellisAdapterRepairAsync, CanRunManagedRuntimeAction);
         _testZImageCommand = new AsyncRelayCommand(() => RunSmokeTestAsync("zimage"), CanRunZImageSmokeTest);
         _testTrellisCommand = new AsyncRelayCommand(() => RunSmokeTestAsync("trellis"), CanRunTrellisSmokeTest);
         _startBrainLlmCommand = new AsyncRelayCommand(StartBrainLlmAsync, CanStartBrainLlm);
@@ -173,6 +179,12 @@ public sealed class MainWindowViewModel : ViewModelBase
 
     public AsyncRelayCommand FetchModelsNowCommand => _fetchModelsNowCommand;
 
+    public AsyncRelayCommand FetchZImageModelsCommand => _fetchZImageModelsCommand;
+
+    public AsyncRelayCommand FetchTrellisModelsCommand => _fetchTrellisModelsCommand;
+
+    public AsyncRelayCommand RepairTrellisAdapterCommand => _repairTrellisAdapterCommand;
+
     public AsyncRelayCommand TestZImageCommand => _testZImageCommand;
 
     public AsyncRelayCommand TestTrellisCommand => _testTrellisCommand;
@@ -189,9 +201,13 @@ public sealed class MainWindowViewModel : ViewModelBase
 
     public AsyncRelayCommand StopBrainLlmCommand => _stopBrainLlmCommand;
 
-    public System.Windows.Input.ICommand ZImageRuntimeActionCommand => ZImageRuntimeStatus.TestReady ? _testZImageCommand : _fetchModelsNowCommand;
+    public System.Windows.Input.ICommand ZImageRuntimeActionCommand => _fetchZImageModelsCommand;
 
-    public System.Windows.Input.ICommand TrellisRuntimeActionCommand => TrellisRuntimeStatus.TestReady ? _testTrellisCommand : _fetchModelsNowCommand;
+    public System.Windows.Input.ICommand TrellisRuntimeActionCommand => TrellisRuntimeStatus.TestReady
+        ? _fetchTrellisModelsCommand
+        : TrellisNeedsAdapterRepair
+            ? _repairTrellisAdapterCommand
+            : _fetchTrellisModelsCommand;
 
     public RelayCommand OpenLogFolderCommand => _openLogFolderCommand;
 
@@ -768,6 +784,7 @@ public sealed class MainWindowViewModel : ViewModelBase
             if (SetProperty(ref _zImageRuntimeStatus, value))
             {
                 OnPropertyChanged(nameof(ZImageTestButtonText));
+                OnPropertyChanged(nameof(ZImageFetchButtonText));
                 OnPropertyChanged(nameof(ZImageRuntimeActionCommand));
                 RaiseCommandStateChanged();
             }
@@ -782,6 +799,8 @@ public sealed class MainWindowViewModel : ViewModelBase
             if (SetProperty(ref _trellisRuntimeStatus, value))
             {
                 OnPropertyChanged(nameof(TrellisTestButtonText));
+                OnPropertyChanged(nameof(TrellisFetchButtonText));
+                OnPropertyChanged(nameof(TrellisNeedsAdapterRepair));
                 OnPropertyChanged(nameof(TrellisRuntimeActionCommand));
                 RaiseCommandStateChanged();
             }
@@ -794,7 +813,18 @@ public sealed class MainWindowViewModel : ViewModelBase
     // to fetch first instead.
     public string ZImageTestButtonText => ZImageRuntimeStatus.ModelsReady ? "Test" : "Fetch First";
 
-    public string TrellisTestButtonText => TrellisRuntimeStatus.ModelsReady ? "Test" : "Fetch First";
+    public string TrellisTestButtonText => TrellisNeedsAdapterRepair
+        ? "Repair First"
+        : TrellisRuntimeStatus.ModelsReady
+            ? "Test"
+            : "Fetch First";
+
+    public string ZImageFetchButtonText => "Fetch";
+
+    public bool TrellisNeedsAdapterRepair =>
+        TrellisRuntimeStatus.Detail.Contains("adapter is missing", StringComparison.OrdinalIgnoreCase);
+
+    public string TrellisFetchButtonText => TrellisNeedsAdapterRepair ? "Repair" : "Fetch";
 
     private bool CanGoBack()
     {
@@ -1524,6 +1554,7 @@ public sealed class MainWindowViewModel : ViewModelBase
         var readyCount = statuses.Values.Count(status => status.TestReady);
         var missingModelCount = statuses.Values.Count(status => status.EnvironmentReady && !status.ModelsReady);
         var missingRuntimeCount = statuses.Values.Count(status => !status.EnvironmentReady);
+        var needsAttentionCount = statuses.Values.Count(status => status.EnvironmentReady && status.ModelsReady && !status.TestReady);
 
         if (missingRuntimeCount > 0)
         {
@@ -1533,6 +1564,11 @@ public sealed class MainWindowViewModel : ViewModelBase
         if (missingModelCount > 0)
         {
             return "Runtime environments are present, but some required models are missing. Fetch models before testing those backends.";
+        }
+
+        if (needsAttentionCount > 0)
+        {
+            return "One or more backend runtimes need attention before smoke testing.";
         }
 
         if (readyCount > 0)
@@ -1545,10 +1581,21 @@ public sealed class MainWindowViewModel : ViewModelBase
 
     private async Task RunFetchModelsNowAsync()
     {
+        await RunFetchModelsNowAsync("all").ConfigureAwait(true);
+    }
+
+    private async Task RunFetchModelsNowAsync(string backend)
+    {
         var settings = BuildManagedActionSettings();
+        var backendLabel = backend switch
+        {
+            "zimage" => "Z-Image",
+            "trellis" => "TRELLIS.2",
+            _ => "required",
+        };
         PrepareManagedActionRun(
-            "Fetching required model weights...",
-            "Starting model-only prefetch against the existing runtime.");
+            $"Fetching {backendLabel} model weights...",
+            $"Starting {backendLabel} model-only prefetch against the existing runtime.");
         IsBusy = true;
 
         var progress = new Progress<string>(line =>
@@ -1564,7 +1611,7 @@ public sealed class MainWindowViewModel : ViewModelBase
 
         try
         {
-            await _workflowService.RunModelPrefetchOnlyAsync(settings, progress, CancellationToken.None).ConfigureAwait(true);
+            await _workflowService.RunModelPrefetchOnlyAsync(settings, progress, CancellationToken.None, backend).ConfigureAwait(true);
             var statuses = await RefreshCoreRuntimeStatusSnapshotAsync(settings, progress).ConfigureAwait(true);
             await RefreshBrainRuntimeStatusSnapshotAsync(settings).ConfigureAwait(true);
 
@@ -1588,6 +1635,53 @@ public sealed class MainWindowViewModel : ViewModelBase
             PostInstallActionSummary = "Model prefetch failed. Check the live log and log folder.";
             RuntimeToolsSummary = "Model download failed. Use the live log and log folder to inspect the failure.";
             StatusMessage = "Model prefetch stopped with an error.";
+            LogLines.Add($"ERROR: {ex.Message}");
+            AppendInstallLog($"ERROR: {ex}");
+        }
+        finally
+        {
+            IsBusy = false;
+            RaiseCommandStateChanged();
+        }
+    }
+
+    private async Task RunTrellisAdapterRepairAsync()
+    {
+        var settings = BuildManagedActionSettings();
+        PrepareManagedActionRun(
+            "Repairing TRELLIS adapter...",
+            "Starting TRELLIS GGUF adapter repair against the existing runtime.");
+        IsBusy = true;
+
+        var progress = new Progress<string>(line =>
+        {
+            var sanitizedLine = line.Replace("\0", string.Empty);
+            if (!string.IsNullOrWhiteSpace(sanitizedLine))
+            {
+                LogLines.Add(sanitizedLine);
+                StatusMessage = sanitizedLine;
+                AppendInstallLog(sanitizedLine);
+            }
+        });
+
+        try
+        {
+            await _workflowService.RunTrellisAdapterRepairAsync(settings, progress, CancellationToken.None).ConfigureAwait(true);
+            var statuses = await RefreshCoreRuntimeStatusSnapshotAsync(settings, progress).ConfigureAwait(true);
+            await RefreshBrainRuntimeStatusSnapshotAsync(settings).ConfigureAwait(true);
+
+            RuntimeToolsSummary = BuildRuntimeToolsSummary(statuses);
+            StatusMessage = TrellisRuntimeStatus.TestReady
+                ? "TRELLIS adapter repaired and verified successfully."
+                : "TRELLIS adapter repair completed, but backend readiness is still incomplete.";
+            PostInstallActionSummary = StatusMessage;
+            AppendInstallLog(StatusMessage);
+        }
+        catch (Exception ex)
+        {
+            PostInstallActionSummary = "TRELLIS adapter repair failed. Check the live log and log folder.";
+            RuntimeToolsSummary = "TRELLIS adapter repair failed. Use the live log and log folder to inspect the failure.";
+            StatusMessage = "TRELLIS adapter repair stopped with an error.";
             LogLines.Add($"ERROR: {ex.Message}");
             AppendInstallLog($"ERROR: {ex}");
         }
@@ -2304,6 +2398,9 @@ public sealed class MainWindowViewModel : ViewModelBase
         _openBrainToolsCommand.RaiseCanExecuteChanged();
         _refreshBrainStatusCommand.RaiseCanExecuteChanged();
         _fetchModelsNowCommand.RaiseCanExecuteChanged();
+        _fetchZImageModelsCommand.RaiseCanExecuteChanged();
+        _fetchTrellisModelsCommand.RaiseCanExecuteChanged();
+        _repairTrellisAdapterCommand.RaiseCanExecuteChanged();
         _testZImageCommand.RaiseCanExecuteChanged();
         _testTrellisCommand.RaiseCanExecuteChanged();
         _startBrainLlmCommand.RaiseCanExecuteChanged();
