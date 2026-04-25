@@ -8,6 +8,30 @@ This file focuses on user-facing and system-level changes rather than package-by
 
 Newest entries first.
 
+### 2026-04-25 TRELLIS GGUF shape/texture settings audit
+Source: live branch testing of the TRELLIS.2 GGUF Shape panel found several controls that either did not apply on the new GGUF path or behaved differently between shape-only and shape+texture runs.
+
+Documented changes:
+
+- fixed GGUF `Faces` target handling for shape-only exports and kept it active for shape+texture exports
+- hid unsupported GGUF Shape+Texture controls from the combined shape panel instead of presenting settings that the backend could not honor
+- wired GGUF textured-export `UV Angle` and fixed Sparse Res `Auto` to match the selected pipeline
+- consolidated TRELLIS shape presets into the user preset folder and cleaned stale legacy preset JSONs from older builds
+- fixed GGUF retexture UV-angle conversion from degrees to radians
+- preserved the user's `Also Generate Texture` checkbox state during backend refreshes so the panel no longer collapses or silently unchecks texture mid-run
+- removed the current custom `Mesh Cleanup` / `Remove Flat Debris` UI and backend helper because it was a narrow shape-only postprocess, not a real TRELLIS pass
+- documented that cleanup is still important: live textured GGUF testing can still produce a wide floor/backdrop plate even when `Auto Remove Background` is enabled
+
+Validation:
+
+- user confirmed the Shape panel no longer collapses mid-pass after the texture-state fix
+- user confirmed textured output is present on the imported mesh
+- code review confirmed `Auto Remove Background` is wired into the GGUF adapter, but it depends on `rembg` and cannot guarantee removal of floor, shadow, or backdrop regions that remain in the source image
+
+Why it matters:
+
+- the GGUF Shape panel now exposes fewer fake controls, preserves user texture intent more reliably, and has a clear next cleanup target: a deliberate `Postprocess / Cleanup / Retopo` pass that works for both shape-only and shape+texture outputs
+
 ### 2026-04-23 Z-Image img2img installer branch and addon release
 Source: live Lite distro testing confirmed local Z-Image image-to-image generation can run through Nunchaku with a compatibility shim against the current diffusers Z-Image pipeline.
 

@@ -386,6 +386,8 @@ The Texture Pass paints the generated shape from the source image and then prepa
 
 Internal TRELLIS texture working resolution.
 
+Note: in the current GGUF Shape + Texture flow this control is hidden because the GGUF backend does not apply it independently. Texture quality is controlled by the selected preset, texture pass settings, final `Texture Size`, and export settings.
+
 - `512 px`: lightest texture mode.
 - `1024 px`: balanced default.
 - `1536 experimental`: higher operating resolution using the 1024 texture model path.
@@ -561,39 +563,21 @@ Preset examples:
 
 If Blender feels heavy after import, lower `Faces`. If fine silhouette details are being lost, raise it.
 
-## Mesh Cleanup
+## Cleanup / Postprocess
 
-Mesh Cleanup appears for the GGUF runtime. It controls shape-only export behavior and cleanup of accidental flat debris.
+The old GGUF `Mesh Cleanup` section has been removed from the current addon UI.
 
-### Shape Export
+It was custom Nymphs postprocess behavior, not a TRELLIS generation pass, and it only applied cleanly to shape-only exports. That made it confusing beside `Structure Pass`, `Shape Pass`, and `Texture Pass`.
 
-Shape-only export mode.
+Cleanup is still important. Textured GGUF runs can still produce wide floor sheets or background plates if the source image keeps a floor, shadow, or backdrop after background removal. The intended replacement is a future unified `Postprocess / Cleanup / Retopo` section that works for both shape-only and shape+texture outputs.
 
-- `Preserve`: raw GGUF mesh export with Blender orientation.
-- `Remesh`: rebuild topology with the GGUF remesh path.
-- `Auto Fallback`: try Preserve first, then fall back to Remesh if export fails.
+The removed controls were:
 
-Default is `Auto Fallback`.
+- `Shape Export`
+- `Remesh Res`
+- `Remove Flat Debris`
 
-Use `Preserve` when you want the rawest output. Use `Remesh` when topology is problematic. Use `Auto Fallback` for normal operation.
-
-### Remesh Res
-
-GGUF remesh grid resolution for shape-only remesh export.
-
-- `512`: faster, lighter remesh.
-- `768`: balanced default.
-- `1024`: denser, slower, heavier.
-
-Shown when `Shape Export` is `Remesh` or `Auto Fallback`.
-
-### Remove Flat Debris
-
-Removes accidental wide, flat base-plane components from GGUF shape-only exports.
-
-Default is on.
-
-Leave it enabled if you are seeing floor sheets, background plates, or flat generated debris. Turn it off only if the object itself has legitimate broad flat surfaces that are being removed.
+Those should return only if they become part of a broader cleanup/postprocess system with clearer controls and support for both shape-only and shape+texture paths.
 
 ## Generate Button
 
@@ -682,9 +666,11 @@ Do this:
 Try:
 
 - Keep `Auto Remove Background` on.
-- Keep `Remove Flat Debris` on.
 - Lower `Foreground` if too much background is kept.
 - Use a cleaner image with a plain background.
+- Avoid source images where the subject stands on a visible floor, strong shadow, or backdrop sheet.
+
+Important: `Auto Remove Background` is image preprocessing, not mesh cleanup. If the background remover leaves the floor or shadow in the processed image, TRELLIS may generate it as geometry. A future cleanup/postprocess pass is planned for this case.
 
 ### The Subject Is Cropped
 
@@ -737,7 +723,7 @@ The easiest way to tune TRELLIS is to change one thing at a time.
 Start with a preset, get a baseline, then adjust only the setting that matches the failure:
 
 - wrong crop: `Foreground`
-- too much background geometry: `Auto Remove Background`, `Foreground`, `Remove Flat Debris`
+- too much background geometry: `Auto Remove Background`, `Foreground`, cleaner source image
 - weak silhouette: `Resolution`, `Shape Steps`, `Shape Image`
 - texture too light or loose: `Texture Steps`, `Texture Image`, `Texture Size`
 - file too heavy: `Faces`, `Texture Size`, preset choice

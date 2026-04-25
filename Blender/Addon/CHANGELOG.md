@@ -21,6 +21,27 @@ Across the full documented history, the project moved through eight phases:
 
 Newest entries first.
 
+### 2026-04-25 TRELLIS GGUF Shape panel audit
+Source: live branch testing of TRELLIS.2 GGUF shape and shape+texture runs exposed stale UI state, stale presets, and cleanup gaps.
+
+Documented changes:
+
+- bumped the branch addon feed through `1.1.196`
+- fixed GGUF `Faces` target handling for shape-only and shape+texture exports
+- hid unsupported GGUF Shape+Texture controls from the combined Shape panel
+- wired GGUF textured-export `UV Angle` and corrected Sparse Res `Auto`
+- moved TRELLIS shape presets to one user preset folder and cleaned stale legacy default JSONs
+- fixed GGUF retexture UV-angle degrees-to-radians handling
+- preserved `Also Generate Texture` during backend capability refreshes so the checkbox no longer turns off mid-run
+- removed the current custom `Mesh Cleanup` / `Remove Flat Debris` UI because it was shape-only postprocess behavior, not a TRELLIS pass
+- documented that a unified cleanup/postprocess system is still needed after live textured GGUF testing showed floor/backdrop plates can survive `Auto Remove Background`
+
+Validation:
+
+- user confirmed the panel no longer collapses mid-pass
+- user confirmed the imported mesh is textured
+- code review confirmed background removal is wired, but it relies on `rembg` and cannot guarantee floor/shadow/backdrop removal from difficult source images
+
 ### 2026-04-23 Z-Image img2img and Image panel layout
 Source: live Lite distro testing proved Z-Image generation through Nunchaku, then exposed the need for local guide-image generation and a cleaner Image panel layout.
 
