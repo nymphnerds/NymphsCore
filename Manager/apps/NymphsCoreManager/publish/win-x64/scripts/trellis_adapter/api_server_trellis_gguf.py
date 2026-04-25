@@ -369,7 +369,8 @@ def export_textured_geometry(mesh_with_voxel, texture_size: int, decimation_targ
     with tempfile.NamedTemporaryFile(delete=False, suffix=".glb") as handle:
         temp_path = Path(handle.name)
     try:
-        mesh_with_voxel.simplify(16_777_216)
+        if hasattr(mesh_with_voxel, "simplify"):
+            mesh_with_voxel.simplify(16_777_216)
         glb = o_voxel.postprocess.to_glb(
             vertices=mesh_with_voxel.vertices,
             faces=mesh_with_voxel.faces,
