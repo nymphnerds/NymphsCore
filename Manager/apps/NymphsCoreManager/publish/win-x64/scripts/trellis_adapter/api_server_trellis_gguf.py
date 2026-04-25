@@ -404,14 +404,26 @@ def export_textured_geometry(mesh_with_voxel, texture_size: int, decimation_targ
     with tempfile.NamedTemporaryFile(delete=False, suffix=".glb") as handle:
         temp_path = Path(handle.name)
     try:
+        attrs = getattr(mesh_with_voxel, "attrs", None)
+        layout = getattr(mesh_with_voxel, "layout", None)
+        coords = getattr(mesh_with_voxel, "coords", None)
+        if attrs is None or coords is None:
+            raise RuntimeError("GGUF texture pass returned a mesh without voxel texture attributes.")
+        print(
+            "[trellis-gguf-api] textured export "
+            f"verts={tuple(mesh_with_voxel.vertices.shape)} "
+            f"faces={tuple(mesh_with_voxel.faces.shape)} "
+            f"attrs={tuple(attrs.shape)} "
+            f"layout={list(layout.keys()) if isinstance(layout, dict) else layout}"
+        )
         if hasattr(mesh_with_voxel, "simplify"):
             mesh_with_voxel.simplify(16_777_216)
         glb = o_voxel.postprocess.to_glb(
             vertices=mesh_with_voxel.vertices,
             faces=mesh_with_voxel.faces,
-            attr_volume=mesh_with_voxel.attrs,
-            coords=mesh_with_voxel.coords,
-            attr_layout=mesh_with_voxel.layout,
+            attr_volume=attrs,
+            coords=coords,
+            attr_layout=layout,
             voxel_size=mesh_with_voxel.voxel_size,
             aabb=[[-0.5, -0.5, -0.5], [0.5, 0.5, 0.5]],
             decimation_target=decimation_target,
@@ -421,7 +433,17 @@ def export_textured_geometry(mesh_with_voxel, texture_size: int, decimation_targ
             remesh_project=0,
             verbose=True,
         )
-        glb.export(str(temp_path), extension_webp=True)
+        material = getattr(getattr(glb, "visual", None), "material", None)
+        base_texture = getattr(material, "baseColorTexture", None)
+        mr_texture = getattr(material, "metallicRoughnessTexture", None)
+        print(
+            "[trellis-gguf-api] textured material "
+            f"baseColorTexture={getattr(base_texture, 'size', None)} "
+            f"metallicRoughnessTexture={getattr(mr_texture, 'size', None)}"
+        )
+        # Blender compatibility: EXT_texture_webp can import as geometry-only.
+        # Leave textures embedded as standard PNG images inside the GLB.
+        glb.export(str(temp_path), extension_webp=False)
         return read_file_bytes(temp_path)
     finally:
         temp_path.unlink(missing_ok=True)
