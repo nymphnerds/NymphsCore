@@ -658,7 +658,7 @@ def _trellis_runtime_is_gguf(state):
 
 def _parse_trellis_available_gguf_quants(raw):
     value = (raw or "").strip()
-    if value == "__none__":
+    if not value or value == "__none__":
         return []
     valid = {item[0] for item in TRELLIS_GGUF_QUANT_ITEMS}
     values = [
@@ -666,17 +666,17 @@ def _parse_trellis_available_gguf_quants(raw):
         for part in value.split(",")
         if part.strip() in valid
     ]
-    return values or [item[0] for item in TRELLIS_GGUF_QUANT_ITEMS]
+    return values
 
 
 def _trellis_gguf_quant_items(self, context):
     raw = getattr(self, "service_trellis_available_gguf_quants", "")
     available = set(_parse_trellis_available_gguf_quants(raw))
-    if (raw or "").strip() == "__none__":
+    if not available:
         current = getattr(self, "trellis_gguf_quant", DEFAULT_TRELLIS_GGUF_QUANT)
         if current in {item[0] for item in TRELLIS_GGUF_QUANT_ITEMS}:
             return [item for item in TRELLIS_GGUF_QUANT_ITEMS if item[0] == current]
-        return [(DEFAULT_TRELLIS_GGUF_QUANT, "No GGUF quant detected", "Download a TRELLIS.2 GGUF quant in NymphsCore Manager Runtime Tools, or check the selected WSL distro.")]
+        return [(DEFAULT_TRELLIS_GGUF_QUANT, "Start runtime to check GGUF quants", "Start TRELLIS.2 so the addon can read the GGUF quants installed in the selected WSL distro.")]
     return [item for item in TRELLIS_GGUF_QUANT_ITEMS if item[0] in available]
 
 
