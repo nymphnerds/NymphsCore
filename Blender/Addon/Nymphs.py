@@ -1806,9 +1806,6 @@ def _seed_trellis_shape_presets():
         preset_dir = _trellis_shape_preset_dir()
     except Exception:
         return
-    marker = os.path.join(preset_dir, ".defaults_seeded")
-    if os.path.exists(marker):
-        return
     for key, data in TRELLIS_SHAPE_PRESETS.items():
         path = _trellis_shape_preset_file(key)
         if os.path.exists(path):
@@ -1821,6 +1818,7 @@ def _seed_trellis_shape_presets():
         with open(path, "w", encoding="utf-8") as handle:
             json.dump(payload, handle, indent=2)
             handle.write("\n")
+    marker = os.path.join(preset_dir, ".defaults_seeded")
     with open(marker, "w", encoding="utf-8") as handle:
         handle.write("Defaults seeded.\n")
 
@@ -1829,22 +1827,13 @@ def _load_trellis_shape_presets():
     preset_dir = _trellis_shape_preset_dir()
 
     def _load():
-        presets = {
-            key: {
-                "label": data["label"],
-                "description": data["description"],
-                "values": dict(data["values"]),
-            }
-            for key, data in TRELLIS_SHAPE_PRESETS.items()
-        }
+        presets = {}
         try:
             _seed_trellis_shape_presets()
             for filename in sorted(os.listdir(preset_dir)):
                 if not filename.lower().endswith(".json"):
                     continue
                 key = os.path.splitext(filename)[0]
-                if key in TRELLIS_SHAPE_PRESETS or key in LEGACY_TRELLIS_SHAPE_PRESET_KEYS:
-                    continue
                 path = os.path.join(preset_dir, filename)
                 try:
                     with open(path, "r", encoding="utf-8") as handle:
