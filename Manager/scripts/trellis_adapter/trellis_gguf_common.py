@@ -8,8 +8,11 @@ from importlib.util import find_spec
 from pathlib import Path
 
 GGUF_MODEL_REPO_ID = "Aero-Ex/Trellis2-GGUF"
+TRELLIS_SUPPORT_MODEL_REPO_ID = "microsoft/TRELLIS.2-4B"
+TRELLIS_SUPPORT_MODEL_CACHE_DIR = "models--microsoft--TRELLIS.2-4B"
 DEFAULT_GGUF_QUANT = "Q5_K_M"
 VALID_GGUF_QUANTS = {"Q4_K_M", "Q5_K_M", "Q6_K", "Q8_0"}
+REQUIRED_SUPPORT_MODEL_BASENAMES = {"shape_enc_next_dc_f16c32_fp16"}
 
 os.environ.setdefault("OPENCV_IO_ENABLE_OPENEXR", "1")
 os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
@@ -106,13 +109,31 @@ def _find_hf_snapshot_file(repo_dir_name: str, relative_path: str) -> str | None
     return None
 
 
-def _resolve_official_support_model(basename: str) -> tuple[str, str] | None:
-    for repo_dir_name in ("models--microsoft--TRELLIS.2-4B", "models--microsoft--TRELLIS-image-large"):
-        config_file = _find_hf_snapshot_file(repo_dir_name, f"ckpts/{basename}.json")
-        model_file = _find_hf_snapshot_file(repo_dir_name, f"ckpts/{basename}.safetensors")
-        if config_file and model_file:
-            return config_file, model_file
-    return None
+def _resolve_required_support_model(basename: str) -> tuple[str, str]:
+    relative_config = f"ckpts/{basename}.json"
+    relative_model = f"ckpts/{basename}.safetensors"
+    config_file = _find_hf_snapshot_file(TRELLIS_SUPPORT_MODEL_CACHE_DIR, relative_config)
+    model_file = _find_hf_snapshot_file(TRELLIS_SUPPORT_MODEL_CACHE_DIR, relative_model)
+    if config_file and model_file:
+        return config_file, model_file
+
+    from huggingface_hub import snapshot_download
+
+    snapshot_dir = Path(
+        snapshot_download(
+            repo_id=TRELLIS_SUPPORT_MODEL_REPO_ID,
+            allow_patterns=[relative_config, relative_model],
+            local_files_only=False,
+        )
+    )
+    config_path = snapshot_dir / relative_config
+    model_path = snapshot_dir / relative_model
+    if config_path.exists() and model_path.exists():
+        return str(config_path), str(model_path)
+    raise FileNotFoundError(
+        f"Cannot resolve required TRELLIS GGUF support model {basename} "
+        f"from {TRELLIS_SUPPORT_MODEL_REPO_ID}"
+    )
 
 
 def prepare_dinov3_dir(model_root: Path) -> str | None:
@@ -226,9 +247,8 @@ def install_standalone_comfy_stubs(model_root: Path) -> None:
                 if not os.path.exists(config_file):
                     config_file = os.path.join(os.path.dirname(model_file), basename + ".json")
                 return config_file, model_file, False
-            official_support_model = _resolve_official_support_model(basename)
-            if official_support_model is not None:
-                config_file, model_file = official_support_model
+            if basename in REQUIRED_SUPPORT_MODEL_BASENAMES:
+                config_file, model_file = _resolve_required_support_model(basename)
                 return config_file, model_file, False
             raise FileNotFoundError(
                 f"Cannot resolve TRELLIS GGUF model {basename} "

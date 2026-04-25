@@ -21,14 +21,14 @@ Documented changes:
 - preserved the user's `Also Generate Texture` checkbox state during backend refreshes so the panel no longer collapses or silently unchecks texture mid-run
 - removed the current custom `Mesh Cleanup` / `Remove Flat Debris` UI and backend helper because it was a narrow shape-only postprocess, not a real TRELLIS pass
 - documented that cleanup is still important: live textured GGUF testing can still produce a wide floor/backdrop plate even when `Auto Remove Background` is enabled
-- fixed GGUF selected-mesh retexture startup by letting the standalone GGUF model shim resolve the non-GGUF shape SLat encoder from the official TRELLIS.2 cache
+- fixed GGUF selected-mesh retexture startup by making the standalone GGUF model shim resolve the required non-GGUF shape SLat encoder as an explicit GGUF support checkpoint
 
 Validation:
 
 - user confirmed the Shape panel no longer collapses mid-pass after the texture-state fix
 - user confirmed textured output is present on the imported mesh
 - code review confirmed `Auto Remove Background` is wired into the GGUF adapter, but it depends on `rembg` and cannot guarantee removal of floor, shadow, or backdrop regions that remain in the source image
-- verified the patched GGUF model shim resolves `shape_enc_next_dc_f16c32_fp16` from the local `microsoft/TRELLIS.2-4B` cache
+- verified the patched GGUF model shim resolves `shape_enc_next_dc_f16c32_fp16`; if absent, it now fetches only that required support checkpoint from `microsoft/TRELLIS.2-4B` rather than depending on an official TRELLIS runtime install
 
 Why it matters:
 
