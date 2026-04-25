@@ -95,6 +95,26 @@ def _snapshot_download(repo_id: str, *, local_files_only: bool, quant: str | Non
     )
 
 
+def _find_hf_snapshot_file(repo_dir_name: str, relative_path: str) -> str | None:
+    cache_root = Path.home() / ".cache" / "huggingface" / "hub" / repo_dir_name / "snapshots"
+    if not cache_root.exists():
+        return None
+    for snapshot in sorted(cache_root.iterdir(), reverse=True):
+        candidate = snapshot / relative_path
+        if candidate.exists():
+            return str(candidate)
+    return None
+
+
+def _resolve_official_support_model(basename: str) -> tuple[str, str] | None:
+    for repo_dir_name in ("models--microsoft--TRELLIS.2-4B", "models--microsoft--TRELLIS-image-large"):
+        config_file = _find_hf_snapshot_file(repo_dir_name, f"ckpts/{basename}.json")
+        model_file = _find_hf_snapshot_file(repo_dir_name, f"ckpts/{basename}.safetensors")
+        if config_file and model_file:
+            return config_file, model_file
+    return None
+
+
 def prepare_dinov3_dir(model_root: Path) -> str | None:
     vision_dir = model_root / "Vision"
     src = vision_dir / "dinov3-vitl16-pretrain-lvd1689m.safetensors"
@@ -205,6 +225,10 @@ def install_standalone_comfy_stubs(model_root: Path) -> None:
                 config_file = model_file.replace(f"{matched_suffix}.safetensors", ".json")
                 if not os.path.exists(config_file):
                     config_file = os.path.join(os.path.dirname(model_file), basename + ".json")
+                return config_file, model_file, False
+            official_support_model = _resolve_official_support_model(basename)
+            if official_support_model is not None:
+                config_file, model_file = official_support_model
                 return config_file, model_file, False
             raise FileNotFoundError(
                 f"Cannot resolve TRELLIS GGUF model {basename} "

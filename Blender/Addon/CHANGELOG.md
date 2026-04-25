@@ -35,12 +35,14 @@ Documented changes:
 - preserved `Also Generate Texture` during backend capability refreshes so the checkbox no longer turns off mid-run
 - removed the current custom `Mesh Cleanup` / `Remove Flat Debris` UI because it was shape-only postprocess behavior, not a TRELLIS pass
 - documented that a unified cleanup/postprocess system is still needed after live textured GGUF testing showed floor/backdrop plates can survive `Auto Remove Background`
+- fixed GGUF selected-mesh retexture startup by allowing the GGUF model shim to find the official shape SLat encoder cached with `microsoft/TRELLIS.2-4B`
 
 Validation:
 
 - user confirmed the panel no longer collapses mid-pass
 - user confirmed the imported mesh is textured
 - code review confirmed background removal is wired, but it relies on `rembg` and cannot guarantee floor/shadow/backdrop removal from difficult source images
+- verified the patched shim resolves `shape_enc_next_dc_f16c32_fp16` locally
 
 ### 2026-04-23 Z-Image img2img and Image panel layout
 Source: live Lite distro testing proved Z-Image generation through Nunchaku, then exposed the need for local guide-image generation and a cleaner Image panel layout.
