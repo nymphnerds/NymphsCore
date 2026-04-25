@@ -341,7 +341,22 @@ def export_trimesh(mesh: trimesh.Trimesh, *, remove_floor_plane: bool) -> bytes:
         temp_path.unlink(missing_ok=True)
 
 
-def export_geometry_official_style(mesh_with_voxel, *, remove_floor_plane: bool) -> bytes:
+def simplify_generated_mesh(mesh_with_voxel, decimation_target: int):
+    target = max(1000, int(decimation_target or 0))
+    if not hasattr(mesh_with_voxel, "simplify"):
+        return mesh_with_voxel
+    try:
+        before_faces = getattr(getattr(mesh_with_voxel, "faces", None), "shape", ["?"])[0]
+        mesh_with_voxel.simplify(target)
+        after_faces = getattr(getattr(mesh_with_voxel, "faces", None), "shape", ["?"])[0]
+        print(f"[trellis-gguf-api] shape simplify target={target} faces={before_faces}->{after_faces}")
+    except Exception as exc:
+        print(f"[trellis-gguf-api] shape simplify skipped ({exc})")
+    return mesh_with_voxel
+
+
+def export_geometry_official_style(mesh_with_voxel, *, remove_floor_plane: bool, decimation_target: int) -> bytes:
+    mesh_with_voxel = simplify_generated_mesh(mesh_with_voxel, decimation_target)
     verts, faces = mesh_vertices_faces_numpy(mesh_with_voxel)
     verts = orient_vertices_for_blender(verts)
     return export_trimesh(mesh_to_trimesh(verts, faces), remove_floor_plane=remove_floor_plane)
@@ -352,6 +367,7 @@ def export_geometry_remeshed(
     remesh_resolution: int,
     *,
     remove_floor_plane: bool,
+    decimation_target: int,
     remesh_band: float = 0.0,
     remesh_project: float = 0.9,
 ) -> bytes:
@@ -392,6 +408,11 @@ def export_geometry_remeshed(
             cm.repair_non_manifold_edges()
             cm.remove_small_connected_components(1e-5)
         cm.unify_face_orientations()
+        target = max(1000, int(decimation_target or 0))
+        if target > 0 and cm.num_faces > target:
+            before_faces = cm.num_faces
+            cm.simplify(target)
+            print(f"[trellis-gguf-api] remeshed shape simplify target={target} faces={before_faces}->{cm.num_faces}")
         verts, faces = cm.read()
         verts = verts.cpu().numpy().astype(np.float32)
         faces = faces.cpu().numpy().astype(np.int32)
@@ -407,6 +428,7 @@ def export_geometry(
     remesh_resolution: int,
     *,
     remove_floor_plane: bool,
+    decimation_target: int,
     export_mode: str = "auto",
     remesh_band: float = 0.0,
     remesh_project: float = 0.9,
@@ -417,11 +439,16 @@ def export_geometry(
             mesh_with_voxel,
             remesh_resolution,
             remove_floor_plane=remove_floor_plane,
+            decimation_target=decimation_target,
             remesh_band=remesh_band,
             remesh_project=remesh_project,
         )
     try:
-        return export_geometry_official_style(mesh_with_voxel, remove_floor_plane=remove_floor_plane)
+        return export_geometry_official_style(
+            mesh_with_voxel,
+            remove_floor_plane=remove_floor_plane,
+            decimation_target=decimation_target,
+        )
     except Exception as exc:
         if export_mode != "auto":
             raise
@@ -430,6 +457,7 @@ def export_geometry(
             mesh_with_voxel,
             remesh_resolution,
             remove_floor_plane=remove_floor_plane,
+            decimation_target=decimation_target,
             remesh_band=remesh_band,
             remesh_project=remesh_project,
         )
@@ -567,6 +595,7 @@ def run_shape_request(payload: dict[str, Any]) -> bytes:
         mesh_with_voxel,
         optional_int(payload, "remesh_resolution", 768),
         remove_floor_plane=optional_bool(payload, "remove_floor_plane", True),
+        decimation_target=optional_int(payload, "decimation_target", 500000),
         export_mode=optional_string(payload, "shape_export_mode", "auto"),
         remesh_band=optional_float(payload, "export_remesh_band", 0.0),
         remesh_project=optional_float(payload, "export_remesh_project", 0.9),
