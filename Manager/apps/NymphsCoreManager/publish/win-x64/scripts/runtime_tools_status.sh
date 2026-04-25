@@ -119,9 +119,10 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path.cwd() / "scripts"))
-from trellis_gguf_common import resolve_gguf_model_root
+from trellis_gguf_common import ensure_required_support_models, resolve_gguf_model_root
 
 root = resolve_gguf_model_root(local_files_only=True, include_texture=True)
+ensure_required_support_models(local_files_only=True)
 required = [
     root / "pipeline.json",
     root / "texturing_pipeline.json",

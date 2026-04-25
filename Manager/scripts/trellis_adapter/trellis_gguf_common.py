@@ -109,7 +109,7 @@ def _find_hf_snapshot_file(repo_dir_name: str, relative_path: str) -> str | None
     return None
 
 
-def _resolve_required_support_model(basename: str) -> tuple[str, str]:
+def _resolve_required_support_model(basename: str, *, local_files_only: bool = False) -> tuple[str, str]:
     relative_config = f"ckpts/{basename}.json"
     relative_model = f"ckpts/{basename}.safetensors"
     config_file = _find_hf_snapshot_file(TRELLIS_SUPPORT_MODEL_CACHE_DIR, relative_config)
@@ -123,7 +123,7 @@ def _resolve_required_support_model(basename: str) -> tuple[str, str]:
         snapshot_download(
             repo_id=TRELLIS_SUPPORT_MODEL_REPO_ID,
             allow_patterns=[relative_config, relative_model],
-            local_files_only=False,
+            local_files_only=local_files_only,
         )
     )
     config_path = snapshot_dir / relative_config
@@ -134,6 +134,13 @@ def _resolve_required_support_model(basename: str) -> tuple[str, str]:
         f"Cannot resolve required TRELLIS GGUF support model {basename} "
         f"from {TRELLIS_SUPPORT_MODEL_REPO_ID}"
     )
+
+
+def ensure_required_support_models(*, local_files_only: bool = False) -> list[tuple[str, str]]:
+    return [
+        _resolve_required_support_model(basename, local_files_only=local_files_only)
+        for basename in sorted(REQUIRED_SUPPORT_MODEL_BASENAMES)
+    ]
 
 
 def prepare_dinov3_dir(model_root: Path) -> str | None:

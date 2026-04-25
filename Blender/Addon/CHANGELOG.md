@@ -36,6 +36,7 @@ Documented changes:
 - removed the current custom `Mesh Cleanup` / `Remove Flat Debris` UI because it was shape-only postprocess behavior, not a TRELLIS pass
 - documented that a unified cleanup/postprocess system is still needed after live textured GGUF testing showed floor/backdrop plates can survive `Auto Remove Background`
 - fixed GGUF selected-mesh retexture startup by making the GGUF model shim resolve the required shape SLat encoder as an explicit GGUF support checkpoint
+- updated Manager prefetch/status/verification scripts so the support checkpoint is installed and checked as part of the GGUF model set
 
 Validation:
 
@@ -43,6 +44,7 @@ Validation:
 - user confirmed the imported mesh is textured
 - code review confirmed background removal is wired, but it relies on `rembg` and cannot guarantee floor/shadow/backdrop removal from difficult source images
 - verified the patched shim resolves `shape_enc_next_dc_f16c32_fp16`; if missing, it fetches only that support checkpoint from `microsoft/TRELLIS.2-4B` without requiring the official TRELLIS runtime path
+- verified Manager script syntax and local-only support-checkpoint detection
 
 ### 2026-04-23 Z-Image img2img and Image panel layout
 Source: live Lite distro testing proved Z-Image generation through Nunchaku, then exposed the need for local guide-image generation and a cleaner Image panel layout.

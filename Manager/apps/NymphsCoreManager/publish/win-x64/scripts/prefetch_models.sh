@@ -207,7 +207,13 @@ from pathlib import Path
 token = sys.argv[1] or None
 cache_dir = sys.argv[2]
 sys.path.insert(0, str(Path.cwd() / "scripts"))
-from trellis_gguf_common import DEFAULT_GGUF_QUANT, GGUF_MODEL_REPO_ID, resolve_gguf_model_root
+from trellis_gguf_common import (
+    DEFAULT_GGUF_QUANT,
+    GGUF_MODEL_REPO_ID,
+    TRELLIS_SUPPORT_MODEL_REPO_ID,
+    ensure_required_support_models,
+    resolve_gguf_model_root,
+)
 
 if token:
     os.environ["HF_TOKEN"] = token
@@ -250,6 +256,10 @@ thread = threading.Thread(target=heartbeat, args=(start_size,), daemon=True)
 thread.start()
 try:
     resolve_gguf_model_root(local_files_only=False, quant=quant, include_texture=True)
+    print(f"Prefetching TRELLIS GGUF support checkpoints from {TRELLIS_SUPPORT_MODEL_REPO_ID}", flush=True)
+    for config_file, model_file in ensure_required_support_models(local_files_only=False):
+        print(f"Support checkpoint ready: {config_file}", flush=True)
+        print(f"Support checkpoint ready: {model_file}", flush=True)
 finally:
     stop_event.set()
     thread.join(timeout=1)

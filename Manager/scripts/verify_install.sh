@@ -103,7 +103,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path.cwd() / "scripts"))
-from trellis_gguf_common import resolve_gguf_model_root
+from trellis_gguf_common import ensure_required_support_models, resolve_gguf_model_root
 
 for module_name in (
     "cumesh",
@@ -122,6 +122,7 @@ for module_name in (
     importlib.import_module(module_name)
 
 root = resolve_gguf_model_root(local_files_only=True, include_texture=True)
+ensure_required_support_models(local_files_only=True)
 required = [
     root / "pipeline.json",
     root / "texturing_pipeline.json",
@@ -133,6 +134,7 @@ if missing:
 
 print("Runtime imports available for TRELLIS.2 GGUF.")
 print("Shared-cache TRELLIS GGUF model bundle is present.")
+print("TRELLIS GGUF support checkpoints are present.")
 PY
     python scripts/api_server_trellis_gguf.py --help >/dev/null
   )
