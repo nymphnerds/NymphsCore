@@ -312,6 +312,17 @@ def mesh_to_trimesh(verts, faces) -> trimesh.Trimesh:
     return mesh
 
 
+def orient_vertices_for_blender(verts):
+    oriented = verts.copy()
+    x = oriented[:, 0].copy()
+    y = oriented[:, 1].copy()
+    z = oriented[:, 2].copy()
+    oriented[:, 0] = -x
+    oriented[:, 1] = z
+    oriented[:, 2] = y
+    return oriented
+
+
 def export_trimesh(mesh: trimesh.Trimesh, *, remove_floor_plane: bool) -> bytes:
     mesh = remove_floor_like_components(mesh, enabled=remove_floor_plane)
     with tempfile.NamedTemporaryFile(delete=False, suffix=".glb") as handle:
@@ -325,6 +336,7 @@ def export_trimesh(mesh: trimesh.Trimesh, *, remove_floor_plane: bool) -> bytes:
 
 def export_geometry_official_style(mesh_with_voxel, *, remove_floor_plane: bool) -> bytes:
     verts, faces = mesh_vertices_faces_numpy(mesh_with_voxel)
+    verts = orient_vertices_for_blender(verts)
     return export_trimesh(mesh_to_trimesh(verts, faces), remove_floor_plane=remove_floor_plane)
 
 
@@ -372,6 +384,7 @@ def export_geometry_remeshed(mesh_with_voxel, remesh_resolution: int, *, remove_
     except Exception as exc:
         print(f"[trellis-gguf-api] cumesh cleanup skipped ({exc})")
 
+    verts = orient_vertices_for_blender(verts)
     return export_trimesh(mesh_to_trimesh(verts, faces), remove_floor_plane=remove_floor_plane)
 
 
