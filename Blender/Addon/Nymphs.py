@@ -603,10 +603,9 @@ def _ui_refresh_timer():
 
 
 def _sync_shape_texture_state(state):
-    if state is None:
-        return
-    if not bool(getattr(state, "server_supports_texture", False)):
-        state.shape_generate_texture = False
+    # Preserve the user's texture intent. Capability checks at submit time decide
+    # whether the current server can honor it; transient probes must not uncheck it.
+    return
 
 
 def _launch_backend_label(state):
