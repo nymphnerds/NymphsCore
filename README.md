@@ -210,10 +210,10 @@ Rerunning the latest manager is the intended repair path for interrupted install
 
 ### After Install
 
-After the backend is installed, use the Blender addon through the published extension feed and user guide:
+After the backend is installed, use the Blender addon through the published user guide:
 
 - [Blender Addon User Guide](docs/BLENDER_ADDON_USER_GUIDE.md)
-- [NymphsExt feed](https://raw.githubusercontent.com/nymphnerds/NymphsExt/main/index.json)
+- Blender addon: available on Superhive (temporary URL)
 
 Useful docs:
 
@@ -234,17 +234,17 @@ NymphsCore/
 ```
 
 ### Why is the Blender Addon separate now?
-The live Blender addon source now lives in a separate private repo so the Manager/runtime monorepo can stay public-facing without carrying the addon implementation.
+The live Blender addon source now lives outside this repo so the Manager/runtime monorepo can stay public-facing without carrying the addon implementation.
 
-The public Blender extension feed remains in [`NymphsExt`](https://github.com/nymphnerds/NymphsExt), while install and usage docs remain here in `docs/BLENDER_ADDON_USER_GUIDE.md`.
+Public install and usage docs remain here in `docs/BLENDER_ADDON_USER_GUIDE.md`, while distribution is temporarily described as available on Superhive.
 
 ---
 
 ## Adding Things in Future
 
-**New Blender Extension feed change** — publish package updates through `NymphsExt`.
+**New Blender distribution change** — publish package updates through the private distribution path and public Superhive-facing listing.
 
-**New Blender addon source work** — make changes in the separate addon repo and mirror packaged releases to `NymphsExt`.
+**New Blender addon source work** — make changes in the separate private addon source repo.
 
 ---
 
@@ -266,6 +266,6 @@ See [`CHANGELOG.md`](CHANGELOG.md) for the full NymphsCore change history across
 
 | Repo | Purpose |
 |---|---|
-| [NymphsExt](https://raw.githubusercontent.com/nymphnerds/NymphsExt/main/index.json) | Blender Extensions (install via repository URL) |
+| Blender addon | Available on Superhive (temporary URL) |
 | [NymphsCore](https://github.com/nymphnerds/NymphsCore) | Current Manager, installer, runtime helpers, and public docs |
 | [Nymphs2D2](https://github.com/nymphnerds/Nymphs2D2) | 2D backend repo used for the `Z-Image` runtime |

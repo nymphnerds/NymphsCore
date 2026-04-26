@@ -81,10 +81,10 @@ The manager may offer to prefetch model files. Prefetching takes longer during i
 
 ## Install The Blender Addon
 
-Use the Blender Extensions repository feed:
+The Blender addon is currently distributed through Superhive:
 
 ```text
-https://raw.githubusercontent.com/nymphnerds/NymphsExt/main/index.json
+available on Superhive (temporary URL)
 ```
 
 Install steps:
@@ -93,7 +93,7 @@ Install steps:
 2. Go to `Edit > Preferences > System > Network`.
 3. Enable `Allow Online Access`.
 4. Go to `Edit > Preferences > Extensions`.
-5. Add the remote repository URL above.
+5. Add the temporary Superhive URL above when it is available.
 6. Refresh remote data if Blender does not load it immediately.
 7. Search for `Nymphs`.
 8. Install the extension.
