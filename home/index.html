@@ -58,9 +58,9 @@
   }
 
   .nav-logo img {
-    width: 28px;
-    height: 28px;
-    object-fit: contain;
+    width: 210px;
+    height: auto;
+    display: block;
   }
   .nav-links { display: flex; gap: 32px; align-items: center; list-style: none; }
   .nav-links a { font-size: 14px; color: var(--muted); text-decoration: none; transition: color 0.15s; }
@@ -103,11 +103,6 @@
     width: 400px; height: 400px;
     background: radial-gradient(circle, rgba(85,223,240,0.07) 0%, transparent 70%);
     pointer-events: none;
-  }
-
-  .hero-logo {
-    width: min(560px, 82vw);
-    margin-bottom: 30px;
   }
 
   .badge {
@@ -796,7 +791,7 @@
 
 <nav>
   <a class="nav-logo" href="#" aria-label="NymphsCore home">
-    <img src="assets/splash.png" alt="NymphsCore icon">
+    <img src="assets/NymphsCoreLogo.png" alt="NymphsCore logo">
   </a>
   <ul class="nav-links">
     <li><a href="#workflow">Workflow</a></li>
@@ -810,7 +805,6 @@
 </nav>
 
 <section class="hero">
-  <img class="hero-logo" src="assets/NymphsCoreLogo.png" alt="NymphsCore logo">
   <div class="badge-row">
     <div class="badge"><div class="badge-dot"></div>Windows · Blender-native · Local AI</div>
   </div>
