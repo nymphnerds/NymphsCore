@@ -236,8 +236,7 @@
   }
 
   .guide-grid,
-  .demo-grid,
-  .wiki-grid {
+  .demo-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
     gap: 20px;
@@ -245,8 +244,7 @@
 
   .guide-card,
   .demo-card,
-  .plan-card,
-  .wiki-card {
+  .plan-card {
     background: linear-gradient(180deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.02) 100%);
     border: 1px solid var(--dark4);
     border-radius: 18px;
@@ -305,8 +303,7 @@
 
   .guide-card h3,
   .demo-card h3,
-  .plan-card h3,
-  .wiki-card h3 {
+  .plan-card h3 {
     font-size: 24px;
     margin-bottom: 10px;
   }
@@ -314,29 +311,43 @@
   .guide-card p,
   .demo-card p,
   .plan-card p,
-  .plan-card li,
-  .wiki-card li {
+  .plan-card li {
     color: var(--muted);
     font-size: 14px;
     line-height: 1.7;
   }
 
-  .wiki-card ul {
+  .wiki-columns {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 28px;
+  }
+
+  .wiki-group h3 {
+    font-size: 22px;
+    margin-bottom: 14px;
+  }
+
+  .wiki-group ul {
     list-style: none;
     display: grid;
     gap: 12px;
-    margin-top: 18px;
   }
 
-  .wiki-card li a {
+  .wiki-group li {
+    color: var(--muted);
+    font-size: 14px;
+    line-height: 1.7;
+  }
+
+  .wiki-group a {
     color: var(--light);
     text-decoration: none;
-    border-bottom: 1px solid rgba(99,227,95,0.26);
+    border-bottom: 1px solid rgba(99,227,95,0.22);
     padding-bottom: 2px;
   }
 
-  .wiki-card li span {
-    display: inline-block;
+  .wiki-status {
     color: #6e6e6e;
     font-family: var(--font-mono);
     font-size: 11px;
@@ -426,12 +437,14 @@
 
   @media (max-width: 980px) {
     .plan-shell { grid-template-columns: 1fr; }
+    .wiki-columns { grid-template-columns: 1fr 1fr; }
   }
 
   @media (max-width: 800px) {
     nav { padding: 14px 24px; }
     .nav-links { display: none; }
     .hero, .section { padding-left: 24px; padding-right: 24px; }
+    .wiki-columns { grid-template-columns: 1fr; }
     footer {
       padding: 24px;
       flex-direction: column;
@@ -532,47 +545,47 @@ Suggested length:
   <h2 class="section-title">Wiki.</h2>
   <p class="section-sub">Use the videos for a quick overview, then jump straight into the exact page you need below.</p>
 
-  <div class="wiki-grid">
-    <div class="wiki-card">
+  <div class="wiki-columns">
+    <div class="wiki-group">
       <div class="plan-label">Start Here</div>
       <h3>Getting started</h3>
       <ul>
         <li><a href="guides/install-and-first-launch.html">Install NymphsCore Manager</a></li>
         <li><a href="guides/install-and-first-launch.html">Finish first launch setup</a></li>
-        <li><a href="#">Check runtime health</a><span>coming soon</span></li>
-        <li><a href="#">Open the addon in Blender</a><span>coming soon</span></li>
+        <li><a href="#">Check runtime health</a><span class="wiki-status">coming soon</span></li>
+        <li><a href="#">Open the addon in Blender</a><span class="wiki-status">coming soon</span></li>
       </ul>
     </div>
 
-    <div class="wiki-card">
+    <div class="wiki-group">
       <div class="plan-label">Image Workflow</div>
       <h3>Image guides</h3>
       <ul>
         <li><a href="guides/generate-your-first-image.html">Generate your first reference image</a></li>
         <li><a href="guides/refine-with-guide-images.html">Refine with guide images</a></li>
-        <li><a href="#">Prepare an image for extraction</a><span>coming soon</span></li>
-        <li><a href="#">Extract modular parts</a><span>coming soon</span></li>
+        <li><a href="#">Prepare an image for extraction</a><span class="wiki-status">coming soon</span></li>
+        <li><a href="#">Extract modular parts</a><span class="wiki-status">coming soon</span></li>
       </ul>
     </div>
 
-    <div class="wiki-card">
+    <div class="wiki-group">
       <div class="plan-label">3D Workflow</div>
       <h3>Shape guides</h3>
       <ul>
         <li><a href="guides/go-from-image-to-shape.html">Choose the best image for shape</a></li>
         <li><a href="guides/go-from-image-to-shape.html">Run image to shape</a></li>
-        <li><a href="#">Understand the first 3D draft</a><span>coming soon</span></li>
-        <li><a href="#">What to do when shape output is weak</a><span>coming soon</span></li>
+        <li><a href="#">Understand the first 3D draft</a><span class="wiki-status">coming soon</span></li>
+        <li><a href="#">What to do when shape output is weak</a><span class="wiki-status">coming soon</span></li>
       </ul>
     </div>
 
-    <div class="wiki-card">
+    <div class="wiki-group">
       <div class="plan-label">Troubleshooting</div>
       <h3>Get unstuck</h3>
       <ul>
-        <li><a href="#">Troubleshooting install issues</a><span>coming soon</span></li>
-        <li><a href="#">Troubleshooting runtime issues</a><span>coming soon</span></li>
-        <li><a href="#">Troubleshooting Blender addon issues</a><span>coming soon</span></li>
+        <li><a href="#">Troubleshooting install issues</a><span class="wiki-status">coming soon</span></li>
+        <li><a href="#">Troubleshooting runtime issues</a><span class="wiki-status">coming soon</span></li>
+        <li><a href="#">Troubleshooting Blender addon issues</a><span class="wiki-status">coming soon</span></li>
         <li><a href="alpha.html?v=20260426b">Send a bug report</a></li>
       </ul>
     </div>
