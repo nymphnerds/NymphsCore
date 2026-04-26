@@ -22,6 +22,6 @@ echo
 echo "Full backend setup complete."
 echo "Next useful checks:"
 echo "- Z-Image backend: Z_IMAGE_RUNTIME=nunchaku ~/Z-Image/.venv-nunchaku/bin/python ~/Z-Image/api_server.py --host 127.0.0.1 --port 8090"
-echo "- TRELLIS.2 backend: ~/TRELLIS.2/.venv/bin/python ~/TRELLIS.2/scripts/api_server_trellis.py --host 127.0.0.1 --port 8094"
+echo "- TRELLIS.2 GGUF backend: ~/TRELLIS.2/.venv/bin/python ~/TRELLIS.2/scripts/api_server_trellis_gguf.py --host 127.0.0.1 --port 8094 --gguf-quant Q5_K_M"
 echo "- ${ROOT_DIR}/scripts/verify_install.sh --smoke-test zimage"
 echo "- ${ROOT_DIR}/scripts/verify_install.sh --smoke-test trellis"

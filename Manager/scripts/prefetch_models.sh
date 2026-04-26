@@ -11,6 +11,44 @@ HF_CACHE_DIR="${NYMPHS3D_HF_CACHE_DIR}"
 export HF_HUB_DISABLE_PROGRESS_BARS=1
 configure_nymphs3d_hf_env
 
+BACKEND="all"
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --backend)
+      if [[ $# -lt 2 ]]; then
+        echo "--backend requires one of: all, zimage, trellis" >&2
+        exit 2
+      fi
+      BACKEND="$2"
+      shift 2
+      ;;
+    --backend=*)
+      BACKEND="${1#*=}"
+      shift
+      ;;
+    --help|-h)
+      cat <<'EOF'
+Usage: prefetch_models.sh [--backend all|zimage|trellis]
+
+Downloads cached model weights for the selected backend. The default is all.
+EOF
+      exit 0
+      ;;
+    *)
+      echo "Unknown option: $1" >&2
+      exit 2
+      ;;
+  esac
+done
+
+case "${BACKEND}" in
+  all|zimage|trellis) ;;
+  *)
+    echo "Unknown backend '${BACKEND}'. Expected one of: all, zimage, trellis" >&2
+    exit 2
+    ;;
+esac
+
 cache_size_bytes() {
   local path="$1"
   if [[ ! -d "${path}" ]]; then
@@ -192,7 +230,7 @@ prefetch_nymphs2d2_model() {
   )
 }
 
-prefetch_trellis_model_bundle() {
+prefetch_trellis_gguf_model_bundle() {
   (
     cd "${TRELLIS_DIR}"
     source .venv/bin/activate
@@ -202,11 +240,27 @@ prefetch_trellis_model_bundle() {
 import os
 import sys
 import threading
-from huggingface_hub import snapshot_download
+from pathlib import Path
 
 token = sys.argv[1] or None
 cache_dir = sys.argv[2]
-repo_id = "microsoft/TRELLIS.2-4B"
+sys.path.insert(0, str(Path.cwd() / "scripts"))
+from trellis_gguf_common import (
+    DEFAULT_GGUF_QUANT,
+    GGUF_MODEL_REPO_ID,
+    TRELLIS_SUPPORT_MODEL_REPO_ID,
+    VALID_GGUF_QUANTS,
+    ensure_required_support_models,
+    resolve_gguf_model_root,
+)
+
+if token:
+    os.environ["HF_TOKEN"] = token
+    os.environ["HUGGING_FACE_HUB_TOKEN"] = token
+
+repo_id = GGUF_MODEL_REPO_ID
+raw_quant = (os.getenv("TRELLIS_GGUF_QUANT") or DEFAULT_GGUF_QUANT).strip()
+quants = sorted(VALID_GGUF_QUANTS) if raw_quant.lower() == "all" else [raw_quant]
 stop_event = threading.Event()
 
 def cache_size_bytes(path: str) -> int:
@@ -237,11 +291,17 @@ def heartbeat(start_size: int) -> None:
         last_size = current_size
 
 start_size = cache_size_bytes(cache_dir)
-print(f"Prefetching {repo_id} into shared HF cache", flush=True)
+print(f"Prefetching {repo_id} ({', '.join(quants)}) into shared HF cache", flush=True)
 thread = threading.Thread(target=heartbeat, args=(start_size,), daemon=True)
 thread.start()
 try:
-    snapshot_download(repo_id=repo_id, token=token)
+    for quant in quants:
+        print(f"Prefetching TRELLIS GGUF quant {quant}", flush=True)
+        resolve_gguf_model_root(local_files_only=False, quant=quant, include_texture=True)
+    print(f"Prefetching TRELLIS GGUF support checkpoints from {TRELLIS_SUPPORT_MODEL_REPO_ID}", flush=True)
+    for config_file, model_file in ensure_required_support_models(local_files_only=False):
+        print(f"Support checkpoint ready: {config_file}", flush=True)
+        print(f"Support checkpoint ready: {model_file}", flush=True)
 finally:
     stop_event.set()
     thread.join(timeout=1)
@@ -271,16 +331,22 @@ prefetch_rembg_u2net() {
   fi
 }
 
-echo "Prefetching core backend model weights..."
+echo "Prefetching core backend model weights (${BACKEND})..."
 
-echo "Prefetching Z-Image Turbo default model..."
-prefetch_nymphs2d2_model
+if [[ "${BACKEND}" == "all" || "${BACKEND}" == "zimage" ]]; then
+  echo "Prefetching Z-Image Turbo default model..."
+  prefetch_nymphs2d2_model
+fi
 
-echo "Prefetching TRELLIS.2 model bundle..."
-prefetch_trellis_model_bundle
+if [[ "${BACKEND}" == "all" || "${BACKEND}" == "trellis" ]]; then
+  echo "Prefetching TRELLIS.2 GGUF model bundle..."
+  prefetch_trellis_gguf_model_bundle
+fi
 
-echo "Prefetching rembg u2net model..."
-prefetch_rembg_u2net
+if [[ "${BACKEND}" == "all" || "${BACKEND}" == "trellis" ]]; then
+  echo "Prefetching rembg u2net model..."
+  prefetch_rembg_u2net
+fi
 
 echo
 echo "Core backend model prefetch complete."

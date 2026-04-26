@@ -22,6 +22,7 @@ public sealed class MainWindowViewModel : ViewModelBase
     private const string BrainInstallRoot = "/home/nymph/Nymphs-Brain";
 
     private readonly InstallerWorkflowService _workflowService;
+    private readonly SharedSecretsService _sharedSecretsService;
     private readonly AsyncRelayCommand _primaryCommand;
     private readonly AsyncRelayCommand _checkForUpdatesCommand;
     private readonly RelayCommand _addOptionalModulesCommand;
@@ -31,6 +32,9 @@ public sealed class MainWindowViewModel : ViewModelBase
     private readonly AsyncRelayCommand _openBrainToolsCommand;
     private readonly AsyncRelayCommand _refreshBrainStatusCommand;
     private readonly AsyncRelayCommand _fetchModelsNowCommand;
+    private readonly AsyncRelayCommand _fetchZImageModelsCommand;
+    private readonly AsyncRelayCommand _fetchTrellisModelsCommand;
+    private readonly AsyncRelayCommand _repairTrellisAdapterCommand;
     private readonly AsyncRelayCommand _testZImageCommand;
     private readonly AsyncRelayCommand _testTrellisCommand;
     private readonly AsyncRelayCommand _startBrainLlmCommand;
@@ -72,6 +76,8 @@ public sealed class MainWindowViewModel : ViewModelBase
     private bool _prefetchModelsNow = true;
     private bool _hasExistingWslConfig;
     private string _huggingFaceToken = string.Empty;
+    private TrellisGgufQuantOption? _selectedTrellisGgufQuantOption;
+    private int _detectedGpuVramMb;
     private string _managedDistroName = InstallerWorkflowService.ManagedDistroName;
     private DriveChoice? _selectedDrive;
     private WslConfigModeOption? _selectedWslConfigOption;
@@ -100,12 +106,14 @@ public sealed class MainWindowViewModel : ViewModelBase
     public MainWindowViewModel(InstallerWorkflowService workflowService)
     {
         _workflowService = workflowService;
+        _sharedSecretsService = new SharedSecretsService();
         _installSessionLogPath = _workflowService.CreateInstallSessionLogPath();
 
         SystemChecks = new ObservableCollection<SystemCheckItem>();
         LogLines = new ObservableCollection<string>();
         WslConfigOptions = new ObservableCollection<WslConfigModeOption>();
         BrainModelOptions = new ObservableCollection<BrainModelOption>();
+        TrellisGgufQuantOptions = new ObservableCollection<TrellisGgufQuantOption>();
 
         _primaryCommand = new AsyncRelayCommand(ExecutePrimaryActionAsync, CanExecutePrimaryAction);
         _checkForUpdatesCommand = new AsyncRelayCommand(RunManagedRepoUpdateCheckAsync, CanRunManagedRepoUpdateCheck);
@@ -116,6 +124,9 @@ public sealed class MainWindowViewModel : ViewModelBase
         _openBrainToolsCommand = new AsyncRelayCommand(OpenBrainToolsAsync, CanRunManagedRuntimeAction);
         _refreshBrainStatusCommand = new AsyncRelayCommand(RefreshBrainStatusAsync, CanRunManagedRuntimeAction);
         _fetchModelsNowCommand = new AsyncRelayCommand(RunFetchModelsNowAsync, CanRunManagedRuntimeAction);
+        _fetchZImageModelsCommand = new AsyncRelayCommand(() => RunFetchModelsNowAsync("zimage"), CanRunManagedRuntimeAction);
+        _fetchTrellisModelsCommand = new AsyncRelayCommand(() => RunFetchModelsNowAsync("trellis"), CanRunManagedRuntimeAction);
+        _repairTrellisAdapterCommand = new AsyncRelayCommand(RunTrellisAdapterRepairAsync, CanRunManagedRuntimeAction);
         _testZImageCommand = new AsyncRelayCommand(() => RunSmokeTestAsync("zimage"), CanRunZImageSmokeTest);
         _testTrellisCommand = new AsyncRelayCommand(() => RunSmokeTestAsync("trellis"), CanRunTrellisSmokeTest);
         _startBrainLlmCommand = new AsyncRelayCommand(StartBrainLlmAsync, CanStartBrainLlm);
@@ -137,11 +148,35 @@ public sealed class MainWindowViewModel : ViewModelBase
 
         InitializeWslConfigChoices();
         InitializeBrainChoices();
+        InitializeTrellisGgufQuantChoices();
+        LoadSharedSecrets();
 
         RecomputeStepState();
     }
 
     public Action? RequestClose { get; set; }
+
+    private void LoadSharedSecrets()
+    {
+        var secrets = _sharedSecretsService.Load();
+        _huggingFaceToken = secrets.HuggingFaceToken?.Trim() ?? string.Empty;
+        _brainOpenRouterApiKey = secrets.OpenRouterApiKey?.Trim() ?? string.Empty;
+        OnPropertyChanged(nameof(HuggingFaceToken));
+        OnPropertyChanged(nameof(HuggingFaceTokenStatus));
+        OnPropertyChanged(nameof(BrainOpenRouterApiKey));
+        OnPropertyChanged(nameof(HasBrainOpenRouterApiKey));
+        OnPropertyChanged(nameof(BrainOpenRouterKeyStatus));
+    }
+
+    private void SaveSharedSecrets()
+    {
+        _sharedSecretsService.Save(
+            new SharedSecrets
+            {
+                HuggingFaceToken = HuggingFaceToken,
+                OpenRouterApiKey = BrainOpenRouterApiKey,
+            });
+    }
 
     public ObservableCollection<SystemCheckItem> SystemChecks { get; }
 
@@ -152,6 +187,8 @@ public sealed class MainWindowViewModel : ViewModelBase
     public ObservableCollection<WslConfigModeOption> WslConfigOptions { get; }
 
     public ObservableCollection<BrainModelOption> BrainModelOptions { get; }
+
+    public ObservableCollection<TrellisGgufQuantOption> TrellisGgufQuantOptions { get; }
 
     public AsyncRelayCommand PrimaryCommand => _primaryCommand;
 
@@ -173,6 +210,12 @@ public sealed class MainWindowViewModel : ViewModelBase
 
     public AsyncRelayCommand FetchModelsNowCommand => _fetchModelsNowCommand;
 
+    public AsyncRelayCommand FetchZImageModelsCommand => _fetchZImageModelsCommand;
+
+    public AsyncRelayCommand FetchTrellisModelsCommand => _fetchTrellisModelsCommand;
+
+    public AsyncRelayCommand RepairTrellisAdapterCommand => _repairTrellisAdapterCommand;
+
     public AsyncRelayCommand TestZImageCommand => _testZImageCommand;
 
     public AsyncRelayCommand TestTrellisCommand => _testTrellisCommand;
@@ -189,9 +232,11 @@ public sealed class MainWindowViewModel : ViewModelBase
 
     public AsyncRelayCommand StopBrainLlmCommand => _stopBrainLlmCommand;
 
-    public System.Windows.Input.ICommand ZImageRuntimeActionCommand => ZImageRuntimeStatus.TestReady ? _testZImageCommand : _fetchModelsNowCommand;
+    public System.Windows.Input.ICommand ZImageRuntimeActionCommand => _fetchZImageModelsCommand;
 
-    public System.Windows.Input.ICommand TrellisRuntimeActionCommand => TrellisRuntimeStatus.TestReady ? _testTrellisCommand : _fetchModelsNowCommand;
+    public System.Windows.Input.ICommand TrellisRuntimeActionCommand => TrellisNeedsRepair
+            ? _repairTrellisAdapterCommand
+            : _fetchTrellisModelsCommand;
 
     public RelayCommand OpenLogFolderCommand => _openLogFolderCommand;
 
@@ -398,6 +443,7 @@ public sealed class MainWindowViewModel : ViewModelBase
             var normalized = value?.Trim() ?? string.Empty;
             if (SetProperty(ref _huggingFaceToken, normalized))
             {
+                SaveSharedSecrets();
                 OnPropertyChanged(nameof(HuggingFaceTokenStatus));
             }
         }
@@ -406,17 +452,51 @@ public sealed class MainWindowViewModel : ViewModelBase
     public string HuggingFaceTokenStatus =>
         string.IsNullOrWhiteSpace(HuggingFaceToken)
             ? "No Hugging Face token entered. Installer downloads will use anonymous access."
-            : "A Hugging Face token is attached for installer-time downloads only.";
+            : "Hugging Face token saved for Manager downloads and addon-launched local runtimes.";
+
+    public TrellisGgufQuantOption? SelectedTrellisGgufQuantOption
+    {
+        get => _selectedTrellisGgufQuantOption;
+        set
+        {
+            if (SetProperty(ref _selectedTrellisGgufQuantOption, value))
+            {
+                OnPropertyChanged(nameof(TrellisGgufQuantSummary));
+                OnPropertyChanged(nameof(ModelDownloadDecisionSummary));
+                OnPropertyChanged(nameof(ModelDownloadDecisionDetails));
+                OnPropertyChanged(nameof(TrellisGgufQuantLabel));
+                RaiseCommandStateChanged();
+            }
+        }
+    }
+
+    public string TrellisGgufQuant => SelectedTrellisGgufQuantOption?.Value ?? "all";
+
+    public string TrellisGgufQuantSummary
+    {
+        get
+        {
+            var detected = _detectedGpuVramMb > 0
+                ? $"Detected GPU VRAM: {_detectedGpuVramMb / 1024.0:F1} GB. "
+                : "GPU VRAM was not detected, so the balanced default was selected. ";
+            var option = SelectedTrellisGgufQuantOption;
+            return option is null
+                ? $"{detected}TRELLIS GGUF will fetch all quants unless changed."
+                : $"{detected}Selected TRELLIS GGUF download: {option.Title}. {option.Description}";
+        }
+    }
 
     public string ModelDownloadDecisionTitle =>
         PrefetchModelsNow ? "Extra model downloads during install" : "Model downloads deferred until later";
 
     public string ModelDownloadDecisionSummary =>
         PrefetchModelsNow
-            ? "With model prefetch turned on, the installer downloads the required model and helper files now. This is the smoothest option for non-technical users, but it can still add a long multi-GB download stage on a typical home connection."
+            ? $"With model prefetch turned on, the installer downloads the required model and helper files now. TRELLIS.2 GGUF will prefetch {TrellisGgufQuantLabel}. This is the smoothest option for non-technical users, but it can still add a long multi-GB download stage on a typical home connection."
             : "With model prefetch turned off, the installer skips the large model and helper downloads for now. The manager or Blender addon will need to download these later on first real use, which can make first launch feel very slow or look stuck.";
 
-    public string ModelDownloadDecisionDetails => ModelDownloadDetails;
+    public string TrellisGgufQuantLabel => TrellisGgufQuant == "all" ? "all GGUF quants" : TrellisGgufQuant;
+
+    public string ModelDownloadDecisionDetails => $"{ModelDownloadDetails}\n- TRELLIS.2 GGUF download selected: {TrellisGgufQuantLabel}";
 
     public string RuntimeDownloadSummary =>
         PrefetchModelsNow
@@ -664,6 +744,7 @@ public sealed class MainWindowViewModel : ViewModelBase
             var normalized = value?.Trim() ?? string.Empty;
             if (SetProperty(ref _brainOpenRouterApiKey, normalized))
             {
+                SaveSharedSecrets();
                 OnPropertyChanged(nameof(HasBrainOpenRouterApiKey));
                 OnPropertyChanged(nameof(BrainOpenRouterKeyStatus));
                 RaiseCommandStateChanged();
@@ -675,7 +756,7 @@ public sealed class MainWindowViewModel : ViewModelBase
 
     public string BrainOpenRouterKeyStatus =>
         HasBrainOpenRouterApiKey
-            ? "A new OpenRouter key is loaded in this Manager session. Apply Key writes it now; Start Brain or Update Stack will rebuild the Brain wrapper config around it."
+            ? "OpenRouter key saved for the Manager, Brain tools, and the Blender addon. Apply Key refreshes the Brain secret file now."
             : "OpenRouter key is optional. Without one, Brain skips llm-wrapper and keeps the rest of the stack running normally.";
 
     public string BrainHeaderBadgeText => CapitalizeStatus(_brainInstallState);
@@ -768,6 +849,7 @@ public sealed class MainWindowViewModel : ViewModelBase
             if (SetProperty(ref _zImageRuntimeStatus, value))
             {
                 OnPropertyChanged(nameof(ZImageTestButtonText));
+                OnPropertyChanged(nameof(ZImageFetchButtonText));
                 OnPropertyChanged(nameof(ZImageRuntimeActionCommand));
                 RaiseCommandStateChanged();
             }
@@ -782,6 +864,8 @@ public sealed class MainWindowViewModel : ViewModelBase
             if (SetProperty(ref _trellisRuntimeStatus, value))
             {
                 OnPropertyChanged(nameof(TrellisTestButtonText));
+                OnPropertyChanged(nameof(TrellisFetchButtonText));
+                OnPropertyChanged(nameof(TrellisNeedsRepair));
                 OnPropertyChanged(nameof(TrellisRuntimeActionCommand));
                 RaiseCommandStateChanged();
             }
@@ -794,7 +878,20 @@ public sealed class MainWindowViewModel : ViewModelBase
     // to fetch first instead.
     public string ZImageTestButtonText => ZImageRuntimeStatus.ModelsReady ? "Test" : "Fetch First";
 
-    public string TrellisTestButtonText => TrellisRuntimeStatus.ModelsReady ? "Test" : "Fetch First";
+    public string TrellisTestButtonText => TrellisNeedsRepair
+        ? "Repair First"
+        : TrellisRuntimeStatus.ModelsReady
+            ? "Test"
+            : "Fetch First";
+
+    public string ZImageFetchButtonText => "Fetch";
+
+    public bool TrellisNeedsRepair =>
+        !TrellisRuntimeStatus.EnvironmentReady ||
+        TrellisRuntimeStatus.Detail.Contains("adapter is missing", StringComparison.OrdinalIgnoreCase) ||
+        TrellisRuntimeStatus.Detail.Contains("runtime packages are missing", StringComparison.OrdinalIgnoreCase);
+
+    public string TrellisFetchButtonText => TrellisNeedsRepair ? "Repair" : "Fetch";
 
     private bool CanGoBack()
     {
@@ -974,6 +1071,7 @@ public sealed class MainWindowViewModel : ViewModelBase
             PrefetchModelsNow = PrefetchModelsNow,
             RepairExistingDistro = true,
             HuggingFaceToken = string.Empty,
+            TrellisGgufQuant = TrellisGgufQuant,
         };
 
         var updateCheckLines = new List<string>();
@@ -1060,6 +1158,7 @@ public sealed class MainWindowViewModel : ViewModelBase
             PrefetchModelsNow = true,
             RepairExistingDistro = true,
             HuggingFaceToken = HuggingFaceToken,
+            TrellisGgufQuant = TrellisGgufQuant,
             WslConfigMode = WslConfigMode.KeepExisting,
             BrainInstallRoot = BrainInstallRoot,
             OpenRouterApiKey = BrainOpenRouterApiKey,
@@ -1198,12 +1297,12 @@ public sealed class MainWindowViewModel : ViewModelBase
         return statuses;
     }
 
-    private static bool CoreBackendModelsReady(IReadOnlyDictionary<string, RuntimeBackendStatus> statuses)
+    private static bool CoreBackendsTestReady(IReadOnlyDictionary<string, RuntimeBackendStatus> statuses)
     {
         return statuses.TryGetValue("zimage", out var zimage)
             && statuses.TryGetValue("trellis", out var trellis)
-            && zimage.ModelsReady
-            && trellis.ModelsReady;
+            && zimage.TestReady
+            && trellis.TestReady;
     }
 
     private async Task RefreshBrainRuntimeStatusSnapshotAsync(InstallSettings settings)
@@ -1524,6 +1623,7 @@ public sealed class MainWindowViewModel : ViewModelBase
         var readyCount = statuses.Values.Count(status => status.TestReady);
         var missingModelCount = statuses.Values.Count(status => status.EnvironmentReady && !status.ModelsReady);
         var missingRuntimeCount = statuses.Values.Count(status => !status.EnvironmentReady);
+        var needsAttentionCount = statuses.Values.Count(status => status.EnvironmentReady && status.ModelsReady && !status.TestReady);
 
         if (missingRuntimeCount > 0)
         {
@@ -1533,6 +1633,11 @@ public sealed class MainWindowViewModel : ViewModelBase
         if (missingModelCount > 0)
         {
             return "Runtime environments are present, but some required models are missing. Fetch models before testing those backends.";
+        }
+
+        if (needsAttentionCount > 0)
+        {
+            return "One or more backend runtimes need attention before smoke testing.";
         }
 
         if (readyCount > 0)
@@ -1545,10 +1650,21 @@ public sealed class MainWindowViewModel : ViewModelBase
 
     private async Task RunFetchModelsNowAsync()
     {
+        await RunFetchModelsNowAsync("all").ConfigureAwait(true);
+    }
+
+    private async Task RunFetchModelsNowAsync(string backend)
+    {
         var settings = BuildManagedActionSettings();
+        var backendLabel = backend switch
+        {
+            "zimage" => "Z-Image",
+            "trellis" => "TRELLIS.2",
+            _ => "required",
+        };
         PrepareManagedActionRun(
-            "Fetching required model weights...",
-            "Starting model-only prefetch against the existing runtime.");
+            $"Fetching {backendLabel} model weights...",
+            $"Starting {backendLabel} model-only prefetch against the existing runtime.");
         IsBusy = true;
 
         var progress = new Progress<string>(line =>
@@ -1564,11 +1680,11 @@ public sealed class MainWindowViewModel : ViewModelBase
 
         try
         {
-            await _workflowService.RunModelPrefetchOnlyAsync(settings, progress, CancellationToken.None).ConfigureAwait(true);
+            await _workflowService.RunModelPrefetchOnlyAsync(settings, progress, CancellationToken.None, backend).ConfigureAwait(true);
             var statuses = await RefreshCoreRuntimeStatusSnapshotAsync(settings, progress).ConfigureAwait(true);
             await RefreshBrainRuntimeStatusSnapshotAsync(settings).ConfigureAwait(true);
 
-            if (CoreBackendModelsReady(statuses))
+            if (CoreBackendsTestReady(statuses))
             {
                 PostInstallActionSummary = "Required models were downloaded and verified successfully.";
                 RuntimeToolsSummary = "Model download completed. Core backends are ready for smoke tests.";
@@ -1588,6 +1704,53 @@ public sealed class MainWindowViewModel : ViewModelBase
             PostInstallActionSummary = "Model prefetch failed. Check the live log and log folder.";
             RuntimeToolsSummary = "Model download failed. Use the live log and log folder to inspect the failure.";
             StatusMessage = "Model prefetch stopped with an error.";
+            LogLines.Add($"ERROR: {ex.Message}");
+            AppendInstallLog($"ERROR: {ex}");
+        }
+        finally
+        {
+            IsBusy = false;
+            RaiseCommandStateChanged();
+        }
+    }
+
+    private async Task RunTrellisAdapterRepairAsync()
+    {
+        var settings = BuildManagedActionSettings();
+        PrepareManagedActionRun(
+            "Repairing TRELLIS adapter...",
+            "Starting TRELLIS GGUF adapter repair against the existing runtime.");
+        IsBusy = true;
+
+        var progress = new Progress<string>(line =>
+        {
+            var sanitizedLine = line.Replace("\0", string.Empty);
+            if (!string.IsNullOrWhiteSpace(sanitizedLine))
+            {
+                LogLines.Add(sanitizedLine);
+                StatusMessage = sanitizedLine;
+                AppendInstallLog(sanitizedLine);
+            }
+        });
+
+        try
+        {
+            await _workflowService.RunTrellisAdapterRepairAsync(settings, progress, CancellationToken.None).ConfigureAwait(true);
+            var statuses = await RefreshCoreRuntimeStatusSnapshotAsync(settings, progress).ConfigureAwait(true);
+            await RefreshBrainRuntimeStatusSnapshotAsync(settings).ConfigureAwait(true);
+
+            RuntimeToolsSummary = BuildRuntimeToolsSummary(statuses);
+            StatusMessage = TrellisRuntimeStatus.TestReady
+                ? "TRELLIS adapter repaired and verified successfully."
+                : "TRELLIS adapter repair completed, but backend readiness is still incomplete.";
+            PostInstallActionSummary = StatusMessage;
+            AppendInstallLog(StatusMessage);
+        }
+        catch (Exception ex)
+        {
+            PostInstallActionSummary = "TRELLIS adapter repair failed. Check the live log and log folder.";
+            RuntimeToolsSummary = "TRELLIS adapter repair failed. Use the live log and log folder to inspect the failure.";
+            StatusMessage = "TRELLIS adapter repair stopped with an error.";
             LogLines.Add($"ERROR: {ex.Message}");
             AppendInstallLog($"ERROR: {ex}");
         }
@@ -1935,6 +2098,7 @@ public sealed class MainWindowViewModel : ViewModelBase
                 PrefetchModelsNow = PrefetchModelsNow,
                 RepairExistingDistro = repairExistingDistro,
                 HuggingFaceToken = HuggingFaceToken,
+                TrellisGgufQuant = TrellisGgufQuant,
                 WslConfigMode = SelectedWslConfigOption?.Mode ?? WslConfigMode.Recommended,
                 WslMemoryGb = WslCustomMemoryGb,
                 WslProcessors = WslCustomProcessors,
@@ -2304,6 +2468,9 @@ public sealed class MainWindowViewModel : ViewModelBase
         _openBrainToolsCommand.RaiseCanExecuteChanged();
         _refreshBrainStatusCommand.RaiseCanExecuteChanged();
         _fetchModelsNowCommand.RaiseCanExecuteChanged();
+        _fetchZImageModelsCommand.RaiseCanExecuteChanged();
+        _fetchTrellisModelsCommand.RaiseCanExecuteChanged();
+        _repairTrellisAdapterCommand.RaiseCanExecuteChanged();
         _testZImageCommand.RaiseCanExecuteChanged();
         _testTrellisCommand.RaiseCanExecuteChanged();
         _startBrainLlmCommand.RaiseCanExecuteChanged();
@@ -2451,6 +2618,36 @@ public sealed class MainWindowViewModel : ViewModelBase
             16384));
 
         SelectedBrainModelOption = BrainModelOptions.FirstOrDefault(option => option.Id == "auto");
+    }
+
+    private void InitializeTrellisGgufQuantChoices()
+    {
+        _detectedGpuVramMb = _workflowService.GetDetectedGpuVramMb();
+
+        TrellisGgufQuantOptions.Add(new TrellisGgufQuantOption(
+            "all",
+            "All quants - full local cache",
+            "Downloads Q4_K_M, Q5_K_M, Q6_K, and Q8_0 so the Blender addon can switch quantization later without another model fetch. Runtime tests use Q5_K_M by default."));
+        TrellisGgufQuantOptions.Add(new TrellisGgufQuantOption(
+            "Q4_K_M",
+            "Q4_K_M - Low VRAM",
+            "Smallest TRELLIS GGUF download and lowest VRAM pressure. Best for GPUs below 16 GB or quick smoke tests."));
+        TrellisGgufQuantOptions.Add(new TrellisGgufQuantOption(
+            "Q5_K_M",
+            "Q5_K_M - 16 GB balanced",
+            "Recommended for 16 GB GPUs such as RTX 4080 Super. Better quality than Q4 while staying practical for local use."));
+        TrellisGgufQuantOptions.Add(new TrellisGgufQuantOption(
+            "Q6_K",
+            "Q6_K - High quality",
+            "Higher quality and larger download. Better for 24 GB+ GPUs or users willing to trade speed and storage for quality."));
+        TrellisGgufQuantOptions.Add(new TrellisGgufQuantOption(
+            "Q8_0",
+            "Q8_0 - Maximum",
+            "Largest quantized GGUF option. Intended for very roomy GPUs and comparison testing."));
+
+        var recommended = "all";
+        SelectedTrellisGgufQuantOption = TrellisGgufQuantOptions.FirstOrDefault(option => option.Value == recommended)
+            ?? TrellisGgufQuantOptions.FirstOrDefault(option => option.Value == "Q5_K_M");
     }
 
     private bool HasValidWslConfigSelection()

@@ -46,6 +46,7 @@ public partial class MainWindow : Window
         }
 
         await _viewModel.InitializeAsync();
+        SyncPasswordBoxesFromViewModel();
     }
 
     private void OnLogLinesChanged(object? sender, NotifyCollectionChangedEventArgs e)
@@ -96,6 +97,7 @@ public partial class MainWindow : Window
         }
 
         _viewModel.HuggingFaceToken = passwordBox.Password;
+        SyncHuggingFaceTokenBoxes(passwordBox.Password, passwordBox);
     }
 
     private void OnBrainOpenRouterApiKeyChanged(object sender, RoutedEventArgs e)
@@ -106,6 +108,33 @@ public partial class MainWindow : Window
         }
 
         _viewModel.BrainOpenRouterApiKey = passwordBox.Password;
+    }
+
+    private void SyncPasswordBoxesFromViewModel()
+    {
+        if (_viewModel is null)
+        {
+            return;
+        }
+
+        SyncHuggingFaceTokenBoxes(_viewModel.HuggingFaceToken, null);
+        if (BrainOpenRouterApiKeyBox.Password != _viewModel.BrainOpenRouterApiKey)
+        {
+            BrainOpenRouterApiKeyBox.Password = _viewModel.BrainOpenRouterApiKey;
+        }
+    }
+
+    private void SyncHuggingFaceTokenBoxes(string value, PasswordBox? source)
+    {
+        if (!ReferenceEquals(source, HuggingFaceTokenBox) && HuggingFaceTokenBox.Password != value)
+        {
+            HuggingFaceTokenBox.Password = value;
+        }
+
+        if (!ReferenceEquals(source, RuntimeHuggingFaceTokenBox) && RuntimeHuggingFaceTokenBox.Password != value)
+        {
+            RuntimeHuggingFaceTokenBox.Password = value;
+        }
     }
 
     private static T? FindDescendant<T>(DependencyObject root) where T : DependencyObject

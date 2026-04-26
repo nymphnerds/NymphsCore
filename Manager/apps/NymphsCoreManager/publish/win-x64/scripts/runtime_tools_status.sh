@@ -23,8 +23,8 @@ summarize_probe_detail() {
     return
   fi
 
-  if [[ "${backend}" == "trellis" ]] && [[ "${raw}" == *"missing TRELLIS model files"* ]]; then
-    echo "TRELLIS.2 model files are missing from the local cache. Click Fetch to download them, then Refresh."
+  if [[ "${backend}" == "trellis" ]] && [[ "${raw}" == *"missing TRELLIS GGUF model files"* ]]; then
+    echo "TRELLIS.2 GGUF model files are missing from the local cache. Click Fetch to download them, then Refresh."
     return
   fi
 
@@ -115,29 +115,36 @@ probe_trellis_models() {
     source .venv/bin/activate
     configure_nymphs3d_hf_env
     python - <<'PY' >/dev/null 2>&1
-import json
+import sys
 from pathlib import Path
-from huggingface_hub import snapshot_download
 
-try:
-    root = Path(snapshot_download(repo_id="microsoft/TRELLIS.2-4B", local_files_only=True))
-except Exception:
-    root = Path("models/trellis2")
-    if not root.exists():
-        raise
+sys.path.insert(0, str(Path.cwd() / "scripts"))
+from trellis_gguf_common import ensure_required_support_models, resolve_gguf_model_root
 
-required = {root / "pipeline.json", root / "texturing_pipeline.json"}
-for config_name in ("pipeline.json", "texturing_pipeline.json"):
-    config = json.loads((root / config_name).read_text())
-    args = config.get("args", {})
-    for model_ref in (args.get("models") or {}).values():
-        if isinstance(model_ref, str) and model_ref.startswith("ckpts/"):
-            required.add(root / f"{model_ref}.json")
-            required.add(root / f"{model_ref}.safetensors")
-
+root = resolve_gguf_model_root(local_files_only=True, include_texture=True)
+ensure_required_support_models(local_files_only=True)
+required = [
+    root / "pipeline.json",
+    root / "texturing_pipeline.json",
+    root / "Vision" / "dinov3-vitl16-pretrain-lvd1689m.safetensors",
+]
 missing = [path for path in required if not path.exists()]
 if missing:
-    raise RuntimeError("missing TRELLIS model files")
+    raise RuntimeError("missing TRELLIS GGUF model files")
+PY
+  )
+}
+
+probe_trellis_gguf_runtime() {
+  (
+    cd "${TRELLIS_DIR}"
+    source .venv/bin/activate
+    configure_nymphs3d_hf_env
+    python - <<'PY' >/dev/null 2>&1
+import importlib
+
+for module_name in ("trellis2_gguf", "gguf", "rembg"):
+    importlib.import_module(module_name)
 PY
   )
 }
@@ -163,24 +170,29 @@ check_zimage() {
 
 check_trellis() {
   if [[ ! -d "${TRELLIS_DIR}/.git" ]]; then
-    emit_status "trellis" "TRELLIS.2" "no" "no" "no" "Repo is missing from the managed runtime."
+    emit_status "trellis" "TRELLIS.2 GGUF" "no" "no" "no" "Repo is missing from the managed runtime."
     return
   fi
 
   if [[ ! -x "${TRELLIS_DIR}/.venv/bin/python" ]]; then
-    emit_status "trellis" "TRELLIS.2" "no" "no" "no" "Runtime environment is missing. Run repair or install again."
+    emit_status "trellis" "TRELLIS.2 GGUF" "no" "no" "no" "Runtime environment is missing. Run repair or install again."
     return
   fi
 
-  if [[ ! -f "${TRELLIS_DIR}/scripts/api_server_trellis.py" ]]; then
-    emit_status "trellis" "TRELLIS.2" "no" "no" "no" "Managed TRELLIS adapter scripts are missing. Run repair or update the manager package."
+  if [[ ! -f "${TRELLIS_DIR}/scripts/api_server_trellis_gguf.py" || ! -f "${TRELLIS_DIR}/scripts/trellis_gguf_common.py" ]]; then
+    emit_status "trellis" "TRELLIS.2 GGUF" "yes" "yes" "no" "Managed TRELLIS GGUF adapter is missing. Run repair or update the manager package."
+    return
+  fi
+
+  if ! probe_trellis_gguf_runtime; then
+    emit_status "trellis" "TRELLIS.2 GGUF" "yes" "yes" "no" "TRELLIS.2 GGUF runtime packages are missing. Run repair to install them."
     return
   fi
 
   if probe_trellis_models; then
-    emit_status "trellis" "TRELLIS.2" "yes" "yes" "yes" "All components present. Ready for smoke test."
+    emit_status "trellis" "TRELLIS.2 GGUF" "yes" "yes" "yes" "All components present. Ready for smoke test."
   else
-    emit_status "trellis" "TRELLIS.2" "yes" "no" "no" "Runtime env is ready, but required models are missing. Fetch models before testing."
+    emit_status "trellis" "TRELLIS.2 GGUF" "yes" "no" "no" "Runtime env is ready, but required GGUF models are missing. Fetch models before testing."
   fi
 }
 

@@ -316,7 +316,7 @@ public sealed class InstallerWorkflowService
             }
         }
 
-        var environmentVariables = BuildInstallerTokenEnvironment(settings.HuggingFaceToken);
+        var environmentVariables = BuildInstallerEnvironment(settings);
         var githubToken = ResolveGitHubTokenFromEnvironment();
         if (!string.IsNullOrWhiteSpace(githubToken))
         {
@@ -541,15 +541,25 @@ public sealed class InstallerWorkflowService
     public async Task RunModelPrefetchOnlyAsync(
         InstallSettings settings,
         IProgress<string> progress,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        string backend = "all")
     {
+        if (!string.Equals(settings.DistroName, ManagedDistroName, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException(
+                $"Model downloads are pinned to the canonical {ManagedDistroName} WSL distro. " +
+                $"Current target was '{settings.DistroName}'. Open or repair the {ManagedDistroName} install before fetching models.");
+        }
+
         var prefetchScript = RequireScript("prefetch_models.sh");
         var wslPrefetchScriptPath = ConvertWindowsPathToWsl(prefetchScript)
             ?? throw new InvalidOperationException($"Could not convert script path for WSL: {prefetchScript}");
+        var normalizedBackend = NormalizeModelPrefetchBackend(backend);
 
         var tokenExport = string.IsNullOrWhiteSpace(settings.HuggingFaceToken)
             ? string.Empty
             : $"export NYMPHS3D_HF_TOKEN={ToBashSingleQuoted(settings.HuggingFaceToken.Trim())}; ";
+        var trellisQuant = NormalizeTrellisGgufPrefetchQuant(settings.TrellisGgufQuant);
 
         var bashCommand =
             "set -euo pipefail; " +
@@ -561,7 +571,8 @@ public sealed class InstallerWorkflowService
             "export NYMPHS3D_Z_IMAGE_DIR=\"$HOME/Z-Image\"; " +
             "export NYMPHS3D_N2D2_DIR=\"$NYMPHS3D_Z_IMAGE_DIR\"; " +
             "export NYMPHS3D_TRELLIS_DIR=\"$HOME/TRELLIS.2\"; " +
-            $"bash {ToBashSingleQuoted(wslPrefetchScriptPath)}";
+            $"export TRELLIS_GGUF_QUANT={ToBashSingleQuoted(trellisQuant)}; " +
+            $"bash {ToBashSingleQuoted(wslPrefetchScriptPath)} --backend {ToBashSingleQuoted(normalizedBackend)}";
 
         var arguments = new List<string>
         {
@@ -571,7 +582,7 @@ public sealed class InstallerWorkflowService
             "/bin/bash", "-lc", bashCommand,
         };
 
-        progress.Report("Model prefetch: downloading model weights only. Runtime repair is not part of this step.");
+        progress.Report($"Model prefetch: downloading {FriendlyBackendLabel(normalizedBackend)} model weights only into WSL distro {ManagedDistroName}. TRELLIS GGUF quant: {trellisQuant}. Runtime repair is not part of this step.");
 
         var result = await _processRunner.RunAsync(
             fileName: "wsl.exe",
@@ -584,6 +595,58 @@ public sealed class InstallerWorkflowService
         if (result.ExitCode != 0)
         {
             throw new InvalidOperationException("Model prefetch failed.");
+        }
+    }
+
+    public async Task RunTrellisAdapterRepairAsync(
+        InstallSettings settings,
+        IProgress<string> progress,
+        CancellationToken cancellationToken)
+    {
+        var sourceApi = RequireScript(Path.Combine("trellis_adapter", "api_server_trellis_gguf.py"));
+        var sourceCommon = RequireScript(Path.Combine("trellis_adapter", "trellis_gguf_common.py"));
+        var wslSourceApi = ConvertWindowsPathToWsl(sourceApi)
+            ?? throw new InvalidOperationException($"Could not convert adapter path for WSL: {sourceApi}");
+        var wslSourceCommon = ConvertWindowsPathToWsl(sourceCommon)
+            ?? throw new InvalidOperationException($"Could not convert adapter path for WSL: {sourceCommon}");
+        var trellisRuntimeDir = $"/home/{settings.LinuxUser}/TRELLIS.2";
+        var trellisScriptDir = $"{trellisRuntimeDir}/scripts";
+        var trellisQuant = NormalizeTrellisGgufRuntimeQuant(settings.TrellisGgufQuant);
+
+        var bashCommand =
+            "set -euo pipefail; " +
+            $"export HOME={ToBashSingleQuoted($"/home/{settings.LinuxUser}")}; " +
+            $"export USER={ToBashSingleQuoted(settings.LinuxUser)}; " +
+            $"export LOGNAME={ToBashSingleQuoted(settings.LinuxUser)}; " +
+            $"export NYMPHS3D_RUNTIME_ROOT={ToBashSingleQuoted($"/home/{settings.LinuxUser}")}; " +
+            $"export NYMPHS3D_TRELLIS_DIR={ToBashSingleQuoted(trellisRuntimeDir)}; " +
+            $"export TRELLIS_GGUF_QUANT={ToBashSingleQuoted(trellisQuant)}; " +
+            $"mkdir -p {ToBashSingleQuoted(trellisScriptDir)}; " +
+            $"install -m 644 {ToBashSingleQuoted(wslSourceApi)} {ToBashSingleQuoted($"{trellisScriptDir}/api_server_trellis_gguf.py")}; " +
+            $"install -m 644 {ToBashSingleQuoted(wslSourceCommon)} {ToBashSingleQuoted($"{trellisScriptDir}/trellis_gguf_common.py")}; " +
+            $"echo \"Managed TRELLIS GGUF adapter scripts repaired at {trellisScriptDir}.\"";
+
+        var arguments = new List<string>
+        {
+            "-d", settings.DistroName,
+            "--user", settings.LinuxUser,
+            "--",
+            "/bin/bash", "-lc", bashCommand,
+        };
+
+        progress.Report("TRELLIS repair: syncing managed GGUF adapter scripts into the runtime.");
+
+        var result = await _processRunner.RunAsync(
+            fileName: "wsl.exe",
+            arguments,
+            workingDirectory: Environment.SystemDirectory,
+            progress,
+            environmentVariables: null,
+            cancellationToken).ConfigureAwait(false);
+
+        if (result.ExitCode != 0)
+        {
+            throw new InvalidOperationException("TRELLIS adapter repair failed.");
         }
     }
 
@@ -606,6 +669,7 @@ public sealed class InstallerWorkflowService
             "export NYMPHS3D_Z_IMAGE_DIR=\"$HOME/Z-Image\"; " +
             "export NYMPHS3D_N2D2_DIR=\"$NYMPHS3D_Z_IMAGE_DIR\"; " +
             "export NYMPHS3D_TRELLIS_DIR=\"$HOME/TRELLIS.2\"; " +
+            $"export TRELLIS_GGUF_QUANT={ToBashSingleQuoted(NormalizeTrellisGgufRuntimeQuant(settings.TrellisGgufQuant))}; " +
             $"bash {ToBashSingleQuoted(wslSmokeScriptPath)} --backend {ToBashSingleQuoted(backend)}";
 
         var arguments = new List<string>
@@ -691,6 +755,7 @@ public sealed class InstallerWorkflowService
             "export NYMPHS3D_Z_IMAGE_DIR=\"$HOME/Z-Image\"; " +
             "export NYMPHS3D_N2D2_DIR=\"$NYMPHS3D_Z_IMAGE_DIR\"; " +
             "export NYMPHS3D_TRELLIS_DIR=\"$HOME/TRELLIS.2\"; " +
+            $"export TRELLIS_GGUF_QUANT={ToBashSingleQuoted(NormalizeTrellisGgufRuntimeQuant(settings.TrellisGgufQuant))}; " +
             $"bash {ToBashSingleQuoted(wslStatusScriptPath)}";
 
         var arguments = new List<string>
@@ -1135,14 +1200,20 @@ public sealed class InstallerWorkflowService
             cancellationToken: cancellationToken).ConfigureAwait(false);
     }
 
-    private static Dictionary<string, string?>? BuildInstallerTokenEnvironment(string? huggingFaceToken)
+    private static Dictionary<string, string?>? BuildInstallerEnvironment(InstallSettings settings)
     {
         Dictionary<string, string?>? environmentVariables = null;
 
-        if (!string.IsNullOrWhiteSpace(huggingFaceToken))
+        if (!string.IsNullOrWhiteSpace(settings.HuggingFaceToken))
         {
             environmentVariables ??= new Dictionary<string, string?>();
-            environmentVariables["NYMPHS3D_HF_TOKEN"] = huggingFaceToken.Trim();
+            environmentVariables["NYMPHS3D_HF_TOKEN"] = settings.HuggingFaceToken.Trim();
+        }
+
+        if (!string.IsNullOrWhiteSpace(settings.TrellisGgufQuant))
+        {
+            environmentVariables ??= new Dictionary<string, string?>();
+            environmentVariables["TRELLIS_GGUF_QUANT"] = NormalizeTrellisGgufPrefetchQuant(settings.TrellisGgufQuant);
         }
 
         var githubToken = ResolveGitHubTokenFromEnvironment();
@@ -1153,6 +1224,26 @@ public sealed class InstallerWorkflowService
         }
 
         return environmentVariables;
+    }
+
+    private static string NormalizeTrellisGgufPrefetchQuant(string? quant)
+    {
+        var normalized = (quant ?? "Q5_K_M").Trim().ToUpperInvariant();
+        return normalized switch
+        {
+            "ALL" => "all",
+            "Q4_K_M" => "Q4_K_M",
+            "Q5_K_M" => "Q5_K_M",
+            "Q6_K" => "Q6_K",
+            "Q8_0" => "Q8_0",
+            _ => "Q5_K_M",
+        };
+    }
+
+    private static string NormalizeTrellisGgufRuntimeQuant(string? quant)
+    {
+        var normalized = NormalizeTrellisGgufPrefetchQuant(quant);
+        return normalized == "all" ? "Q5_K_M" : normalized;
     }
 
     private static string? ResolveGitHubTokenFromEnvironment()
@@ -1409,35 +1500,15 @@ public sealed class InstallerWorkflowService
         return candidates.FirstOrDefault(File.Exists) ?? candidates[0];
     }
 
-    private static bool IsManagedDistroAlias(string distroName)
+    private static bool IsCanonicalManagedDistro(string distroName)
     {
-        if (string.IsNullOrWhiteSpace(distroName))
-        {
-            return false;
-        }
-
-        if (string.Equals(distroName, ManagedDistroName, StringComparison.OrdinalIgnoreCase))
-        {
-            return true;
-        }
-
-        // Legacy lite distros are separate installs and must not be reused as the
-        // canonical managed runtime.
-        if (!distroName.StartsWith(ManagedDistroName, StringComparison.OrdinalIgnoreCase))
-        {
-            return false;
-        }
-
-        var suffix = distroName[ManagedDistroName.Length..];
-        return suffix.Length > 0 && suffix.All(char.IsDigit);
+        return string.Equals(distroName, ManagedDistroName, StringComparison.OrdinalIgnoreCase);
     }
 
     private static string? FindManagedDistroName(IEnumerable<string> distros)
     {
         return distros
-            .Where(IsManagedDistroAlias)
-            .OrderBy(name => string.Equals(name, ManagedDistroName, StringComparison.OrdinalIgnoreCase) ? 0 : 1)
-            .ThenBy(name => name.Length)
+            .Where(IsCanonicalManagedDistro)
             .FirstOrDefault();
     }
 
@@ -1528,9 +1599,23 @@ public sealed class InstallerWorkflowService
     {
         return backend switch
         {
+            "all" => "all core backend",
             "zimage" => "Z-Image",
             "trellis" => "TRELLIS.2",
             _ => backend,
+        };
+    }
+
+    private static string NormalizeModelPrefetchBackend(string backend)
+    {
+        var normalized = (backend ?? "all").Trim().ToLowerInvariant();
+        return normalized switch
+        {
+            "" => "all",
+            "all" => "all",
+            "zimage" => "zimage",
+            "trellis" => "trellis",
+            _ => throw new ArgumentException($"Unsupported model prefetch backend: {backend}", nameof(backend)),
         };
     }
 

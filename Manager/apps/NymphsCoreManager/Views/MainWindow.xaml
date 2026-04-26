@@ -675,6 +675,24 @@
                     BorderThickness="1"
                     CornerRadius="12">
               <StackPanel>
+                <TextBlock Text="TRELLIS.2 GGUF download"
+                           FontWeight="SemiBold"
+                           FontSize="16" />
+                <TextBlock Margin="0,10,0,0"
+                           Text="Choose which TRELLIS GGUF quantized weights to prefetch. The full cache is bigger, but lets Blender switch GGUF quantization later without a second download."
+                           TextWrapping="Wrap"
+                           Style="{StaticResource MutedText}" />
+                <ComboBox Margin="0,12,0,0"
+                          ItemsSource="{Binding TrellisGgufQuantOptions}"
+                          SelectedItem="{Binding SelectedTrellisGgufQuantOption}"
+                          DisplayMemberPath="Title"
+                          FontSize="15"
+                          Padding="10" />
+                <TextBlock Margin="0,10,0,14"
+                           Text="{Binding TrellisGgufQuantSummary}"
+                           TextWrapping="Wrap"
+                           FontSize="13"
+                           Style="{StaticResource MutedText}" />
                 <CheckBox IsChecked="{Binding PrefetchModelsNow}"
                           FontSize="16"
                           FontWeight="SemiBold"
@@ -742,10 +760,11 @@
                            FontWeight="SemiBold"
                            FontSize="16" />
                 <TextBlock Margin="0,10,0,0"
-                           Text="If you already have a Hugging Face access token, you can enter it here so installer-time model downloads use authenticated access. The token is used for this installer run only and is not written into the installed distro."
+                           Text="If you already have a Hugging Face access token, you can enter it here so model downloads use authenticated access. The token is saved on this Windows user account and reused by the Manager and addon-launched local runtimes."
                            TextWrapping="Wrap"
                            Style="{StaticResource MutedText}" />
-                <PasswordBox Margin="0,12,0,0"
+                <PasswordBox x:Name="HuggingFaceTokenBox"
+                             Margin="0,12,0,0"
                              Padding="10"
                              FontSize="14"
                              PasswordChanged="OnHuggingFaceTokenChanged" />
@@ -1007,13 +1026,49 @@
                            FontWeight="SemiBold"
                            FontSize="13"
                            VerticalAlignment="Center" />
-                <PasswordBox Grid.Column="2"
+                <PasswordBox x:Name="RuntimeHuggingFaceTokenBox"
+                             Grid.Column="2"
                              Padding="7"
                              FontSize="13"
                              VerticalContentAlignment="Center"
                              PasswordChanged="OnHuggingFaceTokenChanged" />
                 <TextBlock Grid.Column="4"
                            Text="{Binding HuggingFaceTokenStatus}"
+                           TextWrapping="Wrap"
+                           FontSize="11"
+                           VerticalAlignment="Center"
+                           Style="{StaticResource MutedText}" />
+              </Grid>
+            </Border>
+
+            <Border Margin="0,10,0,0"
+                    Padding="12,8"
+                    Background="#F8F3EA"
+                    BorderBrush="#E7DDCF"
+                    BorderThickness="1"
+                    CornerRadius="10">
+              <Grid>
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="Auto" />
+                  <ColumnDefinition Width="12" />
+                  <ColumnDefinition Width="240" />
+                  <ColumnDefinition Width="12" />
+                  <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0"
+                           Text="TRELLIS.2 GGUF download"
+                           FontWeight="SemiBold"
+                           FontSize="13"
+                           VerticalAlignment="Center" />
+                <ComboBox Grid.Column="2"
+                          ItemsSource="{Binding TrellisGgufQuantOptions}"
+                          SelectedItem="{Binding SelectedTrellisGgufQuantOption}"
+                          DisplayMemberPath="Title"
+                          FontSize="13"
+                          Padding="7"
+                          VerticalAlignment="Center" />
+                <TextBlock Grid.Column="4"
+                           Text="{Binding TrellisGgufQuantSummary}"
                            TextWrapping="Wrap"
                            FontSize="11"
                            VerticalAlignment="Center"
@@ -1061,7 +1116,7 @@
                     </Grid.ColumnDefinitions>
                     <Button Grid.Column="0" Style="{StaticResource SecondaryActionButton}" Margin="0"
                             HorizontalAlignment="Stretch" VerticalAlignment="Top"
-                            Command="{Binding FetchModelsNowCommand}" Content="Fetch" />
+                            Command="{Binding FetchZImageModelsCommand}" Content="{Binding ZImageFetchButtonText}" />
                     <Button Grid.Column="2" Style="{StaticResource SecondaryActionButton}" Margin="0"
                             HorizontalAlignment="Stretch" VerticalAlignment="Top"
                             Command="{Binding TestZImageCommand}" Content="{Binding ZImageTestButtonText}" />
@@ -1101,7 +1156,7 @@
                     </Grid.ColumnDefinitions>
                     <Button Grid.Column="0" Style="{StaticResource SecondaryActionButton}" Margin="0"
                             HorizontalAlignment="Stretch" VerticalAlignment="Top"
-                            Command="{Binding FetchModelsNowCommand}" Content="Fetch" />
+                            Command="{Binding TrellisRuntimeActionCommand}" Content="{Binding TrellisFetchButtonText}" />
                     <Button Grid.Column="2" Style="{StaticResource SecondaryActionButton}" Margin="0"
                             HorizontalAlignment="Stretch" VerticalAlignment="Top"
                             Command="{Binding TestTrellisCommand}" Content="{Binding TrellisTestButtonText}" />
@@ -1376,7 +1431,8 @@
                              Foreground="#3F382F"
                              ToolTip="Optional. Enables the Brain llm-wrapper tool when a valid OpenRouter key is present." />
 
-                  <PasswordBox Grid.Column="2"
+                  <PasswordBox x:Name="BrainOpenRouterApiKeyBox"
+                               Grid.Column="2"
                                Padding="8,6"
                                FontSize="13"
                                VerticalAlignment="Center"

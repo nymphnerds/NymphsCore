@@ -8,6 +8,56 @@ This file focuses on user-facing and system-level changes rather than package-by
 
 Newest entries first.
 
+### 2026-04-25 Manager Runtime Tools backend-specific fetch fix
+Source: fresh installer testing showed the TRELLIS.2 GGUF Runtime Tools card could report a missing managed adapter, but pressing its `Fetch` button ran the all-backend model prefetch path and rechecked/downloaded Z-Image/Nunchaku weights before failing on the missing TRELLIS adapter helper.
+
+Changed:
+
+- added backend selection to `prefetch_models.sh` so Runtime Tools can fetch `zimage`, `trellis`, or `all`
+- added an installer TRELLIS.2 GGUF download selector, defaulting to `All quants`, so fresh installs can prefetch `Q4_K_M`, `Q5_K_M`, `Q6_K`, and `Q8_0` in one pass for later Blender-side switching
+- added the same TRELLIS.2 GGUF download selector to Runtime Tools so backend-specific `Fetch` no longer hides which quant set will be downloaded
+- made the TRELLIS.2 GGUF server report locally complete GGUF quants and filtered the Blender addon quant dropdown to only show available choices
+- bumped the branch addon feed to `1.1.197`
+- changed the Z-Image card fetch button to run only Z-Image model prefetch
+- changed the TRELLIS card fetch button to run only TRELLIS GGUF model prefetch when models are missing
+- changed the TRELLIS card to show `Repair` when the managed GGUF adapter or GGUF runtime packages are missing, and sync the packaged adapter scripts into the TRELLIS runtime instead of downloading unrelated models
+- tightened TRELLIS Runtime Tools status so either missing GGUF adapter file is reported as an adapter repair problem
+- fixed the TRELLIS adapter repair command to use an explicit `/home/<user>/TRELLIS.2/scripts` target path so it cannot collapse to `/scripts` if shell variable expansion fails
+- corrected the Runtime Tools summary and post-fetch success text so one ready backend or model-ready backend no longer hides another backend that still needs repair before smoke testing
+
+Validation:
+
+- verified `prefetch_models.sh --help` and shell syntax for the source and packaged script copy
+- Windows/.NET manager compile could not be run from this WSL shell because Windows executable interop is unavailable here
+
+### 2026-04-25 TRELLIS GGUF shape/texture settings audit
+Source: live branch testing of the TRELLIS.2 GGUF Shape panel found several controls that either did not apply on the new GGUF path or behaved differently between shape-only and shape+texture runs.
+
+Documented changes:
+
+- fixed GGUF `Faces` target handling for shape-only exports and kept it active for shape+texture exports
+- hid unsupported GGUF Shape+Texture controls from the combined shape panel instead of presenting settings that the backend could not honor
+- wired GGUF textured-export `UV Angle` and fixed Sparse Res `Auto` to match the selected pipeline
+- consolidated TRELLIS shape presets into the user preset folder and cleaned stale legacy preset JSONs from older builds
+- fixed GGUF retexture UV-angle conversion from degrees to radians
+- preserved the user's `Also Generate Texture` checkbox state during backend refreshes so the panel no longer collapses or silently unchecks texture mid-run
+- removed the current custom `Mesh Cleanup` / `Remove Flat Debris` UI and backend helper because it was a narrow shape-only postprocess, not a real TRELLIS pass
+- documented that cleanup is still important: live textured GGUF testing can still produce a wide floor/backdrop plate even when `Auto Remove Background` is enabled
+- fixed GGUF selected-mesh retexture startup by making the standalone GGUF model shim resolve the required non-GGUF shape SLat encoder as an explicit GGUF support checkpoint
+- updated Manager model prefetch, Runtime Tools status, and install verification so this GGUF support checkpoint is fetched and checked with the rest of the TRELLIS.2 GGUF model bundle
+
+Validation:
+
+- user confirmed the Shape panel no longer collapses mid-pass after the texture-state fix
+- user confirmed textured output is present on the imported mesh
+- code review confirmed `Auto Remove Background` is wired into the GGUF adapter, but it depends on `rembg` and cannot guarantee removal of floor, shadow, or backdrop regions that remain in the source image
+- verified the patched GGUF model shim resolves `shape_enc_next_dc_f16c32_fp16`; if absent, it now fetches only that required support checkpoint from `microsoft/TRELLIS.2-4B` rather than depending on an official TRELLIS runtime install
+- verified Manager script syntax and local-only support-checkpoint detection
+
+Why it matters:
+
+- the GGUF Shape panel now exposes fewer fake controls, preserves user texture intent more reliably, and has a clear next cleanup target: a deliberate `Postprocess / Cleanup / Retopo` pass that works for both shape-only and shape+texture outputs
+
 ### 2026-04-23 Z-Image img2img installer branch and addon release
 Source: live Lite distro testing confirmed local Z-Image image-to-image generation can run through Nunchaku with a compatibility shim against the current diffusers Z-Image pipeline.
 

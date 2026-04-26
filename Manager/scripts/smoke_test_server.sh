@@ -87,14 +87,15 @@ case "${BACKEND}" in
     REPO_DIR="${NYMPHS3D_TRELLIS_DIR}"
     VENV_ACTIVATE="${REPO_DIR}/.venv/bin/activate"
     PORT="${PORT:-8094}"
-    EXPECTED_BACKEND="TRELLIS.2"
-    EXPECTED_MODEL="microsoft/TRELLIS.2-4B"
-    EXPECTED_SUBFOLDER="official"
+    EXPECTED_BACKEND="TRELLIS.2-GGUF"
+    EXPECTED_MODEL="Aero-Ex/Trellis2-GGUF"
+    EXPECTED_SUBFOLDER="gguf/${TRELLIS_GGUF_QUANT:-Q5_K_M}"
     SERVER_CMD=(
-      python -u scripts/api_server_trellis.py
+      python -u scripts/api_server_trellis_gguf.py
       --host 127.0.0.1
       --port "${PORT}"
       --python-path "${REPO_DIR}/.venv/bin/python"
+      --gguf-quant "${TRELLIS_GGUF_QUANT:-Q5_K_M}"
     )
     ;;
   *)

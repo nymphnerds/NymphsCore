@@ -10,6 +10,88 @@ REPO_URL="${NYMPHS3D_TRELLIS_REPO_URL}"
 REPO_BRANCH="${NYMPHS3D_TRELLIS_REPO_BRANCH}"
 UTILS3D_REF="${NYMPHS3D_TRELLIS_UTILS3D_REF:-9a4eb15e4021b67b12c460c7057d642626897ec8}"
 INSTALL_FLASH_ATTN="${NYMPHS3D_TRELLIS_INSTALL_FLASH_ATTN:-yes}"
+GGUF_RUNTIME_DIR="${NYMPHS3D_TRELLIS_GGUF_RUNTIME_DIR:-${REPO_DIR}/.cache/trellis-gguf-runtime}"
+TRELLIS2_GGUF_REPO_URL="${NYMPHS3D_TRELLIS2_GGUF_REPO_URL:-https://github.com/Aero-Ex/ComfyUI-Trellis2-GGUF.git}"
+TRELLIS2_GGUF_REPO_REF="${NYMPHS3D_TRELLIS2_GGUF_REPO_REF:-main}"
+COMFYUI_GGUF_REPO_URL="${NYMPHS3D_COMFYUI_GGUF_REPO_URL:-https://github.com/city96/ComfyUI-GGUF.git}"
+COMFYUI_GGUF_REPO_REF="${NYMPHS3D_COMFYUI_GGUF_REPO_REF:-main}"
+
+site_packages_dir() {
+  "${VENV_PYTHON}" - <<'PY'
+import site
+paths = [p for p in site.getsitepackages() if p.endswith("site-packages")]
+if not paths:
+    raise SystemExit("Could not resolve site-packages for the TRELLIS venv.")
+print(paths[0])
+PY
+}
+
+sync_runtime_repo() {
+  local name="$1"
+  local repo_url="$2"
+  local repo_ref="$3"
+  local repo_path="$4"
+
+  if [[ ! -d "${repo_path}/.git" ]]; then
+    rm -rf "${repo_path}"
+    echo "Cloning ${name} runtime package"
+    GIT_TERMINAL_PROMPT=0 git clone --depth 1 --branch "${repo_ref}" "${repo_url}" "${repo_path}"
+    return
+  fi
+
+  echo "Updating ${name} runtime package"
+  GIT_TERMINAL_PROMPT=0 git -C "${repo_path}" fetch --depth 1 origin "${repo_ref}"
+  git -C "${repo_path}" checkout --detach FETCH_HEAD
+}
+
+install_trellis_gguf_runtime() {
+  local package_dir="${GGUF_RUNTIME_DIR}/ComfyUI-Trellis2-GGUF"
+  local loader_dir="${GGUF_RUNTIME_DIR}/ComfyUI-GGUF"
+  local site_packages=""
+  local loader_target=""
+
+  echo "Installing TRELLIS.2 GGUF runtime dependencies"
+  "${VENV_PIP}" install \
+    gguf \
+    rembg \
+    onnxruntime \
+    pymeshlab \
+    meshlib \
+    open3d \
+    rectpack \
+    sdnq \
+    accelerate
+
+  mkdir -p "${GGUF_RUNTIME_DIR}"
+  sync_runtime_repo "ComfyUI-Trellis2-GGUF" "${TRELLIS2_GGUF_REPO_URL}" "${TRELLIS2_GGUF_REPO_REF}" "${package_dir}"
+  sync_runtime_repo "ComfyUI-GGUF" "${COMFYUI_GGUF_REPO_URL}" "${COMFYUI_GGUF_REPO_REF}" "${loader_dir}"
+
+  site_packages="$(site_packages_dir)"
+  if [[ ! -d "${package_dir}/trellis2_gguf" ]]; then
+    echo "Expected trellis2_gguf package is missing from ${package_dir}"
+    exit 1
+  fi
+  if [[ ! -f "${loader_dir}/ops.py" || ! -f "${loader_dir}/dequant.py" || ! -f "${loader_dir}/loader.py" ]]; then
+    echo "Expected ComfyUI-GGUF loader files are missing from ${loader_dir}"
+    exit 1
+  fi
+
+  rm -rf "${site_packages}/trellis2_gguf"
+  cp -a "${package_dir}/trellis2_gguf" "${site_packages}/trellis2_gguf"
+
+  loader_target="${site_packages}/ComfyUI-GGUF"
+  mkdir -p "${loader_target}"
+  cp -a "${loader_dir}/ops.py" "${loader_dir}/dequant.py" "${loader_dir}/loader.py" "${loader_target}/"
+
+  "${VENV_PYTHON}" - <<'PY'
+import importlib
+
+for module_name in ("trellis2_gguf", "gguf", "rembg", "open3d", "pymeshlab", "meshlib"):
+    importlib.import_module(module_name)
+
+print("TRELLIS.2 GGUF runtime imports available.")
+PY
+}
 
 print_flash_attn_diagnostics() {
   local torch_report
@@ -260,10 +342,8 @@ git submodule update --init --recursive o-voxel/third_party/eigen
 ADAPTER_SOURCE_DIR="${ROOT_DIR}/scripts/trellis_adapter"
 ADAPTER_TARGET_DIR="${REPO_DIR}/scripts"
 ADAPTER_FILES=(
-  api_server_trellis.py
-  trellis_official_common.py
-  run_official_image_to_3d.py
-  run_official_shape_only.py
+  api_server_trellis_gguf.py
+  trellis_gguf_common.py
 )
 
 echo "Syncing managed TRELLIS adapter scripts"
@@ -434,8 +514,10 @@ fi
 
 "${VENV_PIP}" install --no-build-isolation --no-deps ./o-voxel
 
+install_trellis_gguf_runtime
+
 echo "Running TRELLIS adapter entrypoint sanity check"
-"${VENV_PYTHON}" scripts/api_server_trellis.py --help >/dev/null
+"${VENV_PYTHON}" scripts/api_server_trellis_gguf.py --help >/dev/null
 
 echo
-echo "TRELLIS.2 install complete."
+echo "TRELLIS.2 GGUF install complete."

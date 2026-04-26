@@ -26,6 +26,8 @@ public sealed class InstallSettings
 
     public string HuggingFaceToken { get; set; } = string.Empty;
 
+    public string TrellisGgufQuant { get; set; } = "all";
+
     public WslConfigMode WslConfigMode { get; set; } = WslConfigMode.Recommended;
 
     public int WslMemoryGb { get; set; }
