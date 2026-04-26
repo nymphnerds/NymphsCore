@@ -1,21 +1,1009 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>NymphsCore Alpha Testing</title>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@900&family=DM+Mono:wght@400;500&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
-:root{--lime:#63e35f;--dark:#0d0d0d;--dark2:#161616;--dark3:#1e1e1e;--dark4:#2a2a2a;--muted:#888;--light:#f0ede6;--teal:#55dff0;--head:"Archivo",sans-serif;--mono:"DM Mono",monospace;--body:"Inter",sans-serif}*{box-sizing:border-box}body{margin:0;background:var(--dark);color:var(--light);font-family:var(--body);font-weight:300;line-height:1.6}nav{position:fixed;top:0;left:0;right:0;background:rgba(13,13,13,.9);backdrop-filter:blur(14px);border-bottom:1px solid var(--dark4);padding:16px 60px;display:flex;justify-content:space-between;align-items:center;z-index:10}.logo{display:flex;gap:12px;align-items:center;font-family:var(--head);font-size:20px;color:var(--light);text-decoration:none}.logo img{width:34px;height:34px}.core{color:var(--lime)}.links{display:flex;gap:28px;list-style:none;margin:0;padding:0}.links a{color:var(--muted);text-decoration:none;font-size:14px}.links a:hover{color:var(--light)}.nav-cta{background:var(--lime);color:var(--dark)!important;padding:8px 18px;border-radius:5px;font-family:var(--head);font-size:13px}.hero{min-height:100vh;padding:130px 60px 80px;display:flex;flex-direction:column;justify-content:center;position:relative;overflow:hidden}.hero:before{content:"";position:absolute;top:-220px;right:-180px;width:620px;height:620px;background:radial-gradient(circle,rgba(99,227,95,.1),transparent 70%)}.hero>*{position:relative}.hero-logo{width:min(560px,82vw);margin-bottom:30px}.badge{width:fit-content;display:flex;gap:8px;align-items:center;background:var(--dark3);border:1px solid var(--dark4);border-radius:100px;padding:6px 16px;color:var(--lime);font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:.08em;margin-bottom:32px}.dot{width:6px;height:6px;background:var(--lime);border-radius:50%}h1,h2,h3{font-family:var(--head);letter-spacing:-.02em}h1{font-size:clamp(52px,8vw,108px);line-height:.93;margin:0 0 32px;max-width:960px}em{font-style:normal;color:var(--lime);display:block}.gradient{background:linear-gradient(90deg,#55dff0,#63e35f);-webkit-background-clip:text;background-clip:text;color:transparent}.sub{font-size:18px;color:var(--muted);max-width:720px;margin:0 0 48px}.row{display:flex;gap:16px;flex-wrap:wrap;align-items:center}.btn{background:var(--lime);color:var(--dark);border:0;border-radius:6px;padding:14px 30px;font-family:var(--head);font-size:15px;font-weight:900;text-decoration:none;cursor:pointer}.ghost{background:transparent;color:var(--light);border:1px solid var(--dark4)}.section{padding:100px 60px}.tag{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--lime);margin-bottom:20px}.title{font-size:clamp(36px,4.5vw,58px);line-height:1;margin:0 0 16px}.section p.lead{color:var(--muted);max-width:720px;margin:0 0 60px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:2px;background:var(--dark4);border-radius:12px;overflow:hidden}.card{background:var(--dark2);padding:32px}.card:hover{background:var(--dark3)}.num{font-family:var(--mono);font-size:11px;color:var(--lime);letter-spacing:.1em;margin-bottom:10px}.icon{font-size:28px;margin-bottom:10px}.card h3{font-size:18px;margin:0 0 8px}.card p{font-size:14px;color:var(--muted);margin:0}.form-section{background:var(--dark2);border-top:1px solid var(--dark4);border-bottom:1px solid var(--dark4)}.form-wrap{display:grid;grid-template-columns:.85fr 1.15fr;gap:64px}.note{background:linear-gradient(135deg,rgba(99,227,95,.06),rgba(85,223,240,.05));border:1px solid rgba(85,223,240,.16);border-radius:16px;padding:32px}.note p,.note li{color:var(--muted);font-size:14px}.panel{background:var(--dark);border:1px solid var(--dark4);border-radius:16px;padding:32px}form{display:grid;grid-template-columns:1fr 1fr;gap:20px}.full{grid-column:1/-1}label{display:block;color:var(--teal);font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px}input,select,textarea{width:100%;border:1px solid var(--dark4);background:var(--dark2);color:var(--light);border-radius:8px;padding:13px 14px;font:inherit}textarea{min-height:130px;resize:vertical}.hint{grid-column:1/-1;color:#666;font-family:var(--mono);font-size:11px}.final{text-align:center;padding:120px 60px}.final p{color:var(--muted);max-width:620px;margin:0 auto 40px}footer{border-top:1px solid var(--dark4);padding:32px 60px;color:#555;font-family:var(--mono);font-size:12px;display:flex;justify-content:space-between}@media(max-width:900px){nav{padding:14px 24px}.links{display:none}.hero,.section,.final{padding-left:24px;padding-right:24px}.form-wrap{grid-template-columns:1fr}form{grid-template-columns:1fr}footer{padding:24px}}
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --lime: #63e35f;
+    --teal: #55dff0;
+    --amber: #ffb84d;
+    --dark: #0d0d0d;
+    --dark2: #151515;
+    --dark3: #1e1e1e;
+    --dark4: #2b2b2b;
+    --muted: #8c8c8c;
+    --light: #f0ede6;
+    --panel: rgba(255, 255, 255, 0.03);
+    --head: "Archivo", sans-serif;
+    --mono: "DM Mono", monospace;
+    --body: "Inter", sans-serif;
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background:
+      radial-gradient(circle at 84% 10%, rgba(99, 227, 95, 0.12) 0%, transparent 24%),
+      radial-gradient(circle at 14% 72%, rgba(85, 223, 240, 0.09) 0%, transparent 26%),
+      linear-gradient(180deg, #0a0d0b 0%, #0d0d0d 46%, #0b0d0c 100%);
+    color: var(--light);
+    font-family: var(--body);
+    font-weight: 300;
+    line-height: 1.65;
+    overflow-x: hidden;
+  }
+
+  img { max-width: 100%; display: block; }
+  a { color: inherit; }
+
+  nav {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    padding: 16px 60px;
+    background: rgba(13, 13, 13, 0.88);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border-bottom: 1px solid var(--dark4);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    z-index: 100;
+  }
+
+  .logo {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    text-decoration: none;
+    color: var(--light);
+    font-family: var(--head);
+    font-size: 20px;
+    font-weight: 900;
+    letter-spacing: -0.01em;
+  }
+
+  .logo img {
+    width: 34px;
+    height: 34px;
+    object-fit: contain;
+  }
+
+  .core { color: var(--lime); }
+
+  .links {
+    list-style: none;
+    display: flex;
+    gap: 32px;
+    align-items: center;
+  }
+
+  .links a {
+    text-decoration: none;
+    color: var(--muted);
+    font-size: 14px;
+    transition: color 0.15s ease;
+  }
+
+  .links a:hover { color: var(--light); }
+
+  .nav-cta {
+    background: linear-gradient(90deg, var(--lime) 0%, var(--teal) 100%);
+    color: var(--dark) !important;
+    padding: 8px 18px;
+    border-radius: 6px;
+    font-family: var(--head);
+    font-size: 13px;
+    font-weight: 900;
+    box-shadow: 0 12px 30px rgba(85, 223, 240, 0.12);
+  }
+
+  .hero {
+    min-height: 100vh;
+    display: grid;
+    grid-template-columns: minmax(0, 1.08fr) minmax(320px, 0.92fr);
+    gap: 48px;
+    align-items: center;
+    padding: 136px 60px 88px;
+    position: relative;
+  }
+
+  .hero::before {
+    content: "";
+    position: absolute;
+    top: -220px;
+    right: -220px;
+    width: 620px;
+    height: 620px;
+    background: radial-gradient(circle, rgba(99, 227, 95, 0.14) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  .hero::after {
+    content: "";
+    position: absolute;
+    bottom: -140px;
+    left: -120px;
+    width: 460px;
+    height: 460px;
+    background: radial-gradient(circle, rgba(85, 223, 240, 0.10) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  .hero-copy,
+  .hero-side {
+    position: relative;
+    z-index: 2;
+  }
+
+  .hero-logo {
+    width: min(560px, 82vw);
+    margin-bottom: 28px;
+  }
+
+  .badge-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+    margin-bottom: 30px;
+  }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    width: fit-content;
+    padding: 6px 16px;
+    border-radius: 100px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.035) 0%, rgba(255, 255, 255, 0.02) 100%);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+    color: var(--lime);
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .badge-dot {
+    width: 6px;
+    height: 6px;
+    background: var(--lime);
+    border-radius: 50%;
+    animation: pulse 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.45; transform: scale(0.82); }
+  }
+
+  h1, h2, h3 {
+    font-family: var(--head);
+    letter-spacing: -0.02em;
+  }
+
+  h1 {
+    font-size: clamp(54px, 8vw, 108px);
+    line-height: 0.93;
+    margin-bottom: 28px;
+    max-width: 920px;
+  }
+
+  h1 em {
+    display: block;
+    font-style: normal;
+    background: linear-gradient(90deg, var(--teal) 0%, var(--lime) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .sub {
+    max-width: 640px;
+    font-size: 18px;
+    color: var(--muted);
+    line-height: 1.75;
+    margin-bottom: 38px;
+  }
+
+  .sub strong {
+    color: var(--light);
+    font-weight: 500;
+  }
+
+  .row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    align-items: center;
+    margin-bottom: 28px;
+  }
+
+  .btn,
+  .ghost {
+    display: inline-block;
+    padding: 14px 28px;
+    border-radius: 6px;
+    text-decoration: none;
+    transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+  }
+
+  .btn {
+    background: linear-gradient(90deg, var(--lime) 0%, var(--teal) 100%);
+    color: var(--dark);
+    font-family: var(--head);
+    font-size: 15px;
+    font-weight: 900;
+    box-shadow: 0 14px 34px rgba(85, 223, 240, 0.14);
+  }
+
+  .btn:hover,
+  .ghost:hover {
+    transform: translateY(-2px);
+  }
+
+  .ghost {
+    border: 1px solid var(--dark4);
+    color: var(--light);
+    background: transparent;
+  }
+
+  .ghost:hover {
+    border-color: rgba(85, 223, 240, 0.35);
+  }
+
+  .hero-note {
+    max-width: 680px;
+    color: #707070;
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 0.02em;
+  }
+
+  .hero-side {
+    display: grid;
+    gap: 18px;
+  }
+
+  .stack-panel,
+  .signal-panel {
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 18px;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.02) 100%);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+    overflow: hidden;
+  }
+
+  .stack-panel {
+    padding: 26px 26px 22px;
+  }
+
+  .signal-panel {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1px;
+    background: var(--dark4);
+  }
+
+  .signal-cell {
+    background: var(--dark2);
+    padding: 20px 18px;
+  }
+
+  .signal-kicker {
+    color: var(--teal);
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+
+  .signal-value {
+    font-family: var(--head);
+    font-size: clamp(26px, 4vw, 38px);
+    line-height: 1;
+    margin-bottom: 10px;
+  }
+
+  .signal-copy {
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.6;
+  }
+
+  .stack-tag {
+    color: var(--amber);
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 14px;
+  }
+
+  .stack-panel h2 {
+    font-size: clamp(28px, 4vw, 42px);
+    line-height: 0.98;
+    margin-bottom: 14px;
+  }
+
+  .stack-panel p {
+    color: var(--muted);
+    font-size: 15px;
+    margin-bottom: 24px;
+  }
+
+  .stack-list {
+    list-style: none;
+    display: grid;
+    gap: 12px;
+  }
+
+  .stack-list li {
+    display: grid;
+    grid-template-columns: 70px 1fr;
+    gap: 14px;
+    align-items: start;
+    padding-top: 12px;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  .stack-list li:first-child { padding-top: 0; border-top: 0; }
+
+  .stack-step {
+    color: var(--lime);
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .stack-text strong {
+    display: block;
+    font-weight: 600;
+    color: var(--light);
+    margin-bottom: 4px;
+  }
+
+  .stack-text span {
+    color: var(--muted);
+    font-size: 14px;
+  }
+
+  .section {
+    padding: 100px 60px;
+  }
+
+  .tag {
+    color: var(--lime);
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 18px;
+  }
+
+  .title {
+    font-size: clamp(36px, 4.5vw, 60px);
+    line-height: 0.98;
+    margin-bottom: 16px;
+  }
+
+  .lead {
+    max-width: 760px;
+    color: var(--muted);
+    font-size: 17px;
+    line-height: 1.8;
+    margin-bottom: 56px;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1px;
+    background: var(--dark4);
+    border-radius: 18px;
+    overflow: hidden;
+  }
+
+  .card {
+    background: var(--dark2);
+    padding: 30px;
+    min-height: 220px;
+    transition: background 0.15s ease, transform 0.15s ease;
+  }
+
+  .card:hover {
+    background: var(--dark3);
+    transform: translateY(-2px);
+  }
+
+  .num {
+    color: var(--lime);
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    margin-bottom: 12px;
+  }
+
+  .icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    margin-bottom: 16px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    color: var(--teal);
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .card h3 {
+    font-size: 20px;
+    margin-bottom: 10px;
+  }
+
+  .card p {
+    color: var(--muted);
+    font-size: 14px;
+    line-height: 1.7;
+  }
+
+  .form-section {
+    border-top: 1px solid var(--dark4);
+    border-bottom: 1px solid var(--dark4);
+    background:
+      radial-gradient(circle at 88% 10%, rgba(99, 227, 95, 0.06) 0%, transparent 22%),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.01) 0%, rgba(255, 255, 255, 0.02) 100%);
+  }
+
+  .form-wrap {
+    display: grid;
+    grid-template-columns: minmax(280px, 0.9fr) minmax(0, 1.1fr);
+    gap: 34px;
+    align-items: start;
+  }
+
+  .note,
+  .panel {
+    border-radius: 18px;
+  }
+
+  .note {
+    padding: 30px;
+    border: 1px solid rgba(85, 223, 240, 0.18);
+    background: linear-gradient(145deg, rgba(85, 223, 240, 0.08) 0%, rgba(99, 227, 95, 0.05) 100%);
+  }
+
+  .note h2 {
+    font-size: clamp(28px, 3.2vw, 40px);
+    line-height: 1;
+    margin-bottom: 16px;
+  }
+
+  .note p,
+  .note li {
+    color: var(--muted);
+    font-size: 14px;
+    line-height: 1.75;
+  }
+
+  .note ul {
+    list-style: none;
+    display: grid;
+    gap: 12px;
+    margin: 22px 0 26px;
+  }
+
+  .note li::before {
+    content: ">";
+    color: var(--lime);
+    font-family: var(--mono);
+    margin-right: 10px;
+  }
+
+  .note-meta {
+    display: grid;
+    gap: 12px;
+  }
+
+  .meta-chip {
+    padding: 12px 14px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(0, 0, 0, 0.14);
+  }
+
+  .meta-chip strong {
+    display: block;
+    color: var(--light);
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+
+  .meta-chip span {
+    color: var(--muted);
+    font-size: 13px;
+  }
+
+  .panel {
+    padding: 32px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(10, 10, 10, 0.72);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  }
+
+  .panel-head {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+
+  .panel-head h2 {
+    font-size: clamp(28px, 3.2vw, 42px);
+    line-height: 1;
+  }
+
+  .panel-head p {
+    color: var(--muted);
+    font-size: 14px;
+    max-width: 430px;
+  }
+
+  form {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+  }
+
+  .full { grid-column: 1 / -1; }
+
+  label {
+    display: block;
+    margin-bottom: 8px;
+    color: var(--teal);
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  input,
+  select,
+  textarea {
+    width: 100%;
+    padding: 13px 14px;
+    border-radius: 10px;
+    border: 1px solid var(--dark4);
+    background: var(--dark2);
+    color: var(--light);
+    font: inherit;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  input:focus,
+  select:focus,
+  textarea:focus {
+    outline: none;
+    border-color: rgba(85, 223, 240, 0.45);
+    box-shadow: 0 0 0 3px rgba(85, 223, 240, 0.08);
+  }
+
+  textarea {
+    min-height: 132px;
+    resize: vertical;
+  }
+
+  .hint {
+    grid-column: 1 / -1;
+    color: #6f6f6f;
+    font-family: var(--mono);
+    font-size: 11px;
+    line-height: 1.7;
+  }
+
+  .checklist-grid {
+    display: grid;
+    grid-template-columns: 1.05fr 0.95fr;
+    gap: 28px;
+    align-items: start;
+  }
+
+  .checklist-panel,
+  .rubric-panel {
+    border-radius: 18px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.025);
+    overflow: hidden;
+  }
+
+  .checklist-panel { padding: 0; }
+
+  .checklist-grid-inner {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1px;
+    background: var(--dark4);
+  }
+
+  .checklist-card {
+    background: var(--dark2);
+    padding: 26px;
+    min-height: 180px;
+  }
+
+  .checklist-card h3,
+  .rubric-panel h3 {
+    font-size: 22px;
+    margin-bottom: 10px;
+  }
+
+  .checklist-card p,
+  .rubric-panel p,
+  .rubric-panel li {
+    color: var(--muted);
+    font-size: 14px;
+    line-height: 1.75;
+  }
+
+  .rubric-panel {
+    padding: 28px;
+  }
+
+  .rubric-panel ul {
+    list-style: none;
+    display: grid;
+    gap: 12px;
+    margin-top: 18px;
+  }
+
+  .rubric-panel li::before {
+    content: "//";
+    color: var(--lime);
+    font-family: var(--mono);
+    margin-right: 10px;
+  }
+
+  .final {
+    padding: 120px 60px;
+    text-align: center;
+  }
+
+  .final p {
+    max-width: 680px;
+    margin: 0 auto 38px;
+    color: var(--muted);
+    font-size: 17px;
+    line-height: 1.8;
+  }
+
+  footer {
+    border-top: 1px solid var(--dark4);
+    padding: 30px 60px;
+    display: flex;
+    justify-content: space-between;
+    gap: 20px;
+    color: #5d5d5d;
+    font-family: var(--mono);
+    font-size: 12px;
+  }
+
+  @media (max-width: 1080px) {
+    .hero,
+    .checklist-grid,
+    .form-wrap {
+      grid-template-columns: 1fr;
+    }
+
+    .signal-panel {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  @media (max-width: 900px) {
+    nav { padding: 14px 24px; }
+    .links { display: none; }
+    .hero,
+    .section,
+    .final { padding-left: 24px; padding-right: 24px; }
+    .hero { padding-top: 122px; }
+    form,
+    .checklist-grid-inner { grid-template-columns: 1fr; }
+    footer {
+      padding: 24px;
+      flex-direction: column;
+    }
+  }
 </style>
 </head>
 <body>
-<nav><a class="logo" href="index.html"><img src="assets/splash.png" alt="NymphsCore"><span>Nymphs<span class="core">Core</span></span></a><ul class="links"><li><a href="index.html#workflow">Workflow</a></li><li><a href="#flow">Tester Flow</a></li><li><a href="#report">Report</a></li><li><a href="#checklist">Checklist</a></li><li><a class="nav-cta" href="https://github.com/nymphnerds/NymphsCore">GitHub ↗</a></li></ul></nav>
-<section class="hero"><img class="hero-logo" src="assets/NymphsCoreLogo.png" alt="NymphsCore logo"><div class="badge"><span class="dot"></span>Private alpha · feedback · bug reports</div><h1>Alpha testing<br><em><span class="gradient">for builders.</span></em></h1><p class="sub">Help shape NymphsCore before release. Report bugs, explain what felt confusing, and tell us where the Blender-to-local-AI workflow helped or broke down.</p><div class="row"><a class="btn" href="#report">Write a report →</a><a class="btn ghost" href="#flow">Read tester flow</a></div></section>
-<section class="section" id="flow"><div class="tag">// Alpha tester flow</div><h2 class="title">Test the rough edges.<br>Tell us what broke.</h2><p class="lead">The goal is to find unclear setup steps, broken runtime checks, confusing Blender panels, bad defaults, crashes, slow paths, and moments where the workflow does not explain itself.</p><div class="grid"><div class="card"><div class="num">01</div><div class="icon">🧰</div><h3>Install Manager</h3><p>Note unclear, slow, blocked, or scary setup steps.</p></div><div class="card"><div class="num">02</div><div class="icon">🧪</div><h3>Run checks</h3><p>Use runtime tools and smoke tests. Copy logs when possible.</p></div><div class="card"><div class="num">03</div><div class="icon">🎨</div><h3>Generate image</h3><p>Try reference generation, image editing, and part extraction.</p></div><div class="card"><div class="num">04</div><div class="icon">🧊</div><h3>Create 3D draft</h3><p>Move from image to shape, texture, and retexture passes.</p></div><div class="card"><div class="num">05</div><div class="icon">📝</div><h3>Send report</h3><p>Write what happened, what you expected, and what would make it clearer.</p></div></div></section>
-<section class="section form-section" id="report"><div class="form-wrap"><aside class="note"><div class="tag">// What to include</div><h2>Small details make bugs fixable.</h2><p>Good alpha reports do not need to be polished. Include the exact step, what happened, and any screenshots or logs you can paste.</p><ul><li>Windows version, GPU, Blender version, and NymphsCore build if known.</li><li>The exact button, panel, command, or step that failed.</li><li>What you expected versus what actually happened.</li><li>Logs when install or runtime fails.</li></ul></aside><div class="panel"><form action="https://formspree.io/f/mnjlrong" method="POST"><input type="hidden" name="_subject" value="New NymphsCore alpha tester report"><div><label>Report type</label><select name="reportType"><option>Bug report</option><option>Experience feedback</option></select></div><div><label>Tester name</label><input name="testerName" type="text" placeholder="Name or handle"></div><div><label>Contact</label><input name="contact" type="text" placeholder="Discord, email, or GitHub"></div><div><label>Area tested</label><select name="area"><option>Manager install</option><option>Runtime tools / smoke tests</option><option>Blender addon setup</option><option>Image generation</option><option>Image editing</option><option>Part extraction</option><option>Shape generation</option><option>Texture / retexture</option><option>Docs / onboarding</option><option>Other</option></select></div><div class="full"><label>Short title</label><input name="title" type="text" placeholder="Example: Manager smoke test fails after model prefetch" required></div><div class="full"><label>Steps or experience</label><textarea name="steps" placeholder="What did you do? List exact steps or describe the session." required></textarea></div><div class="full"><label>Expected result</label><textarea name="expected" placeholder="What did you expect to happen?"></textarea></div><div class="full"><label>Actual result or feedback</label><textarea name="actual" placeholder="What happened instead? What felt confusing, slow, broken, or surprisingly good?" required></textarea></div><div><label>System info</label><textarea name="system" placeholder="Windows version, GPU, VRAM, Blender version"></textarea></div><div><label>Logs or screenshots</label><textarea name="logs" placeholder="Paste log snippets or mention what screenshots you have"></textarea></div><p class="hint">Submit sends the report directly to the NymphsCore alpha feedback inbox. No GitHub account required.</p><button class="btn" type="submit">Send alpha report →</button></form></div></div></section>
-<section class="section" id="checklist"><div class="tag">// Useful things to test</div><h2 class="title">Do not just test success.<br>Test confusion.</h2><p class="lead">The best alpha notes often come from things that seem obvious to the developer but not to the tester.</p><div class="grid"><div class="card"><div class="icon">🧭</div><h3>First-run clarity</h3><p>Could you tell what to do next at every step?</p></div><div class="card"><div class="icon">⚙️</div><h3>Repair paths</h3><p>Try interrupted installs, missing models, backend checks, and reruns.</p></div><div class="card"><div class="icon">🧩</div><h3>Part extraction</h3><p>Test anatomy base, clothing, hair, props, and eyeball assets.</p></div><div class="card"><div class="icon">🕒</div><h3>Speed expectations</h3><p>Tell us where progress felt stuck or unclear.</p></div><div class="card"><div class="icon">🧠</div><h3>Mental model</h3><p>Report moments where Manager, backend, Blender, and assets felt unclear.</p></div><div class="card"><div class="icon">✨</div><h3>Positive surprises</h3><p>Tell us what worked well so the good parts survive future changes.</p></div></div></section>
-<section class="final"><h2 class="title">Break it clearly.<br><span class="gradient">Help us fix it faster.</span></h2><p>Alpha reports are most useful when they are specific, honest, and attached to the exact point where the workflow stopped making sense.</p><a class="btn" href="#report">Send alpha feedback →</a></section>
-<footer><div>Nymphs<span class="core">Core</span></div><div>Alpha testing · private reports · workflow feedback</div></footer>
+<nav>
+  <a class="logo" href="index.html">
+    <img src="assets/splash.png" alt="NymphsCore">
+    <span>Nymphs<span class="core">Core</span></span>
+  </a>
+  <ul class="links">
+    <li><a href="index.html#workflow">Workflow</a></li>
+    <li><a href="#flow">Tester Flow</a></li>
+    <li><a href="#report">Report</a></li>
+    <li><a href="#checklist">Checklist</a></li>
+    <li><a class="nav-cta" href="#report">Send Report</a></li>
+  </ul>
+</nav>
+
+<section class="hero">
+  <div class="hero-copy">
+    <img class="hero-logo" src="assets/NymphsCoreLogo.png" alt="NymphsCore logo">
+    <div class="badge-row">
+      <div class="badge"><span class="badge-dot"></span>Private alpha</div>
+      <div class="badge">builders only</div>
+      <div class="badge">feedback and failure reports</div>
+    </div>
+    <h1>Stress the workflow.<em>Report the cracks.</em></h1>
+    <p class="sub">This page is for people testing the real NymphsCore loop: <strong>Manager install, runtime checks, Blender setup, image work, and 3D passes.</strong> We do not just want bug screenshots. We want the exact place where the product stopped making sense.</p>
+    <div class="row">
+      <a class="btn" href="#report">Write an alpha report</a>
+      <a class="ghost" href="https://discord.com/invite/ezJVqBJvVj">Join the Discord</a>
+      <a class="ghost" href="#flow">Read the tester flow</a>
+    </div>
+    <p class="hero-note">Best reports include the exact step, the expected result, the actual result, and any logs or screenshots you can attach.</p>
+  </div>
+
+  <div class="hero-side">
+    <div class="stack-panel">
+      <div class="stack-tag">// Recommended session shape</div>
+      <h2>One honest test run beats ten vague comments.</h2>
+      <p>Pick a real task, run it end to end, and stop where the experience turns unclear, slow, scary, or broken.</p>
+      <ul class="stack-list">
+        <li>
+          <div class="stack-step">Phase 01</div>
+          <div class="stack-text"><strong>Install and trust check</strong><span>Can a new tester tell what to do next without needing dev hand-holding?</span></div>
+        </li>
+        <li>
+          <div class="stack-step">Phase 02</div>
+          <div class="stack-text"><strong>Runtime reality check</strong><span>Smoke tests, missing models, repair paths, and status feedback should feel obvious.</span></div>
+        </li>
+        <li>
+          <div class="stack-step">Phase 03</div>
+          <div class="stack-text"><strong>Actual creative use</strong><span>Try image, extraction, shape, texture, and retexture until something feels off.</span></div>
+        </li>
+      </ul>
+    </div>
+
+    <div class="signal-panel">
+      <div class="signal-cell">
+        <div class="signal-kicker">Signal A</div>
+        <div class="signal-value">Clarity</div>
+        <div class="signal-copy">Were the next steps obvious without asking the developer?</div>
+      </div>
+      <div class="signal-cell">
+        <div class="signal-kicker">Signal B</div>
+        <div class="signal-value">Failure</div>
+        <div class="signal-copy">If something broke, could you tell what broke and what to try next?</div>
+      </div>
+      <div class="signal-cell">
+        <div class="signal-kicker">Signal C</div>
+        <div class="signal-value">Trust</div>
+        <div class="signal-copy">Did the app feel stable enough that you would try it again tomorrow?</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="flow">
+  <div class="tag">// Alpha tester flow</div>
+  <h2 class="title">Test the rough edges.<br>Not just the happy path.</h2>
+  <p class="lead">A good alpha session pushes on onboarding, repair paths, defaults, and confidence. If something feels ambiguous, sticky, or suspiciously silent, that is exactly the thing worth reporting.</p>
+  <div class="grid">
+    <div class="card">
+      <div class="num">01</div>
+      <div class="icon">SET</div>
+      <h3>Install Manager</h3>
+      <p>Note any step that feels risky, unclear, too slow, or too technical for a normal user.</p>
+    </div>
+    <div class="card">
+      <div class="num">02</div>
+      <div class="icon">CHK</div>
+      <h3>Run checks</h3>
+      <p>Use runtime tools, smoke tests, and model checks. If a failure happens, grab the log trail.</p>
+    </div>
+    <div class="card">
+      <div class="num">03</div>
+      <div class="icon">IMG</div>
+      <h3>Generate or edit</h3>
+      <p>Try real image work instead of toy prompts. Reference generation and editing both matter here.</p>
+    </div>
+    <div class="card">
+      <div class="num">04</div>
+      <div class="icon">3D</div>
+      <h3>Push into shape</h3>
+      <p>Go from image to shape and texture flow until a setting, output, or expectation stops being obvious.</p>
+    </div>
+    <div class="card">
+      <div class="num">05</div>
+      <div class="icon">RPT</div>
+      <h3>Send the real story</h3>
+      <p>Say what happened, what you expected, and what change would make the workflow feel sane.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section form-section" id="report">
+  <div class="form-wrap">
+    <aside class="note">
+      <div class="tag">// What makes a useful report</div>
+      <h2>Small details make bugs fixable.</h2>
+      <p>Polished writing is not required. Specifics are. The fastest fixes usually come from the tester who recorded the exact button, step, message, or moment where trust dropped.</p>
+      <ul>
+        <li>State the exact step or panel, not just the feature area.</li>
+        <li>Tell us what you expected before the workflow went wrong.</li>
+        <li>Paste logs when install, model fetch, or runtime start fails.</li>
+        <li>Say if the issue felt broken, confusing, scary, or simply too slow.</li>
+      </ul>
+      <div class="note-meta">
+        <div class="meta-chip">
+          <strong>Good report title</strong>
+          <span>Manager smoke test says ready, but TRELLIS start still fails on first click.</span>
+        </div>
+        <div class="meta-chip">
+          <strong>Bad report title</strong>
+          <span>It kind of broke and I do not know why.</span>
+        </div>
+      </div>
+    </aside>
+
+    <div class="panel">
+      <div class="panel-head">
+        <div>
+          <div class="tag">// Send alpha feedback</div>
+          <h2>Report the exact break point.</h2>
+        </div>
+        <p>Submissions go straight to the NymphsCore alpha feedback inbox. Discord is the fastest place for follow-up and tester coordination.</p>
+      </div>
+
+      <form action="https://formspree.io/f/mnjlrong" method="POST">
+        <input type="hidden" name="_subject" value="New NymphsCore alpha tester report">
+
+        <div>
+          <label for="reportType">Report type</label>
+          <select id="reportType" name="reportType">
+            <option>Bug report</option>
+            <option>Experience feedback</option>
+            <option>Onboarding confusion</option>
+            <option>Performance concern</option>
+          </select>
+        </div>
+
+        <div>
+          <label for="testerName">Tester name</label>
+          <input id="testerName" name="testerName" type="text" placeholder="Name or handle">
+        </div>
+
+        <div>
+          <label for="contact">Contact</label>
+          <input id="contact" name="contact" type="text" placeholder="Discord handle, email, or server name">
+        </div>
+
+        <div>
+          <label for="area">Area tested</label>
+          <select id="area" name="area">
+            <option>Manager install</option>
+            <option>Runtime tools / smoke tests</option>
+            <option>Blender addon setup</option>
+            <option>Image generation</option>
+            <option>Image editing</option>
+            <option>Part extraction</option>
+            <option>Shape generation</option>
+            <option>Texture / retexture</option>
+            <option>Docs / onboarding</option>
+            <option>Other</option>
+          </select>
+        </div>
+
+        <div class="full">
+          <label for="title">Short title</label>
+          <input id="title" name="title" type="text" placeholder="Example: Runtime Tools says TRELLIS is ready, but first GGUF shape run fails" required>
+        </div>
+
+        <div class="full">
+          <label for="steps">What you did</label>
+          <textarea id="steps" name="steps" placeholder="List the exact steps, or describe the session in sequence." required></textarea>
+        </div>
+
+        <div class="full">
+          <label for="expected">Expected result</label>
+          <textarea id="expected" name="expected" placeholder="What did you expect the workflow to do next?"></textarea>
+        </div>
+
+        <div class="full">
+          <label for="actual">Actual result or feedback</label>
+          <textarea id="actual" name="actual" placeholder="What happened instead? What felt unclear, broken, or better than expected?" required></textarea>
+        </div>
+
+        <div>
+          <label for="system">System info</label>
+          <textarea id="system" name="system" placeholder="Windows version, GPU, VRAM, Blender version"></textarea>
+        </div>
+
+        <div>
+          <label for="logs">Logs or screenshots</label>
+          <textarea id="logs" name="logs" placeholder="Paste log snippets, error text, or note which screenshots you captured"></textarea>
+        </div>
+
+        <p class="hint">If the issue happened during install or runtime start, include the moment it first became confusing, not just the final error line.</p>
+        <button class="btn full" type="submit">Send alpha report</button>
+      </form>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="checklist">
+  <div class="tag">// What to actively push on</div>
+  <h2 class="title">Do not just test success.<br>Test confusion and trust.</h2>
+  <p class="lead">The strongest alpha notes often come from moments where the product technically works, but the tester still feels lost. That is a product problem too.</p>
+
+  <div class="checklist-grid">
+    <div class="checklist-panel">
+      <div class="checklist-grid-inner">
+        <div class="checklist-card">
+          <h3>First-run clarity</h3>
+          <p>Could you tell what to do next at every step without asking for hidden context?</p>
+        </div>
+        <div class="checklist-card">
+          <h3>Repair paths</h3>
+          <p>Try interrupted installs, missing models, backend checks, and reruns. The recovery path matters.</p>
+        </div>
+        <div class="checklist-card">
+          <h3>Speed expectations</h3>
+          <p>Report where progress feels fake, stalled, or too silent to trust.</p>
+        </div>
+        <div class="checklist-card">
+          <h3>Mental model</h3>
+          <p>Call out places where Manager, Blender, runtime tools, and generated assets stop fitting together in your head.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="rubric-panel">
+      <div class="tag">// Fast rubric</div>
+      <h3>What we care about most</h3>
+      <p>If you only have time for one solid note, prioritize the place where the workflow most damaged confidence.</p>
+      <ul>
+        <li>What was the first confusing or misleading signal?</li>
+        <li>What assumption did the product make that a tester would not naturally make?</li>
+        <li>What single UI, copy, or default change would have saved the session?</li>
+        <li>What unexpectedly worked well and should survive later cleanup?</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="final">
+  <div class="tag">// Final note</div>
+  <h2 class="title">Break it honestly.<br><span style="background:linear-gradient(90deg,var(--teal),var(--lime));-webkit-background-clip:text;background-clip:text;color:transparent;">Help us fix it faster.</span></h2>
+  <p>Alpha feedback is most valuable when it names the exact point where the workflow stopped feeling trustworthy. That can be a crash, a missing model, a confusing panel, a silent delay, or a step that only makes sense if a developer explains it out loud.</p>
+  <a class="btn" href="#report">Send alpha feedback</a>
+</section>
+
+<footer>
+  <div>Nymphs<span class="core">Core</span></div>
+  <div>Private alpha testing · workflow trust · bug and clarity reports</div>
+</footer>
 </body>
 </html>
