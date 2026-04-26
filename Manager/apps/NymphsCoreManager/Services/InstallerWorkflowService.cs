@@ -14,7 +14,7 @@ public sealed class InstallerWorkflowService
     public const string ExistingWslDistrosCheckKey = "existing_wsl_distros";
     public const string ReadmeUrl = "https://github.com/nymphnerds/NymphsCore/blob/main/Manager/README.md";
     public const string FootprintDocUrl = "https://github.com/nymphnerds/NymphsCore/blob/main/docs/FOOTPRINT.md";
-    public const string AddonGuideUrl = "https://github.com/nymphnerds/NymphsCore/blob/main/Blender/Addon/docs/USER_GUIDE.md";
+    public const string AddonGuideUrl = "https://github.com/nymphnerds/NymphsCore/blob/main/docs/BLENDER_ADDON_USER_GUIDE.md";
 
     private readonly ProcessRunner _processRunner = new();
 

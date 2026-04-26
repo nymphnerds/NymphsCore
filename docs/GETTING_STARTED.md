@@ -6,7 +6,7 @@ You do not need to know Linux or WSL. The manager app handles the WSL distro, CU
 
 The Blender addon is installed separately after the backend is ready:
 
-- [Nymphs Blender Addon](https://github.com/nymphnerds/NymphsCore/tree/main/Blender/Addon)
+- [Blender Addon User Guide](https://github.com/nymphnerds/NymphsCore/blob/main/docs/BLENDER_ADDON_USER_GUIDE.md)
 
 ## What You Are Installing
 
@@ -266,7 +266,7 @@ Use `Z-Image` for:
 
 Install the Blender addon:
 
-- [Nymphs Blender Addon](https://github.com/nymphnerds/NymphsCore/tree/main/Blender/Addon)
+- [Blender Addon User Guide](https://github.com/nymphnerds/NymphsCore/blob/main/docs/BLENDER_ADDON_USER_GUIDE.md)
 
 Then:
 
