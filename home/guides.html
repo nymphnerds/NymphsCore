@@ -433,10 +433,10 @@
   </a>
   <ul class="nav-links">
     <li><a href="#start">Start Here</a></li>
-    <li><a href="#guides">Guide Map</a></li>
+    <li><a href="#guides">Guides</a></li>
     <li><a href="#demos">Video Demos</a></li>
     <li><a href="alpha.html?v=20260426b">Bug Reports</a></li>
-    <li><a href="#demos" class="nav-cta">Plan Demos</a></li>
+    <li><a href="guides/install-and-first-launch.html" class="nav-cta">Open First Guide</a></li>
   </ul>
 </nav>
 
@@ -448,11 +448,11 @@
       <div class="badge">workflow docs</div>
       <div class="badge">short demo placeholders</div>
     </div>
-    <h1>Guides first.<em>Short demos alongside.</em></h1>
-    <p class="hero-sub">This section is set up for a <strong>GitHub Pages-friendly guide workflow</strong>: static pages, screenshots, and future short YouTube demos embedded into each guide when you are ready to publish them.</p>
+    <h1>The user guide.<em>Built around the workflow.</em></h1>
+    <p class="hero-sub">Learn the NymphsCore Blender workflow step by step, from first launch through image generation, refinement, and shape. Each guide is designed to help you move forward without guessing what the next stage is for.</p>
     <div class="cta-row">
-      <a href="#guides" class="btn-primary">See the guide map</a>
-      <a href="#demos" class="btn-ghost">Plan the video demos</a>
+      <a href="guides/install-and-first-launch.html" class="btn-primary">Start with install</a>
+      <a href="#guides" class="btn-ghost">Browse all guides</a>
       <a href="index.html" class="btn-ghost">Back to home</a>
     </div>
   </div>
@@ -460,34 +460,33 @@
 
 <section class="section" id="start">
   <div class="section-tag">// Start Here</div>
-  <h2 class="section-title">What belongs on GitHub Pages.</h2>
-  <p class="section-sub">GitHub Pages is a good fit for guide pages, screenshots, lightweight JavaScript, and embedded YouTube videos. It is not a good fit for hosting lots of large raw video files directly in the repo.</p>
+  <h2 class="section-title">Follow the workflow in order.</h2>
+  <p class="section-sub">The fastest way to make sense of NymphsCore is to follow the same sequence the product uses: get the backend healthy, create a strong image, refine it if needed, then move into shape.</p>
 
   <div class="plan-shell">
     <div class="plan-card">
-      <div class="plan-label">Recommended content mix</div>
-      <h3>Static guides + external video hosting.</h3>
+      <div class="plan-label">Recommended path</div>
+      <h3>Start here if you are new.</h3>
       <ul>
-        <li>Write the guide pages here in plain HTML for now.</li>
-        <li>Keep screenshots and UI images in the repo.</li>
-        <li>Upload short demos to YouTube when ready.</li>
-        <li>Embed each demo with an iframe later.</li>
-        <li>Use the bug report page as the support endpoint from every guide.</li>
+        <li>Install and first launch</li>
+        <li>Generate your first useful image</li>
+        <li>Edit or refine with guide images</li>
+        <li>Go from image into shape</li>
       </ul>
     </div>
     <div class="plan-card">
-      <div class="plan-label">Why this works</div>
-      <h3>Low friction to publish.</h3>
-      <p>You avoid bloating the repo with large video files, keep the site fast, and still get clean demo embeds inside the guide flow.</p>
-      <div class="note">When you have a YouTube URL later, each placeholder block below can be swapped for a real embed using the `youtube.com/embed/VIDEO_ID` format.</div>
+      <div class="plan-label">What you will get</div>
+      <h3>Clear next steps at each stage.</h3>
+      <p>Each page focuses on what the stage is for, what a good result looks like, and what to do next if the output is not strong enough to carry forward.</p>
+      <div class="note">Short demo slots are included throughout the guide section and can be filled in as new videos are added.</div>
     </div>
   </div>
 </section>
 
 <section class="section" id="guides">
   <div class="section-tag">// Guide Map</div>
-  <h2 class="section-title">Start with the user journey.</h2>
-  <p class="section-sub">This is a suggested first pass. The idea is to guide someone from install and first-run confidence into real image, extraction, and 3D workflows.</p>
+  <h2 class="section-title">Pick the stage you need.</h2>
+  <p class="section-sub">If you are new, start with the first guide and move in order. If you are already partway through the workflow, jump straight to the stage you need help with.</p>
 
   <div class="guide-grid">
     <div class="guide-card">
@@ -497,7 +496,7 @@
       </div>
       <h3>Install and first launch</h3>
       <p>What to install, what should happen on first run, and how to know the setup is healthy before touching the creative workflow.</p>
-      <a href="#">Placeholder page</a>
+      <a href="guides/install-and-first-launch.html">Open guide</a>
     </div>
     <div class="guide-card">
       <div class="guide-step">Guide 02</div>
@@ -506,7 +505,7 @@
       </div>
       <h3>Generate your first image</h3>
       <p>A short practical walkthrough for creating a useful reference instead of a toy prompt test.</p>
-      <a href="#">Placeholder page</a>
+      <a href="guides/generate-your-first-image.html">Open guide</a>
     </div>
     <div class="guide-card">
       <div class="guide-step">Guide 03</div>
@@ -514,15 +513,15 @@
 guide image edit flow</div>
       <h3>Edit and refine with guide images</h3>
       <p>Show the design-tightening step so users understand when editing happens and what it is for.</p>
-      <a href="#">Placeholder page</a>
+      <a href="guides/refine-with-guide-images.html">Open guide</a>
     </div>
     <div class="guide-card">
       <div class="guide-step">Guide 04</div>
       <div class="image-placeholder">future screenshot
 part extraction flow</div>
       <h3>Extract modular parts</h3>
-      <p>Explain the extraction stage clearly before the 3D stage so the pipeline feels intentional instead of mysterious.</p>
-      <a href="#">Placeholder page</a>
+      <p>Prepare modular pieces before the 3D stage so the pipeline feels deliberate instead of improvised.</p>
+      <a href="#">Guide coming soon</a>
     </div>
     <div class="guide-card">
       <div class="guide-step">Guide 05</div>
@@ -531,7 +530,7 @@ part extraction flow</div>
       </div>
       <h3>Go from image to shape</h3>
       <p>Cover the expected inputs, the likely wait points, and what kind of output users should expect from the first pass.</p>
-      <a href="#">Placeholder page</a>
+      <a href="guides/go-from-image-to-shape.html">Open guide</a>
     </div>
     <div class="guide-card">
       <div class="guide-step">Guide 06</div>
@@ -540,15 +539,15 @@ part extraction flow</div>
       </div>
       <h3>Troubleshooting and recovery</h3>
       <p>One place for install trouble, runtime checks, missing models, failed starts, and “what next?” answers.</p>
-      <a href="alpha.html?v=20260426b">Send users to bug reports if stuck</a>
+      <a href="alpha.html?v=20260426b">Open bug reports</a>
     </div>
   </div>
 </section>
 
 <section class="section" id="demos">
   <div class="section-tag">// Video Demos</div>
-  <h2 class="section-title">Short demo placeholders.<br>Ready for YouTube later.</h2>
-  <p class="section-sub">These cards are intentionally small and scoped. Each one is the kind of short demo you can record quickly and drop into the guide hub later with a YouTube embed.</p>
+  <h2 class="section-title">Short demo slots.<br>Ready when videos are added.</h2>
+  <p class="section-sub">Each guide can carry a short visual companion. These slots are here so the guide hub already has a place for demos as they are published.</p>
 
   <div class="demo-grid">
     <div class="demo-card">
@@ -602,9 +601,9 @@ Suggested length:
 </section>
 
 <section class="section">
-  <div class="section-tag">// Next Step</div>
-  <h2 class="section-title">What I’d build next.</h2>
-  <p class="section-sub">Once you are happy with the structure, the next sensible move is to turn the first two guide cards into real pages and leave the rest as “coming soon” placeholders.</p>
+  <div class="section-tag">// Keep Going</div>
+  <h2 class="section-title">Need help beyond the guide?</h2>
+  <p class="section-sub">If the workflow stops making sense or something breaks before you can finish a guide, use the bug report page so the exact friction point can be investigated.</p>
 </section>
 
 <footer>
