@@ -317,24 +317,32 @@
     line-height: 1.7;
   }
 
-  .wiki-list {
+  .wiki-shell {
+    display: grid;
+    grid-template-columns: 300px minmax(0, 1fr);
+    gap: 36px;
+    align-items: start;
+  }
+
+  .wiki-nav {
     list-style: none;
     display: grid;
-    gap: 12px;
-    max-width: 860px;
+    gap: 10px;
+    position: sticky;
+    top: 92px;
   }
 
-  .wiki-list li {
+  .wiki-nav li {
     color: var(--muted);
-    font-size: 15px;
-    line-height: 1.7;
   }
 
-  .wiki-list a {
+  .wiki-nav a {
     color: var(--light);
     text-decoration: none;
     border-bottom: 1px solid rgba(99,227,95,0.22);
     padding-bottom: 2px;
+    font-size: 15px;
+    line-height: 1.7;
   }
 
   .wiki-status {
@@ -344,6 +352,43 @@
     letter-spacing: 0.06em;
     text-transform: uppercase;
     margin-left: 8px;
+  }
+
+  .wiki-content {
+    display: grid;
+    gap: 22px;
+  }
+
+  .wiki-entry {
+    border-left: 1px solid var(--dark4);
+    padding-left: 24px;
+  }
+
+  .wiki-entry h3 {
+    font-size: 28px;
+    margin-bottom: 10px;
+  }
+
+  .wiki-entry p {
+    color: var(--muted);
+    font-size: 15px;
+    line-height: 1.8;
+    margin-bottom: 12px;
+    max-width: 760px;
+  }
+
+  .wiki-entry a {
+    color: var(--light);
+    text-decoration: none;
+    border-bottom: 1px solid rgba(99,227,95,0.22);
+    padding-bottom: 2px;
+  }
+
+  .wiki-entry-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 18px;
+    margin-top: 10px;
   }
 
   .guide-card a {
@@ -427,6 +472,8 @@
 
   @media (max-width: 980px) {
     .plan-shell { grid-template-columns: 1fr; }
+    .wiki-shell { grid-template-columns: 1fr; }
+    .wiki-nav { position: static; }
   }
 
   @media (max-width: 800px) {
@@ -449,7 +496,7 @@
   <ul class="nav-links">
     <li><a href="#demos">Video Demos</a></li>
     <li><a href="#wiki">Wiki</a></li>
-    <li><a href="#wiki">Wiki</a></li>
+    <li><a href="#wiki-install">Start Here</a></li>
     <li><a href="alpha.html?v=20260426b">Bug Reports</a></li>
     <li><a href="guides/install-and-first-launch.html" class="nav-cta">Open First Guide</a></li>
   </ul>
@@ -531,32 +578,131 @@ Suggested length:
 <section class="section" id="wiki">
   <div class="section-tag">// Wiki</div>
   <h2 class="section-title">Wiki.</h2>
-  <p class="section-sub">Use the videos for a quick overview, then jump straight into the exact page you need below.</p>
+  <p class="section-sub">Pick a topic from the left, then read the matching section on the right.</p>
 
-  <ul class="wiki-list">
-    <li><a href="guides/install-and-first-launch.html">Install NymphsCore Manager</a></li>
-    <li><a href="guides/install-and-first-launch.html">Finish first launch setup</a></li>
-    <li><a href="#">Check runtime health</a><span class="wiki-status">coming soon</span></li>
-    <li><a href="#">Open the addon in Blender</a><span class="wiki-status">coming soon</span></li>
-    <li><a href="guides/generate-your-first-image.html">Generate your first reference image</a></li>
-    <li><a href="guides/refine-with-guide-images.html">Refine with guide images</a></li>
-    <li><a href="#">Prepare an image for extraction</a><span class="wiki-status">coming soon</span></li>
-    <li><a href="#">Extract modular parts</a><span class="wiki-status">coming soon</span></li>
-    <li><a href="guides/go-from-image-to-shape.html">Choose the best image for shape</a></li>
-    <li><a href="guides/go-from-image-to-shape.html">Run image to shape</a></li>
-    <li><a href="#">Understand the first 3D draft</a><span class="wiki-status">coming soon</span></li>
-    <li><a href="#">What to do when shape output is weak</a><span class="wiki-status">coming soon</span></li>
-    <li><a href="#">Troubleshooting install issues</a><span class="wiki-status">coming soon</span></li>
-    <li><a href="#">Troubleshooting runtime issues</a><span class="wiki-status">coming soon</span></li>
-    <li><a href="#">Troubleshooting Blender addon issues</a><span class="wiki-status">coming soon</span></li>
-    <li><a href="alpha.html?v=20260426b">Send a bug report</a></li>
-  </ul>
-</section>
+  <div class="wiki-shell">
+    <ul class="wiki-nav">
+      <li><a href="#wiki-install">Install NymphsCore Manager</a></li>
+      <li><a href="#wiki-first-launch">Finish first launch setup</a></li>
+      <li><a href="#wiki-runtime">Check runtime health</a><span class="wiki-status">coming soon</span></li>
+      <li><a href="#wiki-blender">Open the addon in Blender</a><span class="wiki-status">coming soon</span></li>
+      <li><a href="#wiki-first-image">Generate your first reference image</a></li>
+      <li><a href="#wiki-refine">Refine with guide images</a></li>
+      <li><a href="#wiki-extraction-prep">Prepare an image for extraction</a><span class="wiki-status">coming soon</span></li>
+      <li><a href="#wiki-extract">Extract modular parts</a><span class="wiki-status">coming soon</span></li>
+      <li><a href="#wiki-shape-pick">Choose the best image for shape</a></li>
+      <li><a href="#wiki-shape-run">Run image to shape</a></li>
+      <li><a href="#wiki-shape-read">Understand the first 3D draft</a><span class="wiki-status">coming soon</span></li>
+      <li><a href="#wiki-shape-fix">What to do when shape output is weak</a><span class="wiki-status">coming soon</span></li>
+      <li><a href="#wiki-troubleshoot-install">Troubleshooting install issues</a><span class="wiki-status">coming soon</span></li>
+      <li><a href="#wiki-troubleshoot-runtime">Troubleshooting runtime issues</a><span class="wiki-status">coming soon</span></li>
+      <li><a href="#wiki-troubleshoot-addon">Troubleshooting Blender addon issues</a><span class="wiki-status">coming soon</span></li>
+      <li><a href="#wiki-report">Send a bug report</a></li>
+    </ul>
 
-<section class="section">
-  <div class="section-tag">// Keep Going</div>
-  <h2 class="section-title">Need help beyond the guide?</h2>
-  <p class="section-sub">If the workflow stops making sense or something breaks before you can finish a guide, use the bug report page so the exact friction point can be investigated.</p>
+    <div class="wiki-content">
+      <div class="wiki-entry" id="wiki-install">
+        <h3>Install NymphsCore Manager</h3>
+        <p>Start with the manager and let it finish preparing the local runtime. The first successful install matters because every later workflow assumes the backend is already sane.</p>
+        <div class="wiki-entry-links">
+          <a href="guides/install-and-first-launch.html">Open full guide</a>
+        </div>
+      </div>
+
+      <div class="wiki-entry" id="wiki-first-launch">
+        <h3>Finish first launch setup</h3>
+        <p>Do not treat the app opening as the same thing as setup being complete. Wait for the environment prep to finish and make sure the manager no longer looks stalled before moving into Blender.</p>
+        <div class="wiki-entry-links">
+          <a href="guides/install-and-first-launch.html">Open full guide</a>
+        </div>
+      </div>
+
+      <div class="wiki-entry" id="wiki-runtime">
+        <h3>Check runtime health</h3>
+        <p>This page will cover the quickest way to confirm that the local runtime is actually ready, not just installed.</p>
+      </div>
+
+      <div class="wiki-entry" id="wiki-blender">
+        <h3>Open the addon in Blender</h3>
+        <p>This page will cover the first Blender-side checks so users can tell whether the addon is seeing the local backend correctly.</p>
+      </div>
+
+      <div class="wiki-entry" id="wiki-first-image">
+        <h3>Generate your first reference image</h3>
+        <p>Use the first image stage to create a reference worth keeping, not just to prove that the button works. A clear silhouette and readable design direction matter more than chasing a flashy first result.</p>
+        <div class="wiki-entry-links">
+          <a href="guides/generate-your-first-image.html">Open full guide</a>
+        </div>
+      </div>
+
+      <div class="wiki-entry" id="wiki-refine">
+        <h3>Refine with guide images</h3>
+        <p>Move into editing when the base image is close but not there yet. This is where you tighten the design, correct drift, and bring the image closer to the asset you actually want to carry forward.</p>
+        <div class="wiki-entry-links">
+          <a href="guides/refine-with-guide-images.html">Open full guide</a>
+        </div>
+      </div>
+
+      <div class="wiki-entry" id="wiki-extraction-prep">
+        <h3>Prepare an image for extraction</h3>
+        <p>This page will focus on choosing or refining images that are clean enough to split into useful modular parts.</p>
+      </div>
+
+      <div class="wiki-entry" id="wiki-extract">
+        <h3>Extract modular parts</h3>
+        <p>This page will explain how modular extraction fits into the workflow before the shape stage and how to judge whether the extracted pieces are useful.</p>
+      </div>
+
+      <div class="wiki-entry" id="wiki-shape-pick">
+        <h3>Choose the best image for shape</h3>
+        <p>The best shape input is usually the clearest, most stable image from the earlier stages. If the source is muddy, the 3D result often inherits that confusion.</p>
+        <div class="wiki-entry-links">
+          <a href="guides/go-from-image-to-shape.html">Open full guide</a>
+        </div>
+      </div>
+
+      <div class="wiki-entry" id="wiki-shape-run">
+        <h3>Run image to shape</h3>
+        <p>Treat the first 3D result as a draft with a job to do: preserve the major read of the source image and give you something usable enough to evaluate and continue from.</p>
+        <div class="wiki-entry-links">
+          <a href="guides/go-from-image-to-shape.html">Open full guide</a>
+        </div>
+      </div>
+
+      <div class="wiki-entry" id="wiki-shape-read">
+        <h3>Understand the first 3D draft</h3>
+        <p>This page will cover what counts as a good early draft, what can be ignored, and what problems usually mean the workflow needs to step back earlier.</p>
+      </div>
+
+      <div class="wiki-entry" id="wiki-shape-fix">
+        <h3>What to do when shape output is weak</h3>
+        <p>This page will focus on deciding whether the fix belongs in the shape stage or whether the real problem started with the source image.</p>
+      </div>
+
+      <div class="wiki-entry" id="wiki-troubleshoot-install">
+        <h3>Troubleshooting install issues</h3>
+        <p>This page will collect setup failures, stalls, and missing dependency problems in one place.</p>
+      </div>
+
+      <div class="wiki-entry" id="wiki-troubleshoot-runtime">
+        <h3>Troubleshooting runtime issues</h3>
+        <p>This page will cover failed starts, unhealthy runtime states, and cases where the manager looks ready but the backend still is not usable.</p>
+      </div>
+
+      <div class="wiki-entry" id="wiki-troubleshoot-addon">
+        <h3>Troubleshooting Blender addon issues</h3>
+        <p>This page will focus on cases where Blender, the addon, and the local runtime stop lining up cleanly.</p>
+      </div>
+
+      <div class="wiki-entry" id="wiki-report">
+        <h3>Send a bug report</h3>
+        <p>If the workflow stops making sense before you can finish a guide, use the bug report page and capture the exact point where confidence dropped.</p>
+        <div class="wiki-entry-links">
+          <a href="alpha.html?v=20260426b">Open bug reports</a>
+        </div>
+      </div>
+    </div>
+  </div>
 </section>
 
 <footer>
