@@ -737,9 +737,23 @@
   }
 
   @media (max-width: 800px) {
-    nav { padding: 14px 24px; }
-    .nav-links { display: none; }
-    .hero { padding: 160px 24px 28px; gap: 28px; }
+    nav {
+      padding: 14px 24px;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 12px;
+    }
+    .nav-logo img { width: 184px; }
+    .nav-links {
+      display: flex;
+      width: 100%;
+      flex-wrap: wrap;
+      gap: 10px 16px;
+      align-items: center;
+    }
+    .nav-links a { font-size: 13px; }
+    .nav-cta { padding: 6px 14px; font-size: 12px; }
+    .hero { padding: 212px 24px 28px; gap: 28px; }
     .section { padding: 80px 24px; }
     footer { padding: 24px; }
     .stat-row { gap: 24px; }
