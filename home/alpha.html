@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>NymphsCore Alpha Testing</title>
+<title>NymphsCore Addon Feedback and Bug Reports</title>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@900&family=DM+Mono:wght@400;500&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -105,12 +105,7 @@
   }
 
   .hero {
-    min-height: 100vh;
-    display: grid;
-    grid-template-columns: minmax(0, 1.08fr) minmax(320px, 0.92fr);
-    gap: 48px;
-    align-items: center;
-    padding: 136px 60px 88px;
+    padding: 136px 60px 52px;
     position: relative;
   }
 
@@ -136,15 +131,15 @@
     pointer-events: none;
   }
 
-  .hero-copy,
-  .hero-side {
+  .hero-copy {
     position: relative;
     z-index: 2;
+    max-width: 760px;
   }
 
   .hero-logo {
-    width: min(560px, 82vw);
-    margin-bottom: 28px;
+    width: min(420px, 78vw);
+    margin-bottom: 24px;
   }
 
   .badge-row {
@@ -211,7 +206,7 @@
     font-size: 18px;
     color: var(--muted);
     line-height: 1.75;
-    margin-bottom: 38px;
+    margin-bottom: 24px;
   }
 
   .sub strong {
@@ -268,118 +263,8 @@
     letter-spacing: 0.02em;
   }
 
-  .hero-side {
-    display: grid;
-    gap: 18px;
-  }
-
-  .stack-panel,
-  .signal-panel {
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 18px;
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.02) 100%);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
-    overflow: hidden;
-  }
-
-  .stack-panel {
-    padding: 26px 26px 22px;
-  }
-
-  .signal-panel {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 1px;
-    background: var(--dark4);
-  }
-
-  .signal-cell {
-    background: var(--dark2);
-    padding: 20px 18px;
-  }
-
-  .signal-kicker {
-    color: var(--teal);
-    font-family: var(--mono);
-    font-size: 11px;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    margin-bottom: 8px;
-  }
-
-  .signal-value {
-    font-family: var(--head);
-    font-size: clamp(26px, 4vw, 38px);
-    line-height: 1;
-    margin-bottom: 10px;
-  }
-
-  .signal-copy {
-    color: var(--muted);
-    font-size: 13px;
-    line-height: 1.6;
-  }
-
-  .stack-tag {
-    color: var(--amber);
-    font-family: var(--mono);
-    font-size: 11px;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    margin-bottom: 14px;
-  }
-
-  .stack-panel h2 {
-    font-size: clamp(28px, 4vw, 42px);
-    line-height: 0.98;
-    margin-bottom: 14px;
-  }
-
-  .stack-panel p {
-    color: var(--muted);
-    font-size: 15px;
-    margin-bottom: 24px;
-  }
-
-  .stack-list {
-    list-style: none;
-    display: grid;
-    gap: 12px;
-  }
-
-  .stack-list li {
-    display: grid;
-    grid-template-columns: 70px 1fr;
-    gap: 14px;
-    align-items: start;
-    padding-top: 12px;
-    border-top: 1px solid rgba(255, 255, 255, 0.06);
-  }
-
-  .stack-list li:first-child { padding-top: 0; border-top: 0; }
-
-  .stack-step {
-    color: var(--lime);
-    font-family: var(--mono);
-    font-size: 11px;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-  }
-
-  .stack-text strong {
-    display: block;
-    font-weight: 600;
-    color: var(--light);
-    margin-bottom: 4px;
-  }
-
-  .stack-text span {
-    color: var(--muted);
-    font-size: 14px;
-  }
-
   .section {
-    padding: 100px 60px;
+    padding: 56px 60px;
   }
 
   .tag {
@@ -471,10 +356,7 @@
   }
 
   .form-wrap {
-    display: grid;
-    grid-template-columns: minmax(280px, 0.9fr) minmax(0, 1.1fr);
-    gap: 34px;
-    align-items: start;
+    display: block;
   }
 
   .note,
@@ -483,9 +365,10 @@
   }
 
   .note {
-    padding: 30px;
+    padding: 24px;
     border: 1px solid rgba(85, 223, 240, 0.18);
     background: linear-gradient(145deg, rgba(85, 223, 240, 0.08) 0%, rgba(99, 227, 95, 0.05) 100%);
+    margin-bottom: 24px;
   }
 
   .note h2 {
@@ -513,31 +396,6 @@
     color: var(--lime);
     font-family: var(--mono);
     margin-right: 10px;
-  }
-
-  .note-meta {
-    display: grid;
-    gap: 12px;
-  }
-
-  .meta-chip {
-    padding: 12px 14px;
-    border-radius: 12px;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    background: rgba(0, 0, 0, 0.14);
-  }
-
-  .meta-chip strong {
-    display: block;
-    color: var(--light);
-    font-size: 14px;
-    font-weight: 600;
-    margin-bottom: 4px;
-  }
-
-  .meta-chip span {
-    color: var(--muted);
-    font-size: 13px;
   }
 
   .panel {
@@ -618,81 +476,6 @@
     line-height: 1.7;
   }
 
-  .checklist-grid {
-    display: grid;
-    grid-template-columns: 1.05fr 0.95fr;
-    gap: 28px;
-    align-items: start;
-  }
-
-  .checklist-panel,
-  .rubric-panel {
-    border-radius: 18px;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    background: rgba(255, 255, 255, 0.025);
-    overflow: hidden;
-  }
-
-  .checklist-panel { padding: 0; }
-
-  .checklist-grid-inner {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 1px;
-    background: var(--dark4);
-  }
-
-  .checklist-card {
-    background: var(--dark2);
-    padding: 26px;
-    min-height: 180px;
-  }
-
-  .checklist-card h3,
-  .rubric-panel h3 {
-    font-size: 22px;
-    margin-bottom: 10px;
-  }
-
-  .checklist-card p,
-  .rubric-panel p,
-  .rubric-panel li {
-    color: var(--muted);
-    font-size: 14px;
-    line-height: 1.75;
-  }
-
-  .rubric-panel {
-    padding: 28px;
-  }
-
-  .rubric-panel ul {
-    list-style: none;
-    display: grid;
-    gap: 12px;
-    margin-top: 18px;
-  }
-
-  .rubric-panel li::before {
-    content: "//";
-    color: var(--lime);
-    font-family: var(--mono);
-    margin-right: 10px;
-  }
-
-  .final {
-    padding: 120px 60px;
-    text-align: center;
-  }
-
-  .final p {
-    max-width: 680px;
-    margin: 0 auto 38px;
-    color: var(--muted);
-    font-size: 17px;
-    line-height: 1.8;
-  }
-
   footer {
     border-top: 1px solid var(--dark4);
     padding: 30px 60px;
@@ -705,14 +488,8 @@
   }
 
   @media (max-width: 1080px) {
-    .hero,
-    .checklist-grid,
     .form-wrap {
-      grid-template-columns: 1fr;
-    }
-
-    .signal-panel {
-      grid-template-columns: 1fr;
+      display: block;
     }
   }
 
@@ -720,11 +497,9 @@
     nav { padding: 14px 24px; }
     .links { display: none; }
     .hero,
-    .section,
-    .final { padding-left: 24px; padding-right: 24px; }
+    .section { padding-left: 24px; padding-right: 24px; }
     .hero { padding-top: 122px; }
-    form,
-    .checklist-grid-inner { grid-template-columns: 1fr; }
+    form { grid-template-columns: 1fr; }
     footer {
       padding: 24px;
       flex-direction: column;
@@ -739,11 +514,10 @@
     <span>Nymphs<span class="core">Core</span></span>
   </a>
   <ul class="links">
-    <li><a href="index.html#workflow">Workflow</a></li>
-    <li><a href="#flow">Tester Flow</a></li>
+    <li><a href="index.html">Home</a></li>
     <li><a href="#report">Report</a></li>
-    <li><a href="#checklist">Checklist</a></li>
-    <li><a class="nav-cta" href="#report">Send Report</a></li>
+    <li><a href="#tips">Tips</a></li>
+    <li><a class="nav-cta" href="#report">Send Feedback</a></li>
   </ul>
 </nav>
 
@@ -751,134 +525,34 @@
   <div class="hero-copy">
     <img class="hero-logo" src="assets/NymphsCoreLogo.png" alt="NymphsCore logo">
     <div class="badge-row">
-      <div class="badge"><span class="badge-dot"></span>Private alpha</div>
-      <div class="badge">builders only</div>
-      <div class="badge">feedback and failure reports</div>
+      <div class="badge"><span class="badge-dot"></span>Addon feedback hub</div>
+      <div class="badge">bug reports</div>
+      <div class="badge">feature requests</div>
     </div>
-    <h1>Stress the workflow.<em>Report the cracks.</em></h1>
-    <p class="sub">This page is for people testing the real NymphsCore loop: <strong>Manager install, runtime checks, Blender setup, image work, and 3D passes.</strong> We do not just want bug screenshots. We want the exact place where the product stopped making sense.</p>
+    <h1>Feedback and bug reports.<em>Front and center.</em></h1>
+    <p class="sub">Use this page to report problems, confusing workflow steps, install issues, or feature ideas for the <strong>NymphsCore Blender addon</strong>.</p>
     <div class="row">
-      <a class="btn" href="#report">Write an alpha report</a>
+      <a class="btn" href="#report">Open the form</a>
       <a class="ghost" href="https://discord.com/invite/ezJVqBJvVj">Join the Discord</a>
-      <a class="ghost" href="#flow">Read the tester flow</a>
+      <a class="ghost" href="index.html">Back to home</a>
     </div>
-    <p class="hero-note">Best reports include the exact step, the expected result, the actual result, and any logs or screenshots you can attach.</p>
-  </div>
-
-  <div class="hero-side">
-    <div class="stack-panel">
-      <div class="stack-tag">// Recommended session shape</div>
-      <h2>One honest test run beats ten vague comments.</h2>
-      <p>Pick a real task, run it end to end, and stop where the experience turns unclear, slow, scary, or broken.</p>
-      <ul class="stack-list">
-        <li>
-          <div class="stack-step">Phase 01</div>
-          <div class="stack-text"><strong>Install and trust check</strong><span>Can a new tester tell what to do next without needing dev hand-holding?</span></div>
-        </li>
-        <li>
-          <div class="stack-step">Phase 02</div>
-          <div class="stack-text"><strong>Runtime reality check</strong><span>Smoke tests, missing models, repair paths, and status feedback should feel obvious.</span></div>
-        </li>
-        <li>
-          <div class="stack-step">Phase 03</div>
-          <div class="stack-text"><strong>Actual creative use</strong><span>Try image, extraction, shape, texture, and retexture until something feels off.</span></div>
-        </li>
-      </ul>
-    </div>
-
-    <div class="signal-panel">
-      <div class="signal-cell">
-        <div class="signal-kicker">Signal A</div>
-        <div class="signal-value">Clarity</div>
-        <div class="signal-copy">Were the next steps obvious without asking the developer?</div>
-      </div>
-      <div class="signal-cell">
-        <div class="signal-kicker">Signal B</div>
-        <div class="signal-value">Failure</div>
-        <div class="signal-copy">If something broke, could you tell what broke and what to try next?</div>
-      </div>
-      <div class="signal-cell">
-        <div class="signal-kicker">Signal C</div>
-        <div class="signal-value">Trust</div>
-        <div class="signal-copy">Did the app feel stable enough that you would try it again tomorrow?</div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<section class="section" id="flow">
-  <div class="tag">// Alpha tester flow</div>
-  <h2 class="title">Test the rough edges.<br>Not just the happy path.</h2>
-  <p class="lead">A good alpha session pushes on onboarding, repair paths, defaults, and confidence. If something feels ambiguous, sticky, or suspiciously silent, that is exactly the thing worth reporting.</p>
-  <div class="grid">
-    <div class="card">
-      <div class="num">01</div>
-      <div class="icon">SET</div>
-      <h3>Install Manager</h3>
-      <p>Note any step that feels risky, unclear, too slow, or too technical for a normal user.</p>
-    </div>
-    <div class="card">
-      <div class="num">02</div>
-      <div class="icon">CHK</div>
-      <h3>Run checks</h3>
-      <p>Use runtime tools, smoke tests, and model checks. If a failure happens, grab the log trail.</p>
-    </div>
-    <div class="card">
-      <div class="num">03</div>
-      <div class="icon">IMG</div>
-      <h3>Generate or edit</h3>
-      <p>Try real image work instead of toy prompts. Reference generation and editing both matter here.</p>
-    </div>
-    <div class="card">
-      <div class="num">04</div>
-      <div class="icon">3D</div>
-      <h3>Push into shape</h3>
-      <p>Go from image to shape and texture flow until a setting, output, or expectation stops being obvious.</p>
-    </div>
-    <div class="card">
-      <div class="num">05</div>
-      <div class="icon">RPT</div>
-      <h3>Send the real story</h3>
-      <p>Say what happened, what you expected, and what change would make the workflow feel sane.</p>
-    </div>
+    <p class="hero-note">Include the step, expected result, actual result, and any logs or screenshots if you have them.</p>
   </div>
 </section>
 
 <section class="section form-section" id="report">
   <div class="form-wrap">
-    <aside class="note">
-      <div class="tag">// What makes a useful report</div>
-      <h2>Small details make bugs fixable.</h2>
-      <p>Polished writing is not required. Specifics are. The fastest fixes usually come from the tester who recorded the exact button, step, message, or moment where trust dropped.</p>
-      <ul>
-        <li>State the exact step or panel, not just the feature area.</li>
-        <li>Tell us what you expected before the workflow went wrong.</li>
-        <li>Paste logs when install, model fetch, or runtime start fails.</li>
-        <li>Say if the issue felt broken, confusing, scary, or simply too slow.</li>
-      </ul>
-      <div class="note-meta">
-        <div class="meta-chip">
-          <strong>Good report title</strong>
-          <span>Manager smoke test says ready, but TRELLIS start still fails on first click.</span>
-        </div>
-        <div class="meta-chip">
-          <strong>Bad report title</strong>
-          <span>It kind of broke and I do not know why.</span>
-        </div>
-      </div>
-    </aside>
-
     <div class="panel">
       <div class="panel-head">
         <div>
-          <div class="tag">// Send alpha feedback</div>
-          <h2>Report the exact break point.</h2>
+          <div class="tag">// Send feedback</div>
+          <h2>Report the issue.</h2>
         </div>
-        <p>Submissions go straight to the NymphsCore alpha feedback inbox. Discord is the fastest place for follow-up and tester coordination.</p>
+        <p>Submissions go to the NymphsCore addon feedback inbox.</p>
       </div>
 
       <form action="https://formspree.io/f/mnjlrong" method="POST">
-        <input type="hidden" name="_subject" value="New NymphsCore alpha tester report">
+        <input type="hidden" name="_subject" value="New NymphsCore addon feedback report">
 
         <div>
           <label for="reportType">Report type</label>
@@ -887,11 +561,12 @@
             <option>Experience feedback</option>
             <option>Onboarding confusion</option>
             <option>Performance concern</option>
+            <option>Feature request</option>
           </select>
         </div>
 
         <div>
-          <label for="testerName">Tester name</label>
+          <label for="testerName">Name</label>
           <input id="testerName" name="testerName" type="text" placeholder="Name or handle">
         </div>
 
@@ -901,7 +576,7 @@
         </div>
 
         <div>
-          <label for="area">Area tested</label>
+          <label for="area">Area</label>
           <select id="area" name="area">
             <option>Manager install</option>
             <option>Runtime tools / smoke tests</option>
@@ -912,6 +587,7 @@
             <option>Shape generation</option>
             <option>Texture / retexture</option>
             <option>Docs / onboarding</option>
+            <option>Superhive listing / install flow</option>
             <option>Other</option>
           </select>
         </div>
@@ -947,63 +623,28 @@
         </div>
 
         <p class="hint">If the issue happened during install or runtime start, include the moment it first became confusing, not just the final error line.</p>
-        <button class="btn full" type="submit">Send alpha report</button>
+        <button class="btn full" type="submit">Send feedback report</button>
       </form>
     </div>
   </div>
 </section>
 
-<section class="section" id="checklist">
-  <div class="tag">// What to actively push on</div>
-  <h2 class="title">Do not just test success.<br>Test confusion and trust.</h2>
-  <p class="lead">The strongest alpha notes often come from moments where the product technically works, but the tester still feels lost. That is a product problem too.</p>
-
-  <div class="checklist-grid">
-    <div class="checklist-panel">
-      <div class="checklist-grid-inner">
-        <div class="checklist-card">
-          <h3>First-run clarity</h3>
-          <p>Could you tell what to do next at every step without asking for hidden context?</p>
-        </div>
-        <div class="checklist-card">
-          <h3>Repair paths</h3>
-          <p>Try interrupted installs, missing models, backend checks, and reruns. The recovery path matters.</p>
-        </div>
-        <div class="checklist-card">
-          <h3>Speed expectations</h3>
-          <p>Report where progress feels fake, stalled, or too silent to trust.</p>
-        </div>
-        <div class="checklist-card">
-          <h3>Mental model</h3>
-          <p>Call out places where Manager, Blender, runtime tools, and generated assets stop fitting together in your head.</p>
-        </div>
-      </div>
-    </div>
-
-    <div class="rubric-panel">
-      <div class="tag">// Fast rubric</div>
-      <h3>What we care about most</h3>
-      <p>If you only have time for one solid note, prioritize the place where the workflow most damaged confidence.</p>
-      <ul>
-        <li>What was the first confusing or misleading signal?</li>
-        <li>What assumption did the product make that a tester would not naturally make?</li>
-        <li>What single UI, copy, or default change would have saved the session?</li>
-        <li>What unexpectedly worked well and should survive later cleanup?</li>
-      </ul>
-    </div>
-  </div>
-</section>
-
-<section class="final">
-  <div class="tag">// Final note</div>
-  <h2 class="title">Break it honestly.<br><span style="background:linear-gradient(90deg,var(--teal),var(--lime));-webkit-background-clip:text;background-clip:text;color:transparent;">Help us fix it faster.</span></h2>
-  <p>Alpha feedback is most valuable when it names the exact point where the workflow stopped feeling trustworthy. That can be a crash, a missing model, a confusing panel, a silent delay, or a step that only makes sense if a developer explains it out loud.</p>
-  <a class="btn" href="#report">Send alpha feedback</a>
+<section class="section" id="tips">
+  <aside class="note">
+    <div class="tag">// Quick tips</div>
+    <h2>What helps most.</h2>
+    <ul>
+      <li>Name the exact step or panel.</li>
+      <li>Say what you expected and what happened instead.</li>
+      <li>Paste errors, logs, or screenshot notes when relevant.</li>
+      <li>Feature requests are welcome too.</li>
+    </ul>
+  </aside>
 </section>
 
 <footer>
   <div>Nymphs<span class="core">Core</span></div>
-  <div>Private alpha testing · workflow trust · bug and clarity reports</div>
+  <div>Addon feedback and bug reports</div>
 </footer>
 </body>
 </html>
