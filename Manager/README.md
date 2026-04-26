@@ -180,7 +180,7 @@ Rerunning the latest manager is the intended repair path for interrupted install
 Install the Blender addon separately:
 
 - [Blender Addon User Guide](../docs/BLENDER_ADDON_USER_GUIDE.md)
-- [NymphsExt feed](https://raw.githubusercontent.com/nymphnerds/NymphsExt/main/index.json)
+- Blender addon: available on Superhive (temporary URL)
 
 Most local installs should not need a custom API URL. The addon is designed to target the managed local runtime.
 

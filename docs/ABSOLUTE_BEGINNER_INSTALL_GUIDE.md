@@ -7,6 +7,7 @@ You do not need to know Linux or WSL. The manager app handles the WSL distro, CU
 The Blender addon is installed separately after the backend is ready:
 
 - [Blender Addon User Guide](https://github.com/nymphnerds/NymphsCore/blob/main/docs/BLENDER_ADDON_USER_GUIDE.md)
+- Blender addon: available on Superhive (temporary URL)
 
 ## What You Are Installing
 
@@ -272,6 +273,7 @@ Use `Z-Image` for:
 Install the Blender addon:
 
 - [Blender Addon User Guide](https://github.com/nymphnerds/NymphsCore/blob/main/docs/BLENDER_ADDON_USER_GUIDE.md)
+- Blender addon: available on Superhive (temporary URL)
 
 Then:
 
