@@ -92,7 +92,11 @@
   }
 
   .hero {
-    padding: 132px 60px 64px;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 120px 60px 80px;
     position: relative;
   }
 
@@ -118,7 +122,7 @@
     flex-wrap: wrap;
     gap: 12px;
     align-items: center;
-    margin-bottom: 24px;
+    margin-bottom: 32px;
   }
 
   .badge {
@@ -149,9 +153,10 @@
   }
 
   h1 {
-    font-size: clamp(52px, 8vw, 104px);
+    font-size: clamp(52px, 8vw, 108px);
     line-height: 0.93;
-    margin-bottom: 24px;
+    margin-bottom: 32px;
+    max-width: 960px;
   }
 
   h1 em {
@@ -164,11 +169,11 @@
   }
 
   .hero-sub {
-    max-width: 720px;
+    max-width: 620px;
     color: var(--muted);
     font-size: 18px;
-    line-height: 1.75;
-    margin-bottom: 28px;
+    line-height: 1.7;
+    margin-bottom: 48px;
   }
 
   .hero-sub strong {
@@ -506,8 +511,8 @@
   <div class="hero-copy">
     <div class="badge-row">
       <div class="badge"><span class="badge-dot"></span>Guide hub</div>
-      <div class="badge">workflow docs</div>
-      <div class="badge">short demo placeholders</div>
+      <div class="badge">video demos</div>
+      <div class="badge">wiki</div>
     </div>
     <h1>User guides.<em>Learn the workflow.</em></h1>
     <p class="hero-sub">Go from first launch to image, refinement, and shape with clear step-by-step guides for the main workflow.</p>
@@ -530,11 +535,6 @@
       <div class="demo-frame">Install and<br>first-run demo</div>
       <h3>Manager to ready state</h3>
       <p>Show the shortest possible install-to-ready path so a new user knows what “healthy” looks like.</p>
-      <div class="demo-meta">Future YouTube URL:
-https://www.youtube.com/watch?v=YOUR_VIDEO_ID
-
-Suggested length:
-45 to 90 seconds</div>
     </div>
 
     <div class="demo-card">
@@ -542,11 +542,6 @@ Suggested length:
       <div class="demo-frame">First image<br>generation demo</div>
       <h3>Reference generation</h3>
       <p>Record one clean pass from prompt to useful reference image, without over-explaining every setting.</p>
-      <div class="demo-meta">Future YouTube URL:
-https://www.youtube.com/watch?v=YOUR_VIDEO_ID
-
-Suggested length:
-30 to 60 seconds</div>
     </div>
 
     <div class="demo-card">
@@ -554,11 +549,6 @@ Suggested length:
       <div class="demo-frame">Extraction<br>before 3D demo</div>
       <h3>Modular parts workflow</h3>
       <p>Show the extraction logic clearly so users understand why this happens before the shape stage.</p>
-      <div class="demo-meta">Future YouTube URL:
-https://www.youtube.com/watch?v=YOUR_VIDEO_ID
-
-Suggested length:
-45 to 75 seconds</div>
     </div>
 
     <div class="demo-card">
@@ -566,11 +556,6 @@ Suggested length:
       <div class="demo-frame">Image to shape<br>demo</div>
       <h3>3D draft output</h3>
       <p>Record the moment where an image becomes the first 3D draft so expectations are grounded early.</p>
-      <div class="demo-meta">Future YouTube URL:
-https://www.youtube.com/watch?v=YOUR_VIDEO_ID
-
-Suggested length:
-45 to 90 seconds</div>
     </div>
   </div>
 </section>
