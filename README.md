@@ -210,9 +210,10 @@ Rerunning the latest manager is the intended repair path for interrupted install
 
 ### After Install
 
-After the backend is installed, the Blender addon source lives here:
+After the backend is installed, use the Blender addon through the published extension feed and user guide:
 
-- [Blender Addon](Blender/Addon)
+- [Blender Addon User Guide](docs/BLENDER_ADDON_USER_GUIDE.md)
+- [NymphsExt feed](https://raw.githubusercontent.com/nymphnerds/NymphsExt/main/index.json)
 
 Useful docs:
 
@@ -228,24 +229,22 @@ Useful docs:
 ```
 NymphsCore/
 ├── Manager/        — WSL backend, C# installer, and setup scripts
-└── Blender/
-    └── Addon/      — Blender addon source and extension build tooling
+├── Blender/        — handoff docs for the separate addon repo
+└── docs/           — install guides, backend docs, and addon user guide
 ```
 
-### Why is the Blender Extension a separate repo?
-Blender Extensions (Blender 4.2+) must have `blender_manifest.toml` at the **root** of a repo to support direct Git URL installs from inside Blender. So each Blender Extension needs its own repo — see [`NymphsExt`](https://github.com/nymphnerds/NymphsExt).
+### Why is the Blender Addon separate now?
+The live Blender addon source now lives in a separate private repo so the Manager/runtime monorepo can stay public-facing without carrying the addon implementation.
 
-The classic **Blender Addon** (`Blender/Addon/`) is different — it's installed by the Manager app automatically, so it doesn't need to be Blender-accessible directly and lives fine as a subfolder here.
-
-The current addon workflow includes guided image part extraction: generate or choose a master image, plan extractable character parts, select the parts to keep, and generate separate references for the anatomy base, clothing, hair, props, and optional eyeball assets. The source addon lives in `Blender/Addon/`, while the public extension feed is mirrored through `NymphsExt`.
+The public Blender extension feed remains in [`NymphsExt`](https://github.com/nymphnerds/NymphsExt), while install and usage docs remain here in `docs/BLENDER_ADDON_USER_GUIDE.md`.
 
 ---
 
 ## Adding Things in Future
 
-**New Blender Extension** — create a new repo on `nymphnerds` with `blender_manifest.toml` at the root. Same pattern as `NymphsExt`.
+**New Blender Extension feed change** — publish package updates through `NymphsExt`.
 
-**New classic Blender Addon** — add a folder under `Blender/` and update the Manager scripts to copy it into place.
+**New Blender addon source work** — make changes in the separate addon repo and mirror packaged releases to `NymphsExt`.
 
 ---
 
@@ -268,5 +267,5 @@ See [`CHANGELOG.md`](CHANGELOG.md) for the full NymphsCore change history across
 | Repo | Purpose |
 |---|---|
 | [NymphsExt](https://raw.githubusercontent.com/nymphnerds/NymphsExt/main/index.json) | Blender Extensions (install via repository URL) |
-| [NymphsCore](https://github.com/nymphnerds/NymphsCore) | Current Manager, runtime, and addon monorepo |
+| [NymphsCore](https://github.com/nymphnerds/NymphsCore) | Current Manager, installer, runtime helpers, and public docs |
 | [Nymphs2D2](https://github.com/nymphnerds/Nymphs2D2) | 2D backend repo used for the `Z-Image` runtime |
