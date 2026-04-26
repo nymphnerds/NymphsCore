@@ -317,30 +317,20 @@
     line-height: 1.7;
   }
 
-  .wiki-columns {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 28px;
-  }
-
-  .wiki-group h3 {
-    font-size: 22px;
-    margin-bottom: 14px;
-  }
-
-  .wiki-group ul {
+  .wiki-list {
     list-style: none;
     display: grid;
     gap: 12px;
+    max-width: 860px;
   }
 
-  .wiki-group li {
+  .wiki-list li {
     color: var(--muted);
-    font-size: 14px;
+    font-size: 15px;
     line-height: 1.7;
   }
 
-  .wiki-group a {
+  .wiki-list a {
     color: var(--light);
     text-decoration: none;
     border-bottom: 1px solid rgba(99,227,95,0.22);
@@ -437,14 +427,12 @@
 
   @media (max-width: 980px) {
     .plan-shell { grid-template-columns: 1fr; }
-    .wiki-columns { grid-template-columns: 1fr 1fr; }
   }
 
   @media (max-width: 800px) {
     nav { padding: 14px 24px; }
     .nav-links { display: none; }
     .hero, .section { padding-left: 24px; padding-right: 24px; }
-    .wiki-columns { grid-template-columns: 1fr; }
     footer {
       padding: 24px;
       flex-direction: column;
@@ -545,51 +533,24 @@ Suggested length:
   <h2 class="section-title">Wiki.</h2>
   <p class="section-sub">Use the videos for a quick overview, then jump straight into the exact page you need below.</p>
 
-  <div class="wiki-columns">
-    <div class="wiki-group">
-      <div class="plan-label">Start Here</div>
-      <h3>Getting started</h3>
-      <ul>
-        <li><a href="guides/install-and-first-launch.html">Install NymphsCore Manager</a></li>
-        <li><a href="guides/install-and-first-launch.html">Finish first launch setup</a></li>
-        <li><a href="#">Check runtime health</a><span class="wiki-status">coming soon</span></li>
-        <li><a href="#">Open the addon in Blender</a><span class="wiki-status">coming soon</span></li>
-      </ul>
-    </div>
-
-    <div class="wiki-group">
-      <div class="plan-label">Image Workflow</div>
-      <h3>Image guides</h3>
-      <ul>
-        <li><a href="guides/generate-your-first-image.html">Generate your first reference image</a></li>
-        <li><a href="guides/refine-with-guide-images.html">Refine with guide images</a></li>
-        <li><a href="#">Prepare an image for extraction</a><span class="wiki-status">coming soon</span></li>
-        <li><a href="#">Extract modular parts</a><span class="wiki-status">coming soon</span></li>
-      </ul>
-    </div>
-
-    <div class="wiki-group">
-      <div class="plan-label">3D Workflow</div>
-      <h3>Shape guides</h3>
-      <ul>
-        <li><a href="guides/go-from-image-to-shape.html">Choose the best image for shape</a></li>
-        <li><a href="guides/go-from-image-to-shape.html">Run image to shape</a></li>
-        <li><a href="#">Understand the first 3D draft</a><span class="wiki-status">coming soon</span></li>
-        <li><a href="#">What to do when shape output is weak</a><span class="wiki-status">coming soon</span></li>
-      </ul>
-    </div>
-
-    <div class="wiki-group">
-      <div class="plan-label">Troubleshooting</div>
-      <h3>Get unstuck</h3>
-      <ul>
-        <li><a href="#">Troubleshooting install issues</a><span class="wiki-status">coming soon</span></li>
-        <li><a href="#">Troubleshooting runtime issues</a><span class="wiki-status">coming soon</span></li>
-        <li><a href="#">Troubleshooting Blender addon issues</a><span class="wiki-status">coming soon</span></li>
-        <li><a href="alpha.html?v=20260426b">Send a bug report</a></li>
-      </ul>
-    </div>
-  </div>
+  <ul class="wiki-list">
+    <li><a href="guides/install-and-first-launch.html">Install NymphsCore Manager</a></li>
+    <li><a href="guides/install-and-first-launch.html">Finish first launch setup</a></li>
+    <li><a href="#">Check runtime health</a><span class="wiki-status">coming soon</span></li>
+    <li><a href="#">Open the addon in Blender</a><span class="wiki-status">coming soon</span></li>
+    <li><a href="guides/generate-your-first-image.html">Generate your first reference image</a></li>
+    <li><a href="guides/refine-with-guide-images.html">Refine with guide images</a></li>
+    <li><a href="#">Prepare an image for extraction</a><span class="wiki-status">coming soon</span></li>
+    <li><a href="#">Extract modular parts</a><span class="wiki-status">coming soon</span></li>
+    <li><a href="guides/go-from-image-to-shape.html">Choose the best image for shape</a></li>
+    <li><a href="guides/go-from-image-to-shape.html">Run image to shape</a></li>
+    <li><a href="#">Understand the first 3D draft</a><span class="wiki-status">coming soon</span></li>
+    <li><a href="#">What to do when shape output is weak</a><span class="wiki-status">coming soon</span></li>
+    <li><a href="#">Troubleshooting install issues</a><span class="wiki-status">coming soon</span></li>
+    <li><a href="#">Troubleshooting runtime issues</a><span class="wiki-status">coming soon</span></li>
+    <li><a href="#">Troubleshooting Blender addon issues</a><span class="wiki-status">coming soon</span></li>
+    <li><a href="alpha.html?v=20260426b">Send a bug report</a></li>
+  </ul>
 </section>
 
 <section class="section" id="guides">
