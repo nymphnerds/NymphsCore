@@ -60,22 +60,15 @@
   .logo {
     display: inline-flex;
     align-items: center;
-    gap: 12px;
     text-decoration: none;
     color: var(--light);
-    font-family: var(--head);
-    font-size: 20px;
-    font-weight: 900;
-    letter-spacing: -0.01em;
   }
 
   .logo img {
-    width: 34px;
-    height: 34px;
+    width: 28px;
+    height: 28px;
     object-fit: contain;
   }
-
-  .core { color: var(--lime); }
 
   .links {
     list-style: none;
@@ -509,9 +502,8 @@
 </head>
 <body>
 <nav>
-  <a class="logo" href="index.html">
+  <a class="logo" href="index.html" aria-label="NymphsCore home">
     <img src="assets/splash.png" alt="NymphsCore">
-    <span>Nymphs<span class="core">Core</span></span>
   </a>
   <ul class="links">
     <li><a href="index.html">Home</a></li>

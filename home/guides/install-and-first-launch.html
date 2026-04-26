@@ -16,9 +16,8 @@
   img { max-width: 100%; display: block; }
   a { color: inherit; }
   nav { position: fixed; top: 0; left: 0; right: 0; padding: 16px 60px; background: rgba(13,13,13,0.88); backdrop-filter: blur(14px); border-bottom: 1px solid var(--dark4); display: flex; align-items: center; justify-content: space-between; z-index: 100; }
-  .nav-logo { display: inline-flex; align-items: center; gap: 12px; text-decoration: none; color: var(--light); font-family: var(--font-head); font-size: 20px; font-weight: 900; }
-  .nav-logo img { width: 34px; height: 34px; object-fit: contain; }
-  .nav-wordmark .core { color: var(--lime); }
+  .nav-logo { display: inline-flex; align-items: center; text-decoration: none; color: var(--light); }
+  .nav-logo img { width: 28px; height: 28px; object-fit: contain; }
   .nav-links { list-style: none; display: flex; gap: 28px; align-items: center; }
   .nav-links a { text-decoration: none; color: var(--muted); font-size: 14px; }
   .nav-links a:hover { color: var(--light); }
@@ -58,9 +57,8 @@
 </head>
 <body>
 <nav>
-  <a class="nav-logo" href="../index.html">
+  <a class="nav-logo" href="../index.html" aria-label="NymphsCore home">
     <img src="../assets/splash.png" alt="NymphsCore icon">
-    <span class="nav-wordmark">Nymphs<span class="core">Core</span></span>
   </a>
   <ul class="nav-links">
     <li><a href="../guides.html">Guide Hub</a></li>

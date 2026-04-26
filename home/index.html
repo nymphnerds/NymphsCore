@@ -53,27 +53,15 @@
   .nav-logo {
     display: inline-flex;
     align-items: center;
-    gap: 12px;
-    font-family: var(--font-head);
-    font-weight: 900;
-    font-size: 20px;
-    letter-spacing: -0.01em;
     color: var(--light);
     text-decoration: none;
   }
 
   .nav-logo img {
-    width: 34px;
-    height: 34px;
+    width: 28px;
+    height: 28px;
     object-fit: contain;
   }
-
-  .nav-wordmark {
-    display: inline-block;
-  }
-
-  .nav-wordmark .nymphs { color: var(--light); }
-  .nav-wordmark .core { color: var(--lime); }
   .nav-links { display: flex; gap: 32px; align-items: center; list-style: none; }
   .nav-links a { font-size: 14px; color: var(--muted); text-decoration: none; transition: color 0.15s; }
   .nav-links a:hover { color: var(--light); }
@@ -807,9 +795,8 @@
 <body>
 
 <nav>
-  <a class="nav-logo" href="#">
+  <a class="nav-logo" href="#" aria-label="NymphsCore home">
     <img src="assets/splash.png" alt="NymphsCore icon">
-    <span class="nav-wordmark"><span class="nymphs">Nymphs</span><span class="core">Core</span></span>
   </a>
   <ul class="nav-links">
     <li><a href="#workflow">Workflow</a></li>

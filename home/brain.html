@@ -59,27 +59,14 @@
   .nav-logo {
     display: inline-flex;
     align-items: center;
-    gap: 12px;
     text-decoration: none;
     color: var(--light);
-    font-family: var(--font-head);
-    font-size: 20px;
-    font-weight: 900;
-    letter-spacing: -0.01em;
   }
 
   .nav-logo img {
-    width: 34px;
-    height: 34px;
+    width: 28px;
+    height: 28px;
     object-fit: contain;
-  }
-
-  .nav-wordmark .nymphs { color: var(--light); }
-  .nav-wordmark .brain {
-    background: linear-gradient(90deg, #63e35f 0%, #55dff0 100%);
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
   }
 
   .nav-links {
@@ -767,9 +754,8 @@
 <body>
 
 <nav>
-  <a class="nav-logo" href="index.html">
+  <a class="nav-logo" href="index.html" aria-label="NymphsCore home">
     <img src="assets/splash.png" alt="Nymphs icon">
-    <span class="nav-wordmark"><span class="nymphs">Nymphs</span><span class="brain">Brain</span></span>
   </a>
   <ul class="nav-links">
     <li><a href="#vram">Size Guide</a></li>

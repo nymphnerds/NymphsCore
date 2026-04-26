@@ -55,23 +55,15 @@
   .nav-logo {
     display: inline-flex;
     align-items: center;
-    gap: 12px;
     color: var(--light);
     text-decoration: none;
-    font-family: var(--font-head);
-    font-size: 20px;
-    font-weight: 900;
-    letter-spacing: -0.01em;
   }
 
   .nav-logo img {
-    width: 34px;
-    height: 34px;
+    width: 28px;
+    height: 28px;
     object-fit: contain;
   }
-
-  .nav-wordmark .nymphs { color: var(--light); }
-  .nav-wordmark .core { color: var(--lime); }
 
   .nav-links {
     display: flex;
@@ -427,14 +419,13 @@
 <body>
 
 <nav>
-  <a class="nav-logo" href="index.html">
+  <a class="nav-logo" href="index.html" aria-label="NymphsCore home">
     <img src="assets/splash.png" alt="NymphsCore icon">
-    <span class="nav-wordmark"><span class="nymphs">Nymphs</span><span class="core">Core</span></span>
   </a>
   <ul class="nav-links">
-    <li><a href="#start">Start Here</a></li>
-    <li><a href="#guides">Guides</a></li>
     <li><a href="#demos">Video Demos</a></li>
+    <li><a href="#guides">Guides</a></li>
+    <li><a href="#start">Start Here</a></li>
     <li><a href="alpha.html?v=20260426b">Bug Reports</a></li>
     <li><a href="guides/install-and-first-launch.html" class="nav-cta">Open First Guide</a></li>
   </ul>
@@ -448,25 +439,81 @@
       <div class="badge">workflow docs</div>
       <div class="badge">short demo placeholders</div>
     </div>
-    <h1>The user guide.<em>Built around the workflow.</em></h1>
-    <p class="hero-sub">Learn the NymphsCore Blender workflow step by step, from first launch through image generation, refinement, and shape. Each guide is designed to help you move forward without guessing what the next stage is for.</p>
+    <h1>NymphsCore guides.<em>Learn the workflow.</em></h1>
+    <p class="hero-sub">Go from first launch to image, refinement, and shape with clear step-by-step guides for the main workflow.</p>
     <div class="cta-row">
-      <a href="guides/install-and-first-launch.html" class="btn-primary">Start with install</a>
-      <a href="#guides" class="btn-ghost">Browse all guides</a>
+      <a href="#demos" class="btn-primary">Watch short demos</a>
+      <a href="guides/install-and-first-launch.html" class="btn-ghost">Start with install</a>
       <a href="index.html" class="btn-ghost">Back to home</a>
     </div>
   </div>
 </section>
 
+<section class="section" id="demos">
+  <div class="section-tag">// Video Demos</div>
+  <h2 class="section-title">Short demo slots.<br>Ready when videos are added.</h2>
+  <p class="section-sub">Each guide can carry a short visual companion. These slots are here so the guide hub already has a place for demos as they are published.</p>
+
+  <div class="demo-grid">
+    <div class="demo-card">
+      <div class="demo-label">Install and First Launch</div>
+      <div class="demo-frame">Install and<br>first-run demo</div>
+      <h3>Manager to ready state</h3>
+      <p>Show the shortest possible install-to-ready path so a new user knows what “healthy” looks like.</p>
+      <div class="demo-meta">Future YouTube URL:
+https://www.youtube.com/watch?v=YOUR_VIDEO_ID
+
+Suggested length:
+45 to 90 seconds</div>
+    </div>
+
+    <div class="demo-card">
+      <div class="demo-label">Generate Your First Image</div>
+      <div class="demo-frame">First image<br>generation demo</div>
+      <h3>Reference generation</h3>
+      <p>Record one clean pass from prompt to useful reference image, without over-explaining every setting.</p>
+      <div class="demo-meta">Future YouTube URL:
+https://www.youtube.com/watch?v=YOUR_VIDEO_ID
+
+Suggested length:
+30 to 60 seconds</div>
+    </div>
+
+    <div class="demo-card">
+      <div class="demo-label">Extract Modular Parts</div>
+      <div class="demo-frame">Extraction<br>before 3D demo</div>
+      <h3>Modular parts workflow</h3>
+      <p>Show the extraction logic clearly so users understand why this happens before the shape stage.</p>
+      <div class="demo-meta">Future YouTube URL:
+https://www.youtube.com/watch?v=YOUR_VIDEO_ID
+
+Suggested length:
+45 to 75 seconds</div>
+    </div>
+
+    <div class="demo-card">
+      <div class="demo-label">Go From Image to Shape</div>
+      <div class="demo-frame">Image to shape<br>demo</div>
+      <h3>3D draft output</h3>
+      <p>Record the moment where an image becomes the first 3D draft so expectations are grounded early.</p>
+      <div class="demo-meta">Future YouTube URL:
+https://www.youtube.com/watch?v=YOUR_VIDEO_ID
+
+Suggested length:
+45 to 90 seconds</div>
+    </div>
+  </div>
+</section>
+
 <section class="section" id="start">
-  <div class="section-tag">// Start Here</div>
+  <div class="section-tag">// Quick Start</div>
   <h2 class="section-title">Follow the workflow in order.</h2>
-  <p class="section-sub">The fastest way to make sense of NymphsCore is to follow the same sequence the product uses: get the backend healthy, create a strong image, refine it if needed, then move into shape.</p>
+  <p class="section-sub">Start with setup, then move through image generation, refinement, and shape in the same order the workflow uses them.</p>
 
   <div class="plan-shell">
     <div class="plan-card">
-      <div class="plan-label">Recommended path</div>
-      <h3>Start here if you are new.</h3>
+      <div class="plan-label">Start Here</div>
+      <h3>The main path.</h3>
       <ul>
         <li>Install and first launch</li>
         <li>Generate your first useful image</li>
@@ -475,10 +522,10 @@
       </ul>
     </div>
     <div class="plan-card">
-      <div class="plan-label">What you will get</div>
-      <h3>Clear next steps at each stage.</h3>
-      <p>Each page focuses on what the stage is for, what a good result looks like, and what to do next if the output is not strong enough to carry forward.</p>
-      <div class="note">Short demo slots are included throughout the guide section and can be filled in as new videos are added.</div>
+      <div class="plan-label">What To Expect</div>
+      <h3>One stage at a time.</h3>
+      <p>Each page shows what that stage is for, what a good result looks like, and when to move on.</p>
+      <div class="note">Short demo slots will sit alongside the guides as videos are added.</div>
     </div>
   </div>
 </section>
@@ -540,62 +587,6 @@ part extraction flow</div>
       <h3>Troubleshooting and recovery</h3>
       <p>One place for install trouble, runtime checks, missing models, failed starts, and “what next?” answers.</p>
       <a href="alpha.html?v=20260426b">Open bug reports</a>
-    </div>
-  </div>
-</section>
-
-<section class="section" id="demos">
-  <div class="section-tag">// Video Demos</div>
-  <h2 class="section-title">Short demo slots.<br>Ready when videos are added.</h2>
-  <p class="section-sub">Each guide can carry a short visual companion. These slots are here so the guide hub already has a place for demos as they are published.</p>
-
-  <div class="demo-grid">
-    <div class="demo-card">
-      <div class="demo-label">Demo Placeholder 01</div>
-      <div class="demo-frame">Install and<br>first-run demo</div>
-      <h3>Manager to ready state</h3>
-      <p>Show the shortest possible install-to-ready path so a new user knows what “healthy” looks like.</p>
-      <div class="demo-meta">Future YouTube URL:
-https://www.youtube.com/watch?v=YOUR_VIDEO_ID
-
-Suggested length:
-45 to 90 seconds</div>
-    </div>
-
-    <div class="demo-card">
-      <div class="demo-label">Demo Placeholder 02</div>
-      <div class="demo-frame">First image<br>generation demo</div>
-      <h3>Reference generation</h3>
-      <p>Record one clean pass from prompt to useful reference image, without over-explaining every setting.</p>
-      <div class="demo-meta">Future YouTube URL:
-https://www.youtube.com/watch?v=YOUR_VIDEO_ID
-
-Suggested length:
-30 to 60 seconds</div>
-    </div>
-
-    <div class="demo-card">
-      <div class="demo-label">Demo Placeholder 03</div>
-      <div class="demo-frame">Extraction<br>before 3D demo</div>
-      <h3>Modular parts workflow</h3>
-      <p>Show the extraction logic clearly so users understand why this happens before the shape stage.</p>
-      <div class="demo-meta">Future YouTube URL:
-https://www.youtube.com/watch?v=YOUR_VIDEO_ID
-
-Suggested length:
-45 to 75 seconds</div>
-    </div>
-
-    <div class="demo-card">
-      <div class="demo-label">Demo Placeholder 04</div>
-      <div class="demo-frame">Image to shape<br>demo</div>
-      <h3>3D draft output</h3>
-      <p>Record the moment where an image becomes the first 3D draft so expectations are grounded early.</p>
-      <div class="demo-meta">Future YouTube URL:
-https://www.youtube.com/watch?v=YOUR_VIDEO_ID
-
-Suggested length:
-45 to 90 seconds</div>
     </div>
   </div>
 </section>
