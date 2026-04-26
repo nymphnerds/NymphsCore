@@ -241,7 +241,8 @@
   }
 
   .guide-grid,
-  .demo-grid {
+  .demo-grid,
+  .wiki-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
     gap: 20px;
@@ -249,7 +250,8 @@
 
   .guide-card,
   .demo-card,
-  .plan-card {
+  .plan-card,
+  .wiki-card {
     background: linear-gradient(180deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.02) 100%);
     border: 1px solid var(--dark4);
     border-radius: 18px;
@@ -308,7 +310,8 @@
 
   .guide-card h3,
   .demo-card h3,
-  .plan-card h3 {
+  .plan-card h3,
+  .wiki-card h3 {
     font-size: 24px;
     margin-bottom: 10px;
   }
@@ -316,10 +319,35 @@
   .guide-card p,
   .demo-card p,
   .plan-card p,
-  .plan-card li {
+  .plan-card li,
+  .wiki-card li {
     color: var(--muted);
     font-size: 14px;
     line-height: 1.7;
+  }
+
+  .wiki-card ul {
+    list-style: none;
+    display: grid;
+    gap: 12px;
+    margin-top: 18px;
+  }
+
+  .wiki-card li a {
+    color: var(--light);
+    text-decoration: none;
+    border-bottom: 1px solid rgba(99,227,95,0.26);
+    padding-bottom: 2px;
+  }
+
+  .wiki-card li span {
+    display: inline-block;
+    color: #6e6e6e;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin-left: 8px;
   }
 
   .guide-card a {
@@ -424,8 +452,8 @@
   </a>
   <ul class="nav-links">
     <li><a href="#demos">Video Demos</a></li>
+    <li><a href="#wiki">Wiki</a></li>
     <li><a href="#guides">Guides</a></li>
-    <li><a href="#start">Start Here</a></li>
     <li><a href="alpha.html?v=20260426b">Bug Reports</a></li>
     <li><a href="guides/install-and-first-launch.html" class="nav-cta">Open First Guide</a></li>
   </ul>
@@ -451,8 +479,8 @@
 
 <section class="section" id="demos">
   <div class="section-tag">// Video Demos</div>
-  <h2 class="section-title">Short demo slots.<br>Ready when videos are added.</h2>
-  <p class="section-sub">Each guide can carry a short visual companion. These slots are here so the guide hub already has a place for demos as they are published.</p>
+  <h2 class="section-title">Video demos.<br>Watch the workflow.</h2>
+  <p class="section-sub">Start with a quick demo, then jump into the written guide for the same part of the workflow.</p>
 
   <div class="demo-grid">
     <div class="demo-card">
@@ -505,27 +533,54 @@ Suggested length:
   </div>
 </section>
 
-<section class="section" id="start">
-  <div class="section-tag">// Quick Start</div>
-  <h2 class="section-title">Follow the workflow in order.</h2>
-  <p class="section-sub">Start with setup, then move through image generation, refinement, and shape in the same order the workflow uses them.</p>
+<section class="section" id="wiki">
+  <div class="section-tag">// Wiki</div>
+  <h2 class="section-title">Browse the guide wiki.</h2>
+  <p class="section-sub">Use the videos for a quick overview, then jump straight into the exact page you need below.</p>
 
-  <div class="plan-shell">
-    <div class="plan-card">
+  <div class="wiki-grid">
+    <div class="wiki-card">
       <div class="plan-label">Start Here</div>
-      <h3>The main path.</h3>
+      <h3>Getting started</h3>
       <ul>
-        <li>Install and first launch</li>
-        <li>Generate your first useful image</li>
-        <li>Edit or refine with guide images</li>
-        <li>Go from image into shape</li>
+        <li><a href="guides/install-and-first-launch.html">Install NymphsCore Manager</a></li>
+        <li><a href="guides/install-and-first-launch.html">Finish first launch setup</a></li>
+        <li><a href="#">Check runtime health</a><span>coming soon</span></li>
+        <li><a href="#">Open the addon in Blender</a><span>coming soon</span></li>
       </ul>
     </div>
-    <div class="plan-card">
-      <div class="plan-label">What To Expect</div>
-      <h3>One stage at a time.</h3>
-      <p>Each page shows what that stage is for, what a good result looks like, and when to move on.</p>
-      <div class="note">Short demo slots will sit alongside the guides as videos are added.</div>
+
+    <div class="wiki-card">
+      <div class="plan-label">Image Workflow</div>
+      <h3>Image guides</h3>
+      <ul>
+        <li><a href="guides/generate-your-first-image.html">Generate your first reference image</a></li>
+        <li><a href="guides/refine-with-guide-images.html">Refine with guide images</a></li>
+        <li><a href="#">Prepare an image for extraction</a><span>coming soon</span></li>
+        <li><a href="#">Extract modular parts</a><span>coming soon</span></li>
+      </ul>
+    </div>
+
+    <div class="wiki-card">
+      <div class="plan-label">3D Workflow</div>
+      <h3>Shape guides</h3>
+      <ul>
+        <li><a href="guides/go-from-image-to-shape.html">Choose the best image for shape</a></li>
+        <li><a href="guides/go-from-image-to-shape.html">Run image to shape</a></li>
+        <li><a href="#">Understand the first 3D draft</a><span>coming soon</span></li>
+        <li><a href="#">What to do when shape output is weak</a><span>coming soon</span></li>
+      </ul>
+    </div>
+
+    <div class="wiki-card">
+      <div class="plan-label">Troubleshooting</div>
+      <h3>Get unstuck</h3>
+      <ul>
+        <li><a href="#">Troubleshooting install issues</a><span>coming soon</span></li>
+        <li><a href="#">Troubleshooting runtime issues</a><span>coming soon</span></li>
+        <li><a href="#">Troubleshooting Blender addon issues</a><span>coming soon</span></li>
+        <li><a href="alpha.html?v=20260426b">Send a bug report</a></li>
+      </ul>
     </div>
   </div>
 </section>
