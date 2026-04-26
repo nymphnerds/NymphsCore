@@ -8,6 +8,23 @@ This file focuses on user-facing and system-level changes rather than package-by
 
 Newest entries first.
 
+### 2026-04-26 Site navigation, guides, and feedback page refresh
+Source: live GitHub Pages polish pass focused on making the public site read less like an alpha landing page and more like a durable addon home with clearer support and guide paths.
+
+Documented changes:
+
+- turned `home/alpha.html` into the permanent Blender addon bug-report and feedback page instead of an alpha-only page
+- added clearer bug-report links from the main site pages and unified the top-left NymphsCore branding across the core public pages
+- built out a user-facing guides section with a demo-first landing page, a wiki-style guide index, and initial workflow guide pages for install, first image generation, refinement, and image-to-shape
+- normalized hero spacing, header rhythm, and cross-page visual consistency for `index.html`, `brain.html`, `llmwrapper.html`, `guides.html`, and `alpha.html`
+- changed small-width navigation from disappearing links to a two-row header pattern so all primary links remain visible on narrower screens
+- refined the homepage hero headline treatment, including the final reflective copy direction and line-by-line color progression while keeping the Blender lockup intact
+- removed an experimental homepage sigil overlay after live review showed it hurt clarity more than it helped
+
+Why it matters:
+
+- the public site now behaves more like a product home and support surface instead of a temporary alpha page, with clearer navigation, more durable guide structure, and cleaner responsive behavior
+
 ### 2026-04-25 Manager Runtime Tools backend-specific fetch fix
 Source: fresh installer testing showed the TRELLIS.2 GGUF Runtime Tools card could report a missing managed adapter, but pressing its `Fetch` button ran the all-backend model prefetch path and rechecked/downloaded Z-Image/Nunchaku weights before failing on the missing TRELLIS adapter helper.
 
