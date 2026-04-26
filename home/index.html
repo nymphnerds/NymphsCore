@@ -91,18 +91,31 @@
 
   .hero::before {
     content: "";
-    position: absolute; top: -200px; right: -200px;
-    width: 600px; height: 600px;
-    background: radial-gradient(circle, rgba(99,227,95,0.10) 0%, transparent 70%);
+    position: absolute; top: -180px; right: -120px;
+    width: 720px; height: 720px;
+    background: radial-gradient(circle, rgba(85,223,240,0.16) 0%, rgba(85,223,240,0.08) 30%, transparent 72%);
     pointer-events: none;
   }
 
   .hero::after {
     content: "";
-    position: absolute; bottom: -100px; left: -100px;
-    width: 400px; height: 400px;
-    background: radial-gradient(circle, rgba(85,223,240,0.07) 0%, transparent 70%);
+    position: absolute; bottom: -160px; left: 18%;
+    width: 760px; height: 520px;
+    background: radial-gradient(ellipse, rgba(99,227,95,0.14) 0%, rgba(99,227,95,0.07) 34%, transparent 74%);
     pointer-events: none;
+  }
+
+  .hero-sigil {
+    position: absolute;
+    right: 9%;
+    top: 240px;
+    width: 240px;
+    opacity: 0.16;
+    filter: saturate(0.92) hue-rotate(-8deg) drop-shadow(0 16px 40px rgba(0,0,0,0.28));
+    transform-origin: center;
+    animation: heroSigilPulse 8s ease-in-out infinite;
+    pointer-events: none;
+    z-index: 1;
   }
 
   .badge {
@@ -142,6 +155,11 @@
     50% { opacity: 0.4; transform: scale(0.8); }
   }
 
+  @keyframes heroSigilPulse {
+    0%, 100% { opacity: 0.13; transform: scale(0.98); }
+    50% { opacity: 0.2; transform: scale(1.02); }
+  }
+
   h1 {
     font-family: var(--font-head);
     font-weight: 900;
@@ -161,11 +179,11 @@
   }
 
   .hero-line-2 {
-    color: #dceeff;
+    color: #c8e5ff;
   }
 
   .hero-line-3 {
-    color: #d8f4df;
+    color: #c9f0d1;
   }
 
   h1 em { font-style: normal; color: var(--lime); display: block; }
@@ -218,11 +236,13 @@
     max-width: 620px;
     line-height: 1.7;
     margin-bottom: 48px;
+    position: relative;
+    z-index: 2;
   }
 
   .hero-sub strong { color: var(--light); font-weight: 500; }
 
-  .cta-row { display: flex; gap: 16px; flex-wrap: wrap; align-items: center; }
+  .cta-row { display: flex; gap: 16px; flex-wrap: wrap; align-items: center; position: relative; z-index: 2; }
 
   .btn-primary {
     background: var(--lime);
@@ -782,6 +802,12 @@
     nav { padding: 14px 24px; }
     .nav-links { display: none; }
     .hero { padding: 160px 24px 24px; }
+    .hero-sigil {
+      width: 160px;
+      right: 24px;
+      top: 250px;
+      opacity: 0.12;
+    }
     .section { padding: 80px 24px; }
     .audience-grid { grid-template-columns: 1fr; }
     .cta-final { padding: 80px 24px; }
@@ -836,6 +862,7 @@
     <div class="stat"><div class="stat-num">100%</div><div class="stat-label">Local iteration</div></div>
     <div class="stat"><div class="stat-num">1</div><div class="stat-label">App to open</div></div>
   </div>
+  <img class="hero-sigil" src="assets/splash.png" alt="">
 </section>
 
 <section class="section" id="workflow">
