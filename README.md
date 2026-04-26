@@ -126,26 +126,6 @@ For the full optional Brain stack guide, see:
 docs/NYMPHS_BRAIN_GUIDE.md
 ```
 
-Useful Brain commands:
-
-```text
-/home/nymph/Nymphs-Brain/bin/lms-start
-/home/nymph/Nymphs-Brain/bin/lms-model
-/home/nymph/Nymphs-Brain/bin/lms-get-profile
-/home/nymph/Nymphs-Brain/bin/lms-set-profile
-/home/nymph/Nymphs-Brain/bin/lms-stop
-/home/nymph/Nymphs-Brain/bin/mcp-start
-/home/nymph/Nymphs-Brain/bin/open-webui-start
-/home/nymph/Nymphs-Brain/bin/brain-status
-```
-
-The current Brain stack supports:
-
-- one local `Plan` model
-- one optional local `Act` model
-- one optional remote `llm-wrapper` model through OpenRouter
-- loading only the assigned local roles from the Linux-side Brain config
-
 ### Runtime Tools
 
 Use `Runtime Tools` to:
@@ -229,7 +209,6 @@ Useful docs:
 ```
 NymphsCore/
 ├── Manager/        — WSL backend, C# installer, and setup scripts
-├── Blender/        — handoff docs for the separate addon repo
 └── docs/           — install guides, backend docs, and addon user guide
 ```
 
