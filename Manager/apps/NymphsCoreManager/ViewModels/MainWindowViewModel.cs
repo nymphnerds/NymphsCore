@@ -34,6 +34,9 @@ public sealed class MainWindowViewModel : ViewModelBase
     private readonly AsyncRelayCommand _fetchModelsNowCommand;
     private readonly AsyncRelayCommand _fetchZImageModelsCommand;
     private readonly AsyncRelayCommand _fetchTrellisModelsCommand;
+    private readonly AsyncRelayCommand _checkRuntimeDependencyUpdatesCommand;
+    private readonly AsyncRelayCommand _testLatestRuntimeDependenciesCommand;
+    private readonly AsyncRelayCommand _restorePinnedRuntimeDependenciesCommand;
     private readonly AsyncRelayCommand _repairTrellisAdapterCommand;
     private readonly AsyncRelayCommand _testZImageCommand;
     private readonly AsyncRelayCommand _testTrellisCommand;
@@ -126,6 +129,9 @@ public sealed class MainWindowViewModel : ViewModelBase
         _fetchModelsNowCommand = new AsyncRelayCommand(RunFetchModelsNowAsync, CanRunManagedRuntimeAction);
         _fetchZImageModelsCommand = new AsyncRelayCommand(() => RunFetchModelsNowAsync("zimage"), CanRunManagedRuntimeAction);
         _fetchTrellisModelsCommand = new AsyncRelayCommand(() => RunFetchModelsNowAsync("trellis"), CanRunManagedRuntimeAction);
+        _checkRuntimeDependencyUpdatesCommand = new AsyncRelayCommand(CheckRuntimeDependencyUpdatesAsync, CanRunManagedRuntimeAction);
+        _testLatestRuntimeDependenciesCommand = new AsyncRelayCommand(() => ApplyRuntimeDependencyModeAsync("latest"), CanRunManagedRuntimeAction);
+        _restorePinnedRuntimeDependenciesCommand = new AsyncRelayCommand(() => ApplyRuntimeDependencyModeAsync("pinned"), CanRunManagedRuntimeAction);
         _repairTrellisAdapterCommand = new AsyncRelayCommand(RunTrellisAdapterRepairAsync, CanRunManagedRuntimeAction);
         _testZImageCommand = new AsyncRelayCommand(() => RunSmokeTestAsync("zimage"), CanRunZImageSmokeTest);
         _testTrellisCommand = new AsyncRelayCommand(() => RunSmokeTestAsync("trellis"), CanRunTrellisSmokeTest);
@@ -213,6 +219,12 @@ public sealed class MainWindowViewModel : ViewModelBase
     public AsyncRelayCommand FetchZImageModelsCommand => _fetchZImageModelsCommand;
 
     public AsyncRelayCommand FetchTrellisModelsCommand => _fetchTrellisModelsCommand;
+
+    public AsyncRelayCommand CheckRuntimeDependencyUpdatesCommand => _checkRuntimeDependencyUpdatesCommand;
+
+    public AsyncRelayCommand TestLatestRuntimeDependenciesCommand => _testLatestRuntimeDependenciesCommand;
+
+    public AsyncRelayCommand RestorePinnedRuntimeDependenciesCommand => _restorePinnedRuntimeDependenciesCommand;
 
     public AsyncRelayCommand RepairTrellisAdapterCommand => _repairTrellisAdapterCommand;
 
@@ -1761,6 +1773,110 @@ public sealed class MainWindowViewModel : ViewModelBase
         }
     }
 
+    private async Task CheckRuntimeDependencyUpdatesAsync()
+    {
+        var settings = BuildManagedActionSettings();
+        PrepareManagedActionRun(
+            "Checking runtime code updates...",
+            "Comparing release-tested runtime source and packages against upstream.");
+        IsBusy = true;
+
+        var updatesAvailable = false;
+        var progress = new Progress<string>(line =>
+        {
+            var sanitizedLine = line.Replace("\0", string.Empty);
+            if (!string.IsNullOrWhiteSpace(sanitizedLine))
+            {
+                if (sanitizedLine.Contains("update available", StringComparison.OrdinalIgnoreCase))
+                {
+                    updatesAvailable = true;
+                }
+
+                LogLines.Add(sanitizedLine);
+                StatusMessage = sanitizedLine;
+                AppendInstallLog(sanitizedLine);
+            }
+        });
+
+        try
+        {
+            await _workflowService.CheckRuntimeDependencyUpdatesAsync(settings, progress, CancellationToken.None).ConfigureAwait(true);
+            PostInstallActionSummary = updatesAvailable
+                ? "Runtime code updates are available. Use this as your dev test list before moving release pins."
+                : "Runtime code pins are up to date.";
+            RuntimeToolsSummary = PostInstallActionSummary;
+            StatusMessage = "Runtime code update check completed.";
+            AppendInstallLog(StatusMessage);
+        }
+        catch (Exception ex)
+        {
+            PostInstallActionSummary = "Runtime code update check failed. Check the live log and log folder.";
+            RuntimeToolsSummary = "Runtime code update check failed.";
+            StatusMessage = "Runtime code update check stopped with an error.";
+            LogLines.Add($"ERROR: {ex.Message}");
+            AppendInstallLog($"ERROR: {ex}");
+        }
+        finally
+        {
+            IsBusy = false;
+            RaiseCommandStateChanged();
+        }
+    }
+
+    private async Task ApplyRuntimeDependencyModeAsync(string mode)
+    {
+        var latestMode = string.Equals(mode, "latest", StringComparison.OrdinalIgnoreCase);
+        var settings = BuildManagedActionSettings();
+        PrepareManagedActionRun(
+            latestMode ? "Applying latest runtime code..." : "Restoring release-tested runtime code...",
+            latestMode
+                ? "Applying latest upstream runtime source and packages to this dev runtime."
+                : "Restoring the release-tested runtime source and packages.");
+        IsBusy = true;
+
+        var progress = new Progress<string>(line =>
+        {
+            var sanitizedLine = line.Replace("\0", string.Empty);
+            if (!string.IsNullOrWhiteSpace(sanitizedLine))
+            {
+                LogLines.Add(sanitizedLine);
+                StatusMessage = sanitizedLine;
+                AppendInstallLog(sanitizedLine);
+            }
+        });
+
+        try
+        {
+            await _workflowService.ApplyRuntimeDependencyModeAsync(settings, mode, progress, CancellationToken.None).ConfigureAwait(true);
+            var statuses = await RefreshCoreRuntimeStatusSnapshotAsync(settings, progress).ConfigureAwait(true);
+            await RefreshBrainRuntimeStatusSnapshotAsync(settings).ConfigureAwait(true);
+
+            PostInstallActionSummary = latestMode
+                ? "Latest runtime code was applied to this dev runtime. Run smoke tests before moving release pins."
+                : "Release-tested runtime code was restored.";
+            RuntimeToolsSummary = CoreBackendsTestReady(statuses)
+                ? PostInstallActionSummary
+                : BuildRuntimeToolsSummary(statuses);
+            StatusMessage = PostInstallActionSummary;
+            AppendInstallLog(StatusMessage);
+        }
+        catch (Exception ex)
+        {
+            PostInstallActionSummary = latestMode
+                ? "Applying latest runtime code failed. Restore release-tested code if the runtime is now unstable."
+                : "Restoring release-tested runtime code failed. Check the live log and log folder.";
+            RuntimeToolsSummary = PostInstallActionSummary;
+            StatusMessage = "Runtime code action stopped with an error.";
+            LogLines.Add($"ERROR: {ex.Message}");
+            AppendInstallLog($"ERROR: {ex}");
+        }
+        finally
+        {
+            IsBusy = false;
+            RaiseCommandStateChanged();
+        }
+    }
+
     private async Task RunSmokeTestAsync(string backend)
     {
         var settings = BuildManagedActionSettings();
@@ -2470,6 +2586,9 @@ public sealed class MainWindowViewModel : ViewModelBase
         _fetchModelsNowCommand.RaiseCanExecuteChanged();
         _fetchZImageModelsCommand.RaiseCanExecuteChanged();
         _fetchTrellisModelsCommand.RaiseCanExecuteChanged();
+        _checkRuntimeDependencyUpdatesCommand.RaiseCanExecuteChanged();
+        _testLatestRuntimeDependenciesCommand.RaiseCanExecuteChanged();
+        _restorePinnedRuntimeDependenciesCommand.RaiseCanExecuteChanged();
         _repairTrellisAdapterCommand.RaiseCanExecuteChanged();
         _testZImageCommand.RaiseCanExecuteChanged();
         _testTrellisCommand.RaiseCanExecuteChanged();

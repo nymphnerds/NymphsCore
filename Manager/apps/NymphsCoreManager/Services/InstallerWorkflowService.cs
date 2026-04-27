@@ -800,6 +800,105 @@ public sealed class InstallerWorkflowService
         return statuses;
     }
 
+    public async Task CheckRuntimeDependencyUpdatesAsync(
+        InstallSettings settings,
+        IProgress<string> progress,
+        CancellationToken cancellationToken)
+    {
+        var checkerScript = RequireScript("check_runtime_dependency_updates.py");
+        var wslCheckerScriptPath = ConvertWindowsPathToWsl(checkerScript)
+            ?? throw new InvalidOperationException($"Could not convert script path for WSL: {checkerScript}");
+
+        var bashCommand =
+            "set -euo pipefail; " +
+            $"export HOME={ToBashSingleQuoted($"/home/{settings.LinuxUser}")}; " +
+            $"export USER={ToBashSingleQuoted(settings.LinuxUser)}; " +
+            $"export LOGNAME={ToBashSingleQuoted(settings.LinuxUser)}; " +
+            $"python3 {ToBashSingleQuoted(wslCheckerScriptPath)}";
+
+        var arguments = new List<string>
+        {
+            "-d", settings.DistroName,
+            "--user", settings.LinuxUser,
+            "--",
+            "/bin/bash", "-lc", bashCommand,
+        };
+
+        progress.Report("Checking pinned runtime dependencies against upstream...");
+
+        var result = await _processRunner.RunAsync(
+            fileName: "wsl.exe",
+            arguments,
+            workingDirectory: Environment.SystemDirectory,
+            progress,
+            environmentVariables: null,
+            cancellationToken).ConfigureAwait(false);
+
+        if (result.ExitCode > 1)
+        {
+            throw new InvalidOperationException("Runtime dependency update check failed.");
+        }
+
+        progress.Report(
+            result.ExitCode == 0
+                ? "Runtime dependency pins are up to date."
+                : "Runtime dependency updates are available. Test them before changing release pins.");
+    }
+
+    public async Task ApplyRuntimeDependencyModeAsync(
+        InstallSettings settings,
+        string mode,
+        IProgress<string> progress,
+        CancellationToken cancellationToken)
+    {
+        var normalizedMode = mode.Trim().ToLowerInvariant() switch
+        {
+            "latest" => "latest",
+            "pinned" => "pinned",
+            _ => throw new ArgumentOutOfRangeException(nameof(mode), mode, "Expected pinned or latest runtime dependency mode."),
+        };
+        var applyScript = RequireScript("apply_runtime_dependency_mode.sh");
+        var wslApplyScriptPath = ConvertWindowsPathToWsl(applyScript)
+            ?? throw new InvalidOperationException($"Could not convert script path for WSL: {applyScript}");
+
+        var bashCommand =
+            "set -euo pipefail; " +
+            $"export HOME={ToBashSingleQuoted($"/home/{settings.LinuxUser}")}; " +
+            $"export USER={ToBashSingleQuoted(settings.LinuxUser)}; " +
+            $"export LOGNAME={ToBashSingleQuoted(settings.LinuxUser)}; " +
+            "export NYMPHS3D_RUNTIME_ROOT=\"$HOME\"; " +
+            "export NYMPHS3D_Z_IMAGE_DIR=\"$HOME/Z-Image\"; " +
+            "export NYMPHS3D_N2D2_DIR=\"$NYMPHS3D_Z_IMAGE_DIR\"; " +
+            "export NYMPHS3D_TRELLIS_DIR=\"$HOME/TRELLIS.2\"; " +
+            $"bash {ToBashSingleQuoted(wslApplyScriptPath)} --mode {ToBashSingleQuoted(normalizedMode)}";
+
+        var arguments = new List<string>
+        {
+            "-d", settings.DistroName,
+            "--user", settings.LinuxUser,
+            "--",
+            "/bin/bash", "-lc", bashCommand,
+        };
+
+        progress.Report(
+            normalizedMode == "latest"
+                ? "Applying latest upstream runtime dependencies to the dev runtime..."
+                : "Restoring release-pinned runtime dependencies...");
+
+        var result = await _processRunner.RunAsync(
+            fileName: "wsl.exe",
+            arguments,
+            workingDirectory: Environment.SystemDirectory,
+            progress,
+            environmentVariables: null,
+            cancellationToken).ConfigureAwait(false);
+
+        if (result.ExitCode != 0)
+        {
+            throw new InvalidOperationException($"Runtime dependency mode '{normalizedMode}' failed.");
+        }
+    }
+
     public async Task BootstrapWslAsync(
         IProgress<string> progress,
         CancellationToken cancellationToken)

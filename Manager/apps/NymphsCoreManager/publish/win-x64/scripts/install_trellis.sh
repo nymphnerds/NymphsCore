@@ -9,12 +9,15 @@ REPO_DIR="${NYMPHS3D_TRELLIS_DIR}"
 REPO_URL="${NYMPHS3D_TRELLIS_REPO_URL}"
 REPO_BRANCH="${NYMPHS3D_TRELLIS_REPO_BRANCH}"
 UTILS3D_REF="${NYMPHS3D_TRELLIS_UTILS3D_REF:-9a4eb15e4021b67b12c460c7057d642626897ec8}"
+TRELLIS_CUMESH_REF="${NYMPHS3D_TRELLIS_CUMESH_REF:-cf1a2f07304b5fe388ed86a16e4a0474599df914}"
+TRELLIS_FLEXGEMM_REF="${NYMPHS3D_TRELLIS_FLEXGEMM_REF:-6dd94a859c26ee8246888502eada3dd8ad85532e}"
+TRELLIS_NVDIFFRAST_REF="${NYMPHS3D_TRELLIS_NVDIFFRAST_REF:-253ac4fcea7de5f396371124af597e6cc957bfae}"
 INSTALL_FLASH_ATTN="${NYMPHS3D_TRELLIS_INSTALL_FLASH_ATTN:-yes}"
 GGUF_RUNTIME_DIR="${NYMPHS3D_TRELLIS_GGUF_RUNTIME_DIR:-${REPO_DIR}/.cache/trellis-gguf-runtime}"
 TRELLIS2_GGUF_REPO_URL="${NYMPHS3D_TRELLIS2_GGUF_REPO_URL:-https://github.com/Aero-Ex/ComfyUI-Trellis2-GGUF.git}"
-TRELLIS2_GGUF_REPO_REF="${NYMPHS3D_TRELLIS2_GGUF_REPO_REF:-main}"
+TRELLIS2_GGUF_REPO_REF="${NYMPHS3D_TRELLIS2_GGUF_REPO_REF:-ed7245cba449c79e0a6703b7f09c0590328b4f77}"
 COMFYUI_GGUF_REPO_URL="${NYMPHS3D_COMFYUI_GGUF_REPO_URL:-https://github.com/city96/ComfyUI-GGUF.git}"
-COMFYUI_GGUF_REPO_REF="${NYMPHS3D_COMFYUI_GGUF_REPO_REF:-main}"
+COMFYUI_GGUF_REPO_REF="${NYMPHS3D_COMFYUI_GGUF_REPO_REF:-6ea2651e7df66d7585f6ffee804b20e92fb38b8a}"
 
 site_packages_dir() {
   "${VENV_PYTHON}" - <<'PY'
@@ -327,6 +330,7 @@ if ! command -v python3.10 >/dev/null 2>&1; then
 fi
 
 managed_repo_apply "TRELLIS.2" "${REPO_DIR}" "${REPO_URL}" "${REPO_BRANCH}"
+managed_repo_checkout_ref "TRELLIS.2" "${REPO_DIR}" "${NYMPHS3D_TRELLIS_REPO_REF:-}"
 
 if [[ ! -d "${REPO_DIR}/.git" ]]; then
   echo "Expected repo checkout is still missing at ${REPO_DIR}"
@@ -499,9 +503,9 @@ for trellis_native_attempt in $(seq 1 "${trellis_native_attempts}"); do
   fi
 
   if "${VENV_PIP}" install --no-build-isolation \
-    git+https://github.com/JeffreyXiang/CuMesh.git \
-    git+https://github.com/JeffreyXiang/FlexGEMM.git \
-    git+https://github.com/NVlabs/nvdiffrast.git@v0.4.0; then
+    "git+https://github.com/JeffreyXiang/CuMesh.git@${TRELLIS_CUMESH_REF}" \
+    "git+https://github.com/JeffreyXiang/FlexGEMM.git@${TRELLIS_FLEXGEMM_REF}" \
+    "git+https://github.com/NVlabs/nvdiffrast.git@${TRELLIS_NVDIFFRAST_REF}"; then
     trellis_native_success=1
     break
   fi

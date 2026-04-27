@@ -8,6 +8,7 @@ source "${ROOT_DIR}/scripts/managed_repo_utils.sh"
 REPO_DIR="${NYMPHS3D_N2D2_DIR}"
 REPO_URL="${NYMPHS3D_N2D2_REPO_URL:-https://github.com/nymphnerds/Nymphs2D2.git}"
 REPO_BRANCH="${NYMPHS3D_N2D2_REPO_BRANCH}"
+DIFFUSERS_SPEC="${NYMPHS3D_Z_IMAGE_DIFFUSERS_SPEC:-diffusers==0.37.1}"
 
 configure_nymphs3d_cuda_env
 configure_nymphs3d_hf_env
@@ -19,6 +20,7 @@ if ! command -v python3.11 >/dev/null 2>&1; then
 fi
 
 managed_repo_apply "Z-Image backend" "${REPO_DIR}" "${REPO_URL}" "${REPO_BRANCH}"
+managed_repo_checkout_ref "Z-Image backend" "${REPO_DIR}" "${NYMPHS3D_N2D2_REPO_REF:-}"
 
 if [[ ! -d "${REPO_DIR}/.git" ]]; then
   echo "Expected repo checkout is still missing at ${REPO_DIR}"
@@ -112,7 +114,7 @@ echo "Installing locked Python environment from requirements.lock.txt"
 
 if ! "${VENV_PYTHON}" -c 'import nunchaku' >/dev/null 2>&1; then
   echo "Installing Nunchaku runtime package"
-  "${VENV_PIP}" install --no-deps --pre --index-url https://appmana.github.io/forks-nunchaku-stable-abi/cu130 nunchaku
+  "${VENV_PIP}" install --no-deps --pre --index-url "${NYMPHS3D_NUNCHAKU_INDEX_URL}" "${NYMPHS3D_NUNCHAKU_SPEC}"
 fi
 
 echo "Installing Z-Image compatibility packages for the Nunchaku runtime path"
@@ -126,7 +128,7 @@ for diffusers_attempt in $(seq 1 "${diffusers_attempts}"); do
     sleep $((5 * diffusers_attempt))
   fi
 
-  if "${VENV_PIP}" install --no-deps --force-reinstall git+https://github.com/huggingface/diffusers.git; then
+  if "${VENV_PIP}" install --no-deps --force-reinstall "${DIFFUSERS_SPEC}"; then
     diffusers_success=1
     break
   fi

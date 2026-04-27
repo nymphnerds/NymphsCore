@@ -381,13 +381,13 @@
 
                   <Button Grid.Row="0" Grid.Column="2"
                           Style="{StaticResource ActionCardButton}"
-                          Command="{Binding CheckForUpdatesCommand}"
-                          ToolTip="Check the managed repo checkouts for available updates. Does not modify anything.">
+                          Command="{Binding CheckRuntimeDependencyUpdatesCommand}"
+                          ToolTip="Check source/package runtime code for available updates. Does not modify anything.">
                     <DockPanel LastChildFill="True">
                       <TextBlock DockPanel.Dock="Left" Text="🔄" FontSize="22" Margin="0,0,10,0" VerticalAlignment="Center" />
                       <StackPanel VerticalAlignment="Center">
-                        <TextBlock Text="Check Updates" FontSize="15" FontWeight="SemiBold" TextWrapping="Wrap" />
-                        <TextBlock Text="Any new code available?" FontSize="12" Foreground="#6B6259" TextWrapping="Wrap" Margin="0,2,0,0" />
+                        <TextBlock Text="Check Runtime Code" FontSize="15" FontWeight="SemiBold" TextWrapping="Wrap" />
+                        <TextBlock Text="Z-Image, TRELLIS, Nunchaku." FontSize="12" Foreground="#6B6259" TextWrapping="Wrap" Margin="0,2,0,0" />
                       </StackPanel>
                     </DockPanel>
                   </Button>
@@ -983,7 +983,6 @@
             <Grid>
               <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="Auto" />
               </Grid.ColumnDefinitions>
               <StackPanel Grid.Column="0">
                 <TextBlock Text="Runtime Tools" FontSize="24" FontWeight="Bold" />
@@ -992,15 +991,6 @@
                            TextWrapping="Wrap"
                            FontSize="14"
                            Style="{StaticResource MutedText}" />
-              </StackPanel>
-              <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top">
-                <Button Width="118" Style="{StaticResource SecondaryActionButton}"
-                        Command="{Binding RefreshRuntimeStatusCommand}" Content="Refresh" />
-                <Button Width="132" Style="{StaticResource SecondaryActionButton}"
-                        Command="{Binding FetchModelsNowCommand}" Content="Fetch Models" />
-                <Button Width="118" Style="{StaticResource SecondaryActionButton}"
-                        Margin="0"
-                        Command="{Binding OpenLogFolderCommand}" Content="Open Logs" />
               </StackPanel>
             </Grid>
 
@@ -1069,6 +1059,52 @@
                           VerticalAlignment="Center" />
                 <TextBlock Grid.Column="4"
                            Text="{Binding TrellisGgufQuantSummary}"
+                           TextWrapping="Wrap"
+                           FontSize="11"
+                           VerticalAlignment="Center"
+                           Style="{StaticResource MutedText}" />
+              </Grid>
+            </Border>
+
+            <Border Margin="0,10,0,0"
+                    Padding="12,8"
+                    Background="#F8F3EA"
+                    BorderBrush="#E7DDCF"
+                    BorderThickness="1"
+                    CornerRadius="10">
+              <Grid>
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="Auto" />
+                  <ColumnDefinition Width="12" />
+                  <ColumnDefinition Width="Auto" />
+                  <ColumnDefinition Width="6" />
+                  <ColumnDefinition Width="Auto" />
+                  <ColumnDefinition Width="6" />
+                  <ColumnDefinition Width="Auto" />
+                  <ColumnDefinition Width="14" />
+                  <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0"
+                           Text="Runtime code"
+                           FontWeight="SemiBold"
+                           FontSize="13"
+                           VerticalAlignment="Center" />
+                <Button Grid.Column="2"
+                        Width="112"
+                        Padding="8,6"
+                        FontSize="12"
+                        Style="{StaticResource SecondaryActionButton}"
+                        Command="{Binding RestorePinnedRuntimeDependenciesCommand}"
+                        Content="Release-tested" />
+                <Button Grid.Column="4"
+                        Width="118"
+                        Padding="8,6"
+                        FontSize="12"
+                        Style="{StaticResource SecondaryActionButton}"
+                        Command="{Binding TestLatestRuntimeDependenciesCommand}"
+                        Content="Latest upstream" />
+                <TextBlock Grid.Column="8"
+                           Text="Switches source/package code only. Use Fetch for model files, then Test each backend."
                            TextWrapping="Wrap"
                            FontSize="11"
                            VerticalAlignment="Center"

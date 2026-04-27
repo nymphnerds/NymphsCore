@@ -225,6 +225,21 @@ managed_repo_repair_checkout() {
   git -C "${repo_path}" clean -fd
 }
 
+managed_repo_checkout_ref() {
+  local repo_name="$1"
+  local repo_path="$2"
+  local repo_ref="$3"
+
+  if [[ -z "${repo_ref}" ]]; then
+    return 0
+  fi
+
+  echo "Pinning ${repo_name} source to ${repo_ref}"
+  managed_repo_run_git git -C "${repo_path}" fetch --depth 1 origin "${repo_ref}"
+  git -C "${repo_path}" checkout --detach FETCH_HEAD
+  echo "${repo_name}: active commit $(git -C "${repo_path}" rev-parse --short HEAD)"
+}
+
 managed_repo_is_effectively_dirty() {
   local repo_path="$1"
   local repo_basename=""
