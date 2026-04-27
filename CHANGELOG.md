@@ -8,6 +8,20 @@ This file focuses on user-facing and system-level changes rather than package-by
 
 Newest entries first.
 
+### 2026-04-27 Installer commit-pin checkout fix
+Source: fresh installer testing failed while cloning the TRELLIS.2 GGUF helper package because the installer treated a pinned commit SHA as a Git branch name.
+
+Changed:
+
+- fixed `install_trellis.sh` so GGUF helper repos are cloned first, then fetched and checked out at the pinned ref
+- applied the same fix to the packaged Windows Manager script copy
+- kept the runtime dependency pins intact while allowing both branch refs and commit SHAs to work
+
+Validation:
+
+- verified shell syntax for the source and packaged script copies
+- verified the pinned `ComfyUI-Trellis2-GGUF` and `ComfyUI-GGUF` commits can be fetched and checked out
+
 ### 2026-04-26 Site navigation, guides, and feedback page refresh
 Source: live GitHub Pages polish pass focused on making the public site read less like an alpha landing page and more like a durable addon home with clearer support and guide paths.
 

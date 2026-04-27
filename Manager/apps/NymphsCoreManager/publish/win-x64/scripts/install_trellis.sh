@@ -38,13 +38,13 @@ sync_runtime_repo() {
   if [[ ! -d "${repo_path}/.git" ]]; then
     rm -rf "${repo_path}"
     echo "Cloning ${name} runtime package"
-    GIT_TERMINAL_PROMPT=0 git clone --depth 1 --branch "${repo_ref}" "${repo_url}" "${repo_path}"
-    return
+    GIT_TERMINAL_PROMPT=0 git clone --filter=blob:none --no-checkout "${repo_url}" "${repo_path}"
   fi
 
-  echo "Updating ${name} runtime package"
+  echo "Syncing ${name} runtime package to ${repo_ref}"
   GIT_TERMINAL_PROMPT=0 git -C "${repo_path}" fetch --depth 1 origin "${repo_ref}"
   git -C "${repo_path}" checkout --detach FETCH_HEAD
+  echo "${name}: active commit $(git -C "${repo_path}" rev-parse --short HEAD)"
 }
 
 install_trellis_gguf_runtime() {
