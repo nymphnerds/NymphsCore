@@ -17,6 +17,7 @@ echo "Installing base Ubuntu packages..."
 sudo apt update
 sudo apt install -y \
   ca-certificates \
+  cmake \
   git \
   wget \
   curl \

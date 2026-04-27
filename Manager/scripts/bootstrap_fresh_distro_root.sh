@@ -30,6 +30,7 @@ if [[ "${INSTALL_MINIMAL_PACKAGES}" == "1" ]]; then
   apt-get install -y \
     bash \
     ca-certificates \
+    cmake \
     curl \
     git \
     python3 \
