@@ -8,6 +8,21 @@ This file focuses on user-facing and system-level changes rather than package-by
 
 Newest entries first.
 
+### 2026-04-28 Llama Server Monitor desktop app
+Source: need for a quick visual way to manage multiple local Llama servers without reaching for the terminal.
+
+Documented changes:
+
+- added **Llama Server Monitor**, a .NET WinForms desktop app that queries a local HTTP API to discover all managed Llama servers
+- displays each server with its status, port, and model path in a compact modern dark theme
+- one-click Start/Stop/Restart actions per server via left-click buttons and a right-click context menu
+- auto-refresh keeps status current; search/filter lets users narrow the list by name, port, or path
+
+Why it matters:
+
+- users managing multiple local Llama servers now have a visual control surface instead of relying solely on shell scripts or terminal queries
+- start/stop/restart decisions are faster and less error-prone with per-server buttons and live status feedback
+
 ### 2026-04-27 Installer commit-pin checkout fix
 Source: fresh installer testing failed while cloning the TRELLIS.2 GGUF helper package because the installer treated a pinned commit SHA as a Git branch name.
 
