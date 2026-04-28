@@ -2,14 +2,14 @@
 set -euo pipefail
 
 INSTALL_ROOT="${HOME}/Nymphs-Brain"
-MODEL_ID="auto"
+SCRIPT_SOURCE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+MODEL_ID=""
 QUANTIZATION="q4_k_m"
 CONTEXT_LENGTH="16384"
 CONTEXT_SET="0"
 DOWNLOAD_MODEL="0"
 QUIET="0"
-LLM_WRAPPER_MODEL="${NYMPHS_BRAIN_LLM_WRAPPER_MODEL:-openai/gpt-4o-mini}"
-OPENROUTER_API_KEY="${NYMPHS_BRAIN_OPENROUTER_API_KEY:-}"
+OPENROUTER_API_KEY="${OPENROUTER_API_KEY:-}"
 
 usage() {
   cat <<'EOF'
@@ -19,12 +19,11 @@ Experimental optional local LLM stack for NymphsCore.
 
 Options:
   --install-root PATH     Install root. Default: $HOME/Nymphs-Brain
-  --model MODEL_ID        LM Studio model id, or "auto". Default: auto
+  --model MODEL_ID        Optional local model id. Default: none; pick one after install.
   --quant QUANT           Quantization suffix. Default: q4_k_m
   --context N             Context length. Default: 16384
-  --download-model        Download the selected model now
-  --llm-wrapper-model ID  Default OpenRouter model for delegated llm-wrapper calls
-  --openrouter-api-key K  Seed/update the llm-wrapper OpenRouter API key
+  --download-model        Download the specified --model now
+  --openrouter-api-key K  Optional key for the Brain llm-wrapper tool bridge
   --quiet                 Reduce chatter where possible
   -h, --help              Show this help
 EOF
@@ -52,10 +51,6 @@ while [[ $# -gt 0 ]]; do
     --download-model)
       DOWNLOAD_MODEL="1"
       shift
-      ;;
-    --llm-wrapper-model)
-      LLM_WRAPPER_MODEL="${2:?Missing value for --llm-wrapper-model}"
-      shift 2
       ;;
     --openrouter-api-key)
       OPENROUTER_API_KEY="${2:?Missing value for --openrouter-api-key}"
@@ -88,7 +83,10 @@ NPM_GLOBAL="${INSTALL_ROOT}/npm-global"
 LOCAL_TOOLS_DIR="${INSTALL_ROOT}/local-tools"
 LOCAL_BIN_DIR="${LOCAL_TOOLS_DIR}/bin"
 LOCAL_NODE_DIR="${LOCAL_TOOLS_DIR}/node"
+SCRIPTS_DIR="${INSTALL_ROOT}/scripts"
 MCP_VENV_DIR="${INSTALL_ROOT}/mcp-venv"
+MODELS_DIR="${INSTALL_ROOT}/models"
+LMSTUDIO_DIR="${INSTALL_ROOT}/lmstudio"
 MCP_DIR="${INSTALL_ROOT}/mcp"
 MCP_CONFIG_DIR="${MCP_DIR}/config"
 MCP_DATA_DIR="${MCP_DIR}/data"
@@ -97,13 +95,12 @@ OPEN_WEBUI_VENV_DIR="${INSTALL_ROOT}/open-webui-venv"
 OPEN_WEBUI_DATA_DIR="${INSTALL_ROOT}/open-webui-data"
 OPEN_WEBUI_LOG_DIR="${OPEN_WEBUI_DATA_DIR}/logs"
 SECRET_DIR="${INSTALL_ROOT}/secrets"
-CONFIG_DIR="${INSTALL_ROOT}/config"
 OPEN_WEBUI_HOST="${NYMPHS_BRAIN_OPEN_WEBUI_HOST:-127.0.0.1}"
 OPEN_WEBUI_PORT="${NYMPHS_BRAIN_OPEN_WEBUI_PORT:-8081}"
 MCP_HOST="${NYMPHS_BRAIN_MCP_HOST:-${NYMPHS_BRAIN_MCPO_HOST:-127.0.0.1}}"
 MCP_PORT="${NYMPHS_BRAIN_MCP_PORT:-${NYMPHS_BRAIN_MCPO_PORT:-8100}}"
 MCPO_OPENAPI_PORT="${NYMPHS_BRAIN_MCPO_OPENAPI_PORT:-8099}"
-LMSTUDIO_API_BASE_URL="${NYMPHS_BRAIN_LMSTUDIO_API_BASE_URL:-http://127.0.0.1:1234/v1}"
+LLM_API_BASE_URL="${NYMPHS_BRAIN_LLM_API_BASE_URL:-http://127.0.0.1:8000/v1}"
 
 export PATH="${BIN_DIR}:${LOCAL_BIN_DIR}:${LOCAL_NODE_DIR}/bin:${NPM_GLOBAL}/bin:${PATH}"
 
@@ -188,10 +185,83 @@ ensure_local_node() {
   export PATH="${LOCAL_NODE_DIR}/bin:${PATH}"
 }
 
+detect_installation_type() {
+  local lms_start="${INSTALL_ROOT}/bin/lms-start"
+  
+  if [[ ! -f "$lms_start" ]]; then
+    echo "new"
+    return
+  fi
+  
+  # Check if it's using LM Studio server (port 1234 or "lms serve")
+  if grep -qE "(localhost:1234|127\.0\.0\.1:1234|lms\s+server\s+(start|stop))" "$lms_start"; then
+    echo "lmstudio-migrate"
+  elif grep -q "llama-server.*--port 8000" "$lms_start"; then
+    echo "existing-llama"
+  elif grep -q "curl.*127\.0\.0\.1:8000" "$lms_start"; then
+    echo "existing-llama"
+  else
+    echo "unknown"
+  fi
+}
+
+migrate_from_lmstudio() {
+  echo ""
+  echo "============================================================"
+  echo "DETECTED EXISTING LM STUDIO INSTALLATION (port 1234)"
+  echo "============================================================"
+  echo ""
+  echo "Migrating to llama-server hybrid architecture..."
+  echo ""
+  
+  # Stop any running LM Studio server first
+  if [[ -f "${INSTALL_ROOT}/logs/lms.pid" ]]; then
+    local old_pid
+    old_pid=$(cat "${INSTALL_ROOT}/logs/lms.pid" 2>/dev/null || true)
+    if [[ -n "$old_pid" ]] && kill -0 "$old_pid" >/dev/null 2>&1; then
+      echo "Stopping existing LM Studio server (PID ${old_pid})..."
+      kill "$old_pid" >/dev/null 2>&1 || true
+      sleep 2
+    fi
+  fi
+  
+  # Also try pkill for LM Studio processes
+  pkill -f "lms.*server" 2>/dev/null || true
+  
+  # Backup old scripts
+  local backup_dir="${INSTALL_ROOT}/bin/backup-lmstudio-$(date +%Y%m%d-%H%M%S)"
+  mkdir -p "${backup_dir}" 2>/dev/null || true
+  
+  for script in lms-start lms-stop brain-status open-webui-start nymph-agent.py; do
+    if [[ -f "${BIN_DIR}/${script}" ]]; then
+      cp "${BIN_DIR}/${script}" "${backup_dir}/" 2>/dev/null || true
+    fi
+  done
+  
+  if [[ -d "${backup_dir}" ]] && [[ "$(ls -A "${backup_dir}" 2>/dev/null)" ]]; then
+    echo "Backed up old LM Studio scripts to: ${backup_dir}"
+  fi
+  
+  # Update nymph-agent.py if it exists and references port 1234
+  local agent_path="${INSTALL_ROOT}/nymph-agent.py"
+  if [[ -f "$agent_path" ]]; then
+    if grep -q "127.0.0.1:1234\|localhost:1234" "$agent_path"; then
+      echo "Updating nymph-agent.py to use llama-server (port 8000)..."
+      sed -i 's|http://127\.0\.0\.1:1234|http://127.0.0.1:8000|g' "$agent_path"
+      sed -i 's|http://localhost:1234|http://localhost:8000|g' "$agent_path"
+    fi
+  fi
+  
+  echo ""
+  echo "Migration preparation complete. Installing llama-server scripts..."
+  echo ""
+}
+
 detect_vram_mb() {
   # Check if Manager passed the actual GPU VRAM from Windows
-  if [[ -n "${NYMPHS3D_GPU_VRAM_MB}" && "${NYMPHS3D_GPU_VRAM_MB}" =~ ^[0-9]+$ ]]; then
-    echo "${NYMPHS3D_GPU_VRAM_MB}"
+  local vram_env="${NYMPHS3D_GPU_VRAM_MB:-0}"
+  if [[ -n "${vram_env}" && "${vram_env}" =~ ^[0-9]+$ ]]; then
+    echo "${vram_env}"
     return
   fi
 
@@ -216,20 +286,26 @@ detect_vram_mb() {
     awk '{print int($1)}'
 }
 
-choose_auto_model() {
-  local vram_mb="$1"
-  if [[ "${vram_mb}" -ge 32000 ]]; then
-    MODEL_ID="qwen/qwen2.5-coder-32b"
-    if [[ "${CONTEXT_SET}" != "1" ]]; then CONTEXT_LENGTH="32768"; fi
-  elif [[ "${vram_mb}" -ge 20000 ]]; then
-    MODEL_ID="qwen/qwen3-30b-a3b"
-    if [[ "${CONTEXT_SET}" != "1" ]]; then CONTEXT_LENGTH="32768"; fi
-  elif [[ "${vram_mb}" -ge 14000 ]]; then
-    MODEL_ID="qwen/qwen2.5-coder-14b"
-    if [[ "${CONTEXT_SET}" != "1" ]]; then CONTEXT_LENGTH="16384"; fi
-  else
-    MODEL_ID="qwen/qwen3-1.7b"
-    if [[ "${CONTEXT_SET}" != "1" ]]; then CONTEXT_LENGTH="8192"; fi
+preserve_existing_model_config() {
+  local lms_start="${INSTALL_ROOT}/bin/lms-start"
+  local existing_model=""
+  local existing_context=""
+
+  if [[ ! -f "${lms_start}" ]]; then
+    return 0
+  fi
+
+  existing_model="$(sed -n 's/^MODEL_KEY="\([^"]*\)".*/\1/p' "${lms_start}" | head -n 1)"
+  existing_context="$(sed -n 's/^CONTEXT_LENGTH="\{0,1\}\([0-9][0-9]*\)"\{0,1\}.*/\1/p' "${lms_start}" | head -n 1)"
+
+  if [[ -n "${existing_model}" ]]; then
+    MODEL_ID="${existing_model}"
+    echo "Preserving configured local model: ${MODEL_ID}"
+  fi
+
+  if [[ "${CONTEXT_SET}" != "1" && -n "${existing_context}" ]]; then
+    CONTEXT_LENGTH="${existing_context}"
+    echo "Preserving configured context length: ${CONTEXT_LENGTH}"
   fi
 }
 
@@ -255,68 +331,6 @@ PYEOF
   chmod 600 "${path}" || true
 }
 
-ensure_llm_wrapper_secret_file() {
-  local path="$1"
-
-  mkdir -p "$(dirname "${path}")"
-
-  if [[ -n "${OPENROUTER_API_KEY}" ]]; then
-    cat > "${path}" <<EOF
-# Nymphs-Brain llm-wrapper configuration
-OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
-EOF
-    chmod 600 "${path}" || true
-    return 0
-  fi
-
-  if [[ ! -f "${path}" ]]; then
-    cat > "${path}" <<'EOF'
-# Nymphs-Brain llm-wrapper configuration
-# Add your OpenRouter key, then restart the MCP stack.
-OPENROUTER_API_KEY=
-EOF
-    chmod 600 "${path}" || true
-  fi
-}
-
-secret_file_has_openrouter_key() {
-  local path="$1"
-
-  [[ -f "${path}" ]] || return 1
-
-  awk -F '=' '
-    $1 == "OPENROUTER_API_KEY" {
-      value = $2
-      sub(/^[[:space:]]+/, "", value)
-      sub(/[[:space:]]+$/, "", value)
-      if (value != "") {
-        found = 1
-      }
-    }
-    END { exit(found ? 0 : 1) }
-  ' "${path}"
-}
-
-install_remote_llm_bundle() {
-  local bundle_source_dir
-  local bundle_target_dir="${LOCAL_TOOLS_DIR}/remote_llm_mcp"
-
-  bundle_source_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/remote_llm_mcp"
-
-  if [[ ! -d "${bundle_source_dir}" ]]; then
-    echo "Bundled remote_llm_mcp directory is missing at ${bundle_source_dir}" >&2
-    exit 1
-  fi
-
-  mkdir -p "${bundle_target_dir}"
-  cp "${bundle_source_dir}/"* "${bundle_target_dir}/"
-  chmod +x \
-    "${bundle_target_dir}/cached_llm_mcp_server.py" \
-    "${bundle_target_dir}/install-llm-wrapper.sh" \
-    "${bundle_target_dir}/uninstall-llm-wrapper.sh"
-  "${MCP_VENV_DIR}/bin/python3" -m py_compile "${bundle_target_dir}/cached_llm_mcp_server.py"
-}
-
 ensure_python_venv() {
   local venv_dir="$1"
   local label="$2"
@@ -334,12 +348,16 @@ ensure_python_venv() {
 echo "Nymphs-Brain experimental installer"
 echo "Install root: ${INSTALL_ROOT}"
 
+# Create directories including new models and lmstudio directories
 mkdir -p \
   "${BIN_DIR}" \
   "${VENV_DIR}" \
   "${NPM_GLOBAL}" \
   "${LOCAL_TOOLS_DIR}" \
   "${LOCAL_BIN_DIR}" \
+  "${SCRIPTS_DIR}" \
+  "${MODELS_DIR}" \
+  "${LMSTUDIO_DIR}" \
   "${MCP_CONFIG_DIR}" \
   "${MCP_DATA_DIR}" \
   "${MCP_LOG_DIR}" \
@@ -347,33 +365,46 @@ mkdir -p \
   "${OPEN_WEBUI_LOG_DIR}" \
   "${SECRET_DIR}"
 
-PROFILE_CONFIG_FILE="${CONFIG_DIR}/lms-model-profiles.env"
-EXISTING_PLAN_MODEL_ID=""
-EXISTING_PLAN_CONTEXT_LENGTH=""
-EXISTING_ACT_MODEL_ID=""
-EXISTING_ACT_CONTEXT_LENGTH=""
-EXISTING_LLM_WRAPPER_MODEL=""
-EXISTING_PRIMARY_MODEL_ROLE="plan"
+# Migrate existing models from old locations to new centralized models directory
+# Note: We do NOT remove .lmstudio here as it will be a symlink created later
+migrate_existing_models() {
+  local source_paths=(
+    "${HOME}/.cache/lm-studio/models"
+  )
+  
+  for src in "${source_paths[@]}"; do
+    if [[ -d "$src" ]] && [[ "$(ls -A "$src" 2>/dev/null)" ]]; then
+      echo "Migrating existing models from ${src} to ${MODELS_DIR}..."
+      cp -r "$src/"* "${MODELS_DIR}/" 2>/dev/null || true
+    fi
+  done
+  
+  # Only remove .cache/lm-studio if it's not our symlink target and contains only models
+  if [[ -d "${HOME}/.cache/lm-studio" && ! -L "${HOME}/.lmstudio" ]]; then
+    local cache_content
+    cache_content="$(ls -A "${HOME}/.cache/lm-studio" 2>/dev/null || true)"
+    if [[ "$cache_content" == "models" ]]; then
+      echo "Cleaning up old .cache/lm-studio directory..."
+      rm -rf "${HOME}/.cache/lm-studio"
+    fi
+  fi
+  
+  # Remove any existing lms CLI from user's local bin (will be reinstalled via ~/.lmstudio symlink)
+  if [[ -x "${HOME}/.local/bin/lms" ]]; then
+    echo "Removing old lms CLI from ~/.local/bin..."
+    rm -f "${HOME}/.local/bin/lms"
+  fi
+}
 
-if [[ -f "${PROFILE_CONFIG_FILE}" ]]; then
-  # shellcheck disable=SC1090
-  source "${PROFILE_CONFIG_FILE}"
-  EXISTING_PLAN_MODEL_ID="${PLAN_MODEL_ID:-}"
-  EXISTING_PLAN_CONTEXT_LENGTH="${PLAN_CONTEXT_LENGTH:-}"
-  EXISTING_ACT_MODEL_ID="${ACT_MODEL_ID:-}"
-  EXISTING_ACT_CONTEXT_LENGTH="${ACT_CONTEXT_LENGTH:-}"
-  EXISTING_LLM_WRAPPER_MODEL="${LLM_WRAPPER_MODEL:-}"
-  EXISTING_PRIMARY_MODEL_ROLE="${PRIMARY_MODEL_ROLE:-plan}"
+migrate_existing_models
+
+if [[ "${MODEL_ID}" == "auto" ]]; then
+  echo "Model auto-selection during install is no longer used. Keeping any existing local model configuration."
+  MODEL_ID=""
 fi
 
-if [[ "${MODEL_ID}" == "auto" && "${DOWNLOAD_MODEL}" == "1" ]]; then
-  VRAM_MB="$(detect_vram_mb)"
-  choose_auto_model "${VRAM_MB:-0}"
-  echo "Auto model selected from detected VRAM (${VRAM_MB:-0} MB): ${MODEL_ID}"
-elif [[ "${MODEL_ID}" == "auto" ]]; then
-  MODEL_ID=""
-  echo "No Brain model configured during install."
-  echo "Use the Manager Brain page 'Manage Models' action after install to choose local Plan/Act models and the optional remote llm-wrapper model."
+if [[ -z "${MODEL_ID}" ]]; then
+  preserve_existing_model_config
 fi
 
 DL_TARGET=""
@@ -383,7 +414,7 @@ fi
 
 export DEBIAN_FRONTEND=noninteractive
 MISSING_CRITICAL=()
-for dep in curl tar; do
+for dep in curl tar unzip; do
   if ! command -v "${dep}" >/dev/null 2>&1; then
     MISSING_CRITICAL+=("${dep}")
   fi
@@ -402,22 +433,254 @@ ensure_local_node
 
 log "Zero-sudo dependency check complete."
 
+if [[ -d "${SCRIPT_SOURCE_DIR}/remote_llm_mcp" ]]; then
+  mkdir -p "${LOCAL_TOOLS_DIR}"
+  rm -rf "${LOCAL_TOOLS_DIR}/remote_llm_mcp"
+  cp -a "${SCRIPT_SOURCE_DIR}/remote_llm_mcp" "${LOCAL_TOOLS_DIR}/remote_llm_mcp"
+fi
+
 ensure_python_venv "${VENV_DIR}" "Nymphs-Brain"
 
 "${VENV_DIR}/bin/pip" install --upgrade pip requests huggingface_hub
 
 ensure_python_venv "${MCP_VENV_DIR}" "Nymphs-Brain MCP"
 "${MCP_VENV_DIR}/bin/pip" install --upgrade pip mcp-proxy web-forager mcpo requests
-install_remote_llm_bundle
 
 ensure_python_venv "${OPEN_WEBUI_VENV_DIR}" "Open WebUI"
-"${OPEN_WEBUI_VENV_DIR}/bin/pip" install --upgrade pip open-webui aiosqlite
+"${OPEN_WEBUI_VENV_DIR}/bin/pip" install --upgrade pip open-webui
 
-export npm_config_prefix="${NPM_GLOBAL}"
+  export npm_config_prefix="${NPM_GLOBAL}"
+  
+  # Set up LM Studio to use our custom directory
+  export LMSTUDIO_HOME="${LMSTUDIO_DIR}"
+  
+  # Create symlink from ~/.lmstudio to our install directory
+  # This ensures the lms CLI stores data in ${INSTALL_ROOT}/lmstudio
+  if [[ -L "$HOME/.lmstudio" ]]; then
+    # Symlink already exists, remove and recreate to ensure it points to correct location
+    rm "$HOME/.lmstudio"
+  elif [[ -e "$HOME/.lmstudio" ]]; then
+    # Regular file or directory exists, remove it
+    rm -rf "$HOME/.lmstudio"
+  fi
+  
+  mkdir -p "${LMSTUDIO_DIR}"
+  ln -s "${LMSTUDIO_DIR}" "$HOME/.lmstudio"
+  
+  echo "Installing/updating LM Studio CLI into ${LMSTUDIO_DIR}..."
+  curl -fsSL https://lmstudio.ai/install.sh | bash
+  
+  # Create symlink so LM Studio sees models in our centralized directory
+  # ~/.lmstudio/models → ~/Nymphs-Brain/models
+  # This way 'lms get' downloads to our centralized models directory
+  mkdir -p "${MODELS_DIR}"
+  if [[ -e "$HOME/.lmstudio/models" ]] || [[ -L "$HOME/.lmstudio/models" ]]; then
+    rm -rf "$HOME/.lmstudio/models"
+  fi
+  ln -s "${MODELS_DIR}" "$HOME/.lmstudio/models"
+  echo "Linked LM Studio models directory: ~/.lmstudio/models → ${MODELS_DIR}"
 
-echo "Installing/updating LM Studio CLI in the user profile."
-curl -fsSL https://lmstudio.ai/install.sh | bash
-add_lmstudio_paths
+# Add our lmstudio bin to PATH
+export PATH="${LMSTUDIO_DIR}/bin:${PATH}"
+
+# Detect installation type and handle migration if needed
+INSTALL_TYPE=$(detect_installation_type)
+
+case "${INSTALL_TYPE}" in
+  "lmstudio-migrate")
+    migrate_from_lmstudio
+    ;;
+  "existing-llama")
+    echo ""
+    echo "Detected existing llama-server installation, updating..."
+    echo ""
+    ;;
+  "new")
+    echo ""
+    echo "New installation detected."
+    echo ""
+    ;;
+  "unknown")
+    echo ""
+    echo "Unknown installation type detected, proceeding with update..."
+    echo ""
+    ;;
+esac
+
+# Install llama-server with CUDA support
+echo "Setting up llama-server with CUDA support..."
+
+# Check if already installed from previous build (skip rebuild if binary AND all .so libs present)
+if [[ -x "${LOCAL_BIN_DIR}/llama-server" ]] && [[ -f "${LOCAL_BIN_DIR}/libllama-common.so.0" ]] && [[ -f "${LOCAL_BIN_DIR}/libggml-cuda.so.0" ]] && [[ -f "${LOCAL_BIN_DIR}/libggml.so.0" ]]; then
+    echo "llama-server already installed at ${LOCAL_BIN_DIR}/llama-server"
+else
+    if [[ -x "${LOCAL_BIN_DIR}/llama-server" ]]; then
+        echo "llama-server binary exists but shared libraries are incomplete, rebuilding..."
+    fi
+    
+    # Need to build from source
+    if ! command -v cmake >/dev/null 2>&1; then
+        echo "ERROR: cmake is required to build llama-server but not found." >&2
+        echo "Please install cmake and try again:" >&2
+        echo "  sudo apt-get install cmake" >&2
+        exit 1
+    fi
+    
+    LLAMA_CPP_TEMP=""
+
+cleanup_llama_build() {
+    if [[ -n "${LLAMA_CPP_TEMP}" && -d "${LLAMA_CPP_TEMP}" ]]; then
+        rm -rf "${LLAMA_CPP_TEMP}" 2>/dev/null || true
+    fi
+}
+trap cleanup_llama_build EXIT
+    
+    echo "cmake detected, building llama-server from source..."
+    
+    # Only use native Linux CUDA installations at /usr/local/cuda-* (not Windows-mounted /mnt/c paths)
+    CUDA_TOOLKIT_ROOT_DIR=""
+    
+    # Check native Ubuntu/WSL CUDA paths in version order
+    for cuda_path in "/usr/local/cuda-13.0" "/usr/local/cuda-12.8" "/usr/local/cuda-12.6" "/usr/local/cuda-12.5" \
+                     "/usr/local/cuda-12" "/usr/local/cuda-11.8" "/usr/local/cuda-11" "/usr/local/cuda"; do
+        if [[ -d "${cuda_path}" && -x "${cuda_path}/bin/nvcc" ]]; then
+            # Verify it's a native ELF binary (not Windows exe via /mnt)
+            if file "${cuda_path}/bin/nvcc" 2>/dev/null | grep -q "ELF"; then
+                CUDA_TOOLKIT_ROOT_DIR="${cuda_path}"
+                break
+            fi
+        fi
+    done
+    
+    if [[ -n "${CUDA_TOOLKIT_ROOT_DIR}" ]]; then
+        echo "Found native CUDA toolkit at: ${CUDA_TOOLKIT_ROOT_DIR}"
+        export CUDA_TOOLKIT_ROOT_DIR
+        
+        NVCC_PATH="${CUDA_TOOLKIT_ROOT_DIR}/bin/nvcc"
+        
+        # Export the full path to cudart.so (required by cmake)
+        if [[ -f "${CUDA_TOOLKIT_ROOT_DIR}/lib64/libcudart.so" ]]; then
+            export CUDA_CUDART_LIBRARY="${CUDA_TOOLKIT_ROOT_DIR}/lib64/libcudart.so"
+            export CUDA_CUDA_LIBRARY="${CUDA_TOOLKIT_ROOT_DIR}/lib64/libcudart.so"
+        else
+            echo "WARNING: libcudart.so not found in ${CUDA_TOOLKIT_ROOT_DIR}/lib64"
+            CUDA_TOOLKIT_ROOT_DIR=""
+        fi
+    else
+        echo "No native CUDA toolkit found at /usr/local/cuda-*, using bundled archive..."
+    fi
+    
+    if [[ -n "${CUDA_TOOLKIT_ROOT_DIR}" && -d "${CUDA_TOOLKIT_ROOT_DIR}" ]]; then
+        # Create temp directory for build
+        LLAMA_CPP_TEMP=$(mktemp -d)
+        cd "${LLAMA_CPP_TEMP}"
+        
+        echo "Cloning llama.cpp repository..."
+        git clone --depth 1 https://github.com/ggml-org/llama.cpp.git .
+        
+        echo "Configuring build with CUDA (using GGML_CUDA)..."
+        
+        # Set environment variables to force cmake to use native CUDA only
+        export CMAKE_PREFIX_PATH="${CUDA_TOOLKIT_ROOT_DIR}"
+        export CMAKE_LIBRARY_PATH="${CUDA_TOOLKIT_ROOT_DIR}/lib64"
+        export LD_LIBRARY_PATH="${CUDA_TOOLKIT_ROOT_DIR}/lib64:${LD_LIBRARY_PATH:-}"
+        export CUDA_PATH="${CUDA_TOOLKIT_ROOT_DIR}"
+        export NVCC="$(dirname "${NVCC_PATH}")/nvcc"
+        
+        # Create a CMake toolchain file to override autodetection
+        cat > "${LLAMA_CPP_TEMP}/toolchain.cmake" <<TOOLCHEOF
+# Force native Linux CUDA only, block Windows paths in WSL
+set(CMAKE_SYSTEM_NAME Linux)
+set(CUDA_TOOLKIT_ROOT_DIR "${CUDA_TOOLKIT_ROOT_DIR}" CACHE PATH "CUDA Toolkit Root" FORCE)
+set(CUDA_PATH "${CUDA_TOOLKIT_ROOT_DIR}" CACHE PATH "CUDA Path" FORCE)
+set(CMAKE_CUDA_COMPILER "${NVCC_PATH}" CACHE FILEPATH "CUDA Compiler" FORCE)
+set(CUDA_CUDART_LIBRARY "${CUDA_CUDART_LIBRARY}" CACHE FILEPATH "CUDA Runtime Library" FORCE)
+set(CUDA_CUDA_LIBRARY "${CUDA_CUDART_LIBRARY}" CACHE FILEPATH "CUDA Library" FORCE)
+set(CUDA_LIBRARIES "${CUDA_CUDART_LIBRARY}" CACHE FILEPATH "CUDA Libraries" FORCE)
+set(CUDA_INCLUDE_DIRS "${CUDA_TOOLKIT_ROOT_DIR}/include" CACHE PATH "CUDA Include Dirs" FORCE)
+# Set search modes to only find in specified paths, not elsewhere
+set(CMAKE_FIND_ROOT_PATH "${CUDA_TOOLKIT_ROOT_DIR}")
+set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
+set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
+set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
+TOOLCHEOF
+        
+        echo "cmake configuration with native CUDA ${CUDA_TOOLKIT_ROOT_DIR}..."
+        
+        cmake -B build \
+            -DCMAKE_TOOLCHAIN_FILE:FILEPATH="${LLAMA_CPP_TEMP}/toolchain.cmake" \
+            -DGGML_CUDA=ON \
+            -DLLAMA_CUDA=OFF \
+            -DGGML_NATIVE=ON \
+            -DGPU_ARCHS="70;75;80;86;89;90" \
+            -DCMAKE_BUILD_TYPE=Release 2>&1 | tee "${LLAMA_CPP_TEMP}/cmake_output.log"
+        
+        CMAKE_EXIT_CODE=${PIPESTATUS[0]}
+        
+        # Verify cmake found our native CUDA
+        if [[ -f build/CMakeCache.txt ]]; then
+            echo ""
+            echo "Checking CMakeCache.txt for CUDA configuration..."
+            grep -E "(CUDA_TOOLKIT_ROOT_DIR|CMAKE_CUDA_COMPILER|CUDA_CUDART_LIBRARY)" build/CMakeCache.txt || true
+        fi
+        
+        # Check if we used the correct native CUDA
+        if grep -q '/usr/local/cuda-13.0' build/CMakeCache.txt 2>/dev/null; then
+            echo "SUCCESS: Using native CUDA from /usr/local/cuda-13.0"
+        else
+            echo "WARNING: Native CUDA may not have been used correctly."
+            echo "cmake output:"
+            cat "${LLAMA_CPP_TEMP}/cmake_output.log" 2>/dev/null | tail -20 || true
+        fi
+        
+        echo "Building llama-server (this may take a few minutes)..."
+        cmake --build build --config Release -j$(nproc)
+        BUILD_RESULT=$?
+        
+        if [[ ${BUILD_RESULT} -ne 0 ]] || [[ ! -f "build/bin/llama-server" ]]; then
+            echo "ERROR: Failed to build llama-server from source." >&2
+            exit 1
+        fi
+        
+        mkdir -p "${LOCAL_BIN_DIR}"
+        cp build/bin/llama-server "${LOCAL_BIN_DIR}/llama-server"
+        chmod +x "${LOCAL_BIN_DIR}/llama-server"
+        
+        # Copy all required shared libraries (use wildcard to catch all .so files)
+        for lib in build/bin/*.so*; do
+            if [[ -f "${lib}" ]]; then
+                cp "${lib}" "${LOCAL_BIN_DIR}/"
+                echo "  Copied: $(basename "${lib}")"
+            fi
+        done
+        
+        # Fix RPATH on all binaries and shared libraries so they find each other
+        # at runtime regardless of where the temp build dir was
+        if ! command -v patchelf >/dev/null 2>&1; then
+            echo "patchelf not found, installing..."
+            sudo apt-get install -y patchelf >/dev/null 2>&1 || true
+        fi
+        
+        if command -v patchelf >/dev/null 2>&1; then
+            for lib in "${LOCAL_BIN_DIR}"/*.so* "${LOCAL_BIN_DIR}"/llama-server; do
+                if [[ -f "${lib}" ]]; then
+                    patchelf --set-rpath "\$ORIGIN" "${lib}" 2>/dev/null || true
+                fi
+            done
+        fi
+        
+        echo "llama-server built and installed to ${LOCAL_BIN_DIR}/llama-server"
+        
+        # Cleanup build directory
+        LLAMA_CPP_TEMP=""
+        trap - EXIT
+        cd - >/dev/null || true
+    else
+        echo "ERROR: No native CUDA toolkit found at /usr/local/cuda-*" >&2
+        echo "Please install NVIDIA CUDA Toolkit and try again." >&2
+        exit 1
+    fi
+fi
 
 echo "Installing MCP helper packages into ${NPM_GLOBAL}"
 npm install -g --prefix="${NPM_GLOBAL}" \
@@ -426,13 +689,23 @@ npm install -g --prefix="${NPM_GLOBAL}" \
   @upstash/context7-mcp
 
 ensure_secret_file "${SECRET_DIR}/webui-secret-key" 32
-ensure_llm_wrapper_secret_file "${SECRET_DIR}/llm-wrapper.env"
 WEBUI_SECRET_KEY="$(tr -d '\r\n' < "${SECRET_DIR}/webui-secret-key")"
-LLM_WRAPPER_ENABLED="0"
 
-if secret_file_has_openrouter_key "${SECRET_DIR}/llm-wrapper.env"; then
+if [[ -n "${OPENROUTER_API_KEY}" ]]; then
+  {
+    printf '%s\n' "# Nymphs-Brain llm-wrapper configuration"
+    printf 'OPENROUTER_API_KEY=%s\n' "${OPENROUTER_API_KEY}"
+    printf 'REMOTE_LLM_MODEL=%s\n' "deepseek/deepseek-chat"
+  } > "${SECRET_DIR}/llm-wrapper.env"
+  chmod 600 "${SECRET_DIR}/llm-wrapper.env"
+fi
+
+LLM_WRAPPER_ENABLED="0"
+if [[ -s "${SECRET_DIR}/llm-wrapper.env" ]] && grep -q '^OPENROUTER_API_KEY=.' "${SECRET_DIR}/llm-wrapper.env"; then
   LLM_WRAPPER_ENABLED="1"
 fi
+LLM_WRAPPER_MODEL="$(sed -n 's/^REMOTE_LLM_MODEL=//p' "${SECRET_DIR}/llm-wrapper.env" 2>/dev/null | tail -1)"
+LLM_WRAPPER_MODEL="${LLM_WRAPPER_MODEL:-deepseek/deepseek-chat}"
 
 cat > "${MCP_CONFIG_DIR}/mcp-proxy-servers.json" <<EOF
 {
@@ -442,8 +715,7 @@ cat > "${MCP_CONFIG_DIR}/mcp-proxy-servers.json" <<EOF
       "args": [
         "${NPM_GLOBAL}/lib/node_modules/@modelcontextprotocol/server-filesystem/dist/index.js",
         "${HOME}",
-        "${INSTALL_ROOT}",
-        "/opt/nymphs3d/NymphsCore"
+        "${INSTALL_ROOT}"
       ]
     },
     "memory": {
@@ -466,18 +738,21 @@ cat > "${MCP_CONFIG_DIR}/mcp-proxy-servers.json" <<EOF
       ]
     },
     "llm-wrapper": {
-      "command": "bash",
+      "command": "${MCP_VENV_DIR}/bin/python",
       "args": [
-        "-lc",
-        "if [[ -f \"\${LLM_WRAPPER_SECRET_FILE}\" ]]; then set -a; source \"\${LLM_WRAPPER_SECRET_FILE}\"; set +a; fi; exec \"\${MCP_VENV_DIR}/bin/python3\" \"\${CACHED_LLM_SERVER_PATH}\" --model \"\${LLM_WRAPPER_MODEL}\" --timeout 120 --cache-ttl 3600 --cache-dir \"\${LLM_WRAPPER_CACHE_DIR}\" --limit-user-prompt-length 2000"
+        "${INSTALL_ROOT}/local-tools/remote_llm_mcp/cached_llm_mcp_server.py",
+        "--model",
+        "${LLM_WRAPPER_MODEL}",
+        "--timeout",
+        "120",
+        "--cache-ttl",
+        "3600",
+        "--cache-dir",
+        "${MCP_DATA_DIR}/llm_cache"
       ],
       "env": {
-        "MCP_VENV_DIR": "${MCP_VENV_DIR}",
-        "CACHED_LLM_SERVER_PATH": "${LOCAL_TOOLS_DIR}/remote_llm_mcp/cached_llm_mcp_server.py",
-        "LLM_WRAPPER_CACHE_DIR": "${MCP_DATA_DIR}/llm_cache",
-        "LLM_WRAPPER_SECRET_FILE": "${SECRET_DIR}/llm-wrapper.env",
-        "LLM_WRAPPER_MODEL": "${LLM_WRAPPER_MODEL}",
-        "LLM_API_BASE_URL": "https://openrouter.ai/api/v1"
+        "OPENROUTER_API_KEY": "$(sed -n 's/^OPENROUTER_API_KEY=//p' "${SECRET_DIR}/llm-wrapper.env" 2>/dev/null | tail -1)",
+        "REMOTE_LLM_MODEL": "$(sed -n 's/^REMOTE_LLM_MODEL=//p' "${SECRET_DIR}/llm-wrapper.env" 2>/dev/null | tail -1)"
       }
     }
   }
@@ -515,63 +790,11 @@ cat > "${MCP_CONFIG_DIR}/cline-mcp-settings.json" <<EOF
       "url": "http://${MCP_HOST}:${MCP_PORT}/servers/llm-wrapper/mcp",
       "type": "streamableHttp",
       "disabled": false,
-      "timeout": 60
+      "timeout": 120
     }
   }
 }
 EOF
-
-CLINE_GLOBAL_SETTINGS="${HOME}/.config/Code/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json"
-if [[ -f "${CLINE_GLOBAL_SETTINGS}" ]]; then
-  "${PYTHON_BIN}" - "${CLINE_GLOBAL_SETTINGS}" "${MCP_PORT}" <<'PYEOF'
-import json
-import sys
-from pathlib import Path
-
-settings_path = Path(sys.argv[1])
-port = sys.argv[2]
-settings = json.loads(settings_path.read_text(encoding="utf-8"))
-servers = settings.setdefault("mcpServers", {})
-
-servers.update(
-    {
-        "filesystem": {
-            "url": f"http://127.0.0.1:{port}/servers/filesystem/mcp",
-            "type": "streamableHttp",
-            "disabled": False,
-            "timeout": 60,
-        },
-        "memory": {
-            "url": f"http://127.0.0.1:{port}/servers/memory/mcp",
-            "type": "streamableHttp",
-            "disabled": False,
-            "timeout": 60,
-        },
-        "web-forager": {
-            "url": f"http://127.0.0.1:{port}/servers/web-forager/mcp",
-            "type": "streamableHttp",
-            "disabled": False,
-            "timeout": 60,
-        },
-        "context7": {
-            "url": f"http://127.0.0.1:{port}/servers/context7/mcp",
-            "type": "streamableHttp",
-            "disabled": False,
-            "timeout": 60,
-        },
-        "llm-wrapper": {
-            "url": f"http://127.0.0.1:{port}/servers/llm-wrapper/mcp",
-            "type": "streamableHttp",
-            "disabled": False,
-            "timeout": 60,
-        },
-    }
-)
-
-settings_path.parent.mkdir(parents=True, exist_ok=True)
-settings_path.write_text(json.dumps(settings, indent=2) + "\n", encoding="utf-8")
-PYEOF
-fi
 
 cat > "${MCP_CONFIG_DIR}/mcpo-servers.json" <<EOF
 {
@@ -680,23 +903,41 @@ cat > "${MCP_CONFIG_DIR}/open-webui-tool-servers.json" <<EOF
 ]
 EOF
 
+if [[ "${LLM_WRAPPER_ENABLED}" != "1" ]]; then
+  "${PYTHON_BIN}" - "${MCP_CONFIG_DIR}" <<'PYEOF'
+import json
+import sys
+from pathlib import Path
+
+config_dir = Path(sys.argv[1])
+for name in ("mcp-proxy-servers.json", "cline-mcp-settings.json", "mcpo-servers.json"):
+    path = config_dir / name
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data.get("mcpServers", {}).pop("llm-wrapper", None)
+    path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+
+path = config_dir / "open-webui-tool-servers.json"
+data = json.loads(path.read_text(encoding="utf-8"))
+data = [item for item in data if item.get("info", {}).get("id") != "nymphs-brain-llm-wrapper"]
+path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+PYEOF
+fi
+
 cat > "${MCP_CONFIG_DIR}/open-webui-mcp-servers.md" <<EOF
 Nymphs-Brain MCP servers for Open WebUI
 
-Open WebUI launch now seeds Brain tool connections automatically from:
+Open WebUI launch seeds OpenAPI tool server entries automatically from:
 
 - ${MCP_CONFIG_DIR}/open-webui-tool-servers.json
 
-Those seeded OpenAPI tool server entries point at mcpo routes:
+Those entries point at mcpo routes:
 
 - Filesystem: http://${MCP_HOST}:${MCPO_OPENAPI_PORT}/filesystem
 - Memory: http://${MCP_HOST}:${MCPO_OPENAPI_PORT}/memory
 - Web Forager: http://${MCP_HOST}:${MCPO_OPENAPI_PORT}/web-forager
 - Context7: http://${MCP_HOST}:${MCPO_OPENAPI_PORT}/context7
-- LLM Wrapper: http://${MCP_HOST}:${MCPO_OPENAPI_PORT}/llm-wrapper
 
-If you prefer Open WebUI native MCP instead of OpenAPI, add these manually in Admin Settings -> External Tools:
-
+If you prefer direct MCP, add these in Admin Settings -> External Tools
 Type: MCP (Streamable HTTP)
 Auth: None
 
@@ -704,54 +945,13 @@ Auth: None
 - Memory: http://${MCP_HOST}:${MCP_PORT}/servers/memory/mcp
 - Web Forager: http://${MCP_HOST}:${MCP_PORT}/servers/web-forager/mcp
 - Context7: http://${MCP_HOST}:${MCP_PORT}/servers/context7/mcp
-- LLM Wrapper: http://${MCP_HOST}:${MCP_PORT}/servers/llm-wrapper/mcp
 
 Notes
 - Open WebUI default URL: http://localhost:${OPEN_WEBUI_PORT}
 - mcpo default URL: http://localhost:${MCPO_OPENAPI_PORT}
-- Cline uses the direct MCP endpoints with transport type streamableHttp.
-- llm-wrapper requires a valid OpenRouter key in ${SECRET_DIR}/llm-wrapper.env.
+- These endpoints bind to localhost only.
+- Cline can use the same endpoints with transport type streamableHttp.
 EOF
-
-if [[ "${LLM_WRAPPER_ENABLED}" != "1" ]]; then
-  "${PYTHON_BIN}" - "${MCP_CONFIG_DIR}" "${CLINE_GLOBAL_SETTINGS}" <<'PYEOF'
-import json
-import sys
-from pathlib import Path
-
-config_dir = Path(sys.argv[1])
-cline_global_settings = Path(sys.argv[2])
-
-for name in [
-    "mcp-proxy-servers.json",
-    "cline-mcp-settings.json",
-    "mcpo-servers.json",
-    "open-webui-tool-servers.json",
-]:
-    path = config_dir / name
-    if not path.exists():
-        continue
-
-    data = json.loads(path.read_text(encoding="utf-8"))
-
-    if name == "open-webui-tool-servers.json":
-      data = [
-          item
-          for item in data
-          if item.get("info", {}).get("id") != "nymphs-brain-llm-wrapper"
-      ]
-    else:
-      servers = data.get("mcpServers", {})
-      servers.pop("llm-wrapper", None)
-
-    path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
-
-if cline_global_settings.exists():
-    data = json.loads(cline_global_settings.read_text(encoding="utf-8"))
-    data.setdefault("mcpServers", {}).pop("llm-wrapper", None)
-    cline_global_settings.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
-PYEOF
-fi
 
 if [[ "${DOWNLOAD_MODEL}" == "1" && -n "${DL_TARGET}" ]]; then
   if ! command -v lms >/dev/null 2>&1; then
@@ -761,18 +961,31 @@ if [[ "${DOWNLOAD_MODEL}" == "1" && -n "${DL_TARGET}" ]]; then
   fi
   echo "Downloading model: ${DL_TARGET}"
   lms get "${DL_TARGET}" --yes
+  
+  # Stop any LMS server/daemon that may have started during download using proper CLI commands
+  echo ""
+  echo "Stopping any running LMS daemons..."
+  lms server stop 2>/dev/null || true
+  lms daemon down 2>/dev/null || true
+  
+  echo ""
+  echo "Model downloaded successfully."
 elif [[ "${DOWNLOAD_MODEL}" == "1" ]]; then
-  echo "Skipping model download because no Brain model was selected during install."
-  echo "Use the Manager Brain page 'Manage Models' action after install to download/select a model."
+  echo "Skipping model download because no local model was specified."
+  echo "Use '${BIN_DIR}/lms-model' after install to download/select a local model."
 else
-  echo "Skipping model download during install."
-  echo "Use the Manager Brain page 'Manage Models' action after install to download/select a model."
+  if [[ -n "${DL_TARGET}" ]]; then
+    echo "Skipping model download. Configured local model: ${DL_TARGET}."
+  else
+    echo "No local model configured during install."
+    echo "Use '${BIN_DIR}/lms-model' after install to download/select a local model."
+  fi
 fi
 
 cat > "${INSTALL_ROOT}/nymph-agent.py" <<'PYEOF'
 import requests
 
-URL = "http://127.0.0.1:1234/v1/chat/completions"
+URL = "http://127.0.0.1:8000/v1/chat/completions"
 MODEL = "__MODEL_ID__"
 
 
@@ -792,11 +1005,11 @@ def call(messages):
 history = [
     {
         "role": "system",
-        "content": "You are Nymphs-Brain, an experimental local assistant for NymphsCore.",
+        "content": "You are Nymphs-Brain, an experimental local assistant for NymphsCore (llama-server backend).",
     }
 ]
 
-print("\033[92mNymphs-Brain Agent Active.\033[0m")
+print("\033[92mNymphs-Brain Agent Active (llama-server on port 8000).\033[0m")
 while True:
     try:
         user = input("task> ")
@@ -810,256 +1023,282 @@ while True:
         break
 PYEOF
 
-sed -i "s|__MODEL_ID__|${MODEL_ID}|g" "${INSTALL_ROOT}/nymph-agent.py"
-
-mkdir -p "${CONFIG_DIR}"
-INITIAL_PLAN_MODEL_ID="${EXISTING_PLAN_MODEL_ID}"
-INITIAL_PLAN_CONTEXT_LENGTH="${EXISTING_PLAN_CONTEXT_LENGTH}"
-INITIAL_ACT_MODEL_ID="${EXISTING_ACT_MODEL_ID}"
-INITIAL_ACT_CONTEXT_LENGTH="${EXISTING_ACT_CONTEXT_LENGTH}"
-INITIAL_LLM_WRAPPER_MODEL="${EXISTING_LLM_WRAPPER_MODEL:-${LLM_WRAPPER_MODEL}}"
-INITIAL_PRIMARY_MODEL_ROLE="${EXISTING_PRIMARY_MODEL_ROLE:-plan}"
-
-if [[ -n "${MODEL_ID}" ]]; then
-  INITIAL_PLAN_MODEL_ID="${MODEL_ID}"
-  INITIAL_PLAN_CONTEXT_LENGTH="${CONTEXT_LENGTH}"
-fi
-
-cat > "${PROFILE_CONFIG_FILE}" <<EOF
-PLAN_MODEL_ID="${INITIAL_PLAN_MODEL_ID}"
-PLAN_CONTEXT_LENGTH="${INITIAL_PLAN_CONTEXT_LENGTH}"
-ACT_MODEL_ID="${INITIAL_ACT_MODEL_ID}"
-ACT_CONTEXT_LENGTH="${INITIAL_ACT_CONTEXT_LENGTH}"
-LLM_WRAPPER_MODEL="${INITIAL_LLM_WRAPPER_MODEL}"
-PRIMARY_MODEL_ROLE="${INITIAL_PRIMARY_MODEL_ROLE}"
-EOF
-
 cat > "${BIN_DIR}/lms-start" <<'WRAPEOF'
 #!/usr/bin/env bash
 set -euo pipefail
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 INSTALL_ROOT="$(dirname "${SCRIPT_DIR}")"
-PROFILE_CONFIG_FILE="${INSTALL_ROOT}/config/lms-model-profiles.env"
 export PATH="${INSTALL_ROOT}/bin:${INSTALL_ROOT}/local-tools/bin:${INSTALL_ROOT}/local-tools/node/bin:${INSTALL_ROOT}/npm-global/bin:${PATH}"
+
+# Add LM Studio paths for model management tools
 for candidate in "${HOME}/.lmstudio/bin" "${HOME}/.cache/lm-studio/bin" "${HOME}/.local/bin"; do
   if [[ -d "${candidate}" ]]; then
     export PATH="${candidate}:${PATH}"
   fi
 done
 
-PLAN_MODEL_ID="__MODEL_ID__"
-PLAN_CONTEXT_LENGTH="__CONTEXT_LENGTH__"
-ACT_MODEL_ID=""
-ACT_CONTEXT_LENGTH=""
-LLM_WRAPPER_MODEL=""
+# llama-server path
+LLAMA_SERVER="${INSTALL_ROOT}/local-tools/bin/llama-server"
 
-if [[ -f "${PROFILE_CONFIG_FILE}" ]]; then
-  # shellcheck disable=SC1090
-  source "${PROFILE_CONFIG_FILE}"
+# Model configuration (updated by lms-model script)
+MODEL_KEY="__MODEL_ID__"
+CONTEXT_LENGTH="__CONTEXT_LENGTH__"
+
+PID_FILE="${INSTALL_ROOT}/logs/lms.pid"
+LOG_FILE="${INSTALL_ROOT}/logs/lms.log"
+
+mkdir -p "${INSTALL_ROOT}/logs"
+
+# Stop any existing llama-server instance
+if [[ -f "${PID_FILE}" ]]; then
+  old_pid="$(cat "${PID_FILE}")" 2>/dev/null || true
+  if kill -0 "$old_pid" >/dev/null 2>&1; then
+    echo "Stopping existing llama-server (PID ${old_pid})..."
+    kill "$old_pid" >/dev/null 2>&1 || true
+    sleep 2
+  fi
 fi
 
-declare -A LOADED_MODEL_KEYS=()
+# Find the actual .gguf file path from our centralized models directory
+MODELS_DIR="${INSTALL_ROOT}/models"
 
-json_model_keys() {
-  if [[ -x "${INSTALL_ROOT}/venv/bin/python3" ]]; then
-    "${INSTALL_ROOT}/venv/bin/python3" -c '
-import json
-import sys
+if [[ -z "${MODEL_KEY}" ]]; then
+  echo "ERROR: No local model is configured." >&2
+  echo "Use 'lms-model' to download/select a model first:" >&2
+  echo "  ${SCRIPT_DIR}/lms-model" >&2
+  exit 1
+fi
 
-try:
-    data = json.load(sys.stdin)
-except Exception:
-    data = []
-
-if isinstance(data, dict):
-    for key in ("models", "llms", "data"):
-        if isinstance(data.get(key), list):
-            data = data[key]
-            break
-    else:
-        data = []
-
-for item in data if isinstance(data, list) else []:
-    if isinstance(item, dict):
-        model_key = item.get("modelKey") or item.get("key") or item.get("id")
-        if model_key:
-            print(model_key)
-'
-  else
-    python3 -c '
-import json
-import sys
-
-try:
-    data = json.load(sys.stdin)
-except Exception:
-    data = []
-
-if isinstance(data, dict):
-    for key in ("models", "llms", "data"):
-        if isinstance(data.get(key), list):
-            data = data[key]
-            break
-    else:
-        data = []
-
-for item in data if isinstance(data, list) else []:
-    if isinstance(item, dict):
-        model_key = item.get("modelKey") or item.get("key") or item.get("id")
-        if model_key:
-            print(model_key)
-'
-  fi
-}
-
-lms_model_keys() {
-  local model_json
-  model_json="$(lms ls --llm --json 2>/dev/null || printf '[]')"
-  printf '%s' "${model_json}" | json_model_keys
-}
-
-model_is_downloaded() {
-  local model_id="$1"
-  local downloaded_model
-
-  while IFS= read -r downloaded_model; do
-    if [[ "${downloaded_model}" == "${model_id}" ]]; then
-      return 0
-    fi
-  done < <(lms_model_keys)
-
-  return 1
-}
-
-load_profile() {
-  local role="$1"
-  local model_id="$2"
-  local context_length="$3"
-  local model_key
-
-  [[ -n "${model_id}" ]] || return 0
-  context_length="${context_length:-16384}"
-  model_key="${model_id}|${context_length}"
-
-  if [[ -n "${LOADED_MODEL_KEYS[${model_key}]:-}" ]]; then
-    echo "Skipping ${role} model because it matches ${LOADED_MODEL_KEYS[${model_key}]}. (${model_id}, context ${context_length})"
+find_gguf_path() {
+  local model_key="$1"
+  local model_name="${model_key##*/}"
+  local model_slug
+  model_slug="$(printf '%s' "${model_name}" | tr '[:upper:]' '[:lower:]' | sed 's/-gguf$//; s/[^a-z0-9]//g')"
+  
+  if [[ ! -d "${MODELS_DIR}" ]]; then
+    echo ""
     return 0
   fi
 
-  if ! model_is_downloaded "${model_id}"; then
-    echo "Cannot load ${role} model because it is not downloaded in LM Studio: ${model_id}" >&2
-    echo "Use the Manager Brain page 'Manage Models' flow to download/select a model, then start Brain again." >&2
-    echo "Downloaded LM Studio model keys:" >&2
-    lms_model_keys | sed 's/^/- /' >&2 || true
-    return 2
+  # Prefer the real model GGUF, not multimodal projector files.
+  gguf_file=$(find "${MODELS_DIR}" -iname "*.gguf" -type f 2>/dev/null | \
+              grep -iv 'mmproj' | \
+              awk -v model_slug="${model_slug}" '
+                {
+                  path = tolower($0)
+                  comparable = path
+                  gsub(/-gguf/, "", comparable)
+                  gsub(/[^a-z0-9]/, "", comparable)
+                  if (index(comparable, model_slug) > 0) {
+                    print
+                    exit
+                  }
+                }')
+  if [[ -n "$gguf_file" && -f "$gguf_file" ]]; then
+    echo "$gguf_file"
+    return 0
   fi
-
-  echo "Loading ${role} model: ${model_id} (context ${context_length})"
-  if ! timeout --foreground 300s lms load "${model_id}" --gpu "max" --context-length "${context_length}" -y < /dev/null; then
-    echo "LM Studio could not load the ${role} model non-interactively: ${model_id}" >&2
-    echo "Use Manage Models to confirm the downloaded model key, then start Brain again." >&2
-    return 2
-  fi
-  LOADED_MODEL_KEYS["${model_key}"]="${role}"
+  
+  echo ""
 }
 
-lms server stop >/dev/null 2>&1 || true
-lms server start >/dev/null 2>&1 &
-for _ in $(seq 1 90); do
-  if curl -fsS http://localhost:1234/v1/models >/dev/null 2>&1; then
-    break
+GGUF_PATH="$(find_gguf_path "${MODEL_KEY}")"
+
+if [[ -z "${GGUF_PATH}" || ! -f "${GGUF_PATH}" ]]; then
+  echo "ERROR: Could not find GGUF file for model '${MODEL_KEY}'" >&2
+  echo "Use 'lms-model' to download/manage models via LM Studio:" >&2
+  echo "  ${SCRIPT_DIR}/lms-model" >&2
+  exit 1
+fi
+
+# Detect multimodal projector (.mmproj file) next to the GGUF
+MMPROJ_FLAG=""
+MMPROJ_PATH="$(find "$(dirname "${GGUF_PATH}")" -maxdepth 1 -iname "*mmproj*" -type f 2>/dev/null | head -n1 || true)"
+if [[ -n "${MMPROJ_PATH}" && -f "${MMPROJ_PATH}" ]]; then
+  MMPROJ_FLAG="--mmproj ${MMPROJ_PATH}"
+  echo "Detected multimodal projector: ${MMPROJ_PATH}"
+fi
+
+echo "Starting llama-server..."
+echo "  Model: ${MODEL_KEY}"
+echo "  GGUF Path: ${GGUF_PATH}"
+echo "  Context Length: ${CONTEXT_LENGTH}"
+if [[ -n "${MMPROJ_FLAG}" ]]; then
+  echo "  Multimodal Projector: ${MMPROJ_PATH}"
+fi
+echo ""
+
+# Ensure shared libraries can be found (fallback if RPATH was not fixed by patchelf)
+export LD_LIBRARY_PATH="$(dirname "${LLAMA_SERVER}"):${LD_LIBRARY_PATH:-}"
+
+# Start llama-server with CUDA acceleration
+LLAMA_ARGS=(
+    -m "${GGUF_PATH}"
+    -c "${CONTEXT_LENGTH}"
+    -ngl 9999
+    --port 8000
+    --host "127.0.0.1"
+    --flash-attn on
+    --parallel 4
+    -ctk q8_0
+    -ctv q8_0
+)
+# Append multimodal projector flag if detected
+if [[ -n "${MMPROJ_FLAG}" ]]; then
+  LLAMA_ARGS+=(--mmproj "${MMPROJ_PATH}")
+fi
+
+nohup "${LLAMA_SERVER}" "${LLAMA_ARGS[@]}" > "${LOG_FILE}" 2>&1 &
+
+echo "$!" > "${PID_FILE}"
+
+# Health check
+echo "Waiting for llama-server to be ready..."
+for i in $(seq 1 60); do
+  if curl -fsS "http://127.0.0.1:8000/v1/models" >/dev/null 2>&1; then
+    echo "llama-server is ready on port 8000"
+    echo ""
+    echo "API endpoints:"
+    echo "  Models:     http://localhost:8000/v1/models"
+    echo "  Chat API:   http://localhost:8000/v1/chat/completions"
+    echo ""
+    echo "Log file: ${LOG_FILE}"
+    exit 0
   fi
   sleep 1
 done
-if ! curl -fsS http://localhost:1234/v1/models >/dev/null 2>&1; then
-  echo "LM Studio server did not become ready before the timeout." >&2
-  exit 2
-fi
-load_profile "plan" "${PLAN_MODEL_ID}" "${PLAN_CONTEXT_LENGTH}"
-load_profile "act" "${ACT_MODEL_ID}" "${ACT_CONTEXT_LENGTH}"
+
+echo "ERROR: llama-server did not become ready in time." >&2
+echo "Check log file: ${LOG_FILE}" >&2
+exit 1
 WRAPEOF
 
 cat > "${BIN_DIR}/lms-stop" <<'WRAPEOF'
 #!/usr/bin/env bash
 set -euo pipefail
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 INSTALL_ROOT="$(dirname "${SCRIPT_DIR}")"
-export PATH="${INSTALL_ROOT}/bin:${INSTALL_ROOT}/local-tools/bin:${INSTALL_ROOT}/local-tools/node/bin:${INSTALL_ROOT}/npm-global/bin:${PATH}"
-for candidate in "${HOME}/.lmstudio/bin" "${HOME}/.cache/lm-studio/bin" "${HOME}/.local/bin"; do
-  if [[ -d "${candidate}" ]]; then
-    export PATH="${candidate}:${PATH}"
+
+PID_FILE="${INSTALL_ROOT}/logs/lms.pid"
+LLM_PORT="${NYMPHS_BRAIN_LLM_PORT:-8000}"
+
+stop_pid() {
+  local pid="$1"
+  [[ -n "${pid}" && "${pid}" =~ ^[0-9]+$ ]] || return 0
+
+  if ! kill -0 "${pid}" >/dev/null 2>&1; then
+    return 0
   fi
-done
 
-echo "Unloading all LM Studio models..."
-lms unload --all || true
+  kill -TERM "${pid}" >/dev/null 2>&1 || true
+  for _ in $(seq 1 2); do
+    if ! kill -0 "${pid}" >/dev/null 2>&1; then
+      return 0
+    fi
+    sleep 1
+  done
 
-echo "Stopping LM Studio server..."
-lms server stop || true
+  kill -KILL "${pid}" >/dev/null 2>&1 || true
+  sleep 0.25
+  return 0
+}
 
-echo "Shutting down LM Studio daemon..."
-lms daemon down || true
+port_pids() {
+  ss -ltnp 2>/dev/null | awk -v target=":${LLM_PORT}" '
+    index($4, target) {
+      if (match($0, /pid=[0-9]+/)) {
+        print substr($0, RSTART + 4, RLENGTH - 4)
+      }
+    }
+  ' | sort -u
+}
 
-echo "LM Studio has been stopped."
+echo "Stopping llama-server..."
+
+stopped_any=0
+
+if [[ -f "${PID_FILE}" ]]; then
+  pid="$(cat "${PID_FILE}")" 2>/dev/null || true
+  if [[ -n "${pid}" ]]; then
+    echo "  Stopping PID ${pid}..."
+    stop_pid "${pid}"
+    stopped_any=1
+  fi
+fi
+
+while read -r pid; do
+  [[ -n "${pid}" ]] || continue
+  echo "  Stopping process on port ${LLM_PORT}: ${pid}"
+  stop_pid "${pid}"
+  stopped_any=1
+done < <(port_pids)
+
+rm -f "${PID_FILE}"
+
+if curl -fsS --connect-timeout 1 --max-time 2 "http://127.0.0.1:${LLM_PORT}/v1/models" >/dev/null 2>&1; then
+  echo "llama-server still appears to be running on port ${LLM_PORT}." >&2
+  exit 1
+fi
+
+if [[ "${stopped_any}" -eq 1 ]]; then
+  echo "llama-server stopped."
+else
+  echo "llama-server is not running."
+fi
+echo "LM Studio remains available for model management via: ${SCRIPT_DIR}/lms-model"
 WRAPEOF
 
-cat > "${BIN_DIR}/brain-refresh" <<'WRAPEOF'
+cat > "${BIN_DIR}/lms-status" <<'WRAPEOF'
 #!/usr/bin/env bash
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 INSTALL_ROOT="$(dirname "${SCRIPT_DIR}")"
-INSTALLER_COPY="${INSTALL_ROOT}/brain-installer.sh"
+PID_FILE="${INSTALL_ROOT}/logs/lms.pid"
+LOG_FILE="${INSTALL_ROOT}/logs/lms.log"
 
-if [[ ! -x "${INSTALLER_COPY}" ]]; then
-  echo "Brain refresh script is missing at ${INSTALLER_COPY}. Rerun install_nymphs_brain.sh." >&2
-  exit 1
+echo "llama-server status:"
+
+if [[ -f "${PID_FILE}" ]]; then
+  pid="$(cat "${PID_FILE}")" 2>/dev/null || echo "unknown"
+  if kill -0 "$pid" >/dev/null 2>&1; then
+    echo "  Process: running (PID ${pid})"
+  else
+    echo "  Process: stopped (stale PID file)"
+  fi
+else
+  echo "  Process: no PID file found"
 fi
 
-exec "${INSTALLER_COPY}" --install-root "${INSTALL_ROOT}" --quiet
+if curl -fsS "http://127.0.0.1:8000/v1/models" >/dev/null 2>&1; then
+  echo "  API: responding on port 8000"
+  
+  MODEL_INFO=$(curl -fsS "http://127.0.0.1:8000/v1/models" 2>/dev/null | \
+               python3 -c "import sys,json; d=json.load(sys.stdin); models=d.get('data',[]); print(models[0]['id'] if models else 'none')" 2>/dev/null || echo "unknown")
+  echo "  Model loaded: ${MODEL_INFO}"
+else
+  echo "  API: not responding"
+fi
+
+echo ""
+echo "Log file: ${LOG_FILE}"
+echo "Last 5 lines of log:"
+if [[ -f "${LOG_FILE}" ]]; then
+  tail -n 5 "${LOG_FILE}" | sed 's/^/  /'
+else
+  echo "  (no log file found)"
+fi
 WRAPEOF
 
 cat > "${BIN_DIR}/lms-update" <<'WRAPEOF'
 #!/usr/bin/env bash
 set -euo pipefail
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-INSTALL_ROOT="$(dirname "${SCRIPT_DIR}")"
-export PATH="${INSTALL_ROOT}/bin:${INSTALL_ROOT}/local-tools/bin:${INSTALL_ROOT}/local-tools/node/bin:${INSTALL_ROOT}/npm-global/bin:${PATH}"
-for candidate in "${HOME}/.lmstudio/bin" "${HOME}/.cache/lm-studio/bin" "${HOME}/.local/bin"; do
-  if [[ -d "${candidate}" ]]; then
-    export PATH="${candidate}:${PATH}"
-  fi
-done
 
-was_running=0
-if curl -fsS http://127.0.0.1:1234/v1/models >/dev/null 2>&1; then
-  was_running=1
-  echo "Stopping LM Studio before update..."
-  "${SCRIPT_DIR}/lms-stop"
-fi
-
-echo "Updating LM Studio CLI in the Linux user profile..."
-curl -fsSL https://lmstudio.ai/install.sh | bash
-
-for candidate in "${HOME}/.lmstudio/bin" "${HOME}/.cache/lm-studio/bin" "${HOME}/.local/bin"; do
-  if [[ -d "${candidate}" ]]; then
-    export PATH="${candidate}:${PATH}"
-  fi
-done
-
-if ! command -v lms >/dev/null 2>&1; then
-  echo "LM Studio CLI command 'lms' was not found after update." >&2
-  exit 1
-fi
-
-echo "LM Studio CLI update completed."
-
-if [[ "${was_running}" == "1" ]]; then
-  echo "Restarting LM Studio server and selected model..."
-  "${SCRIPT_DIR}/lms-start"
-else
-  echo "LM Studio remains stopped. Use lms-start when ready."
-fi
+echo "LM Studio CLI remains available for model management."
+echo "Nymphs-Brain runtime updates are handled by Update Stack via brain-refresh."
+echo "No LM Studio server update is required for the llama-server backend."
 WRAPEOF
 
 cat > "${BIN_DIR}/lms-model" <<'WRAPEOF'
@@ -1087,26 +1326,35 @@ done
 LMS_BIN="$(command -v lms || true)"
 
 declare -A CONTEXT_SIZES=(
-  ["1"]="4096"
-  ["2"]="8192"
-  ["3"]="16384"
-  ["4"]="32768"
-  ["5"]="65536"
-  ["6"]="128000"
+  ["1"]="2048"
+  ["2"]="4096"
+  ["3"]="8192"
+  ["4"]="16384"
+  ["5"]="32768"
+  ["6"]="49152"
+  ["7"]="65536"
+  ["8"]="98304"
+  ["9"]="131072"
+  ["10"]="262144"
 )
 
 CONTEXT_LABELS=(
+  "2k   (2048)"
   "4k   (4096)"
   "8k   (8192)"
   "16k  (16384)"
   "32k  (32768)"
+  "48k  (49152)"
   "64k  (65536)"
-  "128k (128000)"
+  "96k  (98304)"
+  "128k (131072)"
+  "256k (262144)"
+  "Custom (user input)"
 )
 
 SELECTED_CONTEXT_SIZE=""
 SELECTED_MODEL_KEY=""
-SELECTED_ROLE="act"
+REMOTE_MODEL_FILE="${INSTALL_ROOT}/secrets/llm-wrapper.env"
 
 json_model_keys() {
   python_json -c '
@@ -1148,24 +1396,28 @@ ensure_lms() {
   fi
 }
 
-start_server() {
-  echo "Stopping any existing LM Studio server..."
-  "${LMS_BIN}" server stop >/dev/null 2>&1 || true
-
-  echo "Starting LM Studio server..."
-  "${LMS_BIN}" server start >/dev/null 2>&1 &
-
-  echo "Waiting for server to be ready..."
-  until curl -fsS http://localhost:1234/v1/models >/dev/null 2>&1; do
-    sleep 1
-    printf "."
-  done
-  echo " ready."
-}
-
-unload_models() {
-  echo "Unloading currently loaded models..."
-  "${LMS_BIN}" unload --all 2>/dev/null || true
+check_model_downloaded() {
+  local model_key="$1"
+  # The lms ls command will only show downloaded models, so if we find it, it's ready
+  local model_list
+  model_list="$("${LMS_BIN}" ls --llm --json 2>/dev/null || printf '[]')"
+  echo "$model_list" | python_json -c "
+import json, sys
+data = json.load(sys.stdin)
+target = '${1}'
+if isinstance(data, dict):
+    for key in ('models', 'llms', 'data'):
+        if isinstance(data.get(key), list):
+            data = data[key]
+            break
+else:
+    data = []
+found = any(
+    isinstance(item, dict) and str(item.get('modelKey') or item.get('key') or item.get('id')) == target
+    for item in data if isinstance(data, list)
+)
+sys.exit(0 if found else 1)
+" 2>/dev/null
 }
 
 select_context_size() {
@@ -1178,7 +1430,19 @@ select_context_size() {
       printf "  %d) %s\n" "$((i + 1))" "${CONTEXT_LABELS[i]}"
     done
     echo
-    read -rp "Enter your choice (1-6): " choice
+    read -rp "Enter your choice (1-11): " choice
+
+    # Custom context size (option 11)
+    if [[ "$choice" == "11" ]]; then
+      read -rp "Enter custom context size (tokens, min 512): " SELECTED_CONTEXT_SIZE
+      if [[ "${SELECTED_CONTEXT_SIZE}" =~ ^[0-9]+$ ]] && [[ "${SELECTED_CONTEXT_SIZE}" -ge 512 ]]; then
+        echo "Selected custom context size: ${SELECTED_CONTEXT_SIZE} tokens"
+        return 0
+      else
+        echo "Invalid context size. Must be a number >= 512."
+        continue
+      fi
+    fi
 
     if [[ -n "${CONTEXT_SIZES[$choice]:-}" ]]; then
       SELECTED_CONTEXT_SIZE="${CONTEXT_SIZES[$choice]}"
@@ -1186,7 +1450,7 @@ select_context_size() {
       return 0
     fi
 
-    echo "Invalid choice. Please enter a number from 1 to 6."
+    echo "Invalid choice. Please enter a number from 1 to 11."
   done
 }
 
@@ -1210,38 +1474,6 @@ confirm_model() {
         ;;
       *)
         echo "Please enter 'y', 'n', or 'change'."
-        ;;
-    esac
-  done
-}
-
-select_role() {
-  local choice
-  local default_role="${1:-act}"
-
-  while true; do
-    echo
-    echo "Assign this model to which role?"
-    echo "  1) Act"
-    echo "  2) Plan"
-    echo
-    read -rp "Enter your choice (1-2) [default: ${default_role}]: " choice
-
-    case "${choice}" in
-      1)
-        SELECTED_ROLE="act"
-        return 0
-        ;;
-      2)
-        SELECTED_ROLE="plan"
-        return 0
-        ;;
-      "")
-        SELECTED_ROLE="${default_role}"
-        return 0
-        ;;
-      *)
-        echo "Invalid choice. Please enter 1 or 2."
         ;;
     esac
   done
@@ -1297,40 +1529,36 @@ capture_selected_model() {
 }
 
 update_lms_start_script() {
-  local role="$1"
-  local model_key="$2"
-  local context_size="$3"
-  local profile_config_path="${INSTALL_ROOT}/config/lms-model-profiles.env"
-  local plan_model_id=""
-  local plan_context_length=""
-  local act_model_id=""
-  local act_context_length=""
-  local llm_wrapper_model=""
-  local primary_model_role="plan"
+  local model_key="$1"
+  local context_size="$2"
+  local lms_start_path="${INSTALL_ROOT}/bin/lms-start"
 
-  if [[ -f "${profile_config_path}" ]]; then
-    # shellcheck disable=SC1090
-    source "${profile_config_path}"
+  if [[ ! -f "${lms_start_path}" ]]; then
+    echo "Warning: lms-start was not found at ${lms_start_path}."
+    return 0
   fi
 
-  if [[ "${role}" == "plan" ]]; then
-    plan_model_id="${model_key}"
-    plan_context_length="${context_size}"
-  else
-    act_model_id="${model_key}"
-    act_context_length="${context_size}"
-  fi
+  # Use awk for robust replacement that handles CRLF line endings
+  awk -v model="${model_key}" \
+      -v context="${context_size}" '
+    BEGIN { RS=ORS="\n" }
+    {
+      gsub(/\r$/, "")  # Strip CRLF if present
+      if (/^MODEL_KEY=/) {
+        print "MODEL_KEY=\"" model "\""
+        next
+      }
+      if (/^CONTEXT_LENGTH=/) {
+        print "CONTEXT_LENGTH=" context
+        next
+      }
+      print
+    }
+    ' "${lms_start_path}" > "${lms_start_path}.tmp"
 
-  mkdir -p "$(dirname "${profile_config_path}")"
-  cat > "${profile_config_path}" <<EOF
-PLAN_MODEL_ID="${plan_model_id}"
-PLAN_CONTEXT_LENGTH="${plan_context_length}"
-ACT_MODEL_ID="${act_model_id}"
-ACT_CONTEXT_LENGTH="${act_context_length}"
-LLM_WRAPPER_MODEL="${llm_wrapper_model:-${LLM_WRAPPER_MODEL}}"
-PRIMARY_MODEL_ROLE="${primary_model_role}"
-EOF
-  echo "Updated ${role} model profile."
+  mv "${lms_start_path}.tmp" "${lms_start_path}"
+  chmod +x "${lms_start_path}"
+  echo "Updated lms-start with model: ${model_key} and context: ${context_size} for llama-server."
 }
 
 update_agent_script() {
@@ -1351,34 +1579,99 @@ update_agent_script() {
   echo "Updated nymph-chat to request the selected model."
 }
 
-finalize_selected_model() {
-  local role="${1:-act}"
+stop_lmstudio_daemon() {
+  echo "Stopping LM Studio daemon..."
+  lms server stop 2>/dev/null || true
+  lms daemon down 2>/dev/null || true
+  # Fallback: kill any remaining LM Studio server/daemon processes
+  pkill -f "lms.*server" 2>/dev/null || true
+  pkill -f "lms.*daemon" 2>/dev/null || true
+  sleep 1
+  echo "LM Studio daemon stopped."
+}
 
+finalize_selected_model() {
   select_context_size
 
   echo
-  echo "Saving model profile:"
-  echo "  role: ${role}"
+  echo "Updating lms-start configuration:"
   echo "  model: ${SELECTED_MODEL_KEY}"
   echo "  context: ${SELECTED_CONTEXT_SIZE}"
 
-  update_lms_start_script "${role}" "${SELECTED_MODEL_KEY}" "${SELECTED_CONTEXT_SIZE}"
-  if [[ "${role}" == "act" ]]; then
-    update_agent_script "${SELECTED_MODEL_KEY}"
+  update_lms_start_script "${SELECTED_MODEL_KEY}" "${SELECTED_CONTEXT_SIZE}"
+  update_agent_script "${SELECTED_MODEL_KEY}"
+  
+  echo ""
+  echo "Configuration updated successfully."
+  
+  # Stop the LM Studio daemon that was started for model selection
+  stop_lmstudio_daemon
+  
+  echo ""
+  echo "To start the server with this model, run:"
+  echo "  ${INSTALL_ROOT}/bin/lms-start"
+}
+
+clear_local_model() {
+  local lms_start_path="${INSTALL_ROOT}/bin/lms-start"
+
+  if [[ ! -f "${lms_start_path}" ]]; then
+    echo "Warning: lms-start was not found at ${lms_start_path}."
+    return 0
   fi
-  echo "Model profile saved for ${role}."
-  echo "Restart Nymphs-Brain LLM to apply the updated plan/act model set."
+
+  awk '
+    BEGIN { RS=ORS="\n" }
+    {
+      gsub(/\r$/, "")
+      if (/^MODEL_KEY=/) {
+        print "MODEL_KEY=\"\""
+        next
+      }
+      print
+    }
+  ' "${lms_start_path}" > "${lms_start_path}.tmp"
+
+  mv "${lms_start_path}.tmp" "${lms_start_path}"
+  chmod +x "${lms_start_path}"
+  echo "Local model cleared."
+}
+
+set_remote_model_menu() {
+  local current_key=""
+  local current_model=""
+  local new_model=""
+
+  mkdir -p "$(dirname "${REMOTE_MODEL_FILE}")"
+  if [[ -f "${REMOTE_MODEL_FILE}" ]]; then
+    current_key="$(sed -n 's/^OPENROUTER_API_KEY=//p' "${REMOTE_MODEL_FILE}" | tail -1)"
+    current_model="$(sed -n 's/^REMOTE_LLM_MODEL=//p' "${REMOTE_MODEL_FILE}" | tail -1)"
+  fi
+
+  echo
+  echo "Set Remote llm-wrapper Model"
+  echo "Current remote model: ${current_model:-deepseek/deepseek-chat}"
+  read -rp "Enter remote model id [deepseek/deepseek-chat]: " new_model
+  new_model="${new_model:-deepseek/deepseek-chat}"
+
+  {
+    printf '%s\n' "# Nymphs-Brain llm-wrapper configuration"
+    if [[ -n "${current_key}" ]]; then
+      printf 'OPENROUTER_API_KEY=%s\n' "${current_key}"
+    fi
+    printf 'REMOTE_LLM_MODEL=%s\n' "${new_model}"
+  } > "${REMOTE_MODEL_FILE}"
+  chmod 600 "${REMOTE_MODEL_FILE}"
+  echo "Remote llm-wrapper model set to: ${new_model}"
 }
 
 use_downloaded_model_menu() {
-  local role="${1:-act}"
   local retry=true
 
   echo
-  echo "Use Downloaded Model (${role^})"
+  echo "Use Downloaded Model"
 
   while "${retry}"; do
-    SELECTED_ROLE="${role}"
     if ! choose_downloaded_model "Select a downloaded model to use:"; then
       return
     fi
@@ -1389,68 +1682,10 @@ use_downloaded_model_menu() {
     retry=false
   done
 
-  finalize_selected_model "${role}"
+  finalize_selected_model
 }
 
 remove_models_menu() {
-  local models_root="${HOME}/.lmstudio/models"
-
-  resolve_model_dir() {
-    local model_key="$1"
-    python_json - "${models_root}" "${model_key}" <<'PYEOF'
-import re
-import sys
-from pathlib import Path
-
-root = Path(sys.argv[1]).expanduser()
-model_key = sys.argv[2]
-
-def norm(value: str) -> str:
-    return re.sub(r"[^a-z0-9]+", "", value.lower())
-
-if not root.exists():
-    raise SystemExit(1)
-
-key_parts = [part for part in model_key.split("/") if part]
-candidates = [model_key]
-if key_parts:
-    candidates.append(key_parts[-1])
-
-normalized_candidates = [norm(item) for item in candidates if item]
-direct = root / model_key
-if direct.exists() and direct.is_dir():
-    print(direct)
-    raise SystemExit(0)
-
-for path in root.glob("*/*"):
-    if not path.is_dir():
-        continue
-    haystack = norm("/".join(path.parts[-2:]))
-    if any(candidate and candidate in haystack for candidate in normalized_candidates):
-        print(path)
-        raise SystemExit(0)
-
-raise SystemExit(1)
-PYEOF
-  }
-
-  clear_removed_profile_refs() {
-    local removed_key="$1"
-    local plan_key=""
-    local act_key=""
-
-    plan_key="$("${INSTALL_ROOT}/bin/lms-get-profile" plan 2>/dev/null || true)"
-    act_key="$("${INSTALL_ROOT}/bin/lms-get-profile" act 2>/dev/null || true)"
-
-    if [[ "${plan_key}" == "${removed_key}" ]]; then
-      "${INSTALL_ROOT}/bin/lms-set-profile" plan clear
-    fi
-
-    if [[ "${act_key}" == "${removed_key}" ]]; then
-      "${INSTALL_ROOT}/bin/lms-set-profile" act clear
-    fi
-  }
-
   while true; do
     echo
     echo "Remove Models"
@@ -1469,17 +1704,8 @@ PYEOF
       if [[ -n "${model_choice}" ]]; then
         read -rp "Remove '${model_choice}'? (y/n): " response
         if [[ "${response}" =~ ^[Yy]$ ]]; then
-          model_dir="$(resolve_model_dir "${model_choice}" || true)"
-          if [[ -z "${model_dir}" ]]; then
-            echo "Could not find a local LM Studio folder for '${model_choice}' under ${models_root}." >&2
-            echo "Open ${models_root} and remove the model folder manually if needed." >&2
-            break
-          fi
-
-          "${LMS_BIN}" unload "${model_choice}" >/dev/null 2>&1 || true
-          rm -rf -- "${model_dir}"
-          clear_removed_profile_refs "${model_choice}"
-          echo "Removed ${model_choice} from ${model_dir}."
+          "${LMS_BIN}" rm "${model_choice}"
+          echo "Removed ${model_choice}."
         fi
         break
       fi
@@ -1490,15 +1716,13 @@ PYEOF
 }
 
 run_add_change_model() {
-  local role="$1"
-  local search_query="$2"
+  local search_query="$1"
   local retry=true
 
   echo
-  echo "Download New Model (${role^})"
+  echo "Download New Model"
 
   while "${retry}"; do
-    SELECTED_ROLE="${role}"
     capture_selected_model "${search_query}"
     if ! confirm_model; then
       retry=true
@@ -1507,285 +1731,42 @@ run_add_change_model() {
     retry=false
   done
 
-  finalize_selected_model "${role}"
-}
-
-set_remote_llm_wrapper_model() {
-  local current_remote_model=""
-  local role="remote"
-  local selected_remote_model=""
-  local selected_choice=""
-
-  current_remote_model="$("${INSTALL_ROOT}/bin/lms-get-profile" remote 2>/dev/null || true)"
-
-  echo
-  echo "Set Remote llm-wrapper Model"
-  echo "Current remote model: ${current_remote_model:-${LLM_WRAPPER_MODEL:-none}}"
-  echo
-  echo "1) openai/gpt-4o-mini"
-  echo "2) anthropic/claude-3.5-sonnet"
-  echo "3) openai/gpt-4o"
-  echo "4) google/gemini-flash-1.5"
-  echo "5) deepseek/deepseek-chat"
-  echo "6) nvidia/nemotron-3-super-120b-a12b:free"
-  echo "7) anthropic/claude-3-haiku"
-  echo "8) Enter custom OpenRouter model"
-  echo "9) Clear remote model override"
-  echo "10) Back"
-  echo
-
-  read -rp "Enter your choice (1-10): " selected_choice
-
-  case "${selected_choice}" in
-    1) selected_remote_model="openai/gpt-4o-mini" ;;
-    2) selected_remote_model="anthropic/claude-3.5-sonnet" ;;
-    3) selected_remote_model="openai/gpt-4o" ;;
-    4) selected_remote_model="google/gemini-flash-1.5" ;;
-    5) selected_remote_model="deepseek/deepseek-chat" ;;
-    6) selected_remote_model="nvidia/nemotron-3-super-120b-a12b:free" ;;
-    7) selected_remote_model="anthropic/claude-3-haiku" ;;
-    8)
-      read -rp "Enter custom OpenRouter model id (provider/model): " selected_remote_model
-      selected_remote_model="${selected_remote_model//[$'\r\n']/}"
-      selected_remote_model="${selected_remote_model#"${selected_remote_model%%[![:space:]]*}"}"
-      selected_remote_model="${selected_remote_model%"${selected_remote_model##*[![:space:]]}"}"
-      if [[ -z "${selected_remote_model}" ]]; then
-        echo "Custom remote model cannot be empty."
-        return
-      fi
-      ;;
-    9)
-      "${INSTALL_ROOT}/bin/lms-set-profile" "${role}" clear
-      return
-      ;;
-    10) return ;;
-    *)
-      echo "Invalid choice. Please try again."
-      return
-      ;;
-  esac
-
-  "${INSTALL_ROOT}/bin/lms-set-profile" "${role}" "${selected_remote_model}"
-}
-
-clear_plan_model() {
-  "${INSTALL_ROOT}/bin/lms-set-profile" plan clear
-  echo "Plan model cleared."
-}
-
-clear_act_model() {
-  "${INSTALL_ROOT}/bin/lms-set-profile" act clear
-  echo "Act model cleared."
+  finalize_selected_model
 }
 
 main() {
   ensure_lms
 
   if [[ "$#" -gt 0 ]]; then
-    run_add_change_model "plan" "$*"
+    run_add_change_model "$*"
     return
   fi
 
   while true; do
     echo
-    echo "LM Studio Model Manager"
-    echo "1) Set Plan Model From Downloaded"
-    echo "2) Set Act Model From Downloaded"
-    echo "3) Download New Model For Plan"
-    echo "4) Download New Model For Act"
-    echo "5) Clear Plan Model"
-    echo "6) Clear Act Model"
-    echo "7) Set Remote llm-wrapper Model"
-    echo "8) Remove Models"
-    echo "9) Exit"
+    echo "Nymphs-Brain Model Manager"
+    echo "1) Set Local Model From Downloaded"
+    echo "2) Download New Local Model"
+    echo "3) Clear Local Model"
+    echo "4) Set Remote llm-wrapper Model"
+    echo "5) Remove Local Models"
+    echo "6) Exit"
     echo
-    read -rp "Enter your choice (1-9): " choice
+    read -rp "Enter your choice (1-6): " choice
 
     case "${choice}" in
-      1) use_downloaded_model_menu "plan" ;;
-      2) use_downloaded_model_menu "act" ;;
-      3) run_add_change_model "plan" "" ;;
-      4) run_add_change_model "act" "" ;;
-      5) clear_plan_model ;;
-      6) clear_act_model ;;
-      7) set_remote_llm_wrapper_model ;;
-      8) remove_models_menu ;;
-      9) return ;;
+      1) use_downloaded_model_menu ;;
+      2) run_add_change_model "" ;;
+      3) clear_local_model ;;
+      4) set_remote_model_menu ;;
+      5) remove_models_menu ;;
+      6) return ;;
       *) echo "Invalid choice. Please try again." ;;
     esac
   done
 }
 
 main "$@"
-WRAPEOF
-
-cat > "${BIN_DIR}/lms-get-profile" <<'WRAPEOF'
-#!/usr/bin/env bash
-set -euo pipefail
-
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-INSTALL_ROOT="$(dirname "${SCRIPT_DIR}")"
-PROFILE_CONFIG_FILE="${INSTALL_ROOT}/config/lms-model-profiles.env"
-
-PLAN_MODEL_ID=""
-PLAN_CONTEXT_LENGTH=""
-ACT_MODEL_ID=""
-ACT_CONTEXT_LENGTH=""
-LLM_WRAPPER_MODEL=""
-
-if [[ -f "${PROFILE_CONFIG_FILE}" ]]; then
-  # shellcheck disable=SC1090
-  source "${PROFILE_CONFIG_FILE}"
-fi
-
-role="${1:-all}"
-case "${role}" in
-  plan)
-    printf '%s\n' "${PLAN_MODEL_ID}"
-    ;;
-  act)
-    printf '%s\n' "${ACT_MODEL_ID}"
-    ;;
-  remote|llm-wrapper|wrapper)
-    printf '%s\n' "${LLM_WRAPPER_MODEL}"
-    ;;
-  all)
-    printf 'plan: %s (context %s)\n' "${PLAN_MODEL_ID:-none}" "${PLAN_CONTEXT_LENGTH:-none}"
-    printf 'act: %s (context %s)\n' "${ACT_MODEL_ID:-none}" "${ACT_CONTEXT_LENGTH:-none}"
-    printf 'remote llm-wrapper: %s\n' "${LLM_WRAPPER_MODEL:-none}"
-    ;;
-  *)
-    echo "Usage: lms-get-profile [plan|act|remote]" >&2
-    exit 1
-    ;;
-esac
-WRAPEOF
-
-cat > "${BIN_DIR}/lms-set-profile" <<'WRAPEOF'
-#!/usr/bin/env bash
-set -euo pipefail
-
-if [[ $# -lt 2 ]]; then
-  echo "Usage: lms-set-profile ROLE MODEL_KEY [CONTEXT_LENGTH]" >&2
-  echo "Use MODEL_KEY=clear to clear a role." >&2
-  exit 1
-fi
-
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-INSTALL_ROOT="$(dirname "${SCRIPT_DIR}")"
-PROFILE_CONFIG_FILE="${INSTALL_ROOT}/config/lms-model-profiles.env"
-ROLE="${1,,}"
-MODEL_KEY="$2"
-CONTEXT_LENGTH="${3:-}"
-
-python_json() {
-  if [[ -x "${INSTALL_ROOT}/venv/bin/python3" ]]; then
-    "${INSTALL_ROOT}/venv/bin/python3" "$@"
-  else
-    python3 "$@"
-  fi
-}
-
-update_agent_script() {
-  local model_key="$1"
-  local agent_path="${INSTALL_ROOT}/nymph-agent.py"
-  local model_literal
-
-  if [[ ! -f "${agent_path}" ]]; then
-    return 0
-  fi
-
-  model_literal="$(python_json -c 'import json, sys; print(json.dumps(sys.argv[1]))' "${model_key}")"
-  awk -v model_literal="${model_literal}" '
-    /^MODEL = / { print "MODEL = " model_literal; next }
-    { print }
-  ' "${agent_path}" > "${agent_path}.tmp"
-  mv "${agent_path}.tmp" "${agent_path}"
-}
-
-PLAN_MODEL_ID=""
-PLAN_CONTEXT_LENGTH=""
-ACT_MODEL_ID=""
-ACT_CONTEXT_LENGTH=""
-LLM_WRAPPER_MODEL=""
-PRIMARY_MODEL_ROLE="plan"
-
-if [[ -f "${PROFILE_CONFIG_FILE}" ]]; then
-  # shellcheck disable=SC1090
-  source "${PROFILE_CONFIG_FILE}"
-fi
-
-case "${ROLE}" in
-  plan|act|remote|llm-wrapper|wrapper) ;;
-  *)
-    echo "Role must be 'plan', 'act', or 'remote'." >&2
-    exit 1
-    ;;
-esac
-
-if [[ "${MODEL_KEY}" == "clear" || "${MODEL_KEY}" == "none" || "${MODEL_KEY}" == "-" ]]; then
-  MODEL_KEY=""
-fi
-
-if [[ "${ROLE}" == "remote" || "${ROLE}" == "llm-wrapper" || "${ROLE}" == "wrapper" ]]; then
-  CONTEXT_LENGTH=""
-elif [[ -z "${CONTEXT_LENGTH}" ]]; then
-  if [[ "${ROLE}" == "plan" ]]; then
-    CONTEXT_LENGTH="${PLAN_CONTEXT_LENGTH:-16384}"
-  else
-    CONTEXT_LENGTH="${ACT_CONTEXT_LENGTH:-16384}"
-  fi
-fi
-
-if [[ "${ROLE}" == "plan" ]]; then
-  PLAN_MODEL_ID="${MODEL_KEY}"
-  PLAN_CONTEXT_LENGTH="${MODEL_KEY:+${CONTEXT_LENGTH}}"
-elif [[ "${ROLE}" == "act" ]]; then
-  ACT_MODEL_ID="${MODEL_KEY}"
-  ACT_CONTEXT_LENGTH="${MODEL_KEY:+${CONTEXT_LENGTH}}"
-else
-  LLM_WRAPPER_MODEL="${MODEL_KEY}"
-fi
-
-mkdir -p "$(dirname "${PROFILE_CONFIG_FILE}")"
-cat > "${PROFILE_CONFIG_FILE}" <<EOF
-PLAN_MODEL_ID="${PLAN_MODEL_ID}"
-PLAN_CONTEXT_LENGTH="${PLAN_CONTEXT_LENGTH}"
-ACT_MODEL_ID="${ACT_MODEL_ID}"
-ACT_CONTEXT_LENGTH="${ACT_CONTEXT_LENGTH}"
-LLM_WRAPPER_MODEL="${LLM_WRAPPER_MODEL}"
-PRIMARY_MODEL_ROLE="${PRIMARY_MODEL_ROLE}"
-EOF
-
-if [[ "${ROLE}" == "act" && -n "${ACT_MODEL_ID}" ]]; then
-  update_agent_script "${ACT_MODEL_ID}"
-fi
-
-if [[ -n "${MODEL_KEY}" ]]; then
-  if [[ "${ROLE}" == "remote" || "${ROLE}" == "llm-wrapper" || "${ROLE}" == "wrapper" ]]; then
-    echo "Updated remote llm-wrapper profile: ${MODEL_KEY}"
-  else
-    echo "Updated ${ROLE} profile: ${MODEL_KEY} (context ${CONTEXT_LENGTH})"
-  fi
-else
-  if [[ "${ROLE}" == "remote" || "${ROLE}" == "llm-wrapper" || "${ROLE}" == "wrapper" ]]; then
-    echo "Cleared remote llm-wrapper profile."
-  else
-    echo "Cleared ${ROLE} profile."
-  fi
-fi
-WRAPEOF
-
-cat > "${BIN_DIR}/lms-get-selected" <<'WRAPEOF'
-#!/usr/bin/env bash
-set -euo pipefail
-"$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lms-get-profile" plan
-WRAPEOF
-
-cat > "${BIN_DIR}/lms-set-selected" <<'WRAPEOF'
-#!/usr/bin/env bash
-set -euo pipefail
-"$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lms-set-profile" plan "$@"
 WRAPEOF
 
 cat > "${BIN_DIR}/mcp-start" <<'WRAPEOF'
@@ -1797,120 +1778,99 @@ INSTALL_ROOT="$(dirname "${SCRIPT_DIR}")"
 MCP_VENV_DIR="${INSTALL_ROOT}/mcp-venv"
 MCP_CONFIG_DIR="${INSTALL_ROOT}/mcp/config"
 MCP_LOG_DIR="${INSTALL_ROOT}/mcp/logs"
+SECRET_DIR="${INSTALL_ROOT}/secrets"
 MCP_HOST="${NYMPHS_BRAIN_MCP_HOST:-${NYMPHS_BRAIN_MCPO_HOST:-__MCP_HOST__}}"
 MCP_PORT="${NYMPHS_BRAIN_MCP_PORT:-${NYMPHS_BRAIN_MCPO_PORT:-__MCP_PORT__}}"
-OPEN_WEBUI_PORT="${NYMPHS_BRAIN_OPEN_WEBUI_PORT:-__OPEN_WEBUI_PORT__}"
 MCPO_OPENAPI_PORT="${NYMPHS_BRAIN_MCPO_OPENAPI_PORT:-__MCPO_OPENAPI_PORT__}"
-MCP_PID_FILE="${MCP_LOG_DIR}/mcp-proxy.pid"
-MCP_LOG_FILE="${MCP_LOG_DIR}/mcp-proxy.log"
+OPEN_WEBUI_PORT="${NYMPHS_BRAIN_OPEN_WEBUI_PORT:-__OPEN_WEBUI_PORT__}"
+PID_FILE="${MCP_LOG_DIR}/mcp-proxy.pid"
+LOG_FILE="${MCP_LOG_DIR}/mcp-proxy.log"
 MCPO_PID_FILE="${MCP_LOG_DIR}/mcpo.pid"
 MCPO_LOG_FILE="${MCP_LOG_DIR}/mcpo.log"
-MCP_CONFIG_FILE="${MCP_CONFIG_DIR}/mcp-proxy-servers.json"
 MCPO_CONFIG_FILE="${MCP_CONFIG_DIR}/mcpo-servers.json"
 
-is_mcp_running() {
-  [[ -f "${MCP_PID_FILE}" ]] && kill -0 "$(cat "${MCP_PID_FILE}")" >/dev/null 2>&1
+is_running() {
+  [[ -f "${PID_FILE}" ]] && kill -0 "$(cat "${PID_FILE}")" >/dev/null 2>&1
 }
 
 is_mcpo_running() {
   [[ -f "${MCPO_PID_FILE}" ]] && kill -0 "$(cat "${MCPO_PID_FILE}")" >/dev/null 2>&1
 }
 
-mcpo_probe_url() {
-  echo "http://${MCP_HOST}:${MCPO_OPENAPI_PORT}/filesystem/openapi.json"
-}
-
-wait_for_url() {
-  local url="$1"
-  local attempts="$2"
-
-  for _ in $(seq 1 "${attempts}"); do
-    if curl -fsS "${url}" >/dev/null 2>&1; then
-      return 0
-    fi
-    sleep 1
-  done
-
-  return 1
-}
-
-has_llm_wrapper() {
-  [[ -f "${MCP_CONFIG_FILE}" ]] && grep -q '"llm-wrapper"' "${MCP_CONFIG_FILE}"
-}
-
 mkdir -p "${MCP_LOG_DIR}"
 
-if is_mcp_running; then
+if is_running; then
   echo "Nymphs-Brain MCP gateway is already running at http://${MCP_HOST}:${MCP_PORT}"
+elif [[ ! -x "${MCP_VENV_DIR}/bin/mcp-proxy" ]]; then
+  echo "mcp-proxy is not installed at ${MCP_VENV_DIR}/bin/mcp-proxy. Rerun install_nymphs_brain.sh." >&2
+  exit 1
 else
-  if [[ ! -x "${MCP_VENV_DIR}/bin/mcp-proxy" ]]; then
-    echo "mcp-proxy is not installed at ${MCP_VENV_DIR}/bin/mcp-proxy. Rerun install_nymphs_brain.sh." >&2
-    exit 1
-  fi
-
-  if [[ ! -f "${MCP_CONFIG_FILE}" ]]; then
-    echo "MCP config is missing at ${MCP_CONFIG_FILE}. Rerun install_nymphs_brain.sh." >&2
-    exit 1
-  fi
-
   echo "Starting Nymphs-Brain MCP gateway at http://${MCP_HOST}:${MCP_PORT}"
   nohup "${MCP_VENV_DIR}/bin/mcp-proxy" \
     --host "${MCP_HOST}" \
     --port "${MCP_PORT}" \
     --allow-origin "http://localhost:${OPEN_WEBUI_PORT}" \
     --allow-origin "http://127.0.0.1:${OPEN_WEBUI_PORT}" \
-    --named-server-config "${MCP_CONFIG_FILE}" \
-    > "${MCP_LOG_FILE}" 2>&1 &
+    --named-server-config "${MCP_CONFIG_DIR}/mcp-proxy-servers.json" \
+    > "${LOG_FILE}" 2>&1 &
 
-  echo "$!" > "${MCP_PID_FILE}"
-fi
+  echo "$!" > "${PID_FILE}"
 
-if ! wait_for_url "http://${MCP_HOST}:${MCP_PORT}/status" 60; then
-  echo "MCP gateway did not become ready in time. See ${MCP_LOG_FILE}" >&2
-  exit 1
+  sleep 2
+
+  if ! is_running; then
+    echo "MCP gateway exited while starting. See ${LOG_FILE}" >&2
+    exit 1
+  fi
+
+  for _ in $(seq 1 16); do
+    if curl -fsS "http://${MCP_HOST}:${MCP_PORT}/status" >/dev/null 2>&1 ||
+       curl -fsS "http://${MCP_HOST}:${MCP_PORT}/" >/dev/null 2>&1; then
+      echo "Nymphs-Brain MCP gateway is ready."
+      break
+    fi
+    sleep 0.25
+  done
 fi
 
 if is_mcpo_running; then
   echo "Nymphs-Brain mcpo OpenAPI bridge is already running at http://${MCP_HOST}:${MCPO_OPENAPI_PORT}"
-else
-  if [[ ! -x "${MCP_VENV_DIR}/bin/mcpo" ]]; then
-    echo "mcpo is not installed at ${MCP_VENV_DIR}/bin/mcpo. Rerun install_nymphs_brain.sh." >&2
-    exit 1
-  fi
-
-  if [[ ! -f "${MCPO_CONFIG_FILE}" ]]; then
-    echo "mcpo config is missing at ${MCPO_CONFIG_FILE}. Rerun install_nymphs_brain.sh." >&2
-    exit 1
-  fi
-
-  echo "Starting Nymphs-Brain mcpo OpenAPI bridge at http://${MCP_HOST}:${MCPO_OPENAPI_PORT}"
-  nohup "${MCP_VENV_DIR}/bin/mcpo" \
-    --host "${MCP_HOST}" \
-    --port "${MCPO_OPENAPI_PORT}" \
-    --config "${MCPO_CONFIG_FILE}" \
-    > "${MCPO_LOG_FILE}" 2>&1 &
-
-  echo "$!" > "${MCPO_PID_FILE}"
+  exit 0
 fi
 
-if ! wait_for_url "$(mcpo_probe_url)" 60; then
-  echo "mcpo did not become ready in time. See ${MCPO_LOG_FILE}" >&2
+if [[ ! -x "${MCP_VENV_DIR}/bin/mcpo" ]]; then
+  echo "mcpo is not installed at ${MCP_VENV_DIR}/bin/mcpo. Rerun install_nymphs_brain.sh." >&2
   exit 1
 fi
 
-echo ""
-echo "=========================================="
-echo "Nymphs-Brain MCP stack is running:"
-echo "  MCP gateway:    http://${MCP_HOST}:${MCP_PORT}"
-echo "  OpenAPI bridge: http://${MCP_HOST}:${MCPO_OPENAPI_PORT}"
-echo "  Filesystem API: http://${MCP_HOST}:${MCPO_OPENAPI_PORT}/filesystem"
-echo "  Memory API:     http://${MCP_HOST}:${MCPO_OPENAPI_PORT}/memory"
-echo "  Web Forager:    http://${MCP_HOST}:${MCPO_OPENAPI_PORT}/web-forager"
-echo "  Context7 API:   http://${MCP_HOST}:${MCPO_OPENAPI_PORT}/context7"
-if has_llm_wrapper; then
-  echo "  LLM Wrapper:    http://${MCP_HOST}:${MCPO_OPENAPI_PORT}/llm-wrapper"
+if [[ ! -f "${MCPO_CONFIG_FILE}" ]]; then
+  echo "mcpo config is missing at ${MCPO_CONFIG_FILE}. Rerun install_nymphs_brain.sh." >&2
+  exit 1
 fi
-echo "=========================================="
+
+echo "Starting Nymphs-Brain mcpo OpenAPI bridge at http://${MCP_HOST}:${MCPO_OPENAPI_PORT}"
+nohup "${MCP_VENV_DIR}/bin/mcpo" \
+  --host "${MCP_HOST}" \
+  --port "${MCPO_OPENAPI_PORT}" \
+  --config "${MCPO_CONFIG_FILE}" \
+  > "${MCPO_LOG_FILE}" 2>&1 &
+
+echo "$!" > "${MCPO_PID_FILE}"
+
+for _ in $(seq 1 60); do
+  if curl -fsS "http://${MCP_HOST}:${MCPO_OPENAPI_PORT}/filesystem/openapi.json" >/dev/null 2>&1; then
+    echo "Nymphs-Brain mcpo OpenAPI bridge is ready."
+    echo "  Filesystem API: http://${MCP_HOST}:${MCPO_OPENAPI_PORT}/filesystem"
+    echo "  Memory API:     http://${MCP_HOST}:${MCPO_OPENAPI_PORT}/memory"
+    echo "  Web Forager:    http://${MCP_HOST}:${MCPO_OPENAPI_PORT}/web-forager"
+    echo "  Context7 API:   http://${MCP_HOST}:${MCPO_OPENAPI_PORT}/context7"
+    exit 0
+  fi
+  sleep 1
+done
+
+echo "mcpo did not become ready in time. See ${MCPO_LOG_FILE}" >&2
+exit 1
 WRAPEOF
 
 cat > "${BIN_DIR}/mcp-stop" <<'WRAPEOF'
@@ -1922,38 +1882,33 @@ INSTALL_ROOT="$(dirname "${SCRIPT_DIR}")"
 MCP_HOST="${NYMPHS_BRAIN_MCP_HOST:-${NYMPHS_BRAIN_MCPO_HOST:-__MCP_HOST__}}"
 MCP_PORT="${NYMPHS_BRAIN_MCP_PORT:-${NYMPHS_BRAIN_MCPO_PORT:-__MCP_PORT__}}"
 MCPO_OPENAPI_PORT="${NYMPHS_BRAIN_MCPO_OPENAPI_PORT:-__MCPO_OPENAPI_PORT__}"
-MCP_PID_FILE="${INSTALL_ROOT}/mcp/logs/mcp-proxy.pid"
+PID_FILE="${INSTALL_ROOT}/mcp/logs/mcp-proxy.pid"
 MCPO_PID_FILE="${INSTALL_ROOT}/mcp/logs/mcpo.pid"
-MCP_CONFIG_FILE="${INSTALL_ROOT}/mcp/config/mcp-proxy-servers.json"
-
-has_llm_wrapper() {
-  [[ -f "${MCP_CONFIG_FILE}" ]] && grep -q '"llm-wrapper"' "${MCP_CONFIG_FILE}"
-}
 
 stop_pid() {
   local pid="$1"
-
-  [[ -n "${pid}" ]] || return 0
+  [[ -n "${pid}" && "${pid}" =~ ^[0-9]+$ ]] || return 0
 
   if ! kill -0 "${pid}" >/dev/null 2>&1; then
     return 0
   fi
 
-  kill "${pid}" >/dev/null 2>&1 || true
-
-  for _ in $(seq 1 10); do
+  kill -TERM "${pid}" >/dev/null 2>&1 || true
+  for _ in $(seq 1 2); do
     if ! kill -0 "${pid}" >/dev/null 2>&1; then
       return 0
     fi
     sleep 1
   done
 
-  kill -9 "${pid}" >/dev/null 2>&1 || true
+  kill -KILL "${pid}" >/dev/null 2>&1 || true
+  sleep 0.25
+  return 0
 }
 
 port_pids() {
-  local target_port="$1"
-  ss -ltnp 2>/dev/null | awk -v target=":${target_port}" '
+  local port="$1"
+  ss -ltnp 2>/dev/null | awk -v target=":${port}" '
     index($4, target) {
       if (match($0, /pid=[0-9]+/)) {
         print substr($0, RSTART + 4, RLENGTH - 4)
@@ -1962,42 +1917,39 @@ port_pids() {
   ' | sort -u
 }
 
-echo "Stopping Nymphs-Brain MCP stack..."
+echo "Stopping Nymphs-Brain MCP services..."
 
-stop_service() {
-  local label="$1"
-  local pid_file="$2"
-  local port="$3"
-  local probe_url="$4"
-  local stopped_any=0
+stopped_any=0
 
+for pid_file in "${MCPO_PID_FILE}" "${PID_FILE}"; do
   if [[ -f "${pid_file}" ]]; then
     stop_pid "$(cat "${pid_file}" 2>/dev/null || true)"
     stopped_any=1
   fi
+done
 
+for port in "${MCPO_OPENAPI_PORT}" "${MCP_PORT}"; do
   while read -r pid; do
     [[ -n "${pid}" ]] || continue
     stop_pid "${pid}"
     stopped_any=1
   done < <(port_pids "${port}")
+done
 
-  rm -f "${pid_file}"
+rm -f "${PID_FILE}" "${MCPO_PID_FILE}"
 
-  if curl -fsS "${probe_url}" >/dev/null 2>&1; then
-    echo "${label} still appears to be running on port ${port}." >&2
-    exit 1
-  fi
+if curl -fsS --connect-timeout 1 --max-time 2 "http://${MCP_HOST}:${MCPO_OPENAPI_PORT}/filesystem/openapi.json" >/dev/null 2>&1 ||
+   curl -fsS --connect-timeout 1 --max-time 2 "http://${MCP_HOST}:${MCP_PORT}/status" >/dev/null 2>&1 ||
+   curl -fsS --connect-timeout 1 --max-time 2 "http://${MCP_HOST}:${MCP_PORT}/" >/dev/null 2>&1; then
+  echo "MCP services still appear to be running." >&2
+  exit 1
+fi
 
-  if [[ "${stopped_any}" -eq 1 ]]; then
-    echo "${label} stopped."
-  else
-    echo "${label} is not running."
-  fi
-}
-
-stop_service "Nymphs-Brain mcpo OpenAPI bridge" "${MCPO_PID_FILE}" "${MCPO_OPENAPI_PORT}" "http://${MCP_HOST}:${MCPO_OPENAPI_PORT}/filesystem/openapi.json"
-stop_service "Nymphs-Brain MCP gateway" "${MCP_PID_FILE}" "${MCP_PORT}" "http://${MCP_HOST}:${MCP_PORT}/status"
+if [[ "${stopped_any}" -eq 1 ]]; then
+  echo "Nymphs-Brain MCP services stopped."
+else
+  echo "Nymphs-Brain MCP services are not running."
+fi
 WRAPEOF
 
 cat > "${BIN_DIR}/mcp-status" <<'WRAPEOF'
@@ -2009,55 +1961,45 @@ INSTALL_ROOT="$(dirname "${SCRIPT_DIR}")"
 MCP_HOST="${NYMPHS_BRAIN_MCP_HOST:-${NYMPHS_BRAIN_MCPO_HOST:-__MCP_HOST__}}"
 MCP_PORT="${NYMPHS_BRAIN_MCP_PORT:-${NYMPHS_BRAIN_MCPO_PORT:-__MCP_PORT__}}"
 MCPO_OPENAPI_PORT="${NYMPHS_BRAIN_MCPO_OPENAPI_PORT:-__MCPO_OPENAPI_PORT__}"
-MCP_PID_FILE="${INSTALL_ROOT}/mcp/logs/mcp-proxy.pid"
+PID_FILE="${INSTALL_ROOT}/mcp/logs/mcp-proxy.pid"
 MCPO_PID_FILE="${INSTALL_ROOT}/mcp/logs/mcpo.pid"
 
-if [[ -f "${MCP_PID_FILE}" ]] && kill -0 "$(cat "${MCP_PID_FILE}")" >/dev/null 2>&1; then
-  echo "MCP proxy: running (pid $(cat "${MCP_PID_FILE}"))"
+if [[ -f "${PID_FILE}" ]] && kill -0 "$(cat "${PID_FILE}")" >/dev/null 2>&1; then
+  echo "MCP proxy: running"
+elif ss -ltn 2>/dev/null | awk -v target=":${MCP_PORT}" 'index($4, target) { found=1 } END { exit(found ? 0 : 1) }'; then
+  echo "MCP proxy: running"
 else
   echo "MCP proxy: stopped"
 fi
 
 if [[ -f "${MCPO_PID_FILE}" ]] && kill -0 "$(cat "${MCPO_PID_FILE}")" >/dev/null 2>&1; then
-  echo "mcpo OpenAPI: running (pid $(cat "${MCPO_PID_FILE}"))"
+  echo "mcpo OpenAPI: running"
+elif ss -ltn 2>/dev/null | awk -v target=":${MCPO_OPENAPI_PORT}" 'index($4, target) { found=1 } END { exit(found ? 0 : 1) }'; then
+  echo "mcpo OpenAPI: running"
 else
   echo "mcpo OpenAPI: stopped"
 fi
 
-echo ""
-echo "MCP gateway URL:    http://${MCP_HOST}:${MCP_PORT}"
-echo "MCP status URL:     http://${MCP_HOST}:${MCP_PORT}/status"
-echo "OpenAPI bridge URL: http://${MCP_HOST}:${MCPO_OPENAPI_PORT}"
-echo "OpenAPI probe URL:  http://${MCP_HOST}:${MCPO_OPENAPI_PORT}/filesystem/openapi.json"
-echo "OpenAPI docs:"
-echo "- filesystem:  http://${MCP_HOST}:${MCPO_OPENAPI_PORT}/filesystem/docs"
-echo "- memory:      http://${MCP_HOST}:${MCPO_OPENAPI_PORT}/memory/docs"
-echo "- web-forager: http://${MCP_HOST}:${MCPO_OPENAPI_PORT}/web-forager/docs"
-echo "- context7:    http://${MCP_HOST}:${MCPO_OPENAPI_PORT}/context7/docs"
-if has_llm_wrapper; then
-  echo "- llm-wrapper: http://${MCP_HOST}:${MCPO_OPENAPI_PORT}/llm-wrapper/docs"
-fi
-echo ""
+echo "MCP gateway URL: http://${MCP_HOST}:${MCP_PORT}"
+echo "MCP status URL: http://${MCP_HOST}:${MCP_PORT}/status"
+echo "mcpo OpenAPI URL: http://${MCP_HOST}:${MCPO_OPENAPI_PORT}"
 echo "Streamable HTTP endpoints:"
 echo "- filesystem: http://${MCP_HOST}:${MCP_PORT}/servers/filesystem/mcp"
 echo "- memory: http://${MCP_HOST}:${MCP_PORT}/servers/memory/mcp"
 echo "- web-forager: http://${MCP_HOST}:${MCP_PORT}/servers/web-forager/mcp"
 echo "- context7: http://${MCP_HOST}:${MCP_PORT}/servers/context7/mcp"
-if has_llm_wrapper; then
-  echo "- llm-wrapper: http://${MCP_HOST}:${MCP_PORT}/servers/llm-wrapper/mcp"
-fi
 echo "Legacy SSE endpoints:"
 echo "- filesystem: http://${MCP_HOST}:${MCP_PORT}/servers/filesystem/sse"
 echo "- memory: http://${MCP_HOST}:${MCP_PORT}/servers/memory/sse"
 echo "- web-forager: http://${MCP_HOST}:${MCP_PORT}/servers/web-forager/sse"
-echo "- context7: http://${MCP_HOST}:${MCP_PORT}/servers/context7/sse"
-if has_llm_wrapper; then
-  echo "- llm-wrapper: http://${MCP_HOST}:${MCP_PORT}/servers/llm-wrapper/sse"
-fi
+echo "OpenAPI tool routes:"
+echo "- filesystem: http://${MCP_HOST}:${MCPO_OPENAPI_PORT}/filesystem/docs"
+echo "- memory: http://${MCP_HOST}:${MCPO_OPENAPI_PORT}/memory/docs"
+echo "- web-forager: http://${MCP_HOST}:${MCPO_OPENAPI_PORT}/web-forager/docs"
+echo "- context7: http://${MCP_HOST}:${MCPO_OPENAPI_PORT}/context7/docs"
 echo "MCP config: ${INSTALL_ROOT}/mcp/config/mcp-proxy-servers.json"
 echo "mcpo config: ${INSTALL_ROOT}/mcp/config/mcpo-servers.json"
 echo "Cline config template: ${INSTALL_ROOT}/mcp/config/cline-mcp-settings.json"
-echo "Open WebUI tool seed: ${INSTALL_ROOT}/mcp/config/open-webui-tool-servers.json"
 echo "Open WebUI setup note: ${INSTALL_ROOT}/mcp/config/open-webui-mcp-servers.md"
 WRAPEOF
 
@@ -2076,7 +2018,7 @@ OPEN_WEBUI_PORT="${NYMPHS_BRAIN_OPEN_WEBUI_PORT:-__OPEN_WEBUI_PORT__}"
 MCP_HOST="${NYMPHS_BRAIN_MCP_HOST:-${NYMPHS_BRAIN_MCPO_HOST:-__MCP_HOST__}}"
 MCP_PORT="${NYMPHS_BRAIN_MCP_PORT:-${NYMPHS_BRAIN_MCPO_PORT:-__MCP_PORT__}}"
 MCPO_OPENAPI_PORT="${NYMPHS_BRAIN_MCPO_OPENAPI_PORT:-__MCPO_OPENAPI_PORT__}"
-LMSTUDIO_API_BASE_URL="${NYMPHS_BRAIN_LMSTUDIO_API_BASE_URL:-__LMSTUDIO_API_BASE_URL__}"
+LLM_API_BASE_URL="${NYMPHS_BRAIN_LLM_API_BASE_URL:-http://127.0.0.1:8000/v1}"
 PID_FILE="${OPEN_WEBUI_LOG_DIR}/open-webui.pid"
 LOG_FILE="${OPEN_WEBUI_LOG_DIR}/open-webui.log"
 WEBUI_SECRET_KEY_FILE="${SECRET_DIR}/webui-secret-key"
@@ -2153,8 +2095,8 @@ nohup env \
   DATA_DIR="${OPEN_WEBUI_DATA_DIR}" \
   WEBUI_SECRET_KEY="${WEBUI_SECRET_KEY}" \
   ENABLE_DIRECT_CONNECTIONS="True" \
-  OPENAI_API_BASE_URL="${LMSTUDIO_API_BASE_URL}" \
-  OPENAI_API_KEY="lm-studio" \
+  OPENAI_API_BASE_URL="${LLM_API_BASE_URL}" \
+  OPENAI_API_KEY="nymphs-brain" \
   UVICORN_WORKERS="1" \
   "${OPEN_WEBUI_VENV_DIR}/bin/open-webui" serve \
     --host "${OPEN_WEBUI_HOST}" \
@@ -2185,55 +2127,65 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 INSTALL_ROOT="$(dirname "${SCRIPT_DIR}")"
+OPEN_WEBUI_HOST="${NYMPHS_BRAIN_OPEN_WEBUI_HOST:-__OPEN_WEBUI_HOST__}"
+OPEN_WEBUI_PORT="${NYMPHS_BRAIN_OPEN_WEBUI_PORT:-__OPEN_WEBUI_PORT__}"
 PID_FILE="${INSTALL_ROOT}/open-webui-data/logs/open-webui.pid"
 
-if [[ -f "${PID_FILE}" ]] && kill -0 "$(cat "${PID_FILE}")" >/dev/null 2>&1; then
-  echo "Stopping Open WebUI..."
-  kill "$(cat "${PID_FILE}")" >/dev/null 2>&1 || true
-  rm -f "${PID_FILE}"
-  echo "Open WebUI stopped."
-else
-  rm -f "${PID_FILE}"
-  echo "Open WebUI is not running."
+stop_pid() {
+  local pid="$1"
+  [[ -n "${pid}" && "${pid}" =~ ^[0-9]+$ ]] || return 0
+
+  if ! kill -0 "${pid}" >/dev/null 2>&1; then
+    return 0
+  fi
+
+  kill "${pid}" >/dev/null 2>&1 || true
+  for _ in $(seq 1 10); do
+    if ! kill -0 "${pid}" >/dev/null 2>&1; then
+      return 0
+    fi
+    sleep 1
+  done
+
+  kill -9 "${pid}" >/dev/null 2>&1 || true
+}
+
+port_pids() {
+  ss -ltnp 2>/dev/null | awk -v target=":${OPEN_WEBUI_PORT}" '
+    index($4, target) {
+      if (match($0, /pid=[0-9]+/)) {
+        print substr($0, RSTART + 4, RLENGTH - 4)
+      }
+    }
+  ' | sort -u
+}
+
+echo "Stopping Open WebUI..."
+
+stopped_any=0
+
+if [[ -f "${PID_FILE}" ]]; then
+  stop_pid "$(cat "${PID_FILE}" 2>/dev/null || true)"
+  stopped_any=1
 fi
-WRAPEOF
 
-cat > "${BIN_DIR}/open-webui-update" <<'WRAPEOF'
-#!/usr/bin/env bash
-set -euo pipefail
+while read -r pid; do
+  [[ -n "${pid}" ]] || continue
+  stop_pid "${pid}"
+  stopped_any=1
+done < <(port_pids)
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-INSTALL_ROOT="$(dirname "${SCRIPT_DIR}")"
-OPEN_WEBUI_VENV_DIR="${INSTALL_ROOT}/open-webui-venv"
-OPEN_WEBUI_DATA_DIR="${INSTALL_ROOT}/open-webui-data"
-OPEN_WEBUI_LOG_DIR="${OPEN_WEBUI_DATA_DIR}/logs"
-PID_FILE="${OPEN_WEBUI_LOG_DIR}/open-webui.pid"
-PYTHON_BIN="${OPEN_WEBUI_VENV_DIR}/bin/python3"
-PIP_BIN="${OPEN_WEBUI_VENV_DIR}/bin/pip"
+rm -f "${PID_FILE}"
 
-was_running=0
-if [[ -f "${PID_FILE}" ]] && kill -0 "$(cat "${PID_FILE}")" >/dev/null 2>&1; then
-  was_running=1
-  echo "Stopping Open WebUI before update..."
-  "${SCRIPT_DIR}/open-webui-stop"
-fi
-
-if [[ ! -x "${PYTHON_BIN}" || ! -x "${PIP_BIN}" ]]; then
-  echo "Open WebUI virtual environment is missing at ${OPEN_WEBUI_VENV_DIR}. Rerun install_nymphs_brain.sh." >&2
+if curl -fsS --connect-timeout 1 --max-time 2 "http://${OPEN_WEBUI_HOST}:${OPEN_WEBUI_PORT}" >/dev/null 2>&1; then
+  echo "Open WebUI still appears to be running on port ${OPEN_WEBUI_PORT}." >&2
   exit 1
 fi
 
-echo "Updating pip..."
-"${PYTHON_BIN}" -m pip install --upgrade pip
-echo "Updating Open WebUI..."
-"${PIP_BIN}" install --upgrade open-webui aiosqlite
-echo "Open WebUI packages updated."
-
-if [[ "${was_running}" == "1" ]]; then
-  echo "Restarting Open WebUI..."
-  "${SCRIPT_DIR}/open-webui-start"
+if [[ "${stopped_any}" -eq 1 ]]; then
+  echo "Open WebUI stopped."
 else
-  echo "Open WebUI remains stopped. Use open-webui-start when ready."
+  echo "Open WebUI is not running."
 fi
 WRAPEOF
 
@@ -2245,7 +2197,6 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 INSTALL_ROOT="$(dirname "${SCRIPT_DIR}")"
 OPEN_WEBUI_HOST="${NYMPHS_BRAIN_OPEN_WEBUI_HOST:-__OPEN_WEBUI_HOST__}"
 OPEN_WEBUI_PORT="${NYMPHS_BRAIN_OPEN_WEBUI_PORT:-__OPEN_WEBUI_PORT__}"
-MCPO_OPENAPI_PORT="${NYMPHS_BRAIN_MCPO_OPENAPI_PORT:-__MCPO_OPENAPI_PORT__}"
 PID_FILE="${INSTALL_ROOT}/open-webui-data/logs/open-webui.pid"
 
 if [[ -f "${PID_FILE}" ]] && kill -0 "$(cat "${PID_FILE}")" >/dev/null 2>&1; then
@@ -2256,10 +2207,8 @@ fi
 
 echo "Open WebUI URL: http://${OPEN_WEBUI_HOST}:${OPEN_WEBUI_PORT}"
 echo "Windows URL: http://localhost:${OPEN_WEBUI_PORT}"
-echo "mcpo OpenAPI bridge: http://127.0.0.1:${MCPO_OPENAPI_PORT}"
 echo "Open WebUI data: ${INSTALL_ROOT}/open-webui-data"
 echo "Open WebUI log: ${INSTALL_ROOT}/open-webui-data/logs/open-webui.log"
-echo "Open WebUI tool server seed: ${INSTALL_ROOT}/mcp/config/open-webui-tool-servers.json"
 echo "Open WebUI MCP setup note: ${INSTALL_ROOT}/mcp/config/open-webui-mcp-servers.md"
 WRAPEOF
 
@@ -2269,97 +2218,37 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 INSTALL_ROOT="$(dirname "${SCRIPT_DIR}")"
-PROFILE_CONFIG_FILE="${INSTALL_ROOT}/config/lms-model-profiles.env"
 OPEN_WEBUI_HOST="${NYMPHS_BRAIN_OPEN_WEBUI_HOST:-__OPEN_WEBUI_HOST__}"
 OPEN_WEBUI_PORT="${NYMPHS_BRAIN_OPEN_WEBUI_PORT:-__OPEN_WEBUI_PORT__}"
 MCP_HOST="${NYMPHS_BRAIN_MCP_HOST:-${NYMPHS_BRAIN_MCPO_HOST:-__MCP_HOST__}}"
 MCP_PORT="${NYMPHS_BRAIN_MCP_PORT:-${NYMPHS_BRAIN_MCPO_PORT:-__MCP_PORT__}}"
-MCPO_OPENAPI_PORT="${NYMPHS_BRAIN_MCPO_OPENAPI_PORT:-__MCPO_OPENAPI_PORT__}"
 CURL_CHECK_ARGS=(--silent --show-error --fail --connect-timeout 2 --max-time 5)
 
-PLAN_MODEL_ID="__MODEL_ID__"
-PLAN_CONTEXT_LENGTH="__CONTEXT_LENGTH__"
-ACT_MODEL_ID=""
-ACT_CONTEXT_LENGTH=""
-
-if [[ -f "${PROFILE_CONFIG_FILE}" ]]; then
-  # shellcheck disable=SC1090
-  source "${PROFILE_CONFIG_FILE}"
+echo "Brain install: $([[ -x "${SCRIPT_DIR}/lms-start" ]] && echo installed || echo missing)"
+if [[ -f "${INSTALL_ROOT}/secrets/llm-wrapper.env" ]]; then
+  REMOTE_MODEL="$(sed -n 's/^REMOTE_LLM_MODEL=//p' "${INSTALL_ROOT}/secrets/llm-wrapper.env" | tail -1)"
+else
+  REMOTE_MODEL=""
 fi
 
-echo "Brain install: $([[ -x "${SCRIPT_DIR}/lms-start" ]] && echo installed || echo missing)"
-
-if curl "${CURL_CHECK_ARGS[@]}" "http://127.0.0.1:1234/v1/models" >/tmp/nymphs-brain-models.json 2>/dev/null; then
-  echo "LLM server: running"
-  MODEL_OUTPUT="$(timeout --foreground 5s lms ps --json 2>/tmp/nymphs-brain-models.err | "${INSTALL_ROOT}/venv/bin/python3" -c '
-import json
-import sys
-
-def extract_model_keys(payload):
-    if isinstance(payload, dict):
-        for key in ("models", "llms", "data"):
-            value = payload.get(key)
-            if isinstance(value, list):
-                payload = value
-                break
-        else:
-            payload = []
-    if not isinstance(payload, list):
-        return []
-
-    keys = []
-    for item in payload:
-        if not isinstance(item, dict):
-            continue
-        model = item.get("model")
-        key = (
-            item.get("modelKey")
-            or item.get("key")
-            or item.get("id")
-            or (model.get("modelKey") if isinstance(model, dict) else None)
-            or (model.get("key") if isinstance(model, dict) else None)
-            or (model.get("id") if isinstance(model, dict) else None)
-        )
-        if key:
-            keys.append(str(key))
-    return keys
-
-try:
-    payload = json.load(sys.stdin)
-except Exception:
-    payload = []
-
-loaded = extract_model_keys(payload)
-if not loaded:
-    try:
-        with open("/tmp/nymphs-brain-models.json", "r", encoding="utf-8") as handle:
-            api_payload = json.load(handle)
-    except Exception:
-        api_payload = []
-    loaded = extract_model_keys(api_payload)
-
-print(", ".join(loaded) if loaded else "none reported")
-' 2>/dev/null || "${INSTALL_ROOT}/venv/bin/python3" -c "import json; from pathlib import Path; data=json.loads(Path('/tmp/nymphs-brain-models.json').read_text(encoding='utf-8')); models=data.get('data', []); loaded=[item.get('id') for item in models if isinstance(item, dict) and item.get('id')]; print(', '.join(loaded) if loaded else 'none reported')" 2>/dev/null || echo unknown)"
+# Check llama-server on port 8000
+if curl "${CURL_CHECK_ARGS[@]}" "http://127.0.0.1:8000/v1/models" >/tmp/nymphs-brain-models.json 2>/dev/null; then
+  echo "llama-server: running on port 8000"
+  MODEL_OUTPUT="$("${INSTALL_ROOT}/venv/bin/python3" -c "import json; from pathlib import Path; data=json.loads(Path('/tmp/nymphs-brain-models.json').read_text(encoding='utf-8')); models=data.get('data', []); loaded=[item.get('id') for item in models if isinstance(item, dict) and item.get('id')]; print(', '.join(loaded) if loaded else 'none reported')" 2>/dev/null || echo unknown)"
   echo "Model loaded: ${MODEL_OUTPUT}"
 else
-  echo "LLM server: stopped"
-  echo "Model loaded: none"
+  echo "llama-server: stopped"
+  MODEL_NAME="$(sed -n 's/^MODEL_KEY="\([^"]*\)".*/\1/p' "${SCRIPT_DIR}/lms-start" | head -n 1)"
+  echo "Model configured: ${MODEL_NAME:-none}"
 fi
+echo "Remote llm-wrapper model: ${REMOTE_MODEL:-deepseek/deepseek-chat}"
 
-echo "Act model: ${ACT_MODEL_ID:-none} (context ${ACT_CONTEXT_LENGTH:-none})"
-echo "Plan model: ${PLAN_MODEL_ID:-none} (context ${PLAN_CONTEXT_LENGTH:-none})"
-echo "Remote llm-wrapper model: ${LLM_WRAPPER_MODEL:-none}"
-
-if curl "${CURL_CHECK_ARGS[@]}" "http://${MCP_HOST}:${MCP_PORT}/status" >/dev/null 2>&1; then
+if curl "${CURL_CHECK_ARGS[@]}" "http://${MCP_HOST}:${MCP_PORT}/status" >/dev/null 2>&1 ||
+   curl "${CURL_CHECK_ARGS[@]}" "http://${MCP_HOST}:${MCP_PORT}/" >/dev/null 2>&1 ||
+   ss -ltn 2>/dev/null | awk -v target=":${MCP_PORT}" 'index($4, target) { found=1 } END { exit(found ? 0 : 1) }'; then
   echo "MCP proxy: running"
 else
   echo "MCP proxy: stopped"
-fi
-
-if curl "${CURL_CHECK_ARGS[@]}" "http://${MCP_HOST}:${MCPO_OPENAPI_PORT}/filesystem/openapi.json" >/dev/null 2>&1; then
-  echo "OpenAPI proxy: running"
-else
-  echo "OpenAPI proxy: stopped"
 fi
 
 if curl "${CURL_CHECK_ARGS[@]}" "http://${OPEN_WEBUI_HOST}:${OPEN_WEBUI_PORT}" >/dev/null 2>&1; then
@@ -2386,91 +2275,201 @@ export NYMPHS_BRAIN_MCP_URL="http://localhost:${MCP_PORT}"
 export PATH="${BIN_DIR}:${LOCAL_BIN_DIR}:${LOCAL_NODE_DIR}/bin:${NPM_GLOBAL}/bin:\${PATH}"
 WRAPEOF
 
-sed -i "s|__MODEL_ID__|${MODEL_ID}|g" "${BIN_DIR}/lms-start"
-sed -i "s|__CONTEXT_LENGTH__|${CONTEXT_LENGTH}|g" "${BIN_DIR}/lms-start"
-sed -i "s|__MODEL_ID__|${MODEL_ID}|g" "${BIN_DIR}/brain-status"
-sed -i "s|__CONTEXT_LENGTH__|${CONTEXT_LENGTH}|g" "${BIN_DIR}/brain-status"
-sed -i "s|__MCP_HOST__|${MCP_HOST}|g" "${BIN_DIR}/mcp-start" "${BIN_DIR}/mcp-stop" "${BIN_DIR}/mcp-status" "${BIN_DIR}/open-webui-start" "${BIN_DIR}/brain-status"
-sed -i "s|__MCP_PORT__|${MCP_PORT}|g" "${BIN_DIR}/mcp-start" "${BIN_DIR}/mcp-stop" "${BIN_DIR}/mcp-status" "${BIN_DIR}/open-webui-start" "${BIN_DIR}/brain-status"
-sed -i "s|__MCPO_OPENAPI_PORT__|${MCPO_OPENAPI_PORT}|g" "${BIN_DIR}/mcp-start" "${BIN_DIR}/mcp-stop" "${BIN_DIR}/mcp-status" "${BIN_DIR}/open-webui-start" "${BIN_DIR}/open-webui-status" "${BIN_DIR}/brain-status"
-sed -i "s|__OPEN_WEBUI_HOST__|${OPEN_WEBUI_HOST}|g" "${BIN_DIR}/open-webui-start" "${BIN_DIR}/open-webui-status" "${BIN_DIR}/brain-status"
-sed -i "s|__OPEN_WEBUI_PORT__|${OPEN_WEBUI_PORT}|g" "${BIN_DIR}/mcp-start" "${BIN_DIR}/open-webui-start" "${BIN_DIR}/open-webui-status" "${BIN_DIR}/brain-status"
-sed -i "s|__LMSTUDIO_API_BASE_URL__|${LMSTUDIO_API_BASE_URL}|g" "${BIN_DIR}/open-webui-start"
-if [[ "$(readlink -f "$0")" != "$(readlink -f "${INSTALL_ROOT}/brain-installer.sh")" ]]; then
-  cp "$0" "${INSTALL_ROOT}/brain-installer.sh"
-fi
+cat > "${SCRIPTS_DIR}/monitor_query.sh" <<'WRAPEOF'
+#!/usr/bin/env bash
+# Monitor helper script - called from Windows via wsl.exe
+# Usage: monitor_query.sh <query>
+
+set -euo pipefail
+
+LOG_FILE="$HOME/Nymphs-Brain/logs/lms.log"
+LMS_START="$HOME/Nymphs-Brain/bin/lms-start"
+
+case "${1:-}" in
+    pid)
+        ss -ltnp 2>/dev/null | awk '
+            index($4, ":8000") && match($0, /pid=[0-9]+/) {
+                print substr($0, RSTART + 4, RLENGTH - 4)
+                exit
+            }'
+        ;;
+
+    model)
+        model=$(grep 'general.name str' "$LOG_FILE" 2>/dev/null | tail -1 | sed 's/.*= //' || true)
+        if [ -n "$model" ]; then
+            echo "$model"
+        else
+            echo "-"
+        fi
+        ;;
+
+    context)
+        ctx=$(grep -oP 'CONTEXT_LENGTH="?\K[0-9]+' "$LMS_START" 2>/dev/null | head -1 || true)
+        if [ -n "$ctx" ]; then
+            echo "$ctx" | sed ':a;s/\B[0-9]\{3\}\>/,&/;ta'
+        else
+            echo "-"
+        fi
+        ;;
+
+    gpu-vram)
+        read -r used total < <(nvidia-smi --query-gpu=memory.used,memory.total --format=csv,noheader,nounits 2>/dev/null | head -1 | tr ',' ' ') || true
+        used=$(echo "${used:-}" | tr -d ' ')
+        total=$(echo "${total:-}" | tr -d ' ')
+        if [[ "$used" =~ ^[0-9]+([.][0-9]+)?$ ]] && [[ "$total" =~ ^[0-9]+([.][0-9]+)?$ ]]; then
+            awk "BEGIN {printf \"%.0f GB/%.0f GB\\n\", $used/1024, $total/1024}"
+        else
+            echo "-"
+        fi
+        ;;
+
+    gpu-temp)
+        temp=$(nvidia-smi --query-gpu=temperature.gpu --format=csv,noheader 2>/dev/null | head -1 | tr -d ' ' || true)
+        if [[ "$temp" =~ ^[0-9]+([.][0-9]+)?$ ]]; then
+            echo "${temp}C"
+        else
+            echo "-"
+        fi
+        ;;
+
+    tps)
+        tps=$(grep 'eval time' "$LOG_FILE" 2>/dev/null | grep -v 'prompt eval time' | tail -1 \
+            | grep -oP '[0-9.]+\s*tokens per second' | grep -oP '^[0-9.]+' || true)
+        if [ -n "$tps" ]; then
+            echo "$tps"
+        else
+            echo "Waiting"
+        fi
+        ;;
+
+    *)
+        echo "Usage: monitor_query.sh {pid|model|context|gpu-vram|gpu-temp|tps}"
+        exit 1
+        ;;
+esac
+WRAPEOF
+
+# Robust template replacement that handles CRLF line endings (from Windows installer)
+# This awk-based approach is more reliable than sed for cross-platform scenarios
+
+replace_template_vars() {
+    local file="$1"
+    awk -v MODEL_ID="${MODEL_ID}" \
+        -v CONTEXT_LENGTH="${CONTEXT_LENGTH}" \
+        -v MCP_HOST="${MCP_HOST}" \
+        -v MCP_PORT="${MCP_PORT}" \
+        -v MCPO_OPENAPI_PORT="${MCPO_OPENAPI_PORT}" \
+        -v OPEN_WEBUI_HOST="${OPEN_WEBUI_HOST}" \
+        -v OPEN_WEBUI_PORT="${OPEN_WEBUI_PORT}" '
+    BEGIN { RS=ORS="\n" }
+    {
+        # Strip CRLF to handle Windows line endings
+        gsub(/\r$/, "")
+        # Replace template placeholders
+        gsub(/__MODEL_ID__/, MODEL_ID)
+        gsub(/__CONTEXT_LENGTH__/, CONTEXT_LENGTH)
+        gsub(/__MCP_HOST__/, MCP_HOST)
+        gsub(/__MCP_PORT__/, MCP_PORT)
+        gsub(/__MCPO_OPENAPI_PORT__/, MCPO_OPENAPI_PORT)
+        gsub(/__OPEN_WEBUI_HOST__/, OPEN_WEBUI_HOST)
+        gsub(/__OPEN_WEBUI_PORT__/, OPEN_WEBUI_PORT)
+        print
+    }
+    ' "$file" > "${file}.tmp" && mv -f "${file}.tmp" "$file"
+}
+
+# Apply template variable replacements to all generated scripts
+replace_template_vars "${BIN_DIR}/lms-start"
+replace_template_vars "${BIN_DIR}/lms-stop"
+replace_template_vars "${BIN_DIR}/mcp-start"
+replace_template_vars "${BIN_DIR}/mcp-stop"
+replace_template_vars "${BIN_DIR}/mcp-status"
+replace_template_vars "${BIN_DIR}/open-webui-start"
+replace_template_vars "${BIN_DIR}/open-webui-stop"
+replace_template_vars "${BIN_DIR}/open-webui-status"
+replace_template_vars "${BIN_DIR}/brain-status"
+
+# Also update nymph-agent.py with the same robust replacement
+awk -v MODEL_ID="${MODEL_ID}" '
+BEGIN { RS=ORS="\n" }
+{
+    gsub(/\r$/, "")
+    gsub(/__MODEL_ID__/, MODEL_ID)
+    print
+}
+' "${INSTALL_ROOT}/nymph-agent.py" > "${INSTALL_ROOT}/nymph-agent.py.tmp" && mv -f "${INSTALL_ROOT}/nymph-agent.py.tmp" "${INSTALL_ROOT}/nymph-agent.py"
 chmod +x \
-  "${INSTALL_ROOT}/brain-installer.sh" \
-  "${BIN_DIR}/brain-refresh" \
   "${BIN_DIR}/lms-start" \
   "${BIN_DIR}/lms-model" \
-  "${BIN_DIR}/lms-get-profile" \
-  "${BIN_DIR}/lms-set-profile" \
-  "${BIN_DIR}/lms-get-selected" \
-  "${BIN_DIR}/lms-set-selected" \
-  "${BIN_DIR}/lms-update" \
   "${BIN_DIR}/lms-stop" \
+  "${BIN_DIR}/lms-update" \
+  "${BIN_DIR}/lms-status" \
   "${BIN_DIR}/mcp-start" \
   "${BIN_DIR}/mcp-stop" \
   "${BIN_DIR}/mcp-status" \
   "${BIN_DIR}/open-webui-start" \
   "${BIN_DIR}/open-webui-stop" \
-  "${BIN_DIR}/open-webui-update" \
   "${BIN_DIR}/open-webui-status" \
   "${BIN_DIR}/brain-status" \
   "${BIN_DIR}/nymph-chat" \
-  "${BIN_DIR}/brain-env"
+  "${BIN_DIR}/brain-env" \
+  "${SCRIPTS_DIR}/monitor_query.sh"
 
 cat > "${INSTALL_ROOT}/install-summary.txt" <<EOF
-Nymphs-Brain experimental local LLM stack
+Nymphs-Brain experimental local LLM stack (hybrid architecture)
 Install root: ${INSTALL_ROOT}
-Plan model: ${INITIAL_PLAN_MODEL_ID:-none}
-Act model: ${INITIAL_ACT_MODEL_ID:-none}
+Model: ${MODEL_ID:-none}
 Quantization: ${QUANTIZATION}
-Plan context length: ${INITIAL_PLAN_CONTEXT_LENGTH:-none}
-Act context length: ${INITIAL_ACT_CONTEXT_LENGTH:-none}
+Context length: ${CONTEXT_LENGTH}
 Model download during install: ${DOWNLOAD_MODEL}
-llm-wrapper default model: ${LLM_WRAPPER_MODEL}
-LM Studio CLI location: user profile managed by LM Studio
+
+Architecture:
+- LM Studio: Used for model download/management only (lms-model, lms commands)
+- llama-server: Serves LLM on port 8000 (CUDA accelerated via llama.cpp)
+
 Commands:
-- ${BIN_DIR}/brain-refresh
-- ${BIN_DIR}/lms-start
-- ${BIN_DIR}/lms-model
-- ${BIN_DIR}/lms-get-profile
-- ${BIN_DIR}/lms-set-profile
-- ${BIN_DIR}/lms-update
-- ${BIN_DIR}/lms-stop
-- ${BIN_DIR}/nymph-chat
-- ${BIN_DIR}/mcp-start
-- ${BIN_DIR}/mcp-status
-- ${BIN_DIR}/mcp-stop
-- ${BIN_DIR}/open-webui-start
-- ${BIN_DIR}/open-webui-status
-- ${BIN_DIR}/open-webui-stop
-- ${BIN_DIR}/open-webui-update
-- ${BIN_DIR}/brain-status
-Open WebUI URL: http://localhost:${OPEN_WEBUI_PORT}
-mcpo OpenAPI bridge: http://localhost:${MCPO_OPENAPI_PORT}
-MCP gateway URL: http://localhost:${MCP_PORT}
-Primary Streamable HTTP endpoints:
+  LLM Server:
+  - Start server:   ${BIN_DIR}/lms-start
+  - Stop server:    ${BIN_DIR}/lms-stop
+  - Check status:   ${BIN_DIR}/lms-status
+  - Manage models:  ${BIN_DIR}/lms-model (uses LM Studio CLI for downloads)
+
+  Chat & UI:
+  - Run chat wrapper: ${BIN_DIR}/nymph-chat
+  - Start Open WebUI: ${BIN_DIR}/open-webui-start
+  - Stop Open WebUI:  ${BIN_DIR}/open-webui-stop
+  - Check Open WebUI: ${BIN_DIR}/open-webui-status
+
+  MCP Gateway:
+  - Start MCP:    ${BIN_DIR}/mcp-start
+  - Stop MCP:     ${BIN_DIR}/mcp-stop
+  - Check MCP:    ${BIN_DIR}/mcp-status
+
+  Overall Status:
+  - ${BIN_DIR}/brain-status
+
+API Endpoints:
+- llama-server API: http://localhost:8000/v1/chat/completions
+- Open WebUI:       http://localhost:${OPEN_WEBUI_PORT}
+- MCP gateway:      http://localhost:${MCP_PORT}
+
+Streamable HTTP MCP endpoints:
 - http://localhost:${MCP_PORT}/servers/filesystem/mcp
 - http://localhost:${MCP_PORT}/servers/memory/mcp
 - http://localhost:${MCP_PORT}/servers/web-forager/mcp
-- http://localhost:${MCP_PORT}/servers/context7/mcp
-$(if [[ "${LLM_WRAPPER_ENABLED}" == "1" ]]; then echo "- http://localhost:${MCP_PORT}/servers/llm-wrapper/mcp"; fi)
-Open WebUI seeded tool config: ${MCP_CONFIG_DIR}/open-webui-tool-servers.json
 EOF
 
-echo "Nymphs-Brain setup complete."
-echo "Refresh local Brain wrappers: ${BIN_DIR}/brain-refresh"
-echo "Start LM Studio model server: ${BIN_DIR}/lms-start"
-echo "Change/download/remove LM Studio models: ${BIN_DIR}/lms-model"
-echo "Set plan/act model profiles: ${BIN_DIR}/lms-set-profile"
-echo "Update LM Studio CLI/runtime: ${BIN_DIR}/lms-update"
-echo "Stop LM Studio cleanly: ${BIN_DIR}/lms-stop"
-echo "Start MCP proxy: ${BIN_DIR}/mcp-start"
-echo "mcpo OpenAPI bridge: http://localhost:${MCPO_OPENAPI_PORT}"
-echo "Start Open WebUI: ${BIN_DIR}/open-webui-start"
-echo "Update Open WebUI: ${BIN_DIR}/open-webui-update"
-echo "Open WebUI seeded tool config: ${MCP_CONFIG_DIR}/open-webui-tool-servers.json"
-echo "Run chat wrapper: ${BIN_DIR}/nymph-chat"
+echo "============================================================"
+echo "Nymphs-Brain setup complete (hybrid LM Studio + llama-server)"
+echo "============================================================"
+echo ""
+echo "Architecture summary:"
+echo "  - Use 'lms-model' to download/manage models via LM Studio"
+echo "  - Use 'lms-start' to launch llama-server (port 8000) with CUDA"
+echo "  - llama-server provides OpenAI-compatible API on port 8000"
+echo ""
+echo "Quick start:"
+echo "  ${BIN_DIR}/lms-model   # Download/configure a model first"
+echo "  ${BIN_DIR}/lms-start   # Start the LLM server (port 8000)"
+echo "  ${BIN_DIR}/mcp-start   # Start MCP gateway"
+echo "  ${BIN_DIR}/open-webui-start  # Start Open WebUI"
