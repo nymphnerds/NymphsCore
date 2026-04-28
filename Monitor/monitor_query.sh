@@ -24,9 +24,9 @@ case "${1:-}" in
         ;;
 
     context)
-        # Parse CONTEXT_LENGTH from lms-start script (the actual runtime context)
-        ctx=$(grep -oP 'CONTEXT_LENGTH=\K[0-9]+' "$LMS_START" 2>/dev/null | head -1)
-        if [ -n "$ctx" ]; then
+        # Extract the -c (context) argument from the running llama-server process
+        ctx=$(ps aux | grep '[l]lama-server' | grep -oP -- '-c\s+\K[0-9]+' | head -1)
+        if [ -n "$ctx" ] && [ "$ctx" != "0" ]; then
             # Format with commas
             echo "$ctx" | sed ':a;s/\B[0-9]\{3\}\>/,&/;ta'
         else

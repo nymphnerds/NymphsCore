@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Drawing;
 using System.Text;
 using System.Windows.Forms;
 
@@ -15,7 +16,7 @@ public partial class MainForm : Form
     private Label? _vramLabel;
     private Label? _tempLabel;
     private Label? _tpsLabel;
-    private Button? _refreshBtn;
+    private RefreshIconButton? _refreshBtn;
     private ContextMenuStrip? _mainMenu;
 
     private DateTime _startTime = DateTime.Now;
@@ -68,17 +69,12 @@ public partial class MainForm : Form
         };
         Controls.Add(_statusLabel);
 
-        // Refresh button (top-right)
-        _refreshBtn = new Button
+        // Refresh icon button (top-right)
+        _refreshBtn = new RefreshIconButton
         {
             Name = "refreshBtn",
-            Text = "Refresh",
-            Location = new Point(320, 14),
-            Size = new Size(75, 30),
-            FlatStyle = FlatStyle.Flat,
-            BackColor = Color.FromArgb(40, 40, 40),
-            ForeColor = Color.White,
-            Font = new Font("Segoe UI", 9f)
+            Location = new Point(320, 12),
+            Size = new Size(34, 34),
         };
         _refreshBtn.Click += (s, e) => CheckServer();
         Controls.Add(_refreshBtn);
@@ -318,6 +314,102 @@ public partial class MainForm : Form
         _statusTimer?.Stop();
         _trayIcon?.Dispose();
         base.OnFormClosing(e);
+    }
+
+    // Custom button that draws a blue refresh icon
+    private class RefreshIconButton : Panel
+    {
+        private static readonly Color IconBlue = Color.FromArgb(33, 150, 243);
+        private static readonly Color HoverBg = Color.FromArgb(60, 60, 60);
+        private static readonly Color NormalBg = Color.FromArgb(35, 35, 35);
+
+        public event EventHandler Click = delegate { };
+
+        protected override void OnMouseClick(MouseEventArgs e)
+        {
+            Click(this, e);
+            base.OnMouseClick(e);
+        }
+
+        public RefreshIconButton()
+        {
+            BackColor = NormalBg;
+            Cursor = Cursors.Hand;
+            DoubleBuffered = true;
+        }
+
+        protected override void OnMouseEnter(EventArgs e)
+        {
+            BackColor = HoverBg;
+            Invalidate();
+            base.OnMouseEnter(e);
+        }
+
+        protected override void OnMouseLeave(EventArgs e)
+        {
+            BackColor = NormalBg;
+            Invalidate();
+            base.OnMouseLeave(e);
+        }
+
+        protected override void OnPaintBackground(PaintEventArgs pevent)
+        {
+            // Skip default background painting
+        }
+
+        protected override void OnPaint(PaintEventArgs pevent)
+        {
+            var g = pevent.Graphics;
+            g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+
+            // Draw rounded rectangle background
+            var bounds = new Rectangle(0, 0, Width, Height);
+            var radius = Math.Min(Width, Height) / 2;
+            using (var path = new System.Drawing.Drawing2D.GraphicsPath())
+            {
+                path.AddArc(new Rectangle(0, 0, radius, radius), 180, 90);
+                path.AddArc(new Rectangle(Width - radius, 0, radius, radius), 270, 90);
+                path.AddArc(new Rectangle(Width - radius, Height - radius, radius, radius), 0, 90);
+                path.AddArc(new Rectangle(0, Height - radius, radius, radius), 90, 90);
+                path.CloseFigure();
+
+                g.FillPath(new SolidBrush(BackColor), path);
+            }
+
+            // Draw refresh icon
+            var cx = Width / 2;
+            var cy = Height / 2;
+            var iconRadius = Math.Min(Width, Height) / 2 - 5;
+
+            using (var pen = new Pen(IconBlue, 2.5f))
+            {
+                // Draw circular arc (270 degrees)
+                g.DrawArc(pen, cx - iconRadius, cy - iconRadius, iconRadius * 2, iconRadius * 2, 30, 270);
+
+                // Draw arrowhead at the start of the arc (top-right area)
+                // Arrow angle: the arc starts at 30 degrees
+                var arrowAngle = 30 * Math.PI / 180;
+                var arrowX = cx + (int)(iconRadius * Math.Cos(arrowAngle));
+                var arrowY = cy - (int)(iconRadius * Math.Sin(arrowAngle));
+
+                var arrowSize = 6;
+                // Arrow pointing in the direction of the arc (tangent direction at 30 deg)
+                var tangentAngle = arrowAngle + Math.PI / 2;
+                var dx1 = Math.Cos(tangentAngle + 2.2) * arrowSize;
+                var dy1 = Math.Sin(tangentAngle + 2.2) * arrowSize;
+                var dx2 = Math.Cos(tangentAngle - 2.2) * arrowSize;
+                var dy2 = Math.Sin(tangentAngle - 2.2) * arrowSize;
+
+                using (var arrowBrush = new SolidBrush(IconBlue))
+                {
+                    var arrowPath = new System.Drawing.Drawing2D.GraphicsPath();
+                    arrowPath.AddLine(arrowX + (float)dx1, arrowY + (float)dy1, arrowX, arrowY);
+                    arrowPath.AddLine(arrowX, arrowY, arrowX + (float)dx2, arrowY + (float)dy2);
+                    arrowPath.CloseFigure();
+                    g.FillPath(arrowBrush, arrowPath);
+                }
+            }
+        }
     }
 
     protected override void Dispose(bool disposing)
