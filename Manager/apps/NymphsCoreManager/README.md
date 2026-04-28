@@ -61,9 +61,9 @@ NymphsCoreManager-win-x64/
   - `Start/Stop WebUI`
   - `Manage Models`
   - `Update Stack`
-- Brain model profiles are plan-first. A local `Plan` model can be used while `Act` remains external.
-- `Update Stack` refreshes the installed Brain wrapper scripts before updating LM Studio/Open WebUI packages.
-- the Brain install and Brain page actions use LM Studio's normal CLI behavior for model fetch and server start, so no separate manual daemon bootstrap step should be needed
+- Brain local model selection is handled by `lms-model`; optional remote llm-wrapper configuration is handled from the Brain page.
+- `Update Stack` refreshes the installed Brain wrapper scripts before updating llama-server, LM Studio model management, and Open WebUI packages.
+- the Brain install and Brain page actions use LM Studio CLI for model fetch/management, then launch `llama-server` on `http://localhost:8000/v1` for inference
 - Open WebUI is intended to open on `http://localhost:8081`
 
 ## If Something Fails

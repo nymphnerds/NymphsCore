@@ -101,7 +101,17 @@ public sealed class ProcessRunner
         process.BeginOutputReadLine();
         process.BeginErrorReadLine();
 
-        await process.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            await process.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (!process.HasExited)
+        {
+            process.Kill(entireProcessTree: true);
+            await process.WaitForExitAsync(CancellationToken.None).ConfigureAwait(false);
+            throw;
+        }
+
         await Task.WhenAll(stdoutClosed.Task, stderrClosed.Task).ConfigureAwait(false);
 
         return new CommandResult(process.ExitCode, outputBuilder.ToString());

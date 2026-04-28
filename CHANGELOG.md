@@ -41,6 +41,34 @@ Why it matters:
 - new contributors or future sessions can onboard into how these systems work without losing context
 - the three-layer MCP architecture (native → proxy → clients) is now documented as a recoverable pattern, not just a working config
 
+### 2026-04-28 Nymphs-Brain llama-server migration and Manager integration
+Source: Rauty's Nymphs-Brain branch moved the local LLM runtime onto direct `llama-server` control while keeping LM Studio for model download and management.
+
+Documented changes:
+
+- migrated Nymphs-Brain from the LM Studio server runtime to `llama-server` on `http://localhost:8000/v1`
+- kept LM Studio CLI as the local model download and model management surface
+- reworked Brain model management from Plan/Act profiles to Local/Remote model settings
+- added the embedded Brain monitor panel showing runtime state, model, context size, GPU VRAM, GPU temperature, and tokens/sec
+- restored Open WebUI tool seeding through the MCP + `mcpo` OpenAPI bridge for Filesystem, Memory, Web Forager, Context7, and LLM Wrapper tools
+- added OpenRouter key handling for the remote `llm-wrapper` tool path
+- updated Brain start/update/stop flows for `llama-server`, MCP proxy, `mcpo`, and Open WebUI
+- changed Update Stack to refresh the new Brain scripts and Open WebUI packages without running legacy LM Studio server update logic
+- improved Brain stop scripts so stale PIDs and slow service shutdowns do not hang the Manager
+- updated the Manager Brain page layout, live monitor refresh, and sidebar copy for the new stack
+
+Validation:
+
+- user rebuilt the Manager and ran repair against the test WSL distro
+- confirmed Brain start brings up the LLM and MCP services
+- confirmed Open WebUI loads all five seeded tools
+- confirmed the monitor reports model, context, GPU VRAM, GPU temperature, and tokens/sec
+- confirmed Update Stack completes on the new path after removing the legacy `lms-update` sequence
+
+Why it matters:
+
+- Nymphs-Brain now uses the more flexible `llama-server` backend while preserving LM Studio's model-management convenience, and the Manager can install, repair, monitor, update, and stop the full Brain stack from one page.
+
 ### 2026-04-28 Llama Server Monitor desktop app
 Source: need for a quick visual way to manage multiple local Llama servers without reaching for the terminal.
 
