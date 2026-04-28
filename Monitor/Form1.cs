@@ -159,6 +159,7 @@ public partial class MainForm : Form
 
     private void StartMonitoring()
     {
+        EnsureScriptDeployed();
         _statusTimer = new System.Windows.Forms.Timer { Interval = 5000 };
         _statusTimer.Tick += (s, e) => CheckServer();
         _statusTimer.Start();
@@ -222,7 +223,55 @@ public partial class MainForm : Form
     }
 
     private static readonly string WslDistro = "NymphsCore";
-    private static readonly string MonitorScript = "~/Nymphs-Brain/scripts/monitor_query.sh";
+    private static readonly string WslScriptPath = "~/Nymphs-Brain/scripts/monitor_query.sh";
+
+    /// <summary>
+    /// Ensure the helper script is deployed to WSL.
+    /// Copies from the app's directory (next to .exe) to the WSL home path.
+    /// </summary>
+    private static async Task EnsureScriptDeployed()
+    {
+        string localScript = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "monitor_query.sh");
+        if (!File.Exists(localScript))
+            return; // Script not bundled; skip
+
+        // Check if already deployed in WSL
+        var checkArgs = $"-d {WslDistro} test -f {WslScriptPath}";
+        try
+        {
+            using var checkProc = Process.Start(new ProcessStartInfo("wsl.exe", checkArgs)
+            {
+                UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true
+            })!;
+            checkProc.WaitForExit(5000);
+            if (checkProc.ExitCode == 0)
+                return; // Already deployed
+        }
+        catch
+        {
+            return; // WSL not available
+        }
+
+        // Copy to WSL via /mnt
+        string appDir = AppDomain.CurrentDomain.BaseDirectory;
+        // Guess drive letter from path (e.g., C:\... -> /mnt/c/...)
+        if (appDir.Length >= 2 && appDir[1] == ':')
+        {
+            string drive = char.ToLower(appDir[0]).ToString();
+            string unixPath = appDir.Substring(2).Replace('\\', '/').Replace("/", "/");
+            string wslSource = $"/mnt/{drive}{unixPath}monitor_query.sh";
+            string mkdirArgs = $"-d {WslDistro} mkdir -p ~/Nymphs-Brain/scripts";
+            string cpArgs = $"-d {WslDistro} cp \"{wslSource}\" {WslScriptPath}";
+            try
+            {
+                using (Process.Start(new ProcessStartInfo("wsl.exe", mkdirArgs)
+                { UseShellExecute = false, CreateNoWindow = true })) { }
+                using (Process.Start(new ProcessStartInfo("wsl.exe", cpArgs)
+                { UseShellExecute = false, CreateNoWindow = true })) { }
+            }
+            catch { }
+        }
+    }
 
     /// <summary>
     /// Run a query through the WSL helper script.
@@ -232,12 +281,10 @@ public partial class MainForm : Form
     {
         try
         {
-            var scriptArgs = $"{MonitorScript} {query}";
-
             var psi = new ProcessStartInfo
             {
                 FileName = "wsl.exe",
-                Arguments = $"-d {WslDistro} {scriptArgs}",
+                Arguments = $"-d {WslDistro} {WslScriptPath} {query}",
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 UseShellExecute = false,
