@@ -371,14 +371,19 @@ public sealed class InstallerWorkflowService
         // Detect actual GPU VRAM from Windows (not WSL) for correct LLM recommendations
         var gpuVramMb = GetDetectedGpuVramMb();
 
-        var bashCommand =
-            "set -euo pipefail; " +
-            $"export HOME={ToBashSingleQuoted($"/home/{settings.LinuxUser}")}; " +
-            $"export USER={ToBashSingleQuoted(settings.LinuxUser)}; " +
-            $"export LOGNAME={ToBashSingleQuoted(settings.LinuxUser)}; " +
-            "export NYMPHS3D_RUNTIME_ROOT=\"$HOME\"; " +
-            $"export NYMPHS3D_GPU_VRAM_MB=\"{gpuVramMb}\"; " +
-            $"bash {ToBashSingleQuoted(wslBrainScriptPath)} {string.Join(" ", scriptArguments.Select(ToBashSingleQuoted))}";
+        var bashCommandBuilder = new StringBuilder()
+            .Append("set -euo pipefail; ")
+            .Append($"export HOME={ToBashSingleQuoted($"/home/{settings.LinuxUser}")}; ")
+            .Append($"export USER={ToBashSingleQuoted(settings.LinuxUser)}; ")
+            .Append($"export LOGNAME={ToBashSingleQuoted(settings.LinuxUser)}; ")
+            .Append("export NYMPHS3D_RUNTIME_ROOT=\"$HOME\"; ")
+            .Append($"export NYMPHS3D_GPU_VRAM_MB=\"{gpuVramMb}\"; ")
+            .Append("bash ")
+            .Append(ToBashSingleQuoted(wslBrainScriptPath))
+            .Append(' ')
+            .Append(string.Join(" ", scriptArguments.Select(ToBashSingleQuoted)));
+
+        var bashCommand = bashCommandBuilder.ToString();
 
         var arguments = new List<string>
         {
@@ -392,7 +397,7 @@ public sealed class InstallerWorkflowService
         progress.Report(gpuVramMb > 0
             ? $"Nymphs-Brain: detected {gpuVramMb} MB GPU VRAM from Windows for model recommendations."
             : "Nymphs-Brain: GPU VRAM detection failed, using WSL fallback.");
-        progress.Report("Nymphs-Brain: tools will be installed now. Use the Brain page Manage Models action after install to choose local Plan/Act models and the optional remote llm-wrapper model.");
+        progress.Report("Nymphs-Brain: tools will be installed now. Use the Brain page Manage Models action after install to choose the local model and optional remote llm-wrapper model.");
 
         var result = await _processRunner.RunAsync(
             fileName: "wsl.exe",
@@ -426,6 +431,177 @@ public sealed class InstallerWorkflowService
         return result.CombinedOutput;
     }
 
+    public async Task<BrainMonitorSnapshot> GetNymphsBrainMonitorAsync(
+        InstallSettings settings,
+        CancellationToken cancellationToken)
+    {
+        var monitorScript = Path.Combine(ScriptsDirectory, "monitor_query.sh");
+        var wslMonitorScriptPath = File.Exists(monitorScript)
+            ? ConvertWindowsPathToWsl(monitorScript) ?? string.Empty
+            : string.Empty;
+        var installedMonitorScriptPath = $"{settings.BrainInstallRoot}/scripts/monitor_query.sh";
+
+        if (!string.IsNullOrWhiteSpace(wslMonitorScriptPath))
+        {
+            var installCommand = new StringBuilder()
+                .Append("mkdir -p ")
+                .Append(ToBashSingleQuoted($"{settings.BrainInstallRoot}/scripts"))
+                .Append("; install -m 755 ")
+                .Append(ToBashSingleQuoted(wslMonitorScriptPath))
+                .Append(' ')
+                .Append(ToBashSingleQuoted(installedMonitorScriptPath))
+                .ToString();
+
+            await RunWslBashAsync(settings, installCommand, progress: null, cancellationToken)
+                .ConfigureAwait(false);
+        }
+
+        var pid = await QueryNymphsBrainMonitorValueAsync(settings, installedMonitorScriptPath, "pid", cancellationToken)
+            .ConfigureAwait(false);
+        var modelsJson = await QueryNymphsBrainModelsEndpointAsync(settings, cancellationToken)
+            .ConfigureAwait(false);
+        var isRunning = !string.IsNullOrWhiteSpace(pid) || !string.IsNullOrWhiteSpace(modelsJson);
+
+        if (!isRunning)
+        {
+            return BrainMonitorSnapshot.Offline;
+        }
+
+        var model = await QueryNymphsBrainMonitorValueAsync(settings, installedMonitorScriptPath, "model", cancellationToken)
+            .ConfigureAwait(false);
+        var context = await QueryNymphsBrainMonitorValueAsync(settings, installedMonitorScriptPath, "context", cancellationToken)
+            .ConfigureAwait(false);
+        var vram = await QueryNymphsBrainMonitorValueAsync(settings, installedMonitorScriptPath, "gpu-vram", cancellationToken)
+            .ConfigureAwait(false);
+        var temp = await QueryNymphsBrainMonitorValueAsync(settings, installedMonitorScriptPath, "gpu-temp", cancellationToken)
+            .ConfigureAwait(false);
+        var tps = await QueryNymphsBrainMonitorValueAsync(settings, installedMonitorScriptPath, "tps", cancellationToken)
+            .ConfigureAwait(false);
+
+        var snapshot = new BrainMonitorSnapshot(
+            true,
+            ValueOrDash(model),
+            ValueOrDash(context) == "-" ? "Unavailable" : ValueOrDash(context),
+            ValueOrDash(vram),
+            ValueOrDash(temp),
+            ValueOrDash(tps) == "-" ? "Waiting" : ValueOrDash(tps));
+
+        if (!snapshot.IsRunning || (snapshot.GpuVram != "-" && snapshot.GpuTemp != "-"))
+        {
+            return snapshot;
+        }
+
+        var gpuSnapshot = await GetWindowsGpuTelemetryAsync(cancellationToken).ConfigureAwait(false);
+        return snapshot with
+        {
+            GpuVram = gpuSnapshot.GpuVram,
+            GpuTemp = gpuSnapshot.GpuTemp,
+        };
+    }
+
+    private async Task<string> QueryNymphsBrainMonitorValueAsync(
+        InstallSettings settings,
+        string monitorScriptPath,
+        string query,
+        CancellationToken cancellationToken)
+    {
+        var result = await RunWslCommandAsync(
+            settings,
+            [monitorScriptPath, query],
+            progress: null,
+            cancellationToken).ConfigureAwait(false);
+
+        if (result.ExitCode != 0)
+        {
+            return string.Empty;
+        }
+
+        return result.CombinedOutput.Trim();
+    }
+
+    private async Task<string> QueryNymphsBrainModelsEndpointAsync(
+        InstallSettings settings,
+        CancellationToken cancellationToken)
+    {
+        var result = await RunWslCommandAsync(
+            settings,
+            [
+                "curl",
+                "--silent",
+                "--show-error",
+                "--fail",
+                "--connect-timeout",
+                "2",
+                "--max-time",
+                "5",
+                "http://127.0.0.1:8000/v1/models",
+            ],
+            progress: null,
+            cancellationToken).ConfigureAwait(false);
+
+        return result.ExitCode == 0 ? result.CombinedOutput.Trim() : string.Empty;
+    }
+
+    private async Task<(string GpuVram, string GpuTemp)> GetWindowsGpuTelemetryAsync(CancellationToken cancellationToken)
+    {
+        var candidates = new[]
+        {
+            "nvidia-smi.exe",
+            @"C:\Windows\System32\nvidia-smi.exe",
+            @"C:\Program Files\NVIDIA Corporation\NVSMI\nvidia-smi.exe",
+        };
+
+        foreach (var candidate in candidates)
+        {
+            try
+            {
+                var result = await _processRunner.RunAsync(
+                    fileName: candidate,
+                    arguments:
+                    [
+                        "--query-gpu=memory.used,memory.total,temperature.gpu",
+                        "--format=csv,noheader,nounits",
+                    ],
+                    workingDirectory: Environment.SystemDirectory,
+                    progress: null,
+                    environmentVariables: null,
+                    cancellationToken).ConfigureAwait(false);
+
+                if (result.ExitCode != 0)
+                {
+                    continue;
+                }
+
+                var firstLine = result.CombinedOutput
+                    .Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                    .FirstOrDefault();
+                if (string.IsNullOrWhiteSpace(firstLine))
+                {
+                    continue;
+                }
+
+                var parts = firstLine
+                    .Split(',', StringSplitOptions.TrimEntries)
+                    .ToArray();
+                if (parts.Length < 3
+                    || !double.TryParse(parts[0], out var usedMb)
+                    || !double.TryParse(parts[1], out var totalMb))
+                {
+                    continue;
+                }
+
+                var temp = string.IsNullOrWhiteSpace(parts[2]) ? "Unavailable" : $"{parts[2]}C";
+                return ($"{usedMb / 1024:0} GB/{totalMb / 1024:0} GB", temp);
+            }
+            catch
+            {
+                // Try the next known NVIDIA path.
+            }
+        }
+
+        return ("Unavailable", "Unavailable");
+    }
+
     public async Task RunNymphsBrainToolAsync(
         InstallSettings settings,
         string toolName,
@@ -446,20 +622,187 @@ public sealed class InstallerWorkflowService
 
         if (result.ExitCode != 0)
         {
+            if (toolName == "mcp-start"
+                && await IsNymphsBrainMcpProcessRunningAsync(settings, cancellationToken).ConfigureAwait(false))
+            {
+                progress.Report("Nymphs-Brain MCP gateway process is running. Continuing after mcp-start timeout.");
+                return;
+            }
+
             throw new InvalidOperationException($"Nymphs-Brain {toolName} failed.");
         }
     }
 
-    public void OpenNymphsBrainModelManager(InstallSettings settings)
+    private async Task<bool> IsNymphsBrainMcpProcessRunningAsync(
+        InstallSettings settings,
+        CancellationToken cancellationToken)
     {
         var bashCommand =
-            "set -euo pipefail\n" +
-            $"export HOME={ToBashSingleQuoted($"/home/{settings.LinuxUser}")}\n" +
-            $"export USER={ToBashSingleQuoted(settings.LinuxUser)}\n" +
-            $"export LOGNAME={ToBashSingleQuoted(settings.LinuxUser)}\n" +
-            $"{ToBashSingleQuoted($"{settings.BrainInstallRoot}/bin/lms-model")}\n" +
-            "echo\n" +
-            "read -rp 'Press Enter to close this window...' _";
+            "set +e; " +
+            $"INSTALL_ROOT={ToBashSingleQuoted(settings.BrainInstallRoot)}; " +
+            """
+            PID_FILE="${INSTALL_ROOT}/mcp/logs/mcp-proxy.pid"
+            if [[ -f "${PID_FILE}" ]]; then
+              pid="$(cat "${PID_FILE}" 2>/dev/null || true)"
+              if [[ "${pid}" =~ ^[0-9]+$ ]] && kill -0 "${pid}" >/dev/null 2>&1; then
+                exit 0
+              fi
+            fi
+            ps -eo pid=,ppid=,args= | awk -v self="$$" '$1 != self && $2 != self && $0 !~ /[b]ash -lc/ && $0 ~ /mcp-proxy/ { found=1 } END { exit(found ? 0 : 1) }'
+            """;
+
+        var result = await _processRunner.RunAsync(
+            fileName: "wsl.exe",
+            arguments:
+            [
+                "-d", settings.DistroName,
+                "--user", settings.LinuxUser,
+                "--",
+                "/bin/bash", "-lc", bashCommand,
+            ],
+            workingDirectory: Environment.SystemDirectory,
+            progress: null,
+            environmentVariables: null,
+            cancellationToken).ConfigureAwait(false);
+
+        return result.ExitCode == 0;
+    }
+
+    public async Task StopNymphsBrainServicesAsync(
+        InstallSettings settings,
+        IProgress<string> progress,
+        CancellationToken cancellationToken)
+    {
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeout.CancelAfter(TimeSpan.FromSeconds(45));
+
+        try
+        {
+            progress.Report("Stopping Nymphs-Brain services...");
+
+            foreach (var tool in new[] { "open-webui-stop", "mcp-stop", "lms-stop" })
+            {
+                var toolPath = $"{settings.BrainInstallRoot}/bin/{tool}";
+                progress.Report($"Running {tool}...");
+                var result = await RunWslCommandAsync(
+                    settings,
+                    [toolPath],
+                    progress,
+                    timeout.Token).ConfigureAwait(false);
+
+                if (result.ExitCode != 0)
+                {
+                    progress.Report($"{tool}: warning exit code {result.ExitCode}.");
+                }
+            }
+
+            var stillListening = await RunWslBashAsync(
+                settings,
+                "ss -ltnp 2>/dev/null | grep -E ':(8000|8100|8081)' || true",
+                progress: null,
+                timeout.Token).ConfigureAwait(false);
+
+            if (!string.IsNullOrWhiteSpace(stillListening.CombinedOutput))
+            {
+                progress.Report("ERROR: Nymphs-Brain ports are still listening:");
+                progress.Report(stillListening.CombinedOutput.Trim());
+                throw new InvalidOperationException("Nymphs-Brain stop failed.");
+            }
+
+            progress.Report("Nymphs-Brain stop completed.");
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            throw new TimeoutException("Nymphs-Brain stop timed out after 45 seconds.");
+        }
+    }
+
+    private static BrainMonitorSnapshot ParseBrainMonitorSnapshot(string output)
+    {
+        var values = output
+            .Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(line => line.Split('=', 2))
+            .Where(parts => parts.Length == 2)
+            .ToDictionary(parts => parts[0], parts => parts[1], StringComparer.OrdinalIgnoreCase);
+
+        var isRunning = values.TryGetValue("state", out var state)
+            && string.Equals(state, "running", StringComparison.OrdinalIgnoreCase);
+
+        var context = ValueOrDash(values, "context");
+        var tps = ValueOrDash(values, "tps");
+
+        return new BrainMonitorSnapshot(
+            isRunning,
+            ValueOrDash(values, "model"),
+            isRunning && context == "-" ? "Unavailable" : context,
+            ValueOrDash(values, "vram"),
+            ValueOrDash(values, "temp"),
+            isRunning && tps == "-" ? "Waiting" : tps);
+    }
+
+    private Task<CommandResult> RunWslBashAsync(
+        InstallSettings settings,
+        string bashCommand,
+        IProgress<string>? progress,
+        CancellationToken cancellationToken)
+    {
+        return RunWslCommandAsync(
+            settings,
+            ["/bin/bash", "-lc", bashCommand],
+            progress,
+            cancellationToken);
+    }
+
+    private Task<CommandResult> RunWslCommandAsync(
+        InstallSettings settings,
+        IEnumerable<string> commandArguments,
+        IProgress<string>? progress,
+        CancellationToken cancellationToken)
+    {
+        var arguments = new List<string>
+        {
+            "-d",
+            settings.DistroName,
+            "--user",
+            settings.LinuxUser,
+            "--",
+        };
+        arguments.AddRange(commandArguments);
+
+        return _processRunner.RunAsync(
+            fileName: "wsl.exe",
+            arguments,
+            workingDirectory: Environment.SystemDirectory,
+            progress,
+            environmentVariables: null,
+            cancellationToken);
+    }
+
+    private static string ValueOrDash(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return "-";
+        }
+
+        var normalized = value.Trim();
+        return normalized is "—" or "–" ? "-" : normalized;
+    }
+
+    private static string ValueOrDash(IReadOnlyDictionary<string, string> values, string key)
+    {
+        if (!values.TryGetValue(key, out var value) || string.IsNullOrWhiteSpace(value))
+        {
+            return "-";
+        }
+
+        var normalized = value.Trim();
+        return normalized is "—" or "–" ? "-" : normalized;
+    }
+
+    public void OpenNymphsBrainModelManager(InstallSettings settings)
+    {
+        var modelManagerPath = $"{settings.BrainInstallRoot}/bin/lms-model";
 
         try
         {
@@ -477,9 +820,7 @@ public sealed class InstallerWorkflowService
             startInfo.ArgumentList.Add("--user");
             startInfo.ArgumentList.Add(settings.LinuxUser);
             startInfo.ArgumentList.Add("--");
-            startInfo.ArgumentList.Add("/bin/bash");
-            startInfo.ArgumentList.Add("-lc");
-            startInfo.ArgumentList.Add(bashCommand);
+            startInfo.ArgumentList.Add(modelManagerPath);
             System.Diagnostics.Process.Start(startInfo);
         }
         catch
@@ -488,8 +829,8 @@ public sealed class InstallerWorkflowService
                 "start \"Nymphs-Brain Model Manager\" wsl.exe " +
                 $"-d {QuoteWindowsCommandArgument(settings.DistroName)} " +
                 $"--user {QuoteWindowsCommandArgument(settings.LinuxUser)} " +
-                "-- /bin/bash -lc " +
-                QuoteWindowsCommandArgument(bashCommand);
+                "-- " +
+                QuoteWindowsCommandArgument(modelManagerPath);
 
             System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
             {
@@ -1398,6 +1739,11 @@ public sealed class InstallerWorkflowService
             return $"timeout --foreground 120s {ToBashSingleQuoted(toolPath)}";
         }
 
+        if (toolName == "mcp-start")
+        {
+            return ToBashSingleQuoted(toolPath);
+        }
+
         if (toolName == "brain-apply-openrouter-key")
         {
             if (string.IsNullOrWhiteSpace(settings.OpenRouterApiKey))
@@ -1407,17 +1753,22 @@ public sealed class InstallerWorkflowService
 
             var secretDir = $"{settings.BrainInstallRoot}/secrets";
             var secretFile = $"{secretDir}/llm-wrapper.env";
-            var keyLine = $"OPENROUTER_API_KEY={settings.OpenRouterApiKey}";
 
             return new StringBuilder()
                 .Append("mkdir -p ")
                 .Append(ToBashSingleQuoted(secretDir))
                 .Append("; ")
-                .Append("printf '%s\\n' ")
+                .Append("remote_model='deepseek/deepseek-chat'; ")
+                .Append("if [[ -f ")
+                .Append(ToBashSingleQuoted(secretFile))
+                .Append(" ]]; then existing_remote=$(sed -n 's/^REMOTE_LLM_MODEL=//p' ")
+                .Append(ToBashSingleQuoted(secretFile))
+                .Append(" | tail -1); if [[ -n \"${existing_remote}\" ]]; then remote_model=\"${existing_remote}\"; fi; fi; ")
+                .Append("{ printf '%s\\n' ")
                 .Append(ToBashSingleQuoted("# Nymphs-Brain llm-wrapper configuration"))
-                .Append(" ")
-                .Append(ToBashSingleQuoted(keyLine))
-                .Append(" > ")
+                .Append("; printf 'OPENROUTER_API_KEY=%s\\n' ")
+                .Append(ToBashSingleQuoted(settings.OpenRouterApiKey))
+                .Append("; printf 'REMOTE_LLM_MODEL=%s\\n' \"${remote_model}\"; } > ")
                 .Append(ToBashSingleQuoted(secretFile))
                 .Append("; ")
                 .Append("chmod 600 ")
@@ -1535,6 +1886,18 @@ public sealed class InstallerWorkflowService
         }
 
         var normalized = windowsPath.Replace('\\', '/');
+        var uncPrefixes = new[] { "//wsl.localhost/", "//wsl$/" };
+        foreach (var prefix in uncPrefixes)
+        {
+            if (normalized.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            {
+                var pathStart = normalized.IndexOf('/', prefix.Length);
+                return pathStart >= 0 && pathStart + 1 < normalized.Length
+                    ? "/" + normalized[(pathStart + 1)..]
+                    : null;
+            }
+        }
+
         if (normalized.Length >= 3 &&
             char.IsLetter(normalized[0]) &&
             normalized[1] == ':' &&

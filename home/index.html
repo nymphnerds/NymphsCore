@@ -377,6 +377,44 @@
     display: block;
   }
 
+  .addon-placeholder {
+    min-height: 320px;
+    border: 1px dashed rgba(85,223,240,0.24);
+    border-radius: 14px;
+    display: grid;
+    place-items: center;
+    text-align: center;
+    padding: 36px 24px;
+    background:
+      radial-gradient(circle at 20% 22%, rgba(99,227,95,0.10) 0%, transparent 24%),
+      radial-gradient(circle at 82% 72%, rgba(85,223,240,0.12) 0%, transparent 26%),
+      #121212;
+  }
+
+  .addon-placeholder-label {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--teal);
+    margin-bottom: 14px;
+  }
+
+  .addon-placeholder-title {
+    font-family: var(--font-head);
+    font-size: clamp(26px, 4vw, 42px);
+    line-height: 0.98;
+    margin-bottom: 12px;
+    letter-spacing: -0.02em;
+  }
+
+  .addon-placeholder-copy {
+    max-width: 520px;
+    color: var(--muted);
+    font-size: 15px;
+    line-height: 1.7;
+  }
+
   .addon-grid {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -410,6 +448,39 @@
     width: 100%;
     height: auto;
     display: block;
+  }
+
+  .addon-panel-frame.placeholder {
+    min-height: 240px;
+    display: grid;
+    align-content: center;
+    gap: 10px;
+    padding: 28px 22px;
+    background:
+      linear-gradient(180deg, rgba(85,223,240,0.03) 0%, rgba(99,227,95,0.04) 100%),
+      #121212;
+  }
+
+  .placeholder-kicker {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--lime);
+  }
+
+  .placeholder-title {
+    font-family: var(--font-head);
+    font-size: 24px;
+    line-height: 1;
+    letter-spacing: -0.02em;
+    color: var(--light);
+  }
+
+  .placeholder-copy {
+    color: var(--muted);
+    font-size: 14px;
+    line-height: 1.6;
   }
 
   .manager-section {
@@ -534,6 +605,22 @@
   }
 
   .parts-grid { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 32px; }
+
+  .extraction-note {
+    margin-top: 18px;
+    max-width: 760px;
+    padding: 14px 16px;
+    border: 1px solid rgba(85,223,240,0.18);
+    border-radius: 10px;
+    background: rgba(85,223,240,0.04);
+    color: var(--light);
+    font-size: 14px;
+    line-height: 1.6;
+  }
+
+  .extraction-note strong {
+    color: var(--teal);
+  }
 
   .part-chip {
     background: var(--dark3);
@@ -707,6 +794,30 @@
     margin-bottom: 24px;
   }
 
+  .cta-line {
+    display: block;
+  }
+
+  .cta-line-1 {
+    color: #f6f7f4;
+  }
+
+  .cta-line-2 {
+    color: #d7eaff;
+  }
+
+  .cta-line-3 {
+    color: #9ef7ff;
+  }
+
+  .cta-line-4 {
+    display: inline-block;
+    background: linear-gradient(90deg, #55dff0 0%, #63e35f 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
   .cta-final p {
     color: var(--muted);
     font-size: 17px;
@@ -847,6 +958,7 @@
     <li><a href="#workflow">Workflow</a></li>
     <li><a href="#features">Features</a></li>
     <li><a href="guides.html">Guides</a></li>
+    <li><a href="flash.html">FlashAddon</a></li>
     <li><a href="brain.html">Brain Guide</a></li>
     <li><a href="#fit">Who it's for</a></li>
     <li><a href="alpha.html?v=20260426b">Bug Reports</a></li>
@@ -863,6 +975,7 @@
   <div class="cta-row">
     <a href="#cta-final" class="btn-primary">Get it on Superhive →</a>
     <a href="guides.html" class="btn-ghost">Open guides</a>
+    <a href="flash.html" class="btn-ghost">Open FlashAddon</a>
     <a href="#workflow" class="btn-ghost">See the workflow</a>
     <a href="alpha.html?v=20260426b" class="btn-ghost">Bug reports and feedback</a>
   </div>
@@ -910,7 +1023,7 @@
   <div class="manager-inner">
     <div>
       <div class="section-tag">// NymphsCore Manager</div>
-      <h2 class="section-title">Setup hell,<br>solved.</h2>
+      <h2 class="section-title">Pinned Linux stack.<br>Ready to run.</h2>
       <p class="section-sub" style="margin-bottom:32px;">Most local AI falls apart before it starts. The NymphsCore Manager handles the install and repair work so artists can focus on the pipeline instead of the plumbing.</p>
       <ul class="checklist">
         <li><span class="check-icon">✓</span>WSL setup and dedicated distro creation</li>
@@ -935,6 +1048,7 @@
   <div class="extraction-block">
     <h2 class="section-title" style="max-width:600px;">One design.<br>Every part you need.</h2>
     <p style="font-size:16px; color:var(--muted); max-width:620px; line-height:1.7; margin-bottom:8px;">NymphsCore's part extraction happens inside the image pipeline, before shape generation. Start with one master character image, plan the extractable parts, then feed those modular outputs into the later 3D pass.</p>
+    <div class="extraction-note"><strong>OpenRouter required:</strong> Gemini Flash powers the extraction-planning step, so you need an OpenRouter account for this feature. It is the only cloud service used in NymphsCore.</div>
     <div class="parts-grid">
       <div class="part-chip"><div class="part-dot"></div>anatomy_base</div>
       <div class="part-chip"><div class="part-dot"></div>clothing</div>
@@ -960,7 +1074,7 @@
     <div class="feature-card">
       <div class="feature-icon teal">💻</div>
       <div class="feature-title">Core pipeline runs locally</div>
-      <div class="feature-desc">The main image, shape, and texture workflows run on your machine and save to your drive instead of living behind per-generation credits.</div>
+      <div class="feature-desc">Image generation, shape, and texture workflows run on your machine and save to your drive. That gives artists and teams more control over files, faster iteration, and a better fit for confidential visual development.</div>
       <div class="feature-tag">Your GPU. Your files.</div>
     </div>
     <div class="feature-card">
@@ -987,6 +1101,12 @@
       <div class="feature-desc">Nymphs-Brain adds a local LLM, MCP, and Open WebUI ecosystem for people who want it, without replacing the main Blender pipeline.</div>
       <a href="brain.html" class="feature-tag">Open Brain guide</a>
       <img class="brain-card-art" src="assets/NymphBrain.png" alt="">
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon lime">🍌</div>
+      <div class="feature-title">Need just the Gemini tool?</div>
+      <div class="feature-desc">FlashAddon breaks out the Nano Banana Gemini Flash workflow into its own standalone Blender addon: image generation, guide-image editing, character part planning, and extraction without the full NymphsCore runtime stack.</div>
+      <a href="flash.html" class="feature-tag">Open FlashAddon</a>
     </div>
   </div>
 </section>
@@ -1019,43 +1139,54 @@
 </section>
 
 <section class="section addon-showcase">
-  <div class="section-tag">// Inside the addon</div>
-  <h2 class="section-title">Inside Blender.<br>Where the workflow lives.</h2>
-  <p class="section-sub">NymphsCore runs through dedicated panels for server control, image generation and extraction, and shape-texture work, all inside the Blender sidebar.</p>
+  <div class="section-tag">// Example results</div>
+  <h2 class="section-title">Examples coming soon.<br>Result gallery goes here.</h2>
+  <p class="section-sub">This section will be replaced with actual outputs from the NymphsCore workflow: reference images, extracted parts, and textured 3D draft results.</p>
   <div class="addon-overview">
-    <div class="addon-overview-frame">
-      <img src="assets/panels.png" alt="Overview of the NymphsCore Blender addon panels">
+    <div class="addon-placeholder">
+      <div>
+        <div class="addon-placeholder-label">Placeholder block</div>
+        <div class="addon-placeholder-title">Hero result montage<br>to be added here.</div>
+        <p class="addon-placeholder-copy">Use this area for a stronger first impression than UI screenshots: finished concept outputs, part extraction examples, or before/after image-to-3D results.</p>
+      </div>
     </div>
   </div>
   <div class="addon-grid">
     <div class="addon-panel">
-      <div class="addon-panel-label">Server</div>
-      <div class="addon-panel-frame">
-        <img src="assets/serverpanel.png" alt="Nymphs Server panel in Blender">
+      <div class="addon-panel-label">Example 01</div>
+      <div class="addon-panel-frame placeholder">
+        <div class="placeholder-kicker">Reserved slot</div>
+        <div class="placeholder-title">Reference image result</div>
+        <div class="placeholder-copy">Replace this with a strong generated concept or guide-image edit example.</div>
       </div>
     </div>
     <div class="addon-panel">
-      <div class="addon-panel-label">Image</div>
-      <div class="addon-panel-frame">
-        <img src="assets/imagepanel.png" alt="Nymphs Image panel in Blender">
+      <div class="addon-panel-label">Example 02</div>
+      <div class="addon-panel-frame placeholder">
+        <div class="placeholder-kicker">Reserved slot</div>
+        <div class="placeholder-title">Part extraction result</div>
+        <div class="placeholder-copy">Swap in a clean modular-character breakdown or extraction output set.</div>
       </div>
     </div>
     <div class="addon-panel">
-      <div class="addon-panel-label">Shape</div>
-      <div class="addon-panel-frame">
-        <img src="assets/shapepanel.png" alt="Nymphs Shape and Texture panels in Blender">
+      <div class="addon-panel-label">Example 03</div>
+      <div class="addon-panel-frame placeholder">
+        <div class="placeholder-kicker">Reserved slot</div>
+        <div class="placeholder-title">3D draft result</div>
+        <div class="placeholder-copy">Use this for a textured draft mesh, retexture example, or image-to-3D before/after.</div>
       </div>
     </div>
   </div>
 </section>
 
 <section class="cta-final">
-  <h2>Stop switching between apps.<br>Stop configuring servers.<br>Stop memorizing node graphs.<br>Just create.</h2>
+  <h2><span class="cta-line cta-line-1">Stop switching apps.</span><span class="cta-line cta-line-2">Stop configuring servers.</span><span class="cta-line cta-line-3">Stop memorizing node graphs.</span><span class="cta-line cta-line-4">Just create.</span></h2>
   <p>NymphsCore gives Blender users one clearer path from image generation and image editing to modular part extraction and 3D draft assets.</p>
   <a href="#cta-final" class="btn-primary" style="font-size:17px; padding:16px 40px;">Get NymphsCore on Superhive →</a>
   <div class="cta-links">
     <a href="../docs/GETTING_STARTED.md" class="link-chip">📄 Read the docs</a>
     <a href="guides.html" class="link-chip">🧭 Open the guide hub</a>
+    <a href="flash.html" class="link-chip">🍌 Open FlashAddon</a>
     <a href="alpha.html?v=20260426b" class="link-chip">🛠️ Feedback and bug reports</a>
     <a href="../docs/BLENDER_ADDON_USER_GUIDE.md" class="link-chip">🧭 Blender setup guide</a>
   </div>
