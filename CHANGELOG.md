@@ -8,6 +8,39 @@ This file focuses on user-facing and system-level changes rather than package-by
 
 Newest entries first.
 
+### 2026-04-29 RautysIdeas technical handoff documentation suite
+Source: need for durable, searchable technical documentation that preserves how the Monitor, Brain LLM lifecycle, and MCP infrastructure actually work instead of relying on scattered session notes or tribal knowledge.
+
+Documented changes:
+
+- created `NymphsCore/docs/RautysIdeas/` as a dedicated documentation home for architectural handoff notes
+- added **MONITOR_PROJECT_HANDOFF.md** — complete technical documentation of the NymphsCore/Monitor project:
+  - .NET WinForms app architecture, API integration with the Llama Server Manager, and dark theme UI
+  - Windows↔WSL communication via `monitor_query.sh` bridge script
+  - full data flow from server discovery (`/llama/servers`) to start/stop/restart actions (`/llama/start`, `/llama/stop`, `/llama/restart`)
+  - JSON response schema, error handling, auto-refresh, search/filter, and context menu
+- added **AUTO_CONTEXT_HANDOFF_FOR_LMS-START.md** — documentation of the `lms-start` and `lms-model` scripts:
+  - role-aware Act/Plan model profiles (`lms-get-profile`, `lms-set-profile`)
+  - how `lms-start` loads Act first then Plan via `lms load -y`
+  - `lms-model` interactive model manager (download, set, remove, profile operations)
+  - interaction with the Monitor's server discovery pipeline and LM Studio HTTP API
+  - full LLM lifecycle from cold start to role-aware multi-model operation
+- added **MCP_UPDATES.md** — comprehensive documentation of the MCP infrastructure:
+  - three-layer architecture: native stdio servers → mcpo proxy (port 8100) → HTTP clients
+  - Context7 MCP setup (`@upstash/context7-mcp`), tools (`resolve-library-id`, `query-docs`), version-aware docs
+  - Unity MCP two-part architecture (Node.js TypeScript server + Unity Editor C# extension), WebSocket on port 8090, ~25 tools, ~8 resources
+  - mcpo proxy bridging stdio to streamable-http, keeping servers alive across client sessions
+  - web-forager (DuckDuckGo search, Jina fetch, news), filesystem (path-restricted), memory (JSONL persistent)
+  - client configurations for Cline (3 servers + direct Context7), Open WebUI (3 servers), mcpo full set (5 servers)
+  - virtual environments (`mcp-venv`, `mcpo-venv`), npm global packages, directory structure
+  - step-by-step guide for adding new MCP servers
+
+Why it matters:
+
+- the Monitor, Brain LLM lifecycle, and MCP infrastructure can now be understood from documentation alone without reverse-engineering scripts or asking someone who was there
+- new contributors or future sessions can onboard into how these systems work without losing context
+- the three-layer MCP architecture (native → proxy → clients) is now documented as a recoverable pattern, not just a working config
+
 ### 2026-04-28 Llama Server Monitor desktop app
 Source: need for a quick visual way to manage multiple local Llama servers without reaching for the terminal.
 
