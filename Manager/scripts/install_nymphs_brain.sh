@@ -870,27 +870,44 @@ if [[ -z "${GGUF_PATH}" || ! -f "${GGUF_PATH}" ]]; then
   exit 1
 fi
 
+# Detect multimodal projector (.mmproj file) next to the GGUF
+MMPROJ_FLAG=""
+MMPROJ_PATH="$(ls "${GGUF_PATH}"*.mmproj 2>/dev/null | head -n1)"
+if [[ -n "${MMPROJ_PATH}" && -f "${MMPROJ_PATH}" ]]; then
+  MMPROJ_FLAG="--mmproj ${MMPROJ_PATH}"
+  echo "Detected multimodal projector: ${MMPROJ_PATH}"
+fi
+
 echo "Starting llama-server..."
 echo "  Model: ${MODEL_KEY}"
 echo "  GGUF Path: ${GGUF_PATH}"
 echo "  Context Length: ${CONTEXT_LENGTH}"
+if [[ -n "${MMPROJ_FLAG}" ]]; then
+  echo "  Multimodal Projector: ${MMPROJ_PATH}"
+fi
 echo ""
 
 # Ensure shared libraries can be found (fallback if RPATH was not fixed by patchelf)
 export LD_LIBRARY_PATH="$(dirname "${LLAMA_SERVER}"):${LD_LIBRARY_PATH:-}"
 
 # Start llama-server with CUDA acceleration
-nohup "${LLAMA_SERVER}" \
-    -m "${GGUF_PATH}" \
-    -c "${CONTEXT_LENGTH}" \
-    -ngl 9999 \
-    --port 8000 \
-    --host "127.0.0.1" \
-    --flash-attn on \
-    --parallel 4 \
-    -ctk q8_0 \
-    -ctv q8_0 \
-    > "${LOG_FILE}" 2>&1 &
+LLAMA_ARGS=(
+    -m "${GGUF_PATH}"
+    -c "${CONTEXT_LENGTH}"
+    -ngl 9999
+    --port 8000
+    --host "127.0.0.1"
+    --flash-attn on
+    --parallel 4
+    -ctk q8_0
+    -ctv q8_0
+)
+# Append multimodal projector flag if detected
+if [[ -n "${MMPROJ_FLAG}" ]]; then
+  LLAMA_ARGS+=(--mmproj "${MMPROJ_PATH}")
+fi
+
+nohup "${LLAMA_SERVER}" "${LLAMA_ARGS[@]}" > "${LOG_FILE}" 2>&1 &
 
 echo "$!" > "${PID_FILE}"
 
