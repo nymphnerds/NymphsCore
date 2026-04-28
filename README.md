@@ -111,14 +111,15 @@ The installer can also offer an experimental optional `Nymphs-Brain` local LLM s
 
 If selected, `Nymphs-Brain` now includes:
 
-- an LM Studio-backed local LLM runtime
+- LM Studio CLI model management
+- a CUDA-accelerated `llama-server` local LLM runtime on `http://localhost:8000/v1`
 - Open WebUI on `http://localhost:8081`
 - a local MCP gateway for tool access from Cline/Open WebUI
 - optional OpenRouter-backed `llm-wrapper` delegation with local prompt caching
 - helper commands under `/home/nymph/Nymphs-Brain/bin`
 - a bundled `remote_llm_mcp` runtime under `Manager/scripts/remote_llm_mcp`
 
-The installer and runtime wrappers use LM Studio's normal CLI flow for model fetch and server start. No separate manual daemon bootstrap step should be needed.
+The installer and runtime wrappers use LM Studio's normal CLI flow for model fetch and management, then serve the selected GGUF model through `llama-server`. No separate manual daemon bootstrap step should be needed.
 
 For the full optional Brain stack guide, see:
 
@@ -146,7 +147,7 @@ Use the dedicated `Brain` page to:
 - start or stop the Brain stack
 - start or stop Open WebUI
 - enter an optional OpenRouter key for `llm-wrapper`
-- open the role-aware `Manage Models` terminal flow for local and remote models
+- open `Manage Models` for the local GGUF model, context length, and optional remote wrapper model
 - update the Linux-side Brain stack components
 - inspect the Brain activity log
 
@@ -154,7 +155,7 @@ The intended Manager-first flow is:
 
 1. install Brain from the Manager
 2. optionally enter an OpenRouter key on the Brain page and click `Apply Key`
-3. use `Manage Models` to choose local `Plan` / `Act` roles and the optional remote `llm-wrapper` model
+3. use `Manage Models` to choose the local GGUF model, context length, and optional remote `llm-wrapper` model
 4. start Brain or run `Update Stack`
 
 If no OpenRouter key is present, Brain skips `llm-wrapper` and still starts the rest of the stack normally.

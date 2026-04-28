@@ -153,7 +153,7 @@ Choose one during installation, or change later:
 
 ## Choosing the remote model
 
-Manager now treats the remote wrapper model as part of the same `Manage Models` flow as local `Plan` / `Act`.
+Manager now treats the remote wrapper model as part of the same `Manage Models` flow as the local GGUF model and context length.
 
 Use `Manage Models` when you want to:
 
@@ -161,7 +161,7 @@ Use `Manage Models` when you want to:
 - enter a custom `provider/model` id
 - clear the remote override
 
-The saved remote profile is written alongside the local Brain role config.
+The saved remote model is written to the Brain `llm-wrapper` secrets file alongside the optional OpenRouter key.
 
 ## How to use it in Cline and Open WebUI
 
@@ -251,8 +251,8 @@ Preferred path: use the Brain page `Manage Models` flow, then restart Brain or r
 
 Manual fallback:
 
-1. Open `Nymphs-Brain/config/lms-model-profiles.env`
-2. Find `LLM_WRAPPER_MODEL=...`
+1. Open `Nymphs-Brain/secrets/llm-wrapper.env`
+2. Find `REMOTE_LLM_MODEL=...`
 3. Change it to any OpenRouter model id (for example `openai/gpt-4o` or `deepseek/deepseek-chat`)
 4. Restart the MCP proxy:
 
@@ -263,7 +263,7 @@ cd Nymphs-Brain
 
 ### Changing Cache Settings
 
-In the same `mcp-start` file, you can adjust:
+In `Nymphs-Brain/bin/mcp-start`, you can adjust:
 
 | Argument | Default | Description |
 |----------|---------|-------------|
