@@ -49,12 +49,3 @@ Thumbs.db
 !/Manager/docs/manager_release_publish_notes.md
 !/Manager/docs/nymphs_brain_installer_webui_mcp_handoff.md
 /Manager/docs/archive/**
-
-# Local tools binaries (compiled llama-server, etc.)
-/Manager/scripts/local-tools-bin/
-
-# .NET build artifacts
-**/bin/
-**/obj/
-**/publish/
-!/ManagerFEUI/HANDOFF.md
