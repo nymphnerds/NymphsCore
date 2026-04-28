@@ -849,8 +849,11 @@ find_gguf_path() {
   
   for base_path in "${search_paths[@]}"; do
     if [[ -d "$base_path" ]]; then
+      # Extract model name after last '/' (e.g. "qwen/qwen3-1.7b" -> "qwen3-1.7b")
+      # to match against the directory/file name in the path
+      local model_name="${model_key##*/}"
       gguf_file=$(find "$base_path" -name "*.gguf" -type f 2>/dev/null | \
-                  grep -i "$model_key" | head -n1)
+                  grep -i "$model_name" | head -n1)
       if [[ -n "$gguf_file" && -f "$gguf_file" ]]; then
         echo "$gguf_file"
         return 0
@@ -872,7 +875,7 @@ fi
 
 # Detect multimodal projector (.mmproj file) next to the GGUF
 MMPROJ_FLAG=""
-MMPROJ_PATH="$(ls "${GGUF_PATH}"*.mmproj 2>/dev/null | head -n1)"
+MMPROJ_PATH="$(find "$(dirname "${GGUF_PATH}")" -maxdepth 1 -iname "*mmproj*" -type f 2>/dev/null | head -n1 || true)"
 if [[ -n "${MMPROJ_PATH}" && -f "${MMPROJ_PATH}" ]]; then
   MMPROJ_FLAG="--mmproj ${MMPROJ_PATH}"
   echo "Detected multimodal projector: ${MMPROJ_PATH}"
@@ -1035,21 +1038,30 @@ done
 LMS_BIN="$(command -v lms || true)"
 
 declare -A CONTEXT_SIZES=(
-  ["1"]="4096"
-  ["2"]="8192"
-  ["3"]="16384"
-  ["4"]="32768"
-  ["5"]="65536"
-  ["6"]="128000"
+  ["1"]="2048"
+  ["2"]="4096"
+  ["3"]="8192"
+  ["4"]="16384"
+  ["5"]="32768"
+  ["6"]="49152"
+  ["7"]="65536"
+  ["8"]="98304"
+  ["9"]="131072"
+  ["10"]="262144"
 )
 
 CONTEXT_LABELS=(
+  "2k   (2048)"
   "4k   (4096)"
   "8k   (8192)"
   "16k  (16384)"
   "32k  (32768)"
+  "48k  (49152)"
   "64k  (65536)"
-  "128k (128000)"
+  "96k  (98304)"
+  "128k (131072)"
+  "256k (262144)"
+  "Custom (user input)"
 )
 
 SELECTED_CONTEXT_SIZE=""
@@ -1129,7 +1141,19 @@ select_context_size() {
       printf "  %d) %s\n" "$((i + 1))" "${CONTEXT_LABELS[i]}"
     done
     echo
-    read -rp "Enter your choice (1-6): " choice
+    read -rp "Enter your choice (1-11): " choice
+
+    # Custom context size (option 11)
+    if [[ "$choice" == "11" ]]; then
+      read -rp "Enter custom context size (tokens, min 512): " SELECTED_CONTEXT_SIZE
+      if [[ "${SELECTED_CONTEXT_SIZE}" =~ ^[0-9]+$ ]] && [[ "${SELECTED_CONTEXT_SIZE}" -ge 512 ]]; then
+        echo "Selected custom context size: ${SELECTED_CONTEXT_SIZE} tokens"
+        return 0
+      else
+        echo "Invalid context size. Must be a number >= 512."
+        continue
+      fi
+    fi
 
     if [[ -n "${CONTEXT_SIZES[$choice]:-}" ]]; then
       SELECTED_CONTEXT_SIZE="${CONTEXT_SIZES[$choice]}"
@@ -1137,7 +1161,7 @@ select_context_size() {
       return 0
     fi
 
-    echo "Invalid choice. Please enter a number from 1 to 6."
+    echo "Invalid choice. Please enter a number from 1 to 11."
   done
 }
 
