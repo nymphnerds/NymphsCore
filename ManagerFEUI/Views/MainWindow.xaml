@@ -1,0 +1,87 @@
+<Window x:Class="ManagerFEUI.Views.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="clr-namespace:ManagerFEUI.ViewModels"
+        xmlns:ctrl="clr-namespace:ManagerFEUI.Controls"
+        Title="NymphsCore ManagerFEUI" Height="780" Width="1200"
+        Background="{StaticResource BgDeep}"
+        WindowStartupLocation="CenterScreen"
+        FontFamily="{StaticResource BodyFont}">
+  <Window.DataContext>
+    <vm:DashboardViewModel/>
+  </Window.DataContext>
+  <Grid>
+    <Grid.ColumnDefinitions>
+      <ColumnDefinition Width="220"/>
+      <ColumnDefinition Width="*"/>
+    </Grid.ColumnDefinitions>
+    <!-- ===== SIDEBAR ===== -->
+    <Border Grid.Column="0" Background="{StaticResource BgSidebar}"
+            BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,1,0">
+      <DockPanel>
+        <Border DockPanel.Dock="Top" Padding="20,24,20,16">
+          <StackPanel>
+            <TextBlock Text="NymphsCore" FontSize="18" FontWeight="Bold"
+                       Foreground="{StaticResource GreenAccent}" FontFamily="{StaticResource HeaderFont}"/>
+            <TextBlock Text="ManagerFEUI" FontSize="11" Foreground="{StaticResource TextDim}" Margin="0,2,0,0"/>
+          </StackPanel>
+        </Border>
+        <StackPanel DockPanel.Dock="Top" Margin="0,8,0,0">
+          <Button Style="{StaticResource NavButton}" Content="Dashboard"
+                  Command="{Binding NavigateDashboardCommand}"/>
+          <Button Style="{StaticResource NavButton}" Content="Live Logs"
+                  Command="{Binding NavigateLogsCommand}"/>
+          <Button Style="{StaticResource NavButton}" Content="Runtime Tools"
+                  Command="{Binding NavigateToolsCommand}"/>
+          <Button Style="{StaticResource NavButton}" Content="Brain"
+                  Command="{Binding NavigateBrainCommand}"/>
+          <Button Style="{StaticResource NavButton}" Content="Addons"
+                  Command="{Binding NavigateAddonsCommand}"/>
+          <Button Style="{StaticResource NavButton}" Content="Installer"
+                  Command="{Binding NavigateInstallerCommand}"/>
+        </StackPanel>
+        <Border DockPanel.Dock="Bottom" Padding="12,12">
+          <StackPanel>
+            <Button Style="{StaticResource PrimaryButton}" Content="Start Server"
+                    Command="{Binding StartServerCommand}" Margin="0,0,0,6"/>
+            <Button Style="{StaticResource PrimaryButton}" Content="Stop Server"
+                    Command="{Binding StopServerCommand}"
+                    Background="{StaticResource GreenAccentDim}" Margin="0,0,0,6"/>
+            <Button Style="{StaticResource NavButton}" Content="View Logs"
+                    Command="{Binding ViewLogsCommand}"/>
+          </StackPanel>
+        </Border>
+        <TextBlock Text="© 2025 NymphsCore" FontSize="10" Foreground="{StaticResource TextDim}"
+                   Padding="20,0"/>
+      </DockPanel>
+    </Border>
+    <!-- ===== MAIN CONTENT ===== -->
+    <Grid Grid.Column="1">
+      <Grid.RowDefinitions>
+        <RowDefinition Height="Auto"/>
+        <RowDefinition Height="*"/>
+      </Grid.RowDefinitions>
+      <!-- Status Bar -->
+      <Border Grid.Row="0" Background="{StaticResource BgCard}"
+              BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,0,1"
+              Padding="24,16">
+        <Grid>
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="Auto"/>
+          </Grid.ColumnDefinitions>
+          <TextBlock Grid.Column="0" Text="NymphsCore Runtime" FontSize="16" FontWeight="SemiBold"
+                     Foreground="{StaticResource TextPrimary}" FontFamily="{StaticResource HeaderFont}"/>
+          <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+            <Ellipse Width="8" Height="8" Fill="{StaticResource GreenAccent}" Margin="0,0,8,0"/>
+            <TextBlock Text="Connected" FontSize="12" Foreground="{StaticResource GreenAccent}"/>
+          </StackPanel>
+        </Grid>
+      </Border>
+      <!-- Content Area -->
+      <ScrollViewer Grid.Row="1" Style="{StaticResource DarkScrollViewer}">
+        <ContentControl Content="{Binding CurrentPage}"/>
+      </ScrollViewer>
+    </Grid>
+  </Grid>
+</Window>
