@@ -115,13 +115,36 @@
     color: #d9f6fb;
     white-space: pre-wrap;
   }
+  .pair-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+    margin-top: 20px;
+  }
+  .pair-card {
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 14px;
+    background: rgba(255,255,255,0.02);
+    padding: 18px;
+  }
+  .pair-card h4 {
+    font-family: var(--font-head);
+    font-size: 20px;
+    margin-bottom: 8px;
+    letter-spacing: -0.02em;
+  }
+  .pair-card p {
+    color: var(--muted);
+    font-size: 14px;
+    line-height: 1.75;
+  }
   .note-strip { padding: 18px 22px; margin-top: 24px; font-size: 14px; color: var(--muted); }
   footer { border-top: 1px solid var(--dark4); padding: 28px 60px; display: flex; justify-content: space-between; color: #5d5d5d; font-family: var(--font-mono); font-size: 12px; gap: 16px; }
   @media (max-width: 900px) {
     nav { padding: 14px 24px; }
     .nav-links { display: none; }
     .hero, .section { padding-left: 24px; padding-right: 24px; }
-    .hero-panel, .two-col { grid-template-columns: 1fr; }
+    .hero-panel, .two-col, .pair-grid { grid-template-columns: 1fr; }
     footer { padding: 24px; flex-direction: column; }
   }
 </style>
@@ -176,6 +199,7 @@
   <div class="section-tag">// Captions</div>
   <h2 class="section-title">What captions are actually doing.</h2>
   <p class="section-sub">A caption is the text side of the training example. When the trainer sees an image of a bear in a childlike crayon drawing and the caption says <strong>a bear building a log cabin in the snow</strong>, it learns how that subject and wording connect. Later, when you prompt for a bear building a cabin, the LoRA has something meaningful to grab onto.</p>
+  <div class="note-strip"><strong>Most important beginner rule:</strong> you do <strong>not</strong> write one caption for the whole folder. You write <strong>one caption for each image</strong>. So if you put in 10 images, you write 10 captions.</div>
   <div class="two-col" style="margin-bottom:20px;">
     <div class="info-card">
       <div class="section-tag">// Direct Answer</div>
@@ -186,6 +210,18 @@
       <div class="section-tag">// Beginner Rule</div>
       <h3>Keep each caption simple.</h3>
       <p>You are not writing a novel or technical report. One clear line per image is enough. Think of it as the prompt you would have wanted if you were trying to recreate that picture later.</p>
+    </div>
+  </div>
+  <div class="pair-grid">
+    <div class="pair-card">
+      <h4>Wrong idea</h4>
+      <p>You have 10 images in the folder and write 1 caption for all of them together.</p>
+      <p><strong>Do not do this.</strong> The trainer needs to know which caption belongs to which exact picture.</p>
+    </div>
+    <div class="pair-card">
+      <h4>Right idea</h4>
+      <p>You have 10 images in the folder and write 10 captions total.</p>
+      <p>Each row in <code>metadata.csv</code> matches one filename to one caption.</p>
     </div>
   </div>
   <div class="steps">
@@ -237,13 +273,19 @@ cat_bike_01.png,"a cat riding a bicycle down a quiet street"
   <div class="note-strip">That is the shape you are aiming for: one image filename, one caption, repeated all the way down. It does not need to sound fancy. It needs to match the picture.</div>
   <div class="code-shell">
     <div class="code-header">Plain-English Translation</div>
-    <div class="code-body">Image 1 = this exact picture of the bear scene
-Caption 1 = the words you want connected to that bear scene
+    <div class="code-body">Image 1 = bear_cabin_01.png
+Caption 1 = "a bear building a small log cabin in the snow"
 
-Image 2 = this exact picture of the rabbit scene
-Caption 2 = the words you want connected to that rabbit scene
+Image 2 = rabbit_book_01.png
+Caption 2 = "a rabbit reading a book at a wooden desk"
 
-And so on, for every training image.</div>
+Image 3 = girl_kite_01.png
+Caption 3 = "a child holding a red kite in a windy field"
+
+Image 4 = cat_bike_01.png
+Caption 4 = "a cat riding a bicycle down a quiet street"
+
+Keep going like that until every image has its own matching caption.</div>
   </div>
   <div class="note-strip">If you are unsure what to write, aim for one clear sentence per image. Subject first, then action, then the most important visible qualifiers. For kids-drawings style, think: caption the scene like a normal prompt, and let the images teach the childlike rendering.</div>
 </section>
