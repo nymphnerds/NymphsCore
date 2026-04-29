@@ -173,7 +173,7 @@ The main app uses a VSCode-inspired layout with three resizable panels:
 - **Native HTML storage (v2.3)**: On edit, `onChange(editor.getHTML())` saves raw HTML. On load, `editor.commands.setContent(content)` loads raw HTML. No conversion. Click any image to toggle between full-width and compact (`max-width: 300px`) — toggle class persisted in saved HTML.
 - **Preview panel**: `editor.getHTML()` rendered via `dangerouslySetInnerHTML` in `RenderedPreview` component
 - Create File button — prompts for filename, creates in current explorer folder
-
+- **Editor refresh fix (v2.3)**: `handleFileSelect` uses `setTimeout` to schedule `editorRef.current?.commands.setContent(newHtml)` after Tiptap re-renders, preventing stale document warnings when switching files
 
 ### ChatPanel (`components/ChatPanel.tsx`)
 - Message list with user/AI distinction
@@ -393,6 +393,10 @@ This page was not deleted to allow easy reversion if user-configurable LLM setti
 
 - [x] **Misleading expand/collapse arrows on folders** — File explorer showed expand/collapse chevron arrows next to folders that toggled the icon but didn't actually load or display nested children, making them purely cosmetic and confusing. **Fix**: Removed the expand/collapse arrows entirely. Folders now use click-to-navigate only (flat list view). Removed `expandedFolders` state, `toggleFolder` callback, and `ChevronDown` import from `FileExplorer.tsx`.
 
+### Bugs Fixed (v2.3)
+
+- [x] **Editor not refreshing when switching files** — When clicking a different file in the explorer, `fileContent` state updated but the Tiptap editor displayed the previous file's content until the user clicked inside. **Root cause**: `handleFileSelect` called `editor.commands.setContent(newContent)` immediately after setting `fileContent` state, but React had not yet re-rendered the component with the new props, so Tiptap operated on a stale React fiber tree. **Fix**: Wrap `setContent` in `setTimeout(..., 0)` to schedule it for the next microtask, giving React time to complete its re-render cycle before Tiptap processes the command.
+
 ### Remaining (Future Enhancements)
 
 - [ ] Drag-and-drop file reordering in explorer
@@ -481,8 +485,6 @@ Nymphs-Brain/bin/lms-stop     # Stop LLM server
 
 ---
 
----
-
 ## Git Workflow
 
 **Always commit and push changes to the `rauty` branch.** Never push directly to `main`.
@@ -496,7 +498,7 @@ git push origin rauty
 
 ## Changelog
 
-### v2.3 — Native HTML + Image Upload Fix + Full-Width Images (2026-04-29)
+### v2.3 — Native HTML + Image Upload Fix + Full-Width Images + Editor Refresh (2026-04-29)
 
 **Image upload fix**: `POST /api/files/upload` switched from `diskStorage` to `memoryStorage` so the `folder` form field can be read after multer finishes. File buffer is manually written to `assets/{folder}/filename.png`. Added `saveImageFromBuffer()` to `fileService.js`.
 
@@ -504,13 +506,13 @@ git push origin rauty
 
 **Full-width images**: Images in editor now render at `width: 100%` by default (fill editor width). Click any image to toggle a compact `.reduced` style (`max-width: 300px`). Toggle persists in saved HTML.
 
-**Files modified**:
-- `server/src/routes/files.js` — memoryStorage + manual buffer write
-- `server/src/services/fileService.js` — new `saveImageFromBuffer()` function
-- `client/src/components/DocumentEditor.tsx` — native HTML, removed conversion functions, click-to-toggle reduced
-- `client/src/styles/globals.css` — `width: 100%` images, `.reduced` class
+**Editor refresh fix**: `handleFileSelect` wraps `setContent` in `setTimeout(..., 0)` so React completes its re-render before Tiptap processes the command. Added `editorKey` prop to force editor remount on file change. Fixed TypeScript type mismatch (`{ type: 'html' | ... }` vs `{ value: 'html' | ... }`). Added `useRef` in App.tsx for stable callback references.
 
-###
+**Files modified**:
+- `client/src/components/DocumentEditor.tsx` — native HTML, removed conversion functions, click-to-toggle reduced, full-width images
+- `client/src/styles/globals.css` — `width: 100%` images, `.reduced` class
+- `client/src/App.tsx` — `editorKey`, `useRef` for stable callbacks, TypeScript type fixes
+- `client/src/hooks/useFiles.ts` — `uploadImageFile` derives folder from `currentPath`
 
 ### v2.2 — Tiptap WYSIWYG Rich Text Editor (2026-04-29)
 
@@ -529,29 +531,10 @@ git push origin rauty
 - **Image storage**: Images uploaded to the same folder as the current document (via `useFiles.uploadImageFile` which derives the parent folder from `currentPath`)
 - **Document type selector**: Dropdown in toolbar — HTML (default), Plain Text, JSON. Auto-detected from file extension (.md/.txt/.mdown/.txt → html, .json → json, .txt → plaintext)
 - **View modes**: Edit-only, Split-view (editor + live preview side-by-side), Preview-only
-- **Native HTML**: Editor saves and loads raw HTML directly (no conversion). Click any image to toggle full-width ↔ compact view.
-
-**API Changes** (`client/src/services/api.ts`):
-- Added `LLMSettings` interface
-- Added `getSettings()`, `saveSettings()`, `testConnection()`, `saveUserSettings()` API functions
-
-**Hook Changes** (`client/src/hooks/useLLM.ts`):
-- Extended with `settings` state (loaded from server on mount)
-- Added `updateSettings()`, `saveUserSettings()`, `testConn()`, `loadModels()` methods
-- Added `models[]` and `testing` state
-
-**Hook Changes** (`client/src/hooks/useFiles.ts`):
-- `uploadImageFile` now derives the parent folder from `currentPath` and passes it to `uploadImage(file, folder)`
 
 **CSS Changes** (`client/src/styles/globals.css`):
 - Full `.tiptap` editor styling: headings, lists, code blocks, blockquotes, tables, images, links, placeholder
 - `.prose` preview styling for tables and images
-
-**Server Changes Required** (see SERVER handoff):
-- `POST /api/files/upload` now accepts optional `folder` form field to save image in a specific subdirectory
-- `fileService.saveImage()` updated to accept `folder` parameter
-
-###
 
 ### v2.1.2 — File Explorer: Remove Expand/Collapse Arrows (2026-04-29)
 
