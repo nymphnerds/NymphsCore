@@ -379,6 +379,49 @@ Nymphs-Brain/bin/lms-stop
 
 ---
 
+## Git Workflow
+
+**Always commit and push changes to the `rauty` branch.** Never push directly to `main`.
+
+```bash
+git checkout rauty
+git add -A
+git commit -m "descriptive commit message"
+git push origin rauty
+```
+
+## Changelog
+
+### v2.3 — Image Upload Fix + Full-Width Images (2026-04-29)
+
+**Image upload fix**: `POST /api/files/upload` switched from `multer.diskStorage` to `multer.memoryStorage` so the `folder` form field can be read after multer finishes parsing. File buffer is manually written to `assets/{folder}/filename.png` using `fs.writeFile()`.
+
+**New function**: Added `saveImageFromBuffer(username, buffer, originalname, folderPath, mimeType)` to `fileService.js` to handle writing the in-memory file buffer to the correct user subdirectory.
+
+**Full-width images** (client-side): Images in the editor now render at `width: 100%` by default. Click any image to toggle a compact `.reduced` style (`max-width: 300px`). Toggle persists in saved HTML.
+
+**Files modified**:
+- `server/src/routes/files.js` — memoryStorage + manual buffer write
+- `server/src/services/fileService.js` — new `saveImageFromBuffer()` function
+
+###
+
+### v2.2 — Image Upload with Folder Support (2026-04-29)
+
+`POST /api/files/upload` now accepts an optional `folder` form field to save the image in a specific subdirectory within the user's assets folder. `fileService.saveImage()` updated to create and write to `assets/{folder}/` subdirectories.
+
+### v2.1 — Simplified LLM Config (2026-04-29)
+
+LLM server configuration is now hardcoded in `config.js`. All users share the same LLM settings.
+
+### v2.0 — Multi-user Authentication (2026-04-29)
+
+Username-only passwordless login with JWT tokens. Per-user workspace isolation.
+
+### v1.0 — Initial Release
+
+Express REST API with file CRUD, LLM proxy, and static file serving.
+
 ## Design Principles
 
 1. **Local-First** — All data stays on the user's machine

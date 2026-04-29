@@ -168,9 +168,9 @@ The main app uses a VSCode-inspired layout with three resizable panels:
 - **Images**: Insert via toolbar button (`<input type="file">`), drag-and-drop, or clipboard paste
 - **Image upload flow**: `handleImageUpload` → `onImageUpload(file)` (parent prop from `useFiles.uploadImageFile`) → `uploadImage(file, folder)` API → `POST /api/files/upload` (multipart FormData) → server returns `{ path, url }` → `editor.commands.setImage({ src: url, alt: fileName })`
 - **Image storage**: Images uploaded to same folder as current document (`useFiles.uploadImageFile` derives parent folder from `currentPath`)
-- **Document type selector**: Dropdown — Markdown (default), Plain Text, JSON. Auto-detected from file extension (.md/.txt → markdown, .json → json)
+- **Document type selector**: Dropdown — HTML (default), Plain Text, JSON. Auto-detected from file extension (.md/.txt → html, .json → json)
 - **View modes**: Edit-only, Split-view (editor + live preview), Preview-only
-- **Markdown sync (v2.2, to be removed in v2.3)**: On edit, `editor.getHTML()` → `htmlToMarkdown()` → `onChange(md)`. On load, `content` → `markdownToHtml()` → `editor.commands.setContent(html)`.
+- **Native HTML storage (v2.3)**: On edit, `onChange(editor.getHTML())` saves raw HTML. On load, `editor.commands.setContent(content)` loads raw HTML. No conversion. Click any image to toggle between full-width and compact (`max-width: 300px`) — toggle class persisted in saved HTML.
 - **Preview panel**: `editor.getHTML()` rendered via `dangerouslySetInnerHTML` in `RenderedPreview` component
 - Create File button — prompts for filename, creates in current explorer folder
 
@@ -483,7 +483,34 @@ Nymphs-Brain/bin/lms-stop     # Stop LLM server
 
 ---
 
+## Git Workflow
+
+**Always commit and push changes to the `rauty` branch.** Never push directly to `main`.
+
+```bash
+git checkout rauty
+git add -A
+git commit -m "descriptive commit message"
+git push origin rauty
+```
+
 ## Changelog
+
+### v2.3 — Native HTML + Image Upload Fix + Full-Width Images (2026-04-29)
+
+**Image upload fix**: `POST /api/files/upload` switched from `diskStorage` to `memoryStorage` so the `folder` form field can be read after multer finishes. File buffer is manually written to `assets/{folder}/filename.png`. Added `saveImageFromBuffer()` to `fileService.js`.
+
+**Native HTML storage**: Removed `htmlToMarkdown()` / `markdownToHtml()` round-trip conversion. DocumentEditor now saves and loads raw HTML directly via `editor.getHTML()` / `editor.commands.setContent(content)`. Document type renamed from "Markdown" to "HTML" in selector.
+
+**Full-width images**: Images in editor now render at `width: 100%` by default (fill editor width). Click any image to toggle a compact `.reduced` style (`max-width: 300px`). Toggle persists in saved HTML.
+
+**Files modified**:
+- `server/src/routes/files.js` — memoryStorage + manual buffer write
+- `server/src/services/fileService.js` — new `saveImageFromBuffer()` function
+- `client/src/components/DocumentEditor.tsx` — native HTML, removed conversion functions, click-to-toggle reduced
+- `client/src/styles/globals.css` — `width: 100%` images, `.reduced` class
+
+###
 
 ### v2.2 — Tiptap WYSIWYG Rich Text Editor (2026-04-29)
 
@@ -500,9 +527,9 @@ Nymphs-Brain/bin/lms-stop     # Stop LLM server
 - **Tables**: Insert 3x3 table with header row via toolbar button
 - **Images**: Insert via toolbar button, drag-and-drop, or clipboard paste
 - **Image storage**: Images uploaded to the same folder as the current document (via `useFiles.uploadImageFile` which derives the parent folder from `currentPath`)
-- **Document type selector**: Dropdown in toolbar — Markdown (default), Plain Text, JSON. Auto-detected from file extension (.md/.txt/.mdown/.txt → markdown, .json → json, .txt → plaintext)
+- **Document type selector**: Dropdown in toolbar — HTML (default), Plain Text, JSON. Auto-detected from file extension (.md/.txt/.mdown/.txt → html, .json → json, .txt → plaintext)
 - **View modes**: Edit-only, Split-view (editor + live preview side-by-side), Preview-only
-- **Markdown sync**: On save, editor HTML is converted to Markdown via `htmlToMarkdown()`. On load, Markdown is converted to HTML via `markdownToHtml()`.
+- **Native HTML**: Editor saves and loads raw HTML directly (no conversion). Click any image to toggle full-width ↔ compact view.
 
 **API Changes** (`client/src/services/api.ts`):
 - Added `LLMSettings` interface
@@ -524,31 +551,7 @@ Nymphs-Brain/bin/lms-stop     # Stop LLM server
 - `POST /api/files/upload` now accepts optional `folder` form field to save image in a specific subdirectory
 - `fileService.saveImage()` updated to accept `folder` parameter
 
-### v2.3 — Native HTML + Image Upload Fix (PLANNED)
-
-**Bug: Inserted images appear broken (no src URL)**
-- **Root cause**: `POST /api/files/upload` uses `multer.diskStorage` to save directly to assets root (`getUserAssetsDir(username)`), ignoring the `folder` form field parameter. The `folder` is only used in `fileService.saveImage()` to build the response URL, not the actual save location. Because multer must know the destination before parsing the request body, `req.body.folder` isn't available when `createUploadMiddleware()` runs.
-- **Result**: File saved to `assets/filename.png` but URL returned is `/api/files/images/Misc/filename.png` → 404 when browser tries to load.
-- **Fix plan**: Switch upload route to `multer.memoryStorage()` → after multer finishes, read `req.body.folder` → manually write file buffer to `assets/{folder}/filename.png` using `fs.writeFile()` → return correct URL.
-
-**Feature: Native HTML storage (remove Markdown conversion)**
-- Remove `htmlToMarkdown()` and `markdownToHtml()` functions from `DocumentEditor.tsx`
-- `onUpdate`: `onChange(editor.getHTML())` — save raw HTML directly
-- `useEffect` sync: `editor.commands.setContent(content)` — load raw HTML directly
-- Preview: `editor.getHTML()` rendered directly (already the case via `RenderedPreview`)
-- Rename "Markdown" document type to "HTML" in selector dropdown
-- Files will store HTML content natively (cleaner, no lossy conversion)
-
-**Files to modify:**
-1. `server/src/routes/files.js` — Fix upload to use memoryStorage + manual fs.writeFile with folder support
-2. `server/src/services/fileService.js` — Add `saveImageFromBuffer(username, buffer, filename, folderPath, mimeType)` function
-3. `client/src/components/DocumentEditor.tsx` — Remove htmlToMarkdown/markdownToHtml, use native HTML, rename doc type
-
-**Next steps after condense:**
-1. Fix image upload (server: files.js + fileService.js)
-2. Update DocumentEditor to native HTML (client: DocumentEditor.tsx)
-3. Build verification (TypeScript + Vite)
-4. Changelog update + push to GitHub
+###
 
 ### v2.1.2 — File Explorer: Remove Expand/Collapse Arrows (2026-04-29)
 
