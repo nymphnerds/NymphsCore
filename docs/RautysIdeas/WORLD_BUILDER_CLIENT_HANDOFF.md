@@ -162,14 +162,7 @@ The main app uses a VSCode-inspired layout with three resizable panels:
 - Sorted: folders first, then alphabetical
 - Active file highlighting
 
-### DocumentEditor (`components/DocumentEditor.tsx`, ~550 lines — v2.2)
-- **Tiptap v2** rich text editor (`@tiptap/react` + `starter-kit` + extensions)
-- **Formatting toolbar**: Bold, Italic, Underline, H1/H2/H3, bullet list, ordered list, table insert, image insert
-- **Images**: Insert via toolbar button (`<input type="file">`), drag-and-drop, or clipboard paste
-- **Image upload flow**: `handleImageUpload` → `onImageUpload(file)` (parent prop from `useFiles.uploadImageFile`) → `uploadImage(file, folder)` API → `POST /api/files/upload` (multipart FormData) → server returns `{ path, url }` → `editor.commands.setImage({ src: url, alt: fileName })`
-- **Image storage**: Images uploaded to same folder as current document (`useFiles.uploadImageFile` derives parent folder from `currentPath`)
-- **Document type selector**: Dropdown — HTML (default), Plain Text, JSON. Auto-detected from file extension (.md/.txt → html, .json → json)
-- **View modes**: Edit-only, Split-view (editor + live preview), Preview-only
+###
 - **Native HTML storage (v2.3)**: On edit, `onChange(editor.getHTML())` saves raw HTML. On load, `editor.commands.setContent(content)` loads raw HTML. No conversion. Click any image to toggle between full-width and compact (`max-width: 300px`) — toggle class persisted in saved HTML.
 - **Preview panel**: `editor.getHTML()` rendered via `dangerouslySetInnerHTML` in `RenderedPreview` component
 - Create File button — prompts for filename, creates in current explorer folder
@@ -498,7 +491,7 @@ git push origin rauty
 
 ## Changelog
 
-### v2.3 — Native HTML + Image Upload Fix + Full-Width Images + Editor Refresh (2026-04-29)
+### v2.4 — General
 
 **Image upload fix**: `POST /api/files/upload` switched from `diskStorage` to `memoryStorage` so the `folder` form field can be read after multer finishes. File buffer is manually written to `assets/{folder}/filename.png`. Added `saveImageFromBuffer()` to `fileService.js`.
 
