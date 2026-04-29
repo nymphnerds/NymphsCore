@@ -86,6 +86,11 @@ public partial class MainWindow : Window
             return RuntimeLogListBox;
         }
 
+        if (_viewModel?.IsZImageTrainerStep == true)
+        {
+            return ZImageTrainerLogListBox;
+        }
+
         return LogListBox;
     }
 

@@ -12,6 +12,7 @@ public sealed class InstallerWorkflowService
     public const string ManagedLinuxUser = "nymph";
     public const string WslAvailabilityCheckKey = "wsl_availability";
     public const string ExistingWslDistrosCheckKey = "existing_wsl_distros";
+    public const string GuideUrl = "https://nymphnerds.github.io/NymphsCore/home/guides.html";
     public const string ReadmeUrl = "https://github.com/nymphnerds/NymphsCore/blob/main/Manager/README.md";
     public const string FootprintDocUrl = "https://github.com/nymphnerds/NymphsCore/blob/main/docs/FOOTPRINT.md";
     public const string AddonGuideUrl = "https://github.com/nymphnerds/NymphsCore/blob/main/docs/BLENDER_ADDON_USER_GUIDE.md";
@@ -413,6 +414,383 @@ public sealed class InstallerWorkflowService
         }
     }
 
+    public async Task RunZImageTrainerInstallAsync(
+        InstallSettings settings,
+        IProgress<string> progress,
+        CancellationToken cancellationToken)
+    {
+        var trainerScript = RequireScript("install_zimage_trainer.sh");
+        var wslTrainerScriptPath = ConvertWindowsPathToWsl(trainerScript)
+            ?? throw new InvalidOperationException($"Could not convert script path for WSL: {trainerScript}");
+
+        var bashCommand =
+            "set -euo pipefail; " +
+            $"export HOME={ToBashSingleQuoted($"/home/{settings.LinuxUser}")}; " +
+            $"export USER={ToBashSingleQuoted(settings.LinuxUser)}; " +
+            $"export LOGNAME={ToBashSingleQuoted(settings.LinuxUser)}; " +
+            "export ZIMAGE_TRAINER_ROOT=\"$HOME/ZImage-Trainer\"; " +
+            "export ZIMAGE_DATASET_ROOT=\"$HOME/ZImage-Trainer/datasets\"; " +
+            "export ZIMAGE_LORA_ROOT=\"$HOME/ZImage-Trainer/loras\"; " +
+            $"bash {ToBashSingleQuoted(wslTrainerScriptPath)}";
+
+        progress.Report("Z-Image Trainer: installing DiffSynth-Studio sidecar in an isolated venv.");
+        progress.Report("Z-Image Trainer: default method is Turbo Differential LoRA with the Turbo training adapter.");
+
+        var result = await RunWslBashAsync(settings, bashCommand, progress, cancellationToken).ConfigureAwait(false);
+        if (result.ExitCode != 0)
+        {
+            throw new InvalidOperationException("Z-Image Trainer install failed.");
+        }
+
+        await SyncZImageTrainerSupportFilesAsync(settings, progress, cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task<ZImageTrainerStatus> GetZImageTrainerStatusAsync(
+        InstallSettings settings,
+        IProgress<string>? progress,
+        CancellationToken cancellationToken)
+    {
+        var statusScript = RequireScript("zimage_trainer_status.sh");
+        var wslStatusScriptPath = ConvertWindowsPathToWsl(statusScript)
+            ?? throw new InvalidOperationException($"Could not convert script path for WSL: {statusScript}");
+
+        var bashCommand =
+            "set -euo pipefail; " +
+            $"export HOME={ToBashSingleQuoted($"/home/{settings.LinuxUser}")}; " +
+            $"export USER={ToBashSingleQuoted(settings.LinuxUser)}; " +
+            $"export LOGNAME={ToBashSingleQuoted(settings.LinuxUser)}; " +
+            "export ZIMAGE_TRAINER_ROOT=\"$HOME/ZImage-Trainer\"; " +
+            "export ZIMAGE_DATASET_ROOT=\"$HOME/ZImage-Trainer/datasets\"; " +
+            "export ZIMAGE_LORA_ROOT=\"$HOME/ZImage-Trainer/loras\"; " +
+            $"bash {ToBashSingleQuoted(wslStatusScriptPath)}";
+
+        progress?.Report("Checking Z-Image Trainer sidecar status...");
+        var result = await RunWslBashAsync(settings, bashCommand, progress, cancellationToken).ConfigureAwait(false);
+        if (result.ExitCode != 0)
+        {
+            throw new InvalidOperationException("Z-Image Trainer status check failed.");
+        }
+
+        return ParseZImageTrainerStatus(result.CombinedOutput);
+    }
+
+    public async Task CreateZImageTrainerJobAsync(
+        InstallSettings settings,
+        string datasetName,
+        string loraName,
+        string trainingType,
+        string trainingAmount,
+        IProgress<string> progress,
+        CancellationToken cancellationToken)
+    {
+        var normalizedDataset = NormalizeTrainerName(datasetName, "dataset");
+        var normalizedLora = NormalizeTrainerName(loraName, "LoRA");
+        var datasetPath = $"/home/{settings.LinuxUser}/ZImage-Trainer/datasets/{normalizedDataset}";
+        var jobPath = $"/home/{settings.LinuxUser}/ZImage-Trainer/jobs/{normalizedLora}.sh";
+        var metadataPath = $"{datasetPath}/metadata.csv";
+        await SyncZImageTrainerSupportFilesAsync(settings, progress, cancellationToken).ConfigureAwait(false);
+        var adapterPath = await EnsureZImageTrainerTrainingAdapterAsync(settings, progress, cancellationToken).ConfigureAwait(false);
+        var metadataStatus = await PrepareZImageTrainerMetadataAsync(
+            settings,
+            normalizedDataset,
+            progress,
+            cancellationToken).ConfigureAwait(false);
+
+        var jobPreset = ResolveZImageTrainerPreset(trainingType, trainingAmount);
+        var jobScript = BuildZImageTrainerJobScript(settings.LinuxUser, normalizedDataset, normalizedLora, adapterPath, jobPreset);
+        const string jobHeredocMarker = "__NYMPHS_ZIMAGE_JOB__";
+
+        var bashCommand =
+            "set -euo pipefail; " +
+            $"mkdir -p {ToBashSingleQuoted(datasetPath)} {ToBashSingleQuoted($"/home/{settings.LinuxUser}/ZImage-Trainer/jobs")} {ToBashSingleQuoted($"/home/{settings.LinuxUser}/ZImage-Trainer/loras")}; " +
+            $"cat > {ToBashSingleQuoted(jobPath)} <<'{jobHeredocMarker}'\n" +
+            $"{jobScript}\n" +
+            $"{jobHeredocMarker}\n" +
+            $"chmod +x {ToBashSingleQuoted(jobPath)}; " +
+            $"echo 'Created training job: {jobPath}'; " +
+            $"echo 'Dataset folder: {datasetPath}'; " +
+            $"echo 'Metadata file: {metadataPath}'; " +
+            $"echo 'Images found: {metadataStatus.ImageCount}'; " +
+            $"echo 'Captions still blank: {metadataStatus.MissingCaptionCount}'";
+
+        progress.Report(
+            $"Creating Z-Image Trainer job '{normalizedLora}' for dataset '{normalizedDataset}' using {jobPreset.TypeLabel} / {jobPreset.AmountLabel}.");
+        var result = await RunWslBashAsync(settings, bashCommand, progress, cancellationToken).ConfigureAwait(false);
+        if (result.ExitCode != 0)
+        {
+            throw new InvalidOperationException("Z-Image Trainer job creation failed.");
+        }
+    }
+
+    public async Task RunZImageTrainerJobAsync(
+        InstallSettings settings,
+        string loraName,
+        IProgress<string> progress,
+        CancellationToken cancellationToken)
+    {
+        var normalizedLora = NormalizeTrainerName(loraName, "LoRA");
+        var runnerPath = $"/home/{settings.LinuxUser}/ZImage-Trainer/bin/ztrain-run-config";
+        var jobPath = $"/home/{settings.LinuxUser}/ZImage-Trainer/jobs/{normalizedLora}.sh";
+
+        var bashCommand =
+            "set -euo pipefail; " +
+            $"export HOME={ToBashSingleQuoted($"/home/{settings.LinuxUser}")}; " +
+            $"export USER={ToBashSingleQuoted(settings.LinuxUser)}; " +
+            $"export LOGNAME={ToBashSingleQuoted(settings.LinuxUser)}; " +
+            $"if [[ ! -x {ToBashSingleQuoted(runnerPath)} ]]; then echo 'Trainer runner missing. Repair Trainer first.'; exit 1; fi; " +
+            $"if [[ ! -f {ToBashSingleQuoted(jobPath)} ]]; then echo 'Training job not found. Create Job first.'; exit 1; fi; " +
+            $"{ToBashSingleQuoted(runnerPath)} {ToBashSingleQuoted(jobPath)}";
+
+        progress.Report($"Starting Z-Image Trainer job '{normalizedLora}'.");
+        var result = await RunWslBashAsync(settings, bashCommand, progress, cancellationToken).ConfigureAwait(false);
+        if (result.ExitCode != 0)
+        {
+            throw new InvalidOperationException("Z-Image Trainer job failed.");
+        }
+    }
+
+    public async Task EnsureZImageTrainerPicturesFolderAsync(
+        InstallSettings settings,
+        string loraName,
+        IProgress<string>? progress,
+        CancellationToken cancellationToken)
+    {
+        var normalizedLora = NormalizeTrainerName(loraName, "LoRA");
+        var datasetPath = $"/home/{settings.LinuxUser}/ZImage-Trainer/datasets/{normalizedLora}";
+        var bashCommand =
+            "set -euo pipefail; " +
+            $"mkdir -p {ToBashSingleQuoted(datasetPath)}; " +
+            $"echo 'Pictures folder ready: {datasetPath}'";
+
+        var result = await RunWslBashAsync(settings, bashCommand, progress, cancellationToken).ConfigureAwait(false);
+        if (result.ExitCode != 0)
+        {
+            throw new InvalidOperationException("Could not create Z-Image Trainer pictures folder.");
+        }
+    }
+
+    public async Task<ZImageTrainerMetadataStatus> PrepareZImageTrainerMetadataAsync(
+        InstallSettings settings,
+        string datasetName,
+        IProgress<string>? progress,
+        CancellationToken cancellationToken)
+    {
+        var normalizedDataset = NormalizeTrainerName(datasetName, "dataset");
+        var datasetPath = $"/home/{settings.LinuxUser}/ZImage-Trainer/datasets/{normalizedDataset}";
+        var metadataPath = $"{datasetPath}/metadata.csv";
+        var bootstrapCommand =
+            "set -euo pipefail; " +
+            $"mkdir -p {ToBashSingleQuoted(datasetPath)}; " +
+            $"touch {ToBashSingleQuoted(metadataPath)}";
+
+        var bootstrapResult = await RunWslBashAsync(settings, bootstrapCommand, progress: null, cancellationToken).ConfigureAwait(false);
+        if (bootstrapResult.ExitCode != 0)
+        {
+            throw new InvalidOperationException("Could not prepare the captions file.");
+        }
+
+        var datasetWindowsPath = ToWindowsWslPath(settings, datasetPath);
+        var metadataWindowsPath = ToWindowsWslPath(settings, metadataPath);
+        Directory.CreateDirectory(datasetWindowsPath);
+
+        var existingCaptions = ReadTrainerMetadata(metadataWindowsPath);
+        var rows = Directory.EnumerateFiles(datasetWindowsPath, "*", SearchOption.TopDirectoryOnly)
+            .Where(static path => IsSupportedTrainerImageFile(Path.GetExtension(path)))
+            .Select(Path.GetFileName)
+            .Where(static fileName => !string.IsNullOrWhiteSpace(fileName))
+            .OrderBy(static fileName => fileName, StringComparer.OrdinalIgnoreCase)
+            .Select(fileName =>
+            {
+                existingCaptions.TryGetValue(fileName!, out var caption);
+                return new KeyValuePair<string, string>(fileName!, caption ?? string.Empty);
+            })
+            .ToList();
+
+        WriteTrainerMetadata(metadataWindowsPath, rows);
+
+        var missingCaptionCount = rows.Count(row => string.IsNullOrWhiteSpace(row.Value));
+        progress?.Report(
+            $"Captions file ready: {metadataPath} ({rows.Count} image(s), {missingCaptionCount} caption(s) still blank).");
+
+        return new ZImageTrainerMetadataStatus(rows.Count, missingCaptionCount, datasetPath, metadataPath);
+    }
+
+    private async Task<string> EnsureZImageTrainerTrainingAdapterAsync(
+        InstallSettings settings,
+        IProgress<string>? progress,
+        CancellationToken cancellationToken)
+    {
+        var adapterRepoDir = $"/home/{settings.LinuxUser}/ZImage-Trainer/adapters/zimage_turbo_training_adapter";
+        var adapterPathFile = $"{adapterRepoDir}/selected_adapter_path.txt";
+        var trainerPython = $"/home/{settings.LinuxUser}/ZImage-Trainer/.venv-ztrain/bin/python";
+        var bashCommand =
+            "set -euo pipefail; " +
+            $"mkdir -p {ToBashSingleQuoted(adapterRepoDir)}; " +
+            $"if [[ ! -x {ToBashSingleQuoted(trainerPython)} ]]; then echo 'Trainer Python missing: {trainerPython}. Repair Trainer first.' >&2; exit 1; fi; " +
+            $"if [[ -f {ToBashSingleQuoted(adapterPathFile)} ]]; then " +
+            $"  IFS= read -r SELECTED_ADAPTER < {ToBashSingleQuoted(adapterPathFile)} || true; " +
+            "  SELECTED_ADAPTER=\"${SELECTED_ADAPTER%$'\\r'}\"; " +
+            "  if [[ -n \"$SELECTED_ADAPTER\" && -f \"$SELECTED_ADAPTER\" ]]; then " +
+            "    echo \"Turbo training adapter already ready: $SELECTED_ADAPTER\"; " +
+            "    exit 0; " +
+            "  fi; " +
+            "fi; " +
+            $"ADAPTER_REPO_DIR={ToBashSingleQuoted(adapterRepoDir)} ADAPTER_PATH_FILE={ToBashSingleQuoted(adapterPathFile)} {ToBashSingleQuoted(trainerPython)} - <<'PYEOF'\n" +
+            "import os\n" +
+            "from pathlib import Path\n" +
+            "from huggingface_hub import snapshot_download\n" +
+            "adapter_dir = Path(os.environ['ADAPTER_REPO_DIR'])\n" +
+            "path_file = Path(os.environ['ADAPTER_PATH_FILE'])\n" +
+            "adapter_dir.mkdir(parents=True, exist_ok=True)\n" +
+            "snapshot_download(\n" +
+            "    repo_id='ostris/zimage_turbo_training_adapter',\n" +
+            "    local_dir=str(adapter_dir),\n" +
+            "    allow_patterns=['*.safetensors', '*.bin', '*.pt', '*.pth', '*.ckpt'],\n" +
+            ")\n" +
+            "candidates = sorted(\n" +
+            "    [\n" +
+            "        path for path in adapter_dir.rglob('*')\n" +
+            "        if path.is_file() and path.suffix.lower() in {'.safetensors', '.bin', '.pt', '.pth', '.ckpt'}\n" +
+            "    ],\n" +
+            "    key=lambda path: (\n" +
+            "        0 if path.suffix.lower() == '.safetensors' else 1,\n" +
+            "        0 if path.parent == adapter_dir else 1,\n" +
+            "        len(path.name),\n" +
+            "        str(path).lower(),\n" +
+            "    ),\n" +
+            ")\n" +
+            "if not candidates:\n" +
+            "    raise SystemExit('No adapter weight file was downloaded for ostris/zimage_turbo_training_adapter')\n" +
+            "selected = candidates[0].resolve()\n" +
+            "path_file.write_text(str(selected) + '\\n', encoding='utf-8')\n" +
+            "print(f'Turbo training adapter ready: {selected}', flush=True)\n" +
+            "PYEOF";
+
+        progress?.Report("Ensuring Turbo training adapter is ready for the trainer.");
+        var result = await RunWslBashAsync(settings, bashCommand, progress, cancellationToken).ConfigureAwait(false);
+        if (result.ExitCode != 0)
+        {
+            throw new InvalidOperationException("Could not prepare the Turbo training adapter.");
+        }
+
+        var selectedLine = result.CombinedOutput
+            .Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .LastOrDefault(line => line.StartsWith("Turbo training adapter", StringComparison.OrdinalIgnoreCase));
+
+        if (!string.IsNullOrWhiteSpace(selectedLine))
+        {
+            var separatorIndex = selectedLine.IndexOf(':');
+            if (separatorIndex >= 0)
+            {
+                var selectedPath = selectedLine[(separatorIndex + 1)..].Trim();
+                if (!string.IsNullOrWhiteSpace(selectedPath))
+                {
+                    return selectedPath;
+                }
+            }
+        }
+
+        return $"{adapterRepoDir}/zimage_turbo_training_adapter_v1.safetensors";
+    }
+
+    public async Task<ZImageTrainerMetadataStatus> DraftZImageTrainerCaptionsAsync(
+        InstallSettings settings,
+        string datasetName,
+        string trainingType,
+        string captionMode,
+        IProgress<string> progress,
+        CancellationToken cancellationToken)
+    {
+        var normalizedDataset = NormalizeTrainerName(datasetName, "dataset");
+        var normalizedTrainingType = string.Equals(trainingType, "style", StringComparison.OrdinalIgnoreCase)
+            ? "style"
+            : "character";
+        var normalizedCaptionMode = string.Equals(captionMode, "overwrite_all", StringComparison.OrdinalIgnoreCase)
+            ? "overwrite_all"
+            : "fill_blanks";
+
+        await SyncZImageTrainerSupportFilesAsync(settings, progress, cancellationToken).ConfigureAwait(false);
+
+        var metadataStatus = await PrepareZImageTrainerMetadataAsync(
+            settings,
+            normalizedDataset,
+            progress,
+            cancellationToken).ConfigureAwait(false);
+
+        if (metadataStatus.ImageCount == 0)
+        {
+            throw new InvalidOperationException("Add training pictures first.");
+        }
+
+        var captionScriptPath = $"/home/{settings.LinuxUser}/ZImage-Trainer/bin/zimage-caption-brain.sh";
+        var bashCommand =
+            "set -euo pipefail; " +
+            $"export HOME={ToBashSingleQuoted($"/home/{settings.LinuxUser}")}; " +
+            $"export USER={ToBashSingleQuoted(settings.LinuxUser)}; " +
+            $"export LOGNAME={ToBashSingleQuoted(settings.LinuxUser)}; " +
+            $"export BRAIN_INSTALL_ROOT={ToBashSingleQuoted(settings.BrainInstallRoot)}; " +
+            $"export ZIMAGE_DATASET_DIR={ToBashSingleQuoted(metadataStatus.DatasetPath)}; " +
+            $"export ZIMAGE_METADATA_PATH={ToBashSingleQuoted(metadataStatus.MetadataPath)}; " +
+            $"export ZIMAGE_CAPTION_MODE={ToBashSingleQuoted(normalizedCaptionMode)}; " +
+            $"export ZIMAGE_TRAINING_FOCUS={ToBashSingleQuoted(normalizedTrainingType)}; " +
+            $"bash {ToBashSingleQuoted(captionScriptPath)}";
+
+        progress.Report(
+            $"Caption Brain: drafting captions for {metadataStatus.ImageCount} image(s) using {normalizedTrainingType} guidance.");
+
+        var result = await RunWslBashAsync(settings, bashCommand, progress, cancellationToken).ConfigureAwait(false);
+        if (result.ExitCode != 0)
+        {
+            throw new InvalidOperationException("Caption Brain drafting failed.");
+        }
+
+        return await PrepareZImageTrainerMetadataAsync(
+            settings,
+            normalizedDataset,
+            progress,
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task SyncZImageTrainerSupportFilesAsync(
+        InstallSettings settings,
+        IProgress<string>? progress,
+        CancellationToken cancellationToken)
+    {
+        var managedTrainScript = RequireScript("ztrain_zimage.py");
+        var wslManagedTrainScriptPath = ConvertWindowsPathToWsl(managedTrainScript)
+            ?? throw new InvalidOperationException($"Could not convert script path for WSL: {managedTrainScript}");
+        var managedRunnerScript = RequireScript("ztrain_run_config.sh");
+        var wslManagedRunnerScriptPath = ConvertWindowsPathToWsl(managedRunnerScript)
+            ?? throw new InvalidOperationException($"Could not convert script path for WSL: {managedRunnerScript}");
+        var captionBrainScript = RequireScript("zimage_caption_brain.sh");
+        var wslCaptionBrainScriptPath = ConvertWindowsPathToWsl(captionBrainScript)
+            ?? throw new InvalidOperationException($"Could not convert script path for WSL: {captionBrainScript}");
+        var captionBrainPythonScript = RequireScript("zimage_caption_brain.py");
+        var wslCaptionBrainPythonScriptPath = ConvertWindowsPathToWsl(captionBrainPythonScript)
+            ?? throw new InvalidOperationException($"Could not convert script path for WSL: {captionBrainPythonScript}");
+        var trainerEntrypointPath = $"/home/{settings.LinuxUser}/ZImage-Trainer/bin/ztrain-zimage.py";
+        var trainerRunnerPath = $"/home/{settings.LinuxUser}/ZImage-Trainer/bin/ztrain-run-config";
+        var captionShellTargetPath = $"/home/{settings.LinuxUser}/ZImage-Trainer/bin/zimage-caption-brain.sh";
+        var captionPythonTargetPath = $"/home/{settings.LinuxUser}/ZImage-Trainer/bin/zimage-caption-brain.py";
+        var bashCommand =
+            "set -euo pipefail; " +
+            $"mkdir -p {ToBashSingleQuoted($"/home/{settings.LinuxUser}/ZImage-Trainer/bin")}; " +
+            $"install -m 755 {ToBashSingleQuoted(wslManagedTrainScriptPath)} {ToBashSingleQuoted(trainerEntrypointPath)}; " +
+            $"install -m 755 {ToBashSingleQuoted(wslManagedRunnerScriptPath)} {ToBashSingleQuoted(trainerRunnerPath)}; " +
+            $"install -m 755 {ToBashSingleQuoted(wslCaptionBrainScriptPath)} {ToBashSingleQuoted(captionShellTargetPath)}; " +
+            $"install -m 755 {ToBashSingleQuoted(wslCaptionBrainPythonScriptPath)} {ToBashSingleQuoted(captionPythonTargetPath)}; " +
+            $"echo 'Managed trainer entrypoint synced: {trainerEntrypointPath}'; " +
+            $"echo 'Managed trainer runner synced: {trainerRunnerPath}'; " +
+            $"echo 'Caption Brain helper synced: {captionShellTargetPath}'; " +
+            $"echo 'Caption Brain client synced: {captionPythonTargetPath}'";
+
+        var result = await RunWslBashAsync(settings, bashCommand, progress, cancellationToken).ConfigureAwait(false);
+        if (result.ExitCode != 0)
+        {
+            throw new InvalidOperationException("Could not sync managed Z-Image trainer support files.");
+        }
+    }
+
     public async Task<string> GetNymphsBrainStatusAsync(
         InstallSettings settings,
         CancellationToken cancellationToken)
@@ -740,6 +1118,307 @@ public sealed class InstallerWorkflowService
             isRunning && tps == "-" ? "Waiting" : tps);
     }
 
+    private static ZImageTrainerStatus ParseZImageTrainerStatus(string output)
+    {
+        var values = output
+            .Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(line => line.Split('=', 2))
+            .Where(parts => parts.Length == 2)
+            .ToDictionary(parts => parts[0], parts => parts[1], StringComparer.OrdinalIgnoreCase);
+
+        var installState = ValueOrDash(values.GetValueOrDefault("ZIMAGE_TRAINER_INSTALLED"));
+        var repoExists = IsYes(values.GetValueOrDefault("ZIMAGE_TRAINER_REPO"));
+        var venvExists = IsYes(values.GetValueOrDefault("ZIMAGE_TRAINER_VENV"));
+        var datasetRootExists = IsYes(values.GetValueOrDefault("ZIMAGE_TRAINER_DATASET_ROOT"));
+        var outputRootExists = IsYes(values.GetValueOrDefault("ZIMAGE_TRAINER_OUTPUT_ROOT"));
+        var running = IsYes(values.GetValueOrDefault("ZIMAGE_TRAINER_RUNNING"));
+        var loraCount = ParseNonNegativeInt(values.GetValueOrDefault("ZIMAGE_TRAINER_LORAS_FOUND"));
+        var datasetCount = ParseNonNegativeInt(values.GetValueOrDefault("ZIMAGE_TRAINER_DATASETS_FOUND"));
+
+        var detail = installState switch
+        {
+            "installed" => $"DiffSynth trainer is installed. {loraCount} LoRA file(s), {datasetCount} dataset folder(s).",
+            "partial" => "Trainer files are partially present. Run Install/Repair to complete the sidecar.",
+            _ => "Trainer sidecar is not installed yet.",
+        };
+
+        if (running)
+        {
+            detail += " A training process appears to be running.";
+        }
+
+        return new ZImageTrainerStatus(
+            installState,
+            repoExists,
+            venvExists,
+            datasetRootExists,
+            outputRootExists,
+            running,
+            loraCount,
+            datasetCount,
+            detail);
+    }
+
+    private static bool IsYes(string? value) =>
+        string.Equals(value?.Trim(), "yes", StringComparison.OrdinalIgnoreCase);
+
+    private static int ParseNonNegativeInt(string? value) =>
+        int.TryParse(value, out var parsed) && parsed > 0 ? parsed : 0;
+
+    private static string NormalizeTrainerName(string value, string label)
+    {
+        var trimmed = value.Trim();
+        if (string.IsNullOrWhiteSpace(trimmed))
+        {
+            throw new ArgumentException($"Enter a {label} name.");
+        }
+
+        var builder = new StringBuilder(trimmed.Length);
+        foreach (var ch in trimmed)
+        {
+            if (char.IsLetterOrDigit(ch) || ch is '_' or '-')
+            {
+                builder.Append(ch);
+            }
+            else if (char.IsWhiteSpace(ch))
+            {
+                builder.Append('_');
+            }
+        }
+
+        var normalized = builder.ToString().Trim('_', '-');
+        if (string.IsNullOrWhiteSpace(normalized))
+        {
+            throw new ArgumentException($"Enter a {label} name using letters, numbers, spaces, dashes, or underscores.");
+        }
+
+        return normalized;
+    }
+
+    public sealed record ZImageTrainerMetadataStatus(
+        int ImageCount,
+        int MissingCaptionCount,
+        string DatasetPath,
+        string MetadataPath);
+
+    private sealed record ZImageTrainerPreset(
+        string Id,
+        string Label,
+        string TypeLabel,
+        string AmountLabel,
+        int DatasetRepeat,
+        int Epochs,
+        string LearningRate,
+        int Rank,
+        int MaxPixels,
+        string MinTimestepBoundary,
+        string MaxTimestepBoundary);
+
+    private static ZImageTrainerPreset ResolveZImageTrainerPreset(string trainingType, string trainingAmount)
+    {
+        var normalizedType = (trainingType ?? string.Empty).Trim().ToLowerInvariant();
+        var normalizedAmount = (trainingAmount ?? string.Empty).Trim().ToLowerInvariant();
+
+        return (normalizedType, normalizedAmount) switch
+        {
+            // This range is an inference from DiffSynth's existing timestep-boundary examples.
+            // We use it to emphasize the early/high-noise region for broad style/composition shifts.
+            ("style", "quick") => new ZImageTrainerPreset("style_quick", "Stylized Look / Quick Test", "Stylized Look", "Quick Test", 18, 2, "1e-4", 16, 786432, "0.0", "0.35"),
+            ("style", "strong") => new ZImageTrainerPreset("style_strong", "Stylized Look / Strong", "Stylized Look", "Strong", 60, 6, "8e-5", 32, 1048576, "0.0", "0.35"),
+            ("style", _) => new ZImageTrainerPreset("style_normal", "Stylized Look / Normal", "Stylized Look", "Normal", 40, 4, "8e-5", 32, 1048576, "0.0", "0.35"),
+            ("character", "quick") or ("concept", "quick") => new ZImageTrainerPreset("character_quick", "Character / Object / Quick Test", "Character / Object", "Quick Test", 10, 1, "1e-4", 16, 786432, "0.0", "1.0"),
+            ("character", "strong") or ("concept", "strong") => new ZImageTrainerPreset("character_strong", "Character / Object / Strong", "Character / Object", "Strong", 70, 7, "1e-4", 32, 1048576, "0.0", "1.0"),
+            ("character", _) or ("concept", _) or _ => new ZImageTrainerPreset("character_normal", "Character / Object / Normal", "Character / Object", "Normal", 50, 5, "1e-4", 32, 1048576, "0.0", "1.0"),
+        };
+    }
+
+    private static string BuildZImageTrainerJobScript(string linuxUser, string datasetName, string loraName, string adapterPath, ZImageTrainerPreset preset)
+    {
+        return $$"""
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Preset: {{preset.Label}}
+# Default method: Z-Image Turbo Differential LoRA with the Turbo training adapter.
+
+cd "/home/{{linuxUser}}/ZImage-Trainer/DiffSynth-Studio"
+source "/home/{{linuxUser}}/ZImage-Trainer/.venv-ztrain/bin/activate"
+
+if [[ ! -f "/home/{{linuxUser}}/ZImage-Trainer/bin/ztrain-zimage.py" ]]; then
+  echo "PWD: $(pwd)" >&2
+  echo "HOME: ${HOME:-<unset>}" >&2
+  echo "Managed trainer entrypoint expected at /home/{{linuxUser}}/ZImage-Trainer/bin/ztrain-zimage.py" >&2
+  echo "DiffSynth path expected at /home/{{linuxUser}}/ZImage-Trainer/DiffSynth-Studio" >&2
+  ls -l "/home/{{linuxUser}}/ZImage-Trainer/bin" >&2 || true
+  echo "Managed trainer entrypoint missing: /home/{{linuxUser}}/ZImage-Trainer/bin/ztrain-zimage.py" >&2
+  exit 1
+fi
+
+if ! python -c "import torchaudio" >/dev/null 2>&1; then
+  echo "Installing missing trainer dependency: torchaudio"
+  python -m pip install torchaudio
+fi
+
+if [[ ! -f "{{adapterPath}}" ]]; then
+  echo "Turbo training adapter file missing: {{adapterPath}}" >&2
+  ls -l "/home/{{linuxUser}}/ZImage-Trainer/adapters/zimage_turbo_training_adapter" >&2 || true
+  exit 1
+fi
+
+export PYTHONUNBUFFERED=1
+echo "Training bootstrap complete. Launching accelerate..."
+echo "The first model load can sit quietly for a while, especially on the first run."
+
+if command -v stdbuf >/dev/null 2>&1; then
+  stdbuf -oL -eL accelerate launch "/home/{{linuxUser}}/ZImage-Trainer/bin/ztrain-zimage.py" \
+    --dataset_base_path "/home/{{linuxUser}}/ZImage-Trainer/datasets/{{datasetName}}" \
+    --dataset_metadata_path "/home/{{linuxUser}}/ZImage-Trainer/datasets/{{datasetName}}/metadata.csv" \
+    --max_pixels {{preset.MaxPixels}} \
+    --dataset_repeat {{preset.DatasetRepeat}} \
+    --model_id_with_origin_paths "Tongyi-MAI/Z-Image-Turbo:transformer/*.safetensors,Tongyi-MAI/Z-Image-Turbo:text_encoder/*.safetensors,Tongyi-MAI/Z-Image-Turbo:vae/diffusion_pytorch_model.safetensors" \
+    --learning_rate {{preset.LearningRate}} \
+    --num_epochs {{preset.Epochs}} \
+    --remove_prefix_in_ckpt "pipe.dit." \
+    --output_path "/home/{{linuxUser}}/ZImage-Trainer/loras/{{loraName}}" \
+    --lora_base_model "dit" \
+    --lora_target_modules "to_q,to_k,to_v,to_out.0,w1,w2,w3" \
+    --lora_rank {{preset.Rank}} \
+    --preset_lora_path "{{adapterPath}}" \
+    --preset_lora_model "dit" \
+    --min_timestep_boundary {{preset.MinTimestepBoundary}} \
+    --max_timestep_boundary {{preset.MaxTimestepBoundary}} \
+    --use_gradient_checkpointing \
+    --dataset_num_workers 8
+else
+accelerate launch "/home/{{linuxUser}}/ZImage-Trainer/bin/ztrain-zimage.py" \
+  --dataset_base_path "/home/{{linuxUser}}/ZImage-Trainer/datasets/{{datasetName}}" \
+  --dataset_metadata_path "/home/{{linuxUser}}/ZImage-Trainer/datasets/{{datasetName}}/metadata.csv" \
+  --data_file_keys "image" \
+  --max_pixels {{preset.MaxPixels}} \
+  --dataset_repeat {{preset.DatasetRepeat}} \
+  --model_id_with_origin_paths "Tongyi-MAI/Z-Image-Turbo:transformer/*.safetensors,Tongyi-MAI/Z-Image-Turbo:text_encoder/*.safetensors,Tongyi-MAI/Z-Image-Turbo:vae/diffusion_pytorch_model.safetensors" \
+  --learning_rate {{preset.LearningRate}} \
+  --num_epochs {{preset.Epochs}} \
+  --remove_prefix_in_ckpt "pipe.dit." \
+  --output_path "/home/{{linuxUser}}/ZImage-Trainer/loras/{{loraName}}" \
+  --lora_base_model "dit" \
+  --lora_target_modules "to_q,to_k,to_v,to_out.0,w1,w2,w3" \
+  --lora_rank {{preset.Rank}} \
+  --preset_lora_path "{{adapterPath}}" \
+  --preset_lora_model "dit" \
+  --min_timestep_boundary {{preset.MinTimestepBoundary}} \
+  --max_timestep_boundary {{preset.MaxTimestepBoundary}} \
+  --use_gradient_checkpointing \
+  --dataset_num_workers 8
+fi
+""";
+    }
+
+    private static string ToWindowsWslPath(InstallSettings settings, string linuxPath)
+    {
+        var normalizedLinuxPath = linuxPath.Replace('\\', '/');
+        if (!normalizedLinuxPath.StartsWith("/", StringComparison.Ordinal))
+        {
+            normalizedLinuxPath = "/" + normalizedLinuxPath;
+        }
+
+        return $@"\\wsl.localhost\{settings.DistroName}{normalizedLinuxPath.Replace('/', '\\')}";
+    }
+
+    private static Dictionary<string, string> ReadTrainerMetadata(string metadataWindowsPath)
+    {
+        var captions = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        if (!File.Exists(metadataWindowsPath))
+        {
+            return captions;
+        }
+
+        foreach (var line in File.ReadLines(metadataWindowsPath))
+        {
+            if (string.IsNullOrWhiteSpace(line)
+                || line.StartsWith("file_name,", StringComparison.OrdinalIgnoreCase)
+                || line.StartsWith("image,", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            var columns = ParseCsvLine(line);
+            if (columns.Count == 0 || string.IsNullOrWhiteSpace(columns[0]))
+            {
+                continue;
+            }
+
+            captions[columns[0].Trim()] = columns.Count > 1 ? columns[1] : string.Empty;
+        }
+
+        return captions;
+    }
+
+    private static void WriteTrainerMetadata(string metadataWindowsPath, IEnumerable<KeyValuePair<string, string>> rows)
+    {
+        using var writer = new StreamWriter(metadataWindowsPath, false, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+        writer.WriteLine("image,prompt");
+        foreach (var row in rows)
+        {
+            writer.Write(EscapeCsvValue(row.Key));
+            writer.Write(',');
+            writer.WriteLine(EscapeCsvValue(row.Value));
+        }
+    }
+
+    private static List<string> ParseCsvLine(string line)
+    {
+        var values = new List<string>();
+        var current = new StringBuilder();
+        var insideQuotes = false;
+
+        for (var index = 0; index < line.Length; index++)
+        {
+            var ch = line[index];
+            if (ch == '"')
+            {
+                if (insideQuotes && index + 1 < line.Length && line[index + 1] == '"')
+                {
+                    current.Append('"');
+                    index++;
+                }
+                else
+                {
+                    insideQuotes = !insideQuotes;
+                }
+
+                continue;
+            }
+
+            if (ch == ',' && !insideQuotes)
+            {
+                values.Add(current.ToString());
+                current.Clear();
+                continue;
+            }
+
+            current.Append(ch);
+        }
+
+        values.Add(current.ToString());
+        return values;
+    }
+
+    private static string EscapeCsvValue(string value)
+    {
+        var normalized = value.Replace("\r", " ").Replace("\n", " ");
+        return "\"" + normalized.Replace("\"", "\"\"") + "\"";
+    }
+
+    private static bool IsSupportedTrainerImageFile(string extension)
+    {
+        return extension.Equals(".png", StringComparison.OrdinalIgnoreCase)
+            || extension.Equals(".jpg", StringComparison.OrdinalIgnoreCase)
+            || extension.Equals(".jpeg", StringComparison.OrdinalIgnoreCase)
+            || extension.Equals(".webp", StringComparison.OrdinalIgnoreCase)
+            || extension.Equals(".bmp", StringComparison.OrdinalIgnoreCase);
+    }
+
     private Task<CommandResult> RunWslBashAsync(
         InstallSettings settings,
         string bashCommand,
@@ -839,6 +1518,48 @@ public sealed class InstallerWorkflowService
                 UseShellExecute = false,
             });
         }
+    }
+
+    public void OpenZImageTrainerDatasetsFolder(InstallSettings settings)
+    {
+        OpenWslFolder(settings, $"/home/{settings.LinuxUser}/ZImage-Trainer/datasets");
+    }
+
+    public void OpenZImageTrainerPicturesFolder(InstallSettings settings, string loraName)
+    {
+        var normalizedLora = NormalizeTrainerName(loraName, "LoRA");
+        OpenWslFolder(settings, $"/home/{settings.LinuxUser}/ZImage-Trainer/datasets/{normalizedLora}");
+    }
+
+    public void OpenZImageTrainerMetadataFile(InstallSettings settings, string datasetName)
+    {
+        var normalizedDataset = NormalizeTrainerName(datasetName, "dataset");
+        OpenWslPath(settings, $"/home/{settings.LinuxUser}/ZImage-Trainer/datasets/{normalizedDataset}/metadata.csv");
+    }
+
+    public void OpenZImageTrainerJobsFolder(InstallSettings settings)
+    {
+        OpenWslFolder(settings, "/home/nymph/ZImage-Trainer/jobs");
+    }
+
+    public void OpenZImageTrainerLorasFolder(InstallSettings settings)
+    {
+        OpenWslFolder(settings, $"/home/{settings.LinuxUser}/ZImage-Trainer/loras");
+    }
+
+    private static void OpenWslFolder(InstallSettings settings, string linuxPath)
+    {
+        OpenWslPath(settings, linuxPath);
+    }
+
+    private static void OpenWslPath(InstallSettings settings, string linuxPath)
+    {
+        var explorerPath = ToWindowsWslPath(settings, linuxPath);
+        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+        {
+            FileName = explorerPath,
+            UseShellExecute = true,
+        });
     }
 
     public void OpenNymphsBrainWebUi()
@@ -1308,6 +2029,15 @@ public sealed class InstallerWorkflowService
         System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
         {
             FileName = ReadmeUrl,
+            UseShellExecute = true,
+        });
+    }
+
+    public void OpenGuide()
+    {
+        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+        {
+            FileName = GuideUrl,
             UseShellExecute = true,
         });
     }

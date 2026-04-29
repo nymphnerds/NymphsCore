@@ -1420,6 +1420,138 @@ sys.exit(0 if found else 1)
 " 2>/dev/null
 }
 
+model_is_probably_vision() {
+  local model_key="$1"
+  local normalized
+  normalized="$(printf '%s' "${model_key}" | tr '[:upper:]' '[:lower:]')"
+
+  case "${normalized}" in
+    *-vl-*|*vision*|*llava*|*minicpmv*|*internvl*|*cogvlm*|*pixtral*|*glm4v*|*gemma4v*|*qwen2vl*|*qwen3vl*|*molmo*|*smolvlm*)
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+find_downloaded_model_dir() {
+  local model_key="$1"
+  local model_name="${model_key##*/}"
+  local model_slug
+  model_slug="$(printf '%s' "${model_name}" | tr '[:upper:]' '[:lower:]' | sed 's/-gguf$//; s/[^a-z0-9]//g')"
+
+  if [[ ! -d "${INSTALL_ROOT}/models" ]]; then
+    return 1
+  fi
+
+  find "${INSTALL_ROOT}/models" -mindepth 2 -maxdepth 2 -type d 2>/dev/null | \
+    awk -v model_slug="${model_slug}" '
+      {
+        path = tolower($0)
+        comparable = path
+        gsub(/-gguf/, "", comparable)
+        gsub(/[^a-z0-9]/, "", comparable)
+        if (index(comparable, model_slug) > 0) {
+          print
+          exit
+        }
+      }'
+}
+
+find_mmproj_for_model_dir() {
+  local model_dir="$1"
+  find "${model_dir}" -maxdepth 1 -type f \( -iname '*mmproj*' -o -iname '*projector*' \) 2>/dev/null | head -n 1 || true
+}
+
+ensure_mmproj_for_model() {
+  local model_key="$1"
+  local model_dir=""
+  local mmproj_path=""
+  local vendor=""
+  local folder=""
+
+  if ! model_is_probably_vision "${model_key}"; then
+    return 0
+  fi
+
+  model_dir="$(find_downloaded_model_dir "${model_key}" || true)"
+  if [[ -z "${model_dir}" || ! -d "${model_dir}" ]]; then
+    echo "Vision model detected, but the downloaded model folder could not be located yet."
+    return 0
+  fi
+
+  mmproj_path="$(find_mmproj_for_model_dir "${model_dir}")"
+  if [[ -n "${mmproj_path}" && -f "${mmproj_path}" ]]; then
+    echo "Vision projector already present: $(basename "${mmproj_path}")"
+    return 0
+  fi
+
+  vendor="$(basename "$(dirname "${model_dir}")")"
+  folder="$(basename "${model_dir}")"
+
+  echo "Vision model detected. Looking for a matching mmproj file..."
+  if python_json - "${model_dir}" "${model_key}" "${vendor}/${folder}" <<'PYEOF'
+import os
+import shutil
+import sys
+
+from huggingface_hub import HfApi, hf_hub_download
+
+model_dir = sys.argv[1]
+model_key = sys.argv[2]
+repo_candidates = []
+for candidate in sys.argv[3:]:
+    if candidate and candidate not in repo_candidates:
+        repo_candidates.append(candidate)
+
+if model_key and model_key not in repo_candidates:
+    repo_candidates.append(model_key)
+
+api = HfApi()
+
+for repo_id in repo_candidates:
+    try:
+        files = api.list_repo_files(repo_id=repo_id, repo_type="model")
+    except Exception:
+        continue
+
+    mmproj_files = [
+        file_name for file_name in files
+        if "mmproj" in file_name.lower() and file_name.lower().endswith(".gguf")
+    ]
+
+    if not mmproj_files:
+        continue
+
+    mmproj_files.sort(key=lambda value: (
+        0 if "/" not in value else 1,
+        0 if "model-f16" in value.lower() else 1,
+        len(value),
+        value.lower(),
+    ))
+
+    selected = mmproj_files[0]
+    cached_path = hf_hub_download(repo_id=repo_id, filename=selected, repo_type="model")
+    destination = os.path.join(model_dir, os.path.basename(selected))
+    shutil.copy2(cached_path, destination)
+    print(f"Downloaded mmproj from {repo_id}: {os.path.basename(destination)}")
+    sys.exit(0)
+
+print("No matching mmproj file was found automatically.")
+sys.exit(1)
+PYEOF
+  then
+    mmproj_path="$(find_mmproj_for_model_dir "${model_dir}")"
+    if [[ -n "${mmproj_path}" && -f "${mmproj_path}" ]]; then
+      echo "Vision projector ready: $(basename "${mmproj_path}")"
+    fi
+  else
+    echo "Warning: could not auto-download an mmproj file for ${model_key}."
+    echo "Image input may not work until a matching projector file is placed beside the GGUF."
+  fi
+}
+
 select_context_size() {
   local choice
 
@@ -1598,6 +1730,7 @@ finalize_selected_model() {
   echo "  model: ${SELECTED_MODEL_KEY}"
   echo "  context: ${SELECTED_CONTEXT_SIZE}"
 
+  ensure_mmproj_for_model "${SELECTED_MODEL_KEY}"
   update_lms_start_script "${SELECTED_MODEL_KEY}" "${SELECTED_CONTEXT_SIZE}"
   update_agent_script "${SELECTED_MODEL_KEY}"
   

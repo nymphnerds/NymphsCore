@@ -9,7 +9,7 @@ namespace NymphsCoreManager.ViewModels;
 
 public sealed class MainWindowViewModel : ViewModelBase
 {
-    private const int TotalSteps = 8;
+    private const int TotalSteps = 9;
     private const string ModelDownloadDetails =
         "- u2net helper model: about 168 MB\n" +
         "- Tongyi-MAI/Z-Image-Turbo: about 31 GB\n" +
@@ -30,6 +30,17 @@ public sealed class MainWindowViewModel : ViewModelBase
     private readonly RelayCommand _repairRuntimeCommand;
     private readonly AsyncRelayCommand _openRuntimeToolsCommand;
     private readonly AsyncRelayCommand _refreshRuntimeStatusCommand;
+    private readonly AsyncRelayCommand _openZImageTrainerCommand;
+    private readonly AsyncRelayCommand _installZImageTrainerCommand;
+    private readonly AsyncRelayCommand _refreshZImageTrainerStatusCommand;
+    private readonly AsyncRelayCommand _createZImageTrainerJobCommand;
+    private readonly AsyncRelayCommand _openZImageTrainerPicturesCommand;
+    private readonly AsyncRelayCommand _openZImageTrainerCaptionsCommand;
+    private readonly AsyncRelayCommand _draftZImageTrainerCaptionsCommand;
+    private readonly AsyncRelayCommand _startZImageTrainingCommand;
+    private readonly RelayCommand _openZImageTrainerDatasetsCommand;
+    private readonly RelayCommand _openZImageTrainerJobsCommand;
+    private readonly RelayCommand _openZImageTrainerLorasCommand;
     private readonly AsyncRelayCommand _openBrainToolsCommand;
     private readonly AsyncRelayCommand _refreshBrainStatusCommand;
     private readonly AsyncRelayCommand _fetchModelsNowCommand;
@@ -49,9 +60,7 @@ public sealed class MainWindowViewModel : ViewModelBase
     private readonly AsyncRelayCommand _stopBrainLlmCommand;
     private readonly RelayCommand _backCommand;
     private readonly RelayCommand _openLogFolderCommand;
-    private readonly RelayCommand _openReadmeCommand;
-    private readonly RelayCommand _openFootprintDocCommand;
-    private readonly RelayCommand _openAddonGuideCommand;
+    private readonly RelayCommand _openGuideCommand;
     private readonly DispatcherTimer _brainMonitorRefreshTimer;
     private readonly string _installSessionLogPath;
 
@@ -90,6 +99,7 @@ public sealed class MainWindowViewModel : ViewModelBase
     private int _wslCustomProcessors;
     private int _wslCustomSwapGb;
     private bool _installNymphsBrain;
+    private bool _installZImageTrainer;
     private bool _downloadBrainModelNow;
     private BrainModelOption? _selectedBrainModelOption;
     private string _customBrainModelId = string.Empty;
@@ -102,6 +112,13 @@ public sealed class MainWindowViewModel : ViewModelBase
     private string _brainRemoteModel = "unknown";
     private RuntimeBackendStatus _zImageRuntimeStatus = RuntimeBackendStatus.Unknown("zimage", "Z-Image", "Open Runtime Tools to check status.");
     private RuntimeBackendStatus _trellisRuntimeStatus = RuntimeBackendStatus.Unknown("trellis", "TRELLIS.2", "Open Runtime Tools to check status.");
+    private ZImageTrainerStatus _zImageTrainerStatus = ZImageTrainerStatus.Unknown("Open Z-Image Trainer to check status.");
+    private string _zImageTrainerDatasetName = "my_first_dataset";
+    private string _zImageTrainerLoraName = "my_first_lora";
+    private string _zImageTrainerTrainingType = "character";
+    private string _zImageTrainerTrainingAmount = "normal";
+    private bool _useZImageTrainerCaptionBrain;
+    private string _zImageTrainerCaptionMode = "fill_blanks";
     private string _brainRuntimeStatusText = "Status: Not checked";
     private string _brainRuntimeModelText = "Model: Not checked";
     private string _brainOpenRouterApiKey = string.Empty;
@@ -126,6 +143,17 @@ public sealed class MainWindowViewModel : ViewModelBase
         _repairRuntimeCommand = new RelayCommand(StartRepairRuntime, CanStartRepairRuntime);
         _openRuntimeToolsCommand = new AsyncRelayCommand(OpenRuntimeToolsAsync, CanRunManagedRuntimeAction);
         _refreshRuntimeStatusCommand = new AsyncRelayCommand(RefreshRuntimeStatusAsync, CanRunManagedRuntimeAction);
+        _openZImageTrainerCommand = new AsyncRelayCommand(OpenZImageTrainerAsync, CanRunManagedRuntimeAction);
+        _installZImageTrainerCommand = new AsyncRelayCommand(InstallZImageTrainerAsync, CanRunManagedRuntimeAction);
+        _refreshZImageTrainerStatusCommand = new AsyncRelayCommand(RefreshZImageTrainerStatusAsync, CanRunManagedRuntimeAction);
+        _createZImageTrainerJobCommand = new AsyncRelayCommand(CreateZImageTrainerJobAsync, CanCreateZImageTrainerJob);
+        _openZImageTrainerPicturesCommand = new AsyncRelayCommand(OpenZImageTrainerPicturesFolderAsync, CanCreateZImageTrainerJob);
+        _openZImageTrainerCaptionsCommand = new AsyncRelayCommand(OpenZImageTrainerCaptionsFileAsync, CanCreateZImageTrainerJob);
+        _draftZImageTrainerCaptionsCommand = new AsyncRelayCommand(DraftZImageTrainerCaptionsAsync, CanDraftZImageTrainerCaptions);
+        _startZImageTrainingCommand = new AsyncRelayCommand(StartZImageTrainingAsync, CanCreateZImageTrainerJob);
+        _openZImageTrainerDatasetsCommand = new RelayCommand(OpenZImageTrainerDatasetsFolder, CanOpenZImageTrainerFolders);
+        _openZImageTrainerJobsCommand = new RelayCommand(OpenZImageTrainerJobsFolder, CanOpenZImageTrainerFolders);
+        _openZImageTrainerLorasCommand = new RelayCommand(OpenZImageTrainerLorasFolder, CanOpenZImageTrainerFolders);
         _openBrainToolsCommand = new AsyncRelayCommand(OpenBrainToolsAsync, CanRunManagedRuntimeAction);
         _refreshBrainStatusCommand = new AsyncRelayCommand(RefreshBrainStatusAsync, CanRunManagedRuntimeAction);
         _fetchModelsNowCommand = new AsyncRelayCommand(RunFetchModelsNowAsync, CanRunManagedRuntimeAction);
@@ -145,9 +173,7 @@ public sealed class MainWindowViewModel : ViewModelBase
         _stopBrainLlmCommand = new AsyncRelayCommand(StopBrainLlmAsync, CanStopBrainLlm);
         _backCommand = new RelayCommand(GoBack, CanGoBack);
         _openLogFolderCommand = new RelayCommand(_workflowService.OpenLogFolder);
-        _openReadmeCommand = new RelayCommand(_workflowService.OpenReadme);
-        _openFootprintDocCommand = new RelayCommand(_workflowService.OpenFootprintDoc);
-        _openAddonGuideCommand = new RelayCommand(_workflowService.OpenAddonGuide);
+        _openGuideCommand = new RelayCommand(_workflowService.OpenGuide);
         _brainMonitorRefreshTimer = new DispatcherTimer
         {
             Interval = TimeSpan.FromSeconds(4),
@@ -218,6 +244,28 @@ public sealed class MainWindowViewModel : ViewModelBase
 
     public AsyncRelayCommand RefreshRuntimeStatusCommand => _refreshRuntimeStatusCommand;
 
+    public AsyncRelayCommand OpenZImageTrainerCommand => _openZImageTrainerCommand;
+
+    public AsyncRelayCommand InstallZImageTrainerCommand => _installZImageTrainerCommand;
+
+    public AsyncRelayCommand RefreshZImageTrainerStatusCommand => _refreshZImageTrainerStatusCommand;
+
+    public AsyncRelayCommand CreateZImageTrainerJobCommand => _createZImageTrainerJobCommand;
+
+    public AsyncRelayCommand OpenZImageTrainerPicturesCommand => _openZImageTrainerPicturesCommand;
+
+    public AsyncRelayCommand OpenZImageTrainerCaptionsCommand => _openZImageTrainerCaptionsCommand;
+
+    public AsyncRelayCommand DraftZImageTrainerCaptionsCommand => _draftZImageTrainerCaptionsCommand;
+
+    public AsyncRelayCommand StartZImageTrainingCommand => _startZImageTrainingCommand;
+
+    public RelayCommand OpenZImageTrainerDatasetsCommand => _openZImageTrainerDatasetsCommand;
+
+    public RelayCommand OpenZImageTrainerJobsCommand => _openZImageTrainerJobsCommand;
+
+    public RelayCommand OpenZImageTrainerLorasCommand => _openZImageTrainerLorasCommand;
+
     public AsyncRelayCommand OpenBrainToolsCommand => _openBrainToolsCommand;
 
     public AsyncRelayCommand RefreshBrainStatusCommand => _refreshBrainStatusCommand;
@@ -260,11 +308,7 @@ public sealed class MainWindowViewModel : ViewModelBase
 
     public RelayCommand OpenLogFolderCommand => _openLogFolderCommand;
 
-    public RelayCommand OpenReadmeCommand => _openReadmeCommand;
-
-    public RelayCommand OpenFootprintDocCommand => _openFootprintDocCommand;
-
-    public RelayCommand OpenAddonGuideCommand => _openAddonGuideCommand;
+    public RelayCommand OpenGuideCommand => _openGuideCommand;
 
     public string AppTitle => "NymphsCore Manager";
 
@@ -332,11 +376,7 @@ public sealed class MainWindowViewModel : ViewModelBase
 
     public string BaseTarPath => _workflowService.BaseTarPath;
 
-    public string ReadmeUrl => InstallerWorkflowService.ReadmeUrl;
-
-    public string FootprintDocUrl => InstallerWorkflowService.FootprintDocUrl;
-
-    public string AddonGuideUrl => InstallerWorkflowService.AddonGuideUrl;
+    public string GuideUrl => InstallerWorkflowService.GuideUrl;
 
     public string LogFolderPath => _workflowService.LogFolderPath;
 
@@ -368,9 +408,11 @@ public sealed class MainWindowViewModel : ViewModelBase
 
     public bool IsRuntimeToolsStep => _currentStepIndex == 6;
 
-    public bool IsBrainToolsStep => _currentStepIndex == 7;
+    public bool IsZImageTrainerStep => _currentStepIndex == 7;
 
-    private bool IsToolStep => IsRuntimeToolsStep || IsBrainToolsStep;
+    public bool IsBrainToolsStep => _currentStepIndex == 8;
+
+    private bool IsToolStep => IsRuntimeToolsStep || IsZImageTrainerStep || IsBrainToolsStep;
 
     public bool ShowFooterPrimaryButton => !IsToolStep;
 
@@ -540,6 +582,24 @@ public sealed class MainWindowViewModel : ViewModelBase
     }
 
     public bool BrainOptionsEnabled => InstallNymphsBrain;
+
+    public bool InstallZImageTrainer
+    {
+        get => _installZImageTrainer;
+        set
+        {
+            if (SetProperty(ref _installZImageTrainer, value))
+            {
+                OnPropertyChanged(nameof(ZImageTrainerInstallSummary));
+                RaiseCommandStateChanged();
+            }
+        }
+    }
+
+    public string ZImageTrainerInstallSummary =>
+        InstallZImageTrainer
+            ? "Z-Image Trainer will install as a separate DiffSynth-Studio sidecar at /home/nymph/ZImage-Trainer and keep datasets, jobs, and LoRAs together under that folder."
+            : "Z-Image Trainer is optional and can be installed later from the Z-Image Trainer page.";
 
     public bool DownloadBrainModelNow
     {
@@ -933,6 +993,103 @@ public sealed class MainWindowViewModel : ViewModelBase
         }
     }
 
+    public ZImageTrainerStatus ZImageTrainerStatus
+    {
+        get => _zImageTrainerStatus;
+        private set
+        {
+            if (SetProperty(ref _zImageTrainerStatus, value))
+            {
+                OnPropertyChanged(nameof(ZImageTrainerPrimaryButtonText));
+                OnPropertyChanged(nameof(ZImageTrainerSummary));
+                RaiseCommandStateChanged();
+            }
+        }
+    }
+
+    public string ZImageTrainerPrimaryButtonText =>
+        ZImageTrainerStatus.Installed ? "Repair Trainer" : "Install Trainer";
+
+    public string ZImageTrainerSummary =>
+        "Default method: Z-Image Turbo Differential LoRA with the Turbo training adapter. Captions stay under your control in metadata.csv. Trainer datasets, jobs, and LoRAs live under /home/nymph/ZImage-Trainer/.";
+
+    public string ZImageTrainerDatasetName
+    {
+        get => _zImageTrainerDatasetName;
+        set
+        {
+            if (SetProperty(ref _zImageTrainerDatasetName, value))
+            {
+                _createZImageTrainerJobCommand.RaiseCanExecuteChanged();
+                _openZImageTrainerPicturesCommand.RaiseCanExecuteChanged();
+                _openZImageTrainerCaptionsCommand.RaiseCanExecuteChanged();
+                _draftZImageTrainerCaptionsCommand.RaiseCanExecuteChanged();
+                _startZImageTrainingCommand.RaiseCanExecuteChanged();
+            }
+        }
+    }
+
+    public string ZImageTrainerLoraName
+    {
+        get => _zImageTrainerLoraName;
+        set
+        {
+            if (SetProperty(ref _zImageTrainerLoraName, value))
+            {
+                _createZImageTrainerJobCommand.RaiseCanExecuteChanged();
+                _openZImageTrainerPicturesCommand.RaiseCanExecuteChanged();
+                _openZImageTrainerCaptionsCommand.RaiseCanExecuteChanged();
+                _draftZImageTrainerCaptionsCommand.RaiseCanExecuteChanged();
+                _startZImageTrainingCommand.RaiseCanExecuteChanged();
+            }
+        }
+    }
+
+    public string ZImageTrainerTrainingType
+    {
+        get => _zImageTrainerTrainingType;
+        set => SetProperty(ref _zImageTrainerTrainingType, string.IsNullOrWhiteSpace(value) ? "character" : value);
+    }
+
+    public string ZImageTrainerTrainingAmount
+    {
+        get => _zImageTrainerTrainingAmount;
+        set => SetProperty(ref _zImageTrainerTrainingAmount, string.IsNullOrWhiteSpace(value) ? "normal" : value);
+    }
+
+    public bool UseZImageTrainerCaptionBrain
+    {
+        get => _useZImageTrainerCaptionBrain;
+        set
+        {
+            if (SetProperty(ref _useZImageTrainerCaptionBrain, value))
+            {
+                OnPropertyChanged(nameof(ZImageTrainerCaptionBrainSummary));
+                _draftZImageTrainerCaptionsCommand.RaiseCanExecuteChanged();
+            }
+        }
+    }
+
+    public string ZImageTrainerCaptionMode
+    {
+        get => _zImageTrainerCaptionMode;
+        set
+        {
+            var normalized = string.Equals(value, "overwrite_all", StringComparison.OrdinalIgnoreCase)
+                ? "overwrite_all"
+                : "fill_blanks";
+            if (SetProperty(ref _zImageTrainerCaptionMode, normalized))
+            {
+                OnPropertyChanged(nameof(ZImageTrainerCaptionBrainSummary));
+            }
+        }
+    }
+
+    public string ZImageTrainerCaptionBrainSummary =>
+        !UseZImageTrainerCaptionBrain
+            ? "Turn this on if you want Brain to draft one editable caption per image into metadata.csv."
+            : "Caption Brain uses a downloaded Brain vision model to draft metadata.csv rows, then you can review and edit them before training.";
+
     // Button label is intentionally short ("Test") — the backend name is already
     // the card title above the button, so repeating it just made the label clip
     // inside the narrow 3-column card. When models aren't ready we tell the user
@@ -988,6 +1145,22 @@ public sealed class MainWindowViewModel : ViewModelBase
     private bool CanRunManagedRuntimeAction()
     {
         return !IsBusy;
+    }
+
+    private bool CanOpenZImageTrainerFolders()
+    {
+        return !IsBusy && ManagedDistroDetected && ZImageTrainerStatus.Installed;
+    }
+
+    private bool CanCreateZImageTrainerJob()
+    {
+        return CanOpenZImageTrainerFolders()
+            && !string.IsNullOrWhiteSpace(ZImageTrainerLoraName);
+    }
+
+    private bool CanDraftZImageTrainerCaptions()
+    {
+        return CanCreateZImageTrainerJob() && UseZImageTrainerCaptionBrain;
     }
 
     private bool CanStartBrainLlm()
@@ -1232,10 +1405,384 @@ public sealed class MainWindowViewModel : ViewModelBase
         await RefreshRuntimeStatusAsync().ConfigureAwait(true);
     }
 
+    private async Task OpenZImageTrainerAsync()
+    {
+        MoveToZImageTrainer();
+        await RefreshZImageTrainerStatusAsync().ConfigureAwait(true);
+    }
+
     private async Task OpenBrainToolsAsync()
     {
         MoveToBrainTools();
         await RefreshBrainStatusAsync().ConfigureAwait(true);
+    }
+
+    private async Task RefreshZImageTrainerStatusAsync()
+    {
+        if (!ManagedDistroDetected && !InstallSucceeded)
+        {
+            LogLines.Clear();
+            PostInstallActionSummary = string.Empty;
+            StatusMessage = "No managed runtime install detected yet.";
+            ZImageTrainerStatus = ZImageTrainerStatus.Unknown("Run the Manager install first, then install the trainer sidecar.");
+            AppendInstallLog(StatusMessage);
+            RaiseCommandStateChanged();
+            return;
+        }
+
+        var settings = BuildManagedActionSettings();
+        IsBusy = true;
+        LogLines.Clear();
+        PostInstallActionSummary = string.Empty;
+        StatusMessage = "Checking Z-Image Trainer sidecar...";
+        AppendInstallLog("Starting Z-Image Trainer status check.");
+
+        var progress = new Progress<string>(line =>
+        {
+            var sanitizedLine = line.Replace("\0", string.Empty);
+            if (!string.IsNullOrWhiteSpace(sanitizedLine))
+            {
+                LogLines.Add(sanitizedLine);
+                StatusMessage = sanitizedLine;
+                AppendInstallLog(sanitizedLine);
+            }
+        });
+
+        try
+        {
+            ZImageTrainerStatus = await _workflowService.GetZImageTrainerStatusAsync(settings, progress, CancellationToken.None).ConfigureAwait(true);
+            PostInstallActionSummary = ZImageTrainerStatus.Detail;
+            StatusMessage = "Z-Image Trainer status check completed.";
+            LogLines.Add(StatusMessage);
+            AppendInstallLog(StatusMessage);
+        }
+        catch (Exception ex)
+        {
+            ZImageTrainerStatus = ZImageTrainerStatus.Unknown("Trainer status check failed.");
+            PostInstallActionSummary = "Z-Image Trainer status check failed. Use the log panel and log folder to see what failed.";
+            StatusMessage = "Z-Image Trainer status check failed.";
+            LogLines.Add($"ERROR: {ex.Message}");
+            AppendInstallLog($"ERROR: {ex}");
+        }
+        finally
+        {
+            IsBusy = false;
+            RaiseCommandStateChanged();
+        }
+    }
+
+    private async Task InstallZImageTrainerAsync()
+    {
+        var settings = BuildManagedActionSettings();
+        PrepareManagedActionRun(
+            "Installing Z-Image Trainer sidecar...",
+            "Starting Z-Image Trainer install/repair.");
+        IsBusy = true;
+
+        var progress = new Progress<string>(line =>
+        {
+            var sanitizedLine = line.Replace("\0", string.Empty);
+            if (!string.IsNullOrWhiteSpace(sanitizedLine))
+            {
+                LogLines.Add(sanitizedLine);
+                StatusMessage = sanitizedLine;
+                AppendInstallLog(sanitizedLine);
+            }
+        });
+
+        try
+        {
+            await _workflowService.RunZImageTrainerInstallAsync(settings, progress, CancellationToken.None).ConfigureAwait(true);
+            ZImageTrainerStatus = await _workflowService.GetZImageTrainerStatusAsync(settings, progress, CancellationToken.None).ConfigureAwait(true);
+            PostInstallActionSummary = "Z-Image Trainer sidecar is installed. Use the generated DiffSynth template under /home/nymph/ZImage-Trainer/config/ for Turbo Differential LoRA jobs.";
+            RuntimeToolsSummary = "Z-Image Trainer sidecar installed.";
+            StatusMessage = "Z-Image Trainer install completed.";
+            AppendInstallLog(StatusMessage);
+        }
+        catch (Exception ex)
+        {
+            PostInstallActionSummary = "Z-Image Trainer install failed. Check the live log and log folder.";
+            StatusMessage = "Z-Image Trainer install failed.";
+            LogLines.Add($"ERROR: {ex.Message}");
+            AppendInstallLog($"ERROR: {ex}");
+        }
+        finally
+        {
+            IsBusy = false;
+            RaiseCommandStateChanged();
+        }
+    }
+
+    private void OpenZImageTrainerDatasetsFolder()
+    {
+        OpenZImageTrainerFolder("datasets", settings => _workflowService.OpenZImageTrainerDatasetsFolder(settings));
+    }
+
+    private async Task OpenZImageTrainerPicturesFolderAsync()
+    {
+        var settings = BuildManagedActionSettings();
+        var progress = new Progress<string>(line =>
+        {
+            var sanitizedLine = line.Replace("\0", string.Empty);
+            if (!string.IsNullOrWhiteSpace(sanitizedLine))
+            {
+                LogLines.Add(sanitizedLine);
+                StatusMessage = sanitizedLine;
+                AppendInstallLog(sanitizedLine);
+            }
+        });
+
+        try
+        {
+            await _workflowService.EnsureZImageTrainerPicturesFolderAsync(
+                settings,
+                ZImageTrainerLoraName,
+                progress,
+                CancellationToken.None).ConfigureAwait(true);
+            var metadataStatus = await _workflowService.PrepareZImageTrainerMetadataAsync(
+                settings,
+                ZImageTrainerLoraName,
+                progress,
+                CancellationToken.None).ConfigureAwait(true);
+            _workflowService.OpenZImageTrainerPicturesFolder(settings, ZImageTrainerLoraName);
+            StatusMessage = metadataStatus.ImageCount == 0
+                ? "Opened pictures folder. Add images, then open the captions file."
+                : "Opened pictures folder and refreshed metadata.csv.";
+            AppendInstallLog(StatusMessage);
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = "Could not open pictures folder.";
+            LogLines.Add($"ERROR: {ex.Message}");
+            AppendInstallLog($"ERROR: {ex}");
+        }
+    }
+
+    private async Task OpenZImageTrainerCaptionsFileAsync()
+    {
+        var settings = BuildManagedActionSettings();
+        var progress = new Progress<string>(line =>
+        {
+            var sanitizedLine = line.Replace("\0", string.Empty);
+            if (!string.IsNullOrWhiteSpace(sanitizedLine))
+            {
+                LogLines.Add(sanitizedLine);
+                StatusMessage = sanitizedLine;
+                AppendInstallLog(sanitizedLine);
+            }
+        });
+
+        try
+        {
+            await _workflowService.PrepareZImageTrainerMetadataAsync(
+                settings,
+                ZImageTrainerLoraName,
+                progress,
+                CancellationToken.None).ConfigureAwait(true);
+            _workflowService.OpenZImageTrainerMetadataFile(settings, ZImageTrainerLoraName);
+            StatusMessage = "Opened metadata.csv for captions.";
+            AppendInstallLog(StatusMessage);
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = "Could not open captions file.";
+            LogLines.Add($"ERROR: {ex.Message}");
+            AppendInstallLog($"ERROR: {ex}");
+        }
+    }
+
+    private async Task DraftZImageTrainerCaptionsAsync()
+    {
+        var settings = BuildManagedActionSettings();
+        PrepareManagedActionRun(
+            "Drafting captions with Brain...",
+            "Preparing metadata.csv and asking Brain to draft one caption per image.");
+        IsBusy = true;
+
+        var progress = new Progress<string>(line =>
+        {
+            var sanitizedLine = line.Replace("\0", string.Empty);
+            if (!string.IsNullOrWhiteSpace(sanitizedLine))
+            {
+                LogLines.Add(sanitizedLine);
+                StatusMessage = sanitizedLine;
+                AppendInstallLog(sanitizedLine);
+            }
+        });
+
+        try
+        {
+            var metadataStatus = await _workflowService.DraftZImageTrainerCaptionsAsync(
+                settings,
+                ZImageTrainerLoraName,
+                ZImageTrainerTrainingType,
+                ZImageTrainerCaptionMode,
+                progress,
+                CancellationToken.None).ConfigureAwait(true);
+
+            StatusMessage = metadataStatus.MissingCaptionCount == 0
+                ? "Caption Brain drafted captions for the dataset. Review metadata.csv, then train when it looks right."
+                : $"Caption Brain finished, but {metadataStatus.MissingCaptionCount} caption(s) are still blank. Review metadata.csv.";
+            PostInstallActionSummary = "Caption drafts are editable. Open metadata.csv to tweak any line before training.";
+            AppendInstallLog(StatusMessage);
+        }
+        catch (Exception ex)
+        {
+            PostInstallActionSummary = "Caption Brain could not finish the draft pass. Check the live log for the Brain model or endpoint issue.";
+            StatusMessage = "Caption Brain failed.";
+            LogLines.Add($"ERROR: {ex.Message}");
+            AppendInstallLog($"ERROR: {ex}");
+        }
+        finally
+        {
+            IsBusy = false;
+            RaiseCommandStateChanged();
+        }
+    }
+
+    private async Task CreateZImageTrainerJobAsync()
+    {
+        var settings = BuildManagedActionSettings();
+        PrepareManagedActionRun(
+            "Creating Z-Image Trainer job...",
+            "Creating a Z-Image Trainer job and refreshing metadata.csv.");
+        IsBusy = true;
+
+        var progress = new Progress<string>(line =>
+        {
+            var sanitizedLine = line.Replace("\0", string.Empty);
+            if (!string.IsNullOrWhiteSpace(sanitizedLine))
+            {
+                LogLines.Add(sanitizedLine);
+                StatusMessage = sanitizedLine;
+                AppendInstallLog(sanitizedLine);
+            }
+        });
+
+        try
+        {
+            await _workflowService.CreateZImageTrainerJobAsync(
+                settings,
+                ZImageTrainerLoraName,
+                ZImageTrainerLoraName,
+                ZImageTrainerTrainingType,
+                ZImageTrainerTrainingAmount,
+                progress,
+                CancellationToken.None).ConfigureAwait(true);
+
+            ZImageTrainerStatus = await _workflowService.GetZImageTrainerStatusAsync(settings, progress, CancellationToken.None).ConfigureAwait(true);
+            PostInstallActionSummary = "Starter job created. Add your own captions in metadata.csv before running training.";
+            StatusMessage = "Z-Image Trainer job created.";
+            AppendInstallLog(StatusMessage);
+        }
+        catch (Exception ex)
+        {
+            PostInstallActionSummary = "Could not create the starter training job.";
+            StatusMessage = "Z-Image Trainer job creation failed.";
+            LogLines.Add($"ERROR: {ex.Message}");
+            AppendInstallLog($"ERROR: {ex}");
+        }
+        finally
+        {
+            IsBusy = false;
+            RaiseCommandStateChanged();
+        }
+    }
+
+    private async Task StartZImageTrainingAsync()
+    {
+        var settings = BuildManagedActionSettings();
+        PrepareManagedActionRun(
+            "Starting Z-Image training...",
+            "Refreshing captions metadata and starting Z-Image Trainer.");
+        IsBusy = true;
+
+        var progress = new Progress<string>(line =>
+        {
+            var sanitizedLine = line.Replace("\0", string.Empty);
+            if (!string.IsNullOrWhiteSpace(sanitizedLine))
+            {
+                LogLines.Add(sanitizedLine);
+                StatusMessage = sanitizedLine;
+                AppendInstallLog(sanitizedLine);
+            }
+        });
+
+        try
+        {
+            var metadataStatus = await _workflowService.PrepareZImageTrainerMetadataAsync(
+                settings,
+                ZImageTrainerLoraName,
+                progress,
+                CancellationToken.None).ConfigureAwait(true);
+            if (metadataStatus.ImageCount == 0)
+            {
+                throw new InvalidOperationException("Add training pictures first.");
+            }
+
+            if (metadataStatus.MissingCaptionCount > 0)
+            {
+                throw new InvalidOperationException(
+                    $"Add captions in metadata.csv for all {metadataStatus.ImageCount} image(s) before starting training.");
+            }
+
+            await _workflowService.CreateZImageTrainerJobAsync(
+                settings,
+                ZImageTrainerLoraName,
+                ZImageTrainerLoraName,
+                ZImageTrainerTrainingType,
+                ZImageTrainerTrainingAmount,
+                progress,
+                CancellationToken.None).ConfigureAwait(true);
+            await _workflowService.RunZImageTrainerJobAsync(
+                settings,
+                ZImageTrainerLoraName,
+                progress,
+                CancellationToken.None).ConfigureAwait(true);
+            ZImageTrainerStatus = await _workflowService.GetZImageTrainerStatusAsync(settings, progress, CancellationToken.None).ConfigureAwait(true);
+            PostInstallActionSummary = "Training completed. Open Finished LoRAs to find the output.";
+            StatusMessage = "Z-Image training completed.";
+            AppendInstallLog(StatusMessage);
+        }
+        catch (Exception ex)
+        {
+            PostInstallActionSummary = "Training stopped with an error. Check the live log.";
+            StatusMessage = "Z-Image training failed.";
+            LogLines.Add($"ERROR: {ex.Message}");
+            AppendInstallLog($"ERROR: {ex}");
+        }
+        finally
+        {
+            IsBusy = false;
+            RaiseCommandStateChanged();
+        }
+    }
+
+    private void OpenZImageTrainerJobsFolder()
+    {
+        OpenZImageTrainerFolder("jobs", settings => _workflowService.OpenZImageTrainerJobsFolder(settings));
+    }
+
+    private void OpenZImageTrainerLorasFolder()
+    {
+        OpenZImageTrainerFolder("LoRA outputs", settings => _workflowService.OpenZImageTrainerLorasFolder(settings));
+    }
+
+    private void OpenZImageTrainerFolder(string label, Action<InstallSettings> openAction)
+    {
+        try
+        {
+            var settings = BuildManagedActionSettings();
+            openAction(settings);
+            StatusMessage = $"Opened Z-Image Trainer {label} folder.";
+            AppendInstallLog(StatusMessage);
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Could not open Z-Image Trainer {label} folder.";
+            LogLines.Add($"ERROR: {ex.Message}");
+            AppendInstallLog($"ERROR: {ex}");
+        }
     }
 
     private async Task RefreshRuntimeStatusAsync()
@@ -2297,6 +2844,7 @@ public sealed class MainWindowViewModel : ViewModelBase
                 WslProcessors = WslCustomProcessors,
                 WslSwapGb = WslCustomSwapGb,
                 InstallNymphsBrain = InstallNymphsBrain,
+                InstallZImageTrainer = InstallZImageTrainer,
                 DownloadBrainModelNow = false,
                 BrainInstallRoot = BrainInstallRoot,
                 BrainModelId = "auto",
@@ -2337,6 +2885,7 @@ public sealed class MainWindowViewModel : ViewModelBase
                     : "Model prefetch: disabled");
             AppendInstallLog(BuildWslConfigLogLine(settings));
             AppendInstallLog(BuildBrainInstallLogLine(settings));
+            AppendInstallLog(BuildZImageTrainerInstallLogLine(settings));
             AppendInstallLog(
                 string.IsNullOrWhiteSpace(settings.OpenRouterApiKey)
                     ? "OpenRouter key: not provided"
@@ -2393,7 +2942,7 @@ public sealed class MainWindowViewModel : ViewModelBase
             }
             ProgressValue = 85;
 
-            if (settings.InstallNymphsBrain)
+            if (settings.InstallNymphsBrain || settings.InstallZImageTrainer)
             {
                 if (settings.ModuleOnlyRun)
                 {
@@ -2410,6 +2959,18 @@ public sealed class MainWindowViewModel : ViewModelBase
             {
                 LogLines.Add("Skipping experimental Nymphs-Brain module.");
                 AppendInstallLog("Skipping experimental Nymphs-Brain module.");
+            }
+
+            if (settings.InstallZImageTrainer)
+            {
+                LogLines.Add("Installing Z-Image Trainer module...");
+                AppendInstallLog("Installing Z-Image Trainer module...");
+                await _workflowService.RunZImageTrainerInstallAsync(settings, progress, CancellationToken.None).ConfigureAwait(true);
+            }
+            else
+            {
+                LogLines.Add("Skipping Z-Image Trainer module.");
+                AppendInstallLog("Skipping Z-Image Trainer module.");
             }
 
             ProgressValue = 95;
@@ -2506,6 +3067,11 @@ public sealed class MainWindowViewModel : ViewModelBase
             InstallNymphsBrain = true;
         }
 
+        if (!InstallZImageTrainer)
+        {
+            InstallZImageTrainer = true;
+        }
+
         // The user is explicitly doing an add-on run against an existing install; do not
         // churn .wslconfig unless they ask for it.
         var keepExistingOption = WslConfigOptions.FirstOrDefault(o => o.Mode == WslConfigMode.KeepExisting);
@@ -2531,7 +3097,7 @@ public sealed class MainWindowViewModel : ViewModelBase
         MoveToStep(6);
     }
 
-    private void MoveToBrainTools()
+    private void MoveToZImageTrainer()
     {
         if (!IsToolStep)
         {
@@ -2539,6 +3105,16 @@ public sealed class MainWindowViewModel : ViewModelBase
         }
 
         MoveToStep(7);
+    }
+
+    private void MoveToBrainTools()
+    {
+        if (!IsToolStep)
+        {
+            _runtimeToolsReturnStep = _currentStepIndex;
+        }
+
+        MoveToStep(8);
     }
 
     private void MoveToStep(int stepIndex)
@@ -2551,6 +3127,7 @@ public sealed class MainWindowViewModel : ViewModelBase
         OnPropertyChanged(nameof(IsProgressStep));
         OnPropertyChanged(nameof(IsFinishStep));
         OnPropertyChanged(nameof(IsRuntimeToolsStep));
+        OnPropertyChanged(nameof(IsZImageTrainerStep));
         OnPropertyChanged(nameof(IsBrainToolsStep));
         OnPropertyChanged(nameof(ShowDefaultSidebarArt));
         OnPropertyChanged(nameof(ShowBrainSidebarArt));
@@ -2599,7 +3176,7 @@ public sealed class MainWindowViewModel : ViewModelBase
                 {
                     CurrentStepTitle = "Add Optional Modules";
                     CurrentStepSubtitle =
-                        "Add optional modules to the existing NymphsCore install without running a full repair. Tick Nymphs-Brain below to install the local tools; Brain model downloads are handled later from the Brain page. Backend runtimes and models will be left untouched unless you also tick model prefetch.";
+                        "Add optional modules to the existing NymphsCore install without running a full repair. Tick Nymphs-Brain or Z-Image Trainer below to install local tools. Backend runtimes and models will be left untouched unless you also tick model prefetch.";
                     PrimaryButtonText = "Install Modules";
                 }
                 else
@@ -2639,6 +3216,12 @@ public sealed class MainWindowViewModel : ViewModelBase
                 PrimaryButtonText = "Close";
                 break;
             case 7:
+                CurrentStepTitle = "Z-Image Trainer";
+                CurrentStepSubtitle =
+                    "Install and manage the isolated DiffSynth sidecar for Z-Image Turbo LoRA training.";
+                PrimaryButtonText = "Close";
+                break;
+            case 8:
                 CurrentStepTitle = "Brain";
                 CurrentStepSubtitle =
                     "Manage the local coding model, MCP gateway, browser UI, and optional OpenRouter tools for Nymphs-Brain.";
@@ -2658,6 +3241,17 @@ public sealed class MainWindowViewModel : ViewModelBase
         _repairRuntimeCommand.RaiseCanExecuteChanged();
         _openRuntimeToolsCommand.RaiseCanExecuteChanged();
         _refreshRuntimeStatusCommand.RaiseCanExecuteChanged();
+        _openZImageTrainerCommand.RaiseCanExecuteChanged();
+        _installZImageTrainerCommand.RaiseCanExecuteChanged();
+        _refreshZImageTrainerStatusCommand.RaiseCanExecuteChanged();
+        _createZImageTrainerJobCommand.RaiseCanExecuteChanged();
+        _openZImageTrainerPicturesCommand.RaiseCanExecuteChanged();
+        _openZImageTrainerCaptionsCommand.RaiseCanExecuteChanged();
+        _draftZImageTrainerCaptionsCommand.RaiseCanExecuteChanged();
+        _startZImageTrainingCommand.RaiseCanExecuteChanged();
+        _openZImageTrainerDatasetsCommand.RaiseCanExecuteChanged();
+        _openZImageTrainerJobsCommand.RaiseCanExecuteChanged();
+        _openZImageTrainerLorasCommand.RaiseCanExecuteChanged();
         _openBrainToolsCommand.RaiseCanExecuteChanged();
         _refreshBrainStatusCommand.RaiseCanExecuteChanged();
         _fetchModelsNowCommand.RaiseCanExecuteChanged();
@@ -2706,13 +3300,16 @@ public sealed class MainWindowViewModel : ViewModelBase
         var brainTail = settings.InstallNymphsBrain
             ? $" Experimental Nymphs-Brain was installed to {settings.BrainInstallRoot}."
             : " Experimental Nymphs-Brain was skipped.";
+        var trainerTail = settings.InstallZImageTrainer
+            ? " Z-Image Trainer was installed to /home/nymph/ZImage-Trainer."
+            : " Z-Image Trainer was skipped.";
 
         if (settings.RepairExistingDistro)
         {
-            return $"Your existing NymphsCore runtime was repaired and refreshed in place. Default Linux user: {settings.LinuxUser}. Managed repos were checked during this run. {runtimeTail}{brainTail}";
+            return $"Your existing NymphsCore runtime was repaired and refreshed in place. Default Linux user: {settings.LinuxUser}. Managed repos were checked during this run. {runtimeTail}{brainTail}{trainerTail}";
         }
 
-        return $"NymphsCore was installed to {settings.InstallLocation}. Default Linux user: {settings.LinuxUser}. {runtimeTail}{brainTail}";
+        return $"NymphsCore was installed to {settings.InstallLocation}. Default Linux user: {settings.LinuxUser}. {runtimeTail}{brainTail}{trainerTail}";
     }
 
     private static bool ShouldShowUpdateCheckLine(string line)
@@ -2908,6 +3505,13 @@ public sealed class MainWindowViewModel : ViewModelBase
         return settings.DownloadBrainModelNow
             ? $"Nymphs-Brain: enabled, install root={settings.BrainInstallRoot}, model download requested."
             : $"Nymphs-Brain: enabled, install root={settings.BrainInstallRoot}, local and remote model selection handled later with Manage Models.";
+    }
+
+    private static string BuildZImageTrainerInstallLogLine(InstallSettings settings)
+    {
+        return settings.InstallZImageTrainer
+            ? "Z-Image Trainer: enabled, install root=/home/nymph/ZImage-Trainer, datasets=/home/nymph/ZImage-Trainer/datasets, outputs=/home/nymph/ZImage-Trainer/loras."
+            : "Z-Image Trainer: skipped.";
     }
 
     private static UpdateCheckPresentation BuildFriendlyUpdateCheckSummary(IEnumerable<string> lines)

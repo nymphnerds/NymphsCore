@@ -85,4 +85,12 @@ If you are trying to rebuild the manager from source, use:
 powershell -ExecutionPolicy Bypass -File .\build-release.ps1
 ```
 
+If you are inside WSL and want to compile the Windows WPF app without a Linux `.NET` install, call the Windows SDK directly with `dotnet.exe` and a `\\wsl.localhost\...` project path, for example:
+
+```text
+dotnet.exe build '\\wsl.localhost\NymphsCore_Lite\home\nymph\NymphsCore\Manager\apps\NymphsCoreManager\NymphsCoreManager.csproj' -c Debug
+```
+
+This works because the actual compiler is the Windows-side .NET SDK. If a `wslpath` conversion produces a bad path, the explicit `\\wsl.localhost\...` UNC path is the safer fallback.
+
 That is not required for normal users. Maintainers should keep the release zip at `publish/NymphsCoreManager-win-x64.zip`, not inside `publish/win-x64/`. The build does not require a bundled `NymphsCore.tar`.

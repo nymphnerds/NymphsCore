@@ -8,6 +8,32 @@ This file focuses on user-facing and system-level changes rather than package-by
 
 Newest entries first.
 
+### 2026-04-29 Z-Image Trainer end-to-end LoRA training and Caption Brain drafts
+Source: live Manager testing took the new Z-Image Trainer from first install through Brain-drafted captions, a real training run, and produced LoRA checkpoint files.
+
+Documented changes:
+
+- added the managed `Z-Image Trainer` flow in the Windows Manager with trainer install, dataset prep, caption drafting, job creation, training start, repair, and runtime status hooks
+- moved trainer assets into a self-contained `/home/<user>/ZImage-Trainer` layout for datasets, LoRAs, jobs, logs, adapters, and the isolated DiffSynth sidecar
+- added `Caption Brain` integration so the trainer can temporarily start Nymphs-Brain with a local vision GGUF plus `mmproj`, draft captions, and write trainer-ready `metadata.csv`
+- aligned trainer metadata to the trainer-native `image,prompt` shape while still tolerating older caption rows during the transition
+- added automatic Turbo training-adapter preparation for `ostris/zimage_turbo_training_adapter`
+- added trainer install-time prefetch of the heavy `Tongyi-MAI/Z-Image-Turbo` training bundle so `Add Trainer` warms the large first-run model downloads instead of surprising the first training job
+- fixed the managed training wrapper to accept Manager-written caption/image fields, resolve dataset image paths reliably, and launch real DiffSynth training successfully
+- fixed trainer output discovery so finished LoRAs are found recursively inside subfolders like `loras/<name>/epoch-*.safetensors`
+- improved the trainer log flow with clearer bootstrap messaging during the quiet first model load
+
+Validation:
+
+- user confirmed `Caption Brain` drafted valid captions into `metadata.csv` from a local Qwen2.5-VL-7B GGUF + `mmproj`
+- user completed a full `Stylized Look / Quick Test` training run from the Manager
+- user confirmed real LoRA outputs were created at `ZImage-Trainer/loras/my_first_lora/epoch-0.safetensors` and `epoch-1.safetensors`
+- verified shell syntax, Python compile, and `git diff --check` for the managed trainer scripts and support files during the implementation pass
+
+Why it matters:
+
+- NymphsCore now has a real end-to-end local LoRA training path for Z-Image, with Brain-assisted caption drafting and a first successful managed training workflow instead of a hand-run experimental side process.
+
 ### 2026-04-28 Nymphs-Brain llama-server migration and Manager integration
 Source: Rauty's Nymphs-Brain branch moved the local LLM runtime onto direct `llama-server` control while keeping LM Studio for model download and management.
 
