@@ -1,9 +1,10 @@
 # WORLD BUILDER UI — Project Analysis & Handoff Document
 
 **Generated**: 2026-04-29
+**Last Updated**: 2026-04-29 18:12 AEST
 **Location**: `WBServer/` (under `/home/nymph`)
-**Version**: v2.1 (Hardcoded LLM config, Settings removed)
-**Status**: Simplified — LLM config hardcoded in server config.js, no user-facing settings page
+**Version**: v2.1 (Hardcoded LLM config, Settings orphaned)
+**Status**: Simplified — LLM config hardcoded in server config.js, no user-facing settings page (Settings page/routes remain as orphaned code)
 
 ## 1. Project Summary
 
@@ -90,6 +91,7 @@ WBServer/
 │   ├── src/
 │   │   ├── index.js                      # Express entry (routes, middleware, auth)
 │   │   ├── config.js                     # Hardcoded LLM config (all users share)
+│   │   ├── middleware/
 │   │   │   └── authMiddleware.js         # JWT validation middleware
 │   │   ├── routes/
 │   │   │   ├── auth.js                   # POST /login, GET /me
@@ -271,13 +273,13 @@ data/users/<username>/
 
 ### Server Configuration (`config.js`)
 
-LLM settings are hardcoded in `server/src/config.js`. To change the LLM server, edit `config.js` directly and restart the backend:
+LLM settings are hardcoded in `server/src/config.js`. Current configuration points to a local llama.cpp server on port 8000:
 
 ```js
 llm: {
-  baseUrl: 'http://127.0.0.1:11434/v1',
-  apiKey: 'sk-not-needed',
-  model: 'command-r',
+  baseUrl: 'http://localhost:8000/v1',
+  apiKey: 'dummy',
+  modelName: 'qwen3.6-27b',
   maxTokens: 4096,
   temperature: 0.7,
 }
@@ -285,11 +287,13 @@ llm: {
 
 | Field | Description |
 |-------|-------------|
-| `baseUrl` | OpenAI-compatible API endpoint (e.g., `http://127.0.0.1:11434/v1` for Ollama) |
+| `baseUrl` | OpenAI-compatible API endpoint (current: `http://localhost:8000/v1` for llama.cpp) |
 | `apiKey` | API key (use placeholder if not needed) |
-| `model` | Model name to use for chat |
+| `modelName` | Model name to use for chat (current: `qwen3.6-27b`) |
 | `maxTokens` | Max tokens in responses |
 | `temperature` | Creativity (0.0–2.0) |
+
+**LLM Server Management**: The llama.cpp server (port 8000) running `Qwen3.6-27B-Q6_K.gguf` is managed separately via `Nymphs-Brain/bin/lms-start` and `Nymphs-Brain/bin/lms-stop`. It must be running before the WBUI AI chat will function.
 
 **To re-enable user-configurable LLM settings**: Restore the settings routes, `Settings.tsx` page, and the `getSettings`/`saveSettings`/`testConnection` API functions.
 
@@ -341,7 +345,7 @@ llm: {
 - Current file path display
 - Word count for active document
 - Error message display
-- Connection status indicator
+- LLM Connection status indicator (⚠️ **Non-functional** — `StatusBar` accepts `llmConnected` prop but `useLLM` hook does not expose connection state, so it always shows "LLM Disconnected")
 
 ### ImagePreview Component
 - Modal overlay for full-size image viewing
@@ -457,6 +461,7 @@ useAuth() checks localStorage for wbu_token
 - [ ] Token refresh mechanism (currently 7-day single token)
 - [ ] Consider upgrading multer from 1.x to 2.x (current: 1.4.5-lts.1 stable)
 - [ ] CORS restriction for production deployment
+- [ ] Fix LLM connection status indicator (wire `useLLM` to detect connection state)
 
 ---
 
@@ -526,6 +531,35 @@ wbu-stop    # Stop both frontend and backend servers
 wbu-start   # Start both servers
 wbu-status  # Check server status
 ```
+
+### LLM Server (Required for AI Chat)
+
+The AI chat requires the llama.cpp server to be running on port 8000. Start it separately:
+
+```bash
+# Start the LLM server (loads Qwen3.6-27B-Q6_K.gguf)
+Nymphs-Brain/bin/lms-start
+
+# Stop the LLM server
+Nymphs-Brain/bin/lms-stop
+```
+
+**Full startup order**: Start the LLM server first, then the WBUI servers:
+1. `Nymphs-Brain/bin/lms-start` (LLM server on port 8000)
+2. `Nymphs-Brain/bin/wbu-start` (WBUI frontend + backend on ports 5173/8082)
+
+---
+
+## 14. Orphaned Code (v2.0 artifacts)
+
+The following files remain on disk from v2.0 (user-configurable LLM settings) but are **no longer used** in v2.1:
+
+| File | Status |
+|------|--------|
+| `client/src/pages/Settings.tsx` | Orphaned — not rendered in App.tsx, no route |
+| `server/src/routes/settings.js` | Orphaned — still mounted in index.js but unused |
+
+These were not deleted to allow easy reversion if user-configurable LLM settings are desired in the future. LLM config is now hardcoded in `server/src/config.js`.
 
 ---
 
