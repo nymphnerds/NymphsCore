@@ -145,8 +145,13 @@ The main app uses a VSCode-inspired layout with three resizable panels:
 
 ### FileExplorer (`components/FileExplorer.tsx`)
 - Recursive tree view with folders and files
-- Create folder via "+ " button in header
+- Create folder via "+" button in header
 - Rename/delete via hover action buttons
+- **Breadcrumb navigation bar** — Appears when inside a subfolder, shows:
+  - Home icon button to jump directly to root
+  - Clickable path segments for parent folders (e.g., `> Misc/SubFolder`)
+  - Current folder displayed as non-clickable text
+- Back button (ArrowLeft) in header for one-level-up navigation
 - Keyboard navigation:
   - `ArrowDown` / `ArrowUp` — navigate list
   - `Enter` — select/open focused item
@@ -378,6 +383,8 @@ This page was not deleted to allow easy reversion if user-configurable LLM setti
 - [x] **Infinite login refresh loop** — `authFetch()` in `api.ts` was redirecting to `/login` on ANY 401 response, even when no token existed. Because `useFiles()` and `useLLM()` hooks in `App.tsx` make API calls on mount regardless of auth state, the 401 from unauthenticated requests triggered `window.location.href = '/login'`, causing a full page reload. **Fix**: `authFetch()` now only redirects on 401 when a token was present (`if (response.status === 401 && token)`).
 
 - [x] **"Rendered more hooks than during the previous render" error** — The early return `if (!isAuthenticated) return <Login />` in `App.tsx` was placed between React hooks (after `useFiles`/`useLLM` but before `useCallback`/`useEffect`). React's Rules of Hooks require all hooks to be called in the same order every render. **Fix**: Moved the auth check to after all hooks, so all hooks run every render regardless of auth state.
+
+- [x] **Can't navigate back to root in file explorer** — After entering a subfolder, the back button in the Explorer header was small and easy to miss, with no visible breadcrumb showing the current folder path. **Fix**: Added a breadcrumb navigation bar that renders when inside a subfolder, with a Home icon to return to root and clickable path segments for parent folders. Added `handleBackToRoot` and `handleBackToSegment` callbacks in `App.tsx`.
 
 ### Remaining (Future Enhancements)
 
