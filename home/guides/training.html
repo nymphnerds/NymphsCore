@@ -91,6 +91,30 @@
     padding: 20px;
   }
   .demo-meta { margin-top: 16px; padding-top: 14px; border-top: 1px solid rgba(255,255,255,0.08); font-family: var(--font-mono); font-size: 12px; color: #777; white-space: pre-line; line-height: 1.7; }
+  .code-shell {
+    margin-top: 20px;
+    border: 1px solid rgba(85,223,240,0.22);
+    border-radius: 16px;
+    background: #101212;
+    overflow: hidden;
+  }
+  .code-header {
+    padding: 12px 16px;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--teal);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .code-body {
+    padding: 18px 20px;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    line-height: 1.8;
+    color: #d9f6fb;
+    white-space: pre-wrap;
+  }
   .note-strip { padding: 18px 22px; margin-top: 24px; font-size: 14px; color: var(--muted); }
   footer { border-top: 1px solid var(--dark4); padding: 28px 60px; display: flex; justify-content: space-between; color: #5d5d5d; font-family: var(--font-mono); font-size: 12px; gap: 16px; }
   @media (max-width: 900px) {
@@ -152,6 +176,18 @@
   <div class="section-tag">// Captions</div>
   <h2 class="section-title">What captions are actually doing.</h2>
   <p class="section-sub">A caption is the text side of the training example. When the trainer sees an image of a bear in a childlike crayon drawing and the caption says <strong>a bear building a log cabin in the snow</strong>, it learns how that subject and wording connect. Later, when you prompt for a bear building a cabin, the LoRA has something meaningful to grab onto.</p>
+  <div class="two-col" style="margin-bottom:20px;">
+    <div class="info-card">
+      <div class="section-tag">// Direct Answer</div>
+      <h3>Do I need one caption per image?</h3>
+      <p><strong>Yes.</strong> The simple beginner rule is: if you have ten training images, write ten captions. Each image should have one matching line in <code>metadata.csv</code>.</p>
+    </div>
+    <div class="info-card">
+      <div class="section-tag">// Beginner Rule</div>
+      <h3>Keep each caption simple.</h3>
+      <p>You are not writing a novel or technical report. One clear line per image is enough. Think of it as the prompt you would have wanted if you were trying to recreate that picture later.</p>
+    </div>
+  </div>
   <div class="steps">
     <div class="step-card">
       <div class="step-num">Rule 01</div>
@@ -188,6 +224,26 @@
         <li>Weaker: <strong>kids drawing style crayon style cute style bear</strong></li>
       </ul>
     </div>
+  </div>
+  <div class="code-shell">
+    <div class="code-header">Finished Example · metadata.csv</div>
+    <div class="code-body">filename,caption
+bear_cabin_01.png,"a bear building a small log cabin in the snow"
+rabbit_book_01.png,"a rabbit reading a book at a wooden desk"
+girl_kite_01.png,"a child holding a red kite in a windy field"
+cat_bike_01.png,"a cat riding a bicycle down a quiet street"
+</div>
+  </div>
+  <div class="note-strip">That is the shape you are aiming for: one image filename, one caption, repeated all the way down. It does not need to sound fancy. It needs to match the picture.</div>
+  <div class="code-shell">
+    <div class="code-header">Plain-English Translation</div>
+    <div class="code-body">Image 1 = this exact picture of the bear scene
+Caption 1 = the words you want connected to that bear scene
+
+Image 2 = this exact picture of the rabbit scene
+Caption 2 = the words you want connected to that rabbit scene
+
+And so on, for every training image.</div>
   </div>
   <div class="note-strip">If you are unsure what to write, aim for one clear sentence per image. Subject first, then action, then the most important visible qualifiers. For kids-drawings style, think: caption the scene like a normal prompt, and let the images teach the childlike rendering.</div>
 </section>
