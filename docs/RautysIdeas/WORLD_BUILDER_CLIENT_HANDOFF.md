@@ -477,6 +477,69 @@ Nymphs-Brain/bin/lms-stop     # Stop LLM server
 
 ---
 
+---
+
+## Changelog
+
+### v2.2 — Tiptap WYSIWYG Rich Text Editor (2026-04-29)
+
+**DocumentEditor rewritten** from a plain `<textarea>` to a full-featured WYSIWYG editor powered by Tiptap v2.
+
+**New Dependencies** (`client/package.json`):
+- `@tiptap/react`, `@tiptap/starter-kit`
+- `@tiptap/extension-underline`, `@tiptap/extension-image`, `@tiptap/extension-link`
+- `@tiptap/extension-table`, `@tiptap/extension-table-row`, `@tiptap/extension-table-cell`, `@tiptap/extension-table-header`
+- `@tiptap/extension-placeholder`
+
+**Editor Features**:
+- **Formatting toolbar**: Bold, Italic, Underline, H1/H2/H3 headings, bullet list, ordered list
+- **Tables**: Insert 3x3 table with header row via toolbar button
+- **Images**: Insert via toolbar button, drag-and-drop, or clipboard paste
+- **Image storage**: Images uploaded to the same folder as the current document (via `useFiles.uploadImageFile` which derives the parent folder from `currentPath`)
+- **Document type selector**: Dropdown in toolbar — Markdown (default), Plain Text, JSON. Auto-detected from file extension (.md/.txt/.mdown/.txt → markdown, .json → json, .txt → plaintext)
+- **View modes**: Edit-only, Split-view (editor + live preview side-by-side), Preview-only
+- **Markdown sync**: On save, editor HTML is converted to Markdown via `htmlToMarkdown()`. On load, Markdown is converted to HTML via `markdownToHtml()`.
+
+**API Changes** (`client/src/services/api.ts`):
+- Added `LLMSettings` interface
+- Added `getSettings()`, `saveSettings()`, `testConnection()`, `saveUserSettings()` API functions
+
+**Hook Changes** (`client/src/hooks/useLLM.ts`):
+- Extended with `settings` state (loaded from server on mount)
+- Added `updateSettings()`, `saveUserSettings()`, `testConn()`, `loadModels()` methods
+- Added `models[]` and `testing` state
+
+**Hook Changes** (`client/src/hooks/useFiles.ts`):
+- `uploadImageFile` now derives the parent folder from `currentPath` and passes it to `uploadImage(file, folder)`
+
+**CSS Changes** (`client/src/styles/globals.css`):
+- Full `.tiptap` editor styling: headings, lists, code blocks, blockquotes, tables, images, links, placeholder
+- `.prose` preview styling for tables and images
+
+**Server Changes Required** (see SERVER handoff):
+- `POST /api/files/upload` now accepts optional `folder` form field to save image in a specific subdirectory
+- `fileService.saveImage()` updated to accept `folder` parameter
+
+### v2.1.2 — File Explorer: Remove Expand/Collapse Arrows (2026-04-29)
+
+Folders in the file explorer no longer show expand/collapse (▸/▾) arrows since all folders are always expanded. Icon changed from `Folder` to `FolderOpen` with cyan color (`text-cyan-400`).
+
+### v2.1.1 — File Explorer: Breadcrumb Navigation (2026-04-29)
+
+Added clickable breadcrumb path at top of file explorer for navigating back to parent directories and root. Click any segment to jump to that level.
+
+### v2.1 — Simplified LLM Config (2026-04-29)
+
+Removed user-facing settings page. LLM configuration is now hardcoded on the server.
+
+### v2.0 — Multi-user Authentication (2026-04-29)
+
+Username-only passwordless login with JWT tokens. Each user gets an isolated workspace.
+
+### v1.0 — Initial Release
+
+VSCode-inspired 3-panel layout with file explorer, Markdown editor, and AI chat panel.
+
 ## Design Principles
 
 1. **Modern & Clean** — Dark theme, subtle borders, consistent spacing
