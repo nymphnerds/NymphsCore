@@ -89,7 +89,7 @@ Scans the model's directory for `.mmproj` files (vision-language models). If fou
 │                                                                  │
 │  2. Calculate free VRAM budget                                   │
 │     free_mb = total_mb - used_mb                                │
-│     budget = free_mb × 0.90  (90% of free VRAM)                 │
+│     budget = free_mb × 0.88  (88% of free VRAM)                 │
 │     └─ Fallback: if no free VRAM → minimum context (2048)       │
 │                                                                  │
 │  3. Parse GGUF metadata (Python + gguf library)                 │
@@ -141,7 +141,7 @@ bytes_per_token = KV_elements × 1 (q8_0) × 2 (parallel sequences)
 ```
 === VRAM-Based Context Calculation ===
 GPU: 49152 MB total, 512 MB used
-Free: 48640 MB → Target (90%): 43776 MB available
+Free: 48640 MB → Target (88%): 42803 MB available
 Model: 18.5 GB weights (est. GPU footprint)
 KV cache budget: 24.3 GB for context
 Formula: MLA (key=128, val=128, layers=48)
@@ -373,9 +373,9 @@ Time →
 
 Fixed context lengths are inefficient: they either waste VRAM (context larger than needed) or cause OOM errors (context larger than available VRAM). The auto-context system dynamically sizes the context window to fit the available GPU memory.
 
-### 6.2 The 90% Budget Rule
+### 6.2 The 88% Budget Rule
 
-The system uses 90% of free VRAM as the budget (not 100%), reserving 10% as a safety margin for:
+The system uses 88% of free VRAM as the budget (not 100%), reserving 12% as a safety margin for:
 - OS/driver overhead
 - CUDA allocator fragmentation
 - Other GPU workloads
