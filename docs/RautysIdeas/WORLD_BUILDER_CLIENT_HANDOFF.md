@@ -104,12 +104,13 @@ The main app uses a VSCode-inspired layout with three resizable panels:
 - Active file highlighting
 - Scoped to authenticated user's workspace
 
-### Center Panel — DocumentEditor
-- Plain text textarea for editing
-- Markdown preview using `react-markdown`
-- Split view toggle (edit mode / preview mode / split)
-- Image drag-and-drop upload
-- Inline image rendering in markdown preview
+### Center Panel — DocumentEditor (Tiptap WYSIWYG — v2.2)
+- Tiptap v2 rich text editor with formatting toolbar (Bold, Italic, Underline, H1/H2/H3, lists, tables)
+- Image insertion via toolbar button, drag-and-drop, or clipboard paste
+- Images stored in same folder as current document
+- Document type selector: HTML, Plain Text, JSON — auto-detected from file extension
+- Three view modes: Edit-only, Split-view (editor + live HTML preview), Preview-only
+- NOTE: v2.3 to switch from Markdown conversion to native HTML storage
 
 ### Right Panel — ChatPanel
 - AI chat message history
@@ -161,15 +162,18 @@ The main app uses a VSCode-inspired layout with three resizable panels:
 - Sorted: folders first, then alphabetical
 - Active file highlighting
 
-### DocumentEditor (`components/DocumentEditor.tsx`)
-- Textarea for plain text editing
-- Markdown preview with `react-markdown`
-- Three view modes: Edit only, Preview only, Split
+### DocumentEditor (`components/DocumentEditor.tsx`, ~550 lines — v2.2)
+- **Tiptap v2** rich text editor (`@tiptap/react` + `starter-kit` + extensions)
+- **Formatting toolbar**: Bold, Italic, Underline, H1/H2/H3, bullet list, ordered list, table insert, image insert
+- **Images**: Insert via toolbar button (`<input type="file">`), drag-and-drop, or clipboard paste
+- **Image upload flow**: `handleImageUpload` → `onImageUpload(file)` (parent prop from `useFiles.uploadImageFile`) → `uploadImage(file, folder)` API → `POST /api/files/upload` (multipart FormData) → server returns `{ path, url }` → `editor.commands.setImage({ src: url, alt: fileName })`
+- **Image storage**: Images uploaded to same folder as current document (`useFiles.uploadImageFile` derives parent folder from `currentPath`)
+- **Document type selector**: Dropdown — Markdown (default), Plain Text, JSON. Auto-detected from file extension (.md/.txt → markdown, .json → json)
+- **View modes**: Edit-only, Split-view (editor + live preview), Preview-only
+- **Markdown sync (v2.2, to be removed in v2.3)**: On edit, `editor.getHTML()` → `htmlToMarkdown()` → `onChange(md)`. On load, `content` → `markdownToHtml()` → `editor.commands.setContent(html)`.
+- **Preview panel**: `editor.getHTML()` rendered via `dangerouslySetInnerHTML` in `RenderedPreview` component
 - Create File button — prompts for filename, creates in current explorer folder
-  - When at root level, prompts user to select a target folder first (numbered list)
-- Drag-and-drop image upload
-- Auto-save with debounce
-- Word count tracked in status bar
+
 
 ### ChatPanel (`components/ChatPanel.tsx`)
 - Message list with user/AI distinction
@@ -519,6 +523,32 @@ Nymphs-Brain/bin/lms-stop     # Stop LLM server
 **Server Changes Required** (see SERVER handoff):
 - `POST /api/files/upload` now accepts optional `folder` form field to save image in a specific subdirectory
 - `fileService.saveImage()` updated to accept `folder` parameter
+
+### v2.3 — Native HTML + Image Upload Fix (PLANNED)
+
+**Bug: Inserted images appear broken (no src URL)**
+- **Root cause**: `POST /api/files/upload` uses `multer.diskStorage` to save directly to assets root (`getUserAssetsDir(username)`), ignoring the `folder` form field parameter. The `folder` is only used in `fileService.saveImage()` to build the response URL, not the actual save location. Because multer must know the destination before parsing the request body, `req.body.folder` isn't available when `createUploadMiddleware()` runs.
+- **Result**: File saved to `assets/filename.png` but URL returned is `/api/files/images/Misc/filename.png` → 404 when browser tries to load.
+- **Fix plan**: Switch upload route to `multer.memoryStorage()` → after multer finishes, read `req.body.folder` → manually write file buffer to `assets/{folder}/filename.png` using `fs.writeFile()` → return correct URL.
+
+**Feature: Native HTML storage (remove Markdown conversion)**
+- Remove `htmlToMarkdown()` and `markdownToHtml()` functions from `DocumentEditor.tsx`
+- `onUpdate`: `onChange(editor.getHTML())` — save raw HTML directly
+- `useEffect` sync: `editor.commands.setContent(content)` — load raw HTML directly
+- Preview: `editor.getHTML()` rendered directly (already the case via `RenderedPreview`)
+- Rename "Markdown" document type to "HTML" in selector dropdown
+- Files will store HTML content natively (cleaner, no lossy conversion)
+
+**Files to modify:**
+1. `server/src/routes/files.js` — Fix upload to use memoryStorage + manual fs.writeFile with folder support
+2. `server/src/services/fileService.js` — Add `saveImageFromBuffer(username, buffer, filename, folderPath, mimeType)` function
+3. `client/src/components/DocumentEditor.tsx` — Remove htmlToMarkdown/markdownToHtml, use native HTML, rename doc type
+
+**Next steps after condense:**
+1. Fix image upload (server: files.js + fileService.js)
+2. Update DocumentEditor to native HTML (client: DocumentEditor.tsx)
+3. Build verification (TypeScript + Vite)
+4. Changelog update + push to GitHub
 
 ### v2.1.2 — File Explorer: Remove Expand/Collapse Arrows (2026-04-29)
 
