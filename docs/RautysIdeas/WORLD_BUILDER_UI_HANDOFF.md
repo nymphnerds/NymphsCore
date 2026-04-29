@@ -1,12 +1,11 @@
 # WORLD BUILDER UI — Project Analysis & Handoff Document
 
 **Generated**: 2026-04-29
-**Last Updated**: 2026-04-29 18:12 AEST
-**Location**: `WBServer/` (under `/home/nymph`)
-**Version**: v2.1 (Hardcoded LLM config, Settings orphaned)
-**Status**: Simplified — LLM config hardcoded in server config.js, no user-facing settings page (Settings page/routes remain as orphaned code)
+**Status**: This combined handoff has been split into two focused documents:
+- 📄 **[Server Handoff](./WORLD_BUILDER_SERVER_HANDOFF.md)** — Backend (Express.js REST API)
+- 📄 **[Client Handoff](./WORLD_BUILDER_CLIENT_HANDOFF.md)** — Frontend (React + TypeScript)
 
-## 1. Project Summary
+> **Note**: This document is retained for reference. For team-specific onboarding, use the split handoff documents linked above.
 
 **WBUI** (WorldBuilder UI) is a local, self-hosted multi-user web application for game developers to write and manage main story quests, side quests, character profiles, lore, and related assets. It features a modern VSCode-inspired 3-panel layout with integrated AI chat powered by a hardcoded local LLM server (OpenAI-compatible).
 
@@ -15,6 +14,8 @@ The application is **local-first**: all game content stays on the user's machine
 **v2.0 Multi-user**: Users authenticate via username-only passwordless login (JWT-based). Each user gets their own isolated workspace and assets. No passwords required — type a username and enter.
 
 **v2.1 Simplified LLM Config**: LLM server configuration is hardcoded in `server/src/config.js` rather than being user-configurable. There is no settings page — the admin configures the LLM once in the server config and all users share it. This reduces UI complexity and eliminates per-user settings management.
+
+---
 
 ## 2. Architecture Overview
 
@@ -62,6 +63,8 @@ The application is **local-first**: all game content stays on the user's machine
 - **TypeScript types** defined in `client/src/services/api.ts`
 - **401 auto-redirect** — frontend clears token and redirects to `/login` on auth failure
 
+---
+
 ## 3. Tech Stack
 
 | Layer | Technology | Purpose |
@@ -106,11 +109,10 @@ WBServer/
 │       └── users/                        # Multi-user data root
 │           └── <username>/
 │               ├── workspace/            # User's game content
-│               │   ├── quests/main/
-│               │   ├── quests/side/
-│               │   ├── characters/
-│               │   ├── lore/
-│               │   └── maps/
+│               │   ├── MainStory/
+│               │   ├── Quests/
+│               │   ├── Characters/
+│               │   └── World/
 │               ├── assets/images/        # User's uploaded images
 │               └── settings.json         # User's LLM settings
 ├── client/
@@ -195,12 +197,11 @@ Each user gets a dedicated directory structure:
 
 ```
 data/users/<username>/
-├── workspace/          # Game content (quests, characters, lore, maps)
-│   ├── quests/main/
-│   ├── quests/side/
-│   ├── characters/
-│   ├── lore/
-│   └── maps/
+├── workspace/          # Game content (default folders created on login)
+│   ├── MainStory/
+│   ├── Quests/
+│   ├── Characters/
+│   └── World/
 ├── assets/images/      # Uploaded images
 └── settings.json       # LLM configuration (URL, model, API key, etc.)
 ```
@@ -312,6 +313,7 @@ llm: {
 ### File Explorer (Left Panel)
 - Tree view with folders and files
 - Create, rename, delete operations
+- **+ folder button** in header — prompts for folder name, creates in current explorer path, refreshes file list
 - Keyboard navigation (ArrowUp/Down, Enter, Backspace)
 - Back button for folder navigation
 - Hover actions (rename/delete buttons)
@@ -323,6 +325,7 @@ llm: {
 - Plain text textarea for editing
 - Markdown preview using `react-markdown`
 - Split view toggle
+- **Create File button** — prompts for filename, creates file in current explorer folder, auto-opens editor; **when at root level, prompts user to select a target folder first** (lists available folders numbered, user enters number)
 - Drag-and-drop image upload
 - Inline image rendering in preview
 - Word count displayed in status bar
@@ -339,7 +342,7 @@ llm: {
 - App title and branding
 - **User display** with username and avatar icon
 - **Logout button** (red hover state)
-- New file and new folder buttons with naming prompts
+- New file button only (no folder button — folders are predefined)
 
 ### Status Bar
 - Current file path display
@@ -417,6 +420,7 @@ useAuth() checks localStorage for wbu_token
 - [x] Backend: User management service (create, verify, workspace init)
 - [x] Backend: Multi-user data isolation (per-user workspace/assets/settings)
 - [x] Backend: File CRUD routes + image upload/serve (user-scoped)
+- [x] Default folder template (MainStory, Quests, Characters, World) created on login
 - [x] Backend: LLM proxy routes (chat, models, test)
 - [x] Backend: Per-user settings routes with disk persistence + cache
 - [x] Backend: File service with user-scoped path traversal protection
@@ -461,7 +465,6 @@ useAuth() checks localStorage for wbu_token
 - [ ] Token refresh mechanism (currently 7-day single token)
 - [ ] Consider upgrading multer from 1.x to 2.x (current: 1.4.5-lts.1 stable)
 - [ ] CORS restriction for production deployment
-- [ ] Fix LLM connection status indicator (wire `useLLM` to detect connection state)
 
 ---
 
@@ -550,7 +553,7 @@ Nymphs-Brain/bin/lms-stop
 
 ---
 
-## 14. Orphaned Code (v2.0 artifacts)
+## 13. Orphaned Code (v2.0 artifacts)
 
 The following files remain on disk from v2.0 (user-configurable LLM settings) but are **no longer used** in v2.1:
 
@@ -563,7 +566,7 @@ These were not deleted to allow easy reversion if user-configurable LLM settings
 
 ---
 
-## 13. Design Principles
+## 14. Design Principles
 
 1. **Modern & Clean** — Dark theme, subtle borders, consistent spacing
 2. **Intuitive** — VSCode-like layout familiar to developers
@@ -572,6 +575,3 @@ These were not deleted to allow easy reversion if user-configurable LLM settings
 5. **Flexible LLM** — Supports any OpenAI-compatible endpoint
 6. **Image-First** — Images are first-class citizens in documents
 7. **Frictionless Login** — No passwords to forget, no accounts to manage
-
----
-
