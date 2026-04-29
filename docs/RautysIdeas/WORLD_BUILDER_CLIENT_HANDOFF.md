@@ -144,7 +144,8 @@ The main app uses a VSCode-inspired layout with three resizable panels:
 - New user creation message
 
 ### FileExplorer (`components/FileExplorer.tsx`)
-- Recursive tree view with folders and files
+- Flat list view with folders and files (no tree expansion)
+- Folders: click-to-navigate only (no expand/collapse arrows)
 - Create folder via "+" button in header
 - Rename/delete via hover action buttons
 - **Breadcrumb navigation bar** — Appears when inside a subfolder, shows:
@@ -385,6 +386,8 @@ This page was not deleted to allow easy reversion if user-configurable LLM setti
 - [x] **"Rendered more hooks than during the previous render" error** — The early return `if (!isAuthenticated) return <Login />` in `App.tsx` was placed between React hooks (after `useFiles`/`useLLM` but before `useCallback`/`useEffect`). React's Rules of Hooks require all hooks to be called in the same order every render. **Fix**: Moved the auth check to after all hooks, so all hooks run every render regardless of auth state.
 
 - [x] **Can't navigate back to root in file explorer** — After entering a subfolder, the back button in the Explorer header was small and easy to miss, with no visible breadcrumb showing the current folder path. **Fix**: Added a breadcrumb navigation bar that renders when inside a subfolder, with a Home icon to return to root and clickable path segments for parent folders. Added `handleBackToRoot` and `handleBackToSegment` callbacks in `App.tsx`.
+
+- [x] **Misleading expand/collapse arrows on folders** — File explorer showed expand/collapse chevron arrows next to folders that toggled the icon but didn't actually load or display nested children, making them purely cosmetic and confusing. **Fix**: Removed the expand/collapse arrows entirely. Folders now use click-to-navigate only (flat list view). Removed `expandedFolders` state, `toggleFolder` callback, and `ChevronDown` import from `FileExplorer.tsx`.
 
 ### Remaining (Future Enhancements)
 
