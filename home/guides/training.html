@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NymphsCore Guide - Z-Image Training</title>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@900&family=DM+Mono:wght@400;500&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --lime: #63e35f; --teal: #55dff0; --dark: #0d0d0d; --dark2: #161616; --dark3: #1e1e1e; --dark4: #2a2a2a; --muted: #888; --light: #f0ede6;
+    --font-head: "Archivo", sans-serif; --font-mono: "DM Mono", monospace; --font-body: "Inter", sans-serif;
+  }
+  html { font-size: 16px; scroll-behavior: smooth; }
+  body {
+    background:
+      radial-gradient(circle at 82% 10%, rgba(99,227,95,0.10) 0%, transparent 24%),
+      radial-gradient(circle at 12% 74%, rgba(85,223,240,0.08) 0%, transparent 24%),
+      linear-gradient(180deg, #0a0d0b 0%, #0d0d0d 50%, #0b0e0d 100%);
+    color: var(--light);
+    font-family: var(--font-body);
+    line-height: 1.6;
+  }
+  img { max-width: 100%; display: block; }
+  a { color: inherit; }
+  nav { position: fixed; top: 0; left: 0; right: 0; padding: 16px 60px; background: rgba(13,13,13,0.88); backdrop-filter: blur(14px); border-bottom: 1px solid var(--dark4); display: flex; align-items: center; justify-content: space-between; z-index: 100; }
+  .nav-logo { display: inline-flex; align-items: center; text-decoration: none; color: var(--light); }
+  .nav-logo img { width: 210px; height: auto; display: block; }
+  .nav-links { list-style: none; display: flex; gap: 28px; align-items: center; }
+  .nav-links a { text-decoration: none; color: var(--muted); font-size: 14px; }
+  .nav-links a:hover { color: var(--light); }
+  .nav-cta { background: var(--lime); color: var(--dark) !important; padding: 8px 18px; border-radius: 5px; font-family: var(--font-head); font-size: 13px; font-weight: 900; }
+  .hero { padding: 130px 60px 48px; position: relative; overflow: hidden; }
+  .hero::after {
+    content: "";
+    position: absolute;
+    right: -120px;
+    top: -140px;
+    width: 480px;
+    height: 480px;
+    background: radial-gradient(circle, rgba(85,223,240,0.14) 0%, transparent 68%);
+    pointer-events: none;
+  }
+  .eyebrow { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--lime); margin-bottom: 18px; position: relative; z-index: 2; }
+  h1, h2, h3 { font-family: var(--font-head); letter-spacing: -0.02em; }
+  h1 { font-size: clamp(48px, 8vw, 96px); line-height: 0.94; margin-bottom: 20px; max-width: 960px; position: relative; z-index: 2; }
+  h1 em { display: block; font-style: normal; color: var(--teal); }
+  .hero-sub { max-width: 780px; font-size: 18px; color: var(--muted); line-height: 1.75; margin-bottom: 28px; position: relative; z-index: 2; }
+  .hero-sub strong { color: var(--light); font-weight: 500; }
+  .hero-actions { display: flex; flex-wrap: wrap; gap: 16px; position: relative; z-index: 2; }
+  .btn, .ghost { display: inline-block; padding: 14px 28px; border-radius: 6px; text-decoration: none; }
+  .btn { background: var(--lime); color: var(--dark); font-family: var(--font-head); font-weight: 900; }
+  .ghost { border: 1px solid var(--dark4); color: var(--light); }
+  .hero-panel, .step-card, .info-card, .demo-shell, .note-strip { border: 1px solid var(--dark4); border-radius: 18px; background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.02)); }
+  .hero-panel { margin-top: 36px; padding: 28px; display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 20px; position: relative; z-index: 2; }
+  .hero-panel h3 { font-size: 28px; margin-bottom: 10px; }
+  .hero-panel p, .hero-panel li, .step-card p, .step-card li, .info-card p { color: var(--muted); font-size: 14px; line-height: 1.75; }
+  .hero-panel ul, .step-card ul { list-style: none; display: grid; gap: 10px; margin-top: 14px; }
+  .hero-panel li::before, .step-card li::before { content: ">"; color: var(--lime); margin-right: 10px; font-family: var(--font-mono); }
+  .signal-box {
+    border: 1px dashed rgba(85,223,240,0.35);
+    border-radius: 14px;
+    background: radial-gradient(circle at 20% 20%, rgba(99,227,95,0.06), transparent 28%), radial-gradient(circle at 80% 80%, rgba(85,223,240,0.08), transparent 30%), #111;
+    padding: 24px;
+    min-height: 100%;
+  }
+  .signal-box .section-tag { margin-bottom: 12px; }
+  .section { padding: 64px 60px; }
+  .section-tag { font-family: var(--font-mono); font-size: 11px; color: var(--lime); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 16px; }
+  .section-title { font-size: clamp(34px, 4.5vw, 56px); line-height: 0.98; margin-bottom: 14px; }
+  .section-sub { max-width: 780px; color: var(--muted); font-size: 16px; line-height: 1.75; margin-bottom: 36px; }
+  .steps { display: grid; gap: 18px; }
+  .step-card { padding: 24px; }
+  .step-num { font-family: var(--font-mono); font-size: 11px; color: var(--teal); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 10px; }
+  .step-card h3 { font-size: 24px; margin-bottom: 10px; }
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .info-card { padding: 24px; }
+  .info-card h3 { font-size: 28px; margin-bottom: 10px; }
+  .demo-shell { padding: 22px; }
+  .demo-frame {
+    aspect-ratio: 16 / 9;
+    border-radius: 14px;
+    border: 1px dashed rgba(85,223,240,0.35);
+    background: radial-gradient(circle at 20% 20%, rgba(99,227,95,0.06), transparent 28%), radial-gradient(circle at 80% 80%, rgba(85,223,240,0.07), transparent 30%), #111;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    font-family: var(--font-head);
+    font-size: 28px;
+    padding: 20px;
+  }
+  .demo-meta { margin-top: 16px; padding-top: 14px; border-top: 1px solid rgba(255,255,255,0.08); font-family: var(--font-mono); font-size: 12px; color: #777; white-space: pre-line; line-height: 1.7; }
+  .note-strip { padding: 18px 22px; margin-top: 24px; font-size: 14px; color: var(--muted); }
+  footer { border-top: 1px solid var(--dark4); padding: 28px 60px; display: flex; justify-content: space-between; color: #5d5d5d; font-family: var(--font-mono); font-size: 12px; gap: 16px; }
+  @media (max-width: 900px) {
+    nav { padding: 14px 24px; }
+    .nav-links { display: none; }
+    .hero, .section { padding-left: 24px; padding-right: 24px; }
+    .hero-panel, .two-col { grid-template-columns: 1fr; }
+    footer { padding: 24px; flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+<nav>
+  <a class="nav-logo" href="../index.html" aria-label="NymphsCore home">
+    <img src="../assets/NymphsCoreLogo.png" alt="NymphsCore logo">
+  </a>
+  <ul class="nav-links">
+    <li><a href="../guides.html">Guide Hub</a></li>
+    <li><a href="#captions">Captions</a></li>
+    <li><a href="#first-test">First Test</a></li>
+    <li><a href="#results">Results</a></li>
+    <li><a href="../alpha.html?v=20260426b" class="nav-cta">Bug Reports</a></li>
+  </ul>
+</nav>
+
+<section class="hero">
+  <div class="eyebrow">Guide 05</div>
+  <h1>Train a Z-Image LoRA.<em>Start safe, then push style on purpose.</em></h1>
+  <p class="hero-sub">This is the beginner guide for the new trainer flow. It is written to be practical, not academic: what captions actually do, how to set up a first test on a <strong>4080 Super</strong>, and how to tell whether a run is weak, healthy, or overcooked.</p>
+  <div class="hero-actions">
+    <a class="btn" href="#captions">Understand captions</a>
+    <a class="ghost" href="#first-test">Run your first test</a>
+    <a class="ghost" href="../guides.html">Back to guide hub</a>
+  </div>
+  <div class="hero-panel">
+    <div>
+      <div class="section-tag">// Quick Read</div>
+      <h3>The short version.</h3>
+      <p>The trainer uses the same Turbo training adapter approach we discussed from Ostris, and the Manager now treats <strong>captions as user-owned training data</strong>. That means the app helps you open and manage the captions file, but it does not silently write the meaning of your dataset for you.</p>
+      <ul>
+        <li><strong>Character / Object</strong> is for identity, objects, or repeatable subjects.</li>
+        <li><strong>Stylized Look</strong> is for broader rendering shifts like kids drawings or strong illustration language.</li>
+        <li><strong>Quick Test</strong> is your system check and first sanity pass, not the final quality run.</li>
+      </ul>
+    </div>
+    <div class="signal-box">
+      <div class="section-tag">// Why Captions Matter</div>
+      <p>The images teach the model what things look like. The captions teach it what words should call those things back up later. If the caption is vague, noisy, or wrong, the LoRA can still learn something, but it will be much harder to prompt cleanly.</p>
+      <ul>
+        <li>The caption is not busywork. It is part of the training pair.</li>
+        <li>You do not need perfect prose. You do need clear intent.</li>
+        <li>For style work, describe the subject normally and let the LoRA learn the rendering style.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="captions">
+  <div class="section-tag">// Captions</div>
+  <h2 class="section-title">What captions are actually doing.</h2>
+  <p class="section-sub">A caption is the text side of the training example. When the trainer sees an image of a bear in a childlike crayon drawing and the caption says <strong>a bear building a log cabin in the snow</strong>, it learns how that subject and wording connect. Later, when you prompt for a bear building a cabin, the LoRA has something meaningful to grab onto.</p>
+  <div class="steps">
+    <div class="step-card">
+      <div class="step-num">Rule 01</div>
+      <h3>Describe the subject, action, and key read.</h3>
+      <p>Write what is in the image in the way you would want to prompt it later. This is usually more useful than stuffing in every technical detail you can think of.</p>
+      <ul>
+        <li>Good: <strong>a child holding a red kite in a windy field</strong></li>
+        <li>Good: <strong>a rabbit reading a book at a wooden desk</strong></li>
+        <li>Weaker: <strong>nice art style cute image</strong></li>
+      </ul>
+    </div>
+    <div class="step-card">
+      <div class="step-num">Rule 02</div>
+      <h3>Do not let the app invent the captions for you.</h3>
+      <p>That is why the Manager now opens <code>metadata.csv</code> for you instead of auto-writing caption text. If captions are important, they need to stay in your hands.</p>
+      <ul>
+        <li>The Manager will keep the image filenames in sync.</li>
+        <li>It will preserve captions you already wrote.</li>
+        <li>It will block training if captions are still blank.</li>
+      </ul>
+    </div>
+    <div class="step-card">
+      <div class="step-num">Rule 03</div>
+      <h3>For stylized training, caption the content normally.</h3>
+      <p>This is the big idea from the kids-drawing style workflow. If every caption just repeats the style name, the LoRA can become less useful. For strong styles, it is often better to caption the content cleanly and let the LoRA absorb the visual treatment from the images themselves.</p>
+    </div>
+  </div>
+  <div class="note-strip">If you are unsure what to write, aim for one clear sentence per image. Subject first, then action, then the most important visible qualifiers.</div>
+</section>
+
+<section class="section">
+  <div class="two-col">
+    <div class="info-card">
+      <div class="section-tag">// Training Focus</div>
+      <h3>Character / Object</h3>
+      <p>Use this when you want a person, creature, object, or repeatable identity to come through more strongly. This mode keeps a full-range training emphasis and is the safer choice when the goal is consistency of subject.</p>
+    </div>
+    <div class="info-card">
+      <div class="section-tag">// Training Focus</div>
+      <h3>Stylized Look</h3>
+      <p>Use this when the point is a broad rendering language, like kids drawings, heavy illustration, or a very particular visual voice. This mode now pushes training toward earlier, higher-noise timesteps so the style can influence more than just surface texture.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="first-test">
+  <div class="section-tag">// First Test</div>
+  <h2 class="section-title">Your first run on a 4080 Super.</h2>
+  <p class="section-sub">The goal of your first training run is not perfection. It is to confirm the pipeline works, that your captions make sense, and that the LoRA is moving in the right direction before you invest in a longer run.</p>
+  <div class="steps">
+    <div class="step-card">
+      <div class="step-num">Step 01</div>
+      <h3>Start with a tiny, consistent dataset.</h3>
+      <p>Use roughly <strong>10 to 20 images</strong> for the first pass. Keep the style tight and avoid mixing wildly different aesthetics together.</p>
+    </div>
+    <div class="step-card">
+      <div class="step-num">Step 02</div>
+      <h3>Pick the right focus before you pick strength.</h3>
+      <p>Choose <strong>Stylized Look</strong> for kids-drawing style work. Choose <strong>Quick Test</strong> for the first run even if you already know you want the style to hit hard later.</p>
+    </div>
+    <div class="step-card">
+      <div class="step-num">Step 03</div>
+      <h3>Fill in every caption before you hit start.</h3>
+      <p>Use <strong>Open Pictures Folder</strong>, then <strong>Open Captions File</strong>, and make sure every image has a real caption. The current flow intentionally stops you from training on blank text.</p>
+    </div>
+    <div class="step-card">
+      <div class="step-num">Step 04</div>
+      <h3>Treat Quick Test as a learning run.</h3>
+      <p>If it completes and the result bends output toward your style, that is a win. You can move to <strong>Normal</strong> next. Save <strong>Strong</strong> for when you already know the dataset is healthy and simply needs more push.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="results">
+  <div class="section-tag">// Results</div>
+  <h2 class="section-title">How to read what comes out.</h2>
+  <p class="section-sub">The first LoRA does not need to be perfect to be useful. What matters is whether it is pointing in the right direction and whether the failure mode tells us what to change next.</p>
+  <div class="two-col">
+    <div class="info-card">
+      <div class="section-tag">// Healthy Signals</div>
+      <h3>What success looks like.</h3>
+      <p>A healthy first run finishes cleanly, writes a LoRA file, and clearly nudges output toward the intended look. Even if it only feels halfway there, that is enough information to improve the next run.</p>
+    </div>
+    <div class="info-card">
+      <div class="section-tag">// Trouble Signals</div>
+      <h3>What failure usually means.</h3>
+      <p>If the result is weak, the style signal may need more data or more training. If it becomes mushy, strange, or too aggressive, the dataset may be messy or the run may be pushing too hard for the data quality.</p>
+    </div>
+  </div>
+  <div class="steps" style="margin-top:20px;">
+    <div class="step-card">
+      <div class="step-num">If It Is Weak</div>
+      <h3>Try a cleaner or slightly longer second pass.</h3>
+      <p>Move from Quick Test to Normal, tighten captions, and make sure the images are all really teaching the same visual language.</p>
+    </div>
+    <div class="step-card">
+      <div class="step-num">If It Is Overcooked</div>
+      <h3>Do not just crank it harder.</h3>
+      <p>Look for noisy captions, mixed styles, or images that do not belong in the set. A stronger run on a confused dataset usually gives a stronger mess.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="demo">
+  <div class="section-tag">// Living Guide</div>
+  <h2 class="section-title">Keep updating this as we learn.</h2>
+  <p class="section-sub">This page is meant to evolve with real runs. As we learn what works best for kids-drawing style, stronger illustration styles, and character identity, we can tighten the examples, swap in better defaults, and attach short demos.</p>
+  <div class="demo-shell">
+    <div class="demo-frame">Future training walkthrough<br>and result-comparison demo</div>
+    <div class="demo-meta">Suggested future additions:
+Quick Test vs Normal comparison
+Caption examples that worked well
+Stylized Look dataset examples
+First bad run / second improved run</div>
+  </div>
+</section>
+
+<footer>
+  <div>Nymphs<span style="color:var(--lime);">Core</span></div>
+  <div>Guide 05 · Z-Image training</div>
+</footer>
+</body>
+</html>
