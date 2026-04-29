@@ -392,6 +392,10 @@ git push origin rauty
 
 ## Changelog
 
+### v2.5 — Remove Preview Panel (Client-side, 2026-04-29)
+
+Client-side simplification: Removed preview panel, view mode toggles, and document type selector from DocumentEditor. The Tiptap WYSIWYG editor now fills the entire center panel. No server-side changes.
+
 ### v2.3 — Image Upload Fix + Full-Width Images (2026-04-29)
 
 **Image upload fix**: `POST /api/files/upload` switched from `multer.diskStorage` to `multer.memoryStorage` so the `folder` form field can be read after multer finishes parsing. File buffer is manually written to `assets/{folder}/filename.png` using `fs.writeFile()`.

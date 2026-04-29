@@ -104,13 +104,12 @@ The main app uses a VSCode-inspired layout with three resizable panels:
 - Active file highlighting
 - Scoped to authenticated user's workspace
 
-### Center Panel — DocumentEditor (Tiptap WYSIWYG — v2.2)
+### Center Panel — DocumentEditor (Tiptap WYSIWYG — v2.2, simplified v2.5)
 - Tiptap v2 rich text editor with formatting toolbar (Bold, Italic, Underline, H1/H2/H3, lists, tables)
-- Image insertion via toolbar button, drag-and-drop, or clipboard paste
+- Image insertion via drag-and-drop or clipboard paste (no toolbar button)
 - Images stored in same folder as current document
-- Document type selector: HTML, Plain Text, JSON — auto-detected from file extension
-- Three view modes: Edit-only, Split-view (editor + live HTML preview), Preview-only
-- NOTE: v2.3 to switch from Markdown conversion to native HTML storage
+- Native HTML storage (no Markdown conversion)
+- Editor fills the entire center panel (no preview panel, no view modes, no doc type selector)
 
 ### Right Panel — ChatPanel
 - AI chat message history
@@ -490,6 +489,21 @@ git push origin rauty
 ```
 
 ## Changelog
+
+### v2.5 — Remove Preview Panel (2026-04-29)
+
+**Streamlined DocumentEditor**: Removed the preview panel, view mode toggles (Edit/Split/Preview), and document type selector (HTML/Plain Text/JSON). The Tiptap WYSIWYG editor now fills the entire center panel by default.
+
+**Code simplifications**:
+- Removed `viewMode` state, `ViewMode` type, `docType` state, `DocType` type
+- Removed `RenderedPreview` component and `dangerouslySetInnerHTML` preview rendering
+- Removed `Eye` and `Edit3` icon imports
+- Removed `useState` import (no longer needed)
+- `onUpdate` always uses `editor.getHTML()` (no conditional plaintext/json branching)
+- Removed `useEffect` for doc type detection from file extension
+
+**Files modified**:
+- `client/src/components/DocumentEditor.tsx` — Removed preview panel, view modes, doc type selector. Editor takes full width.
 
 ### v2.4 — General
 
