@@ -318,6 +318,26 @@ Add `Stop Training`.
 
 Later: attach/load trained LoRAs into the Nunchaku Z-Image runtime.
 
+Addon follow-up handoff now exists here:
+
+```text
+docs/zimage_addon_lora_handoff.md
+```
+
+That document covers the exact current gap in:
+
+```text
+/home/nymph/NymphsAddon/Nymphs.py
+/home/nymph/Z-Image/
+```
+
+Key current truth:
+
+```text
+The trainer now produces real epoch-*.safetensors files,
+but the addon still has no LoRA controls and the Z-Image backend still has no lora_path / lora_scale request contract.
+```
+
 If Brain caption-help is added later, account for GPU memory pressure:
 
 ```text

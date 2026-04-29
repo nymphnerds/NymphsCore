@@ -8,14 +8,14 @@ This file focuses on user-facing and system-level changes rather than package-by
 
 Newest entries first.
 
-### 2026-04-29 Z-Image Trainer end-to-end LoRA training and Caption Brain drafts
+### 2026-04-29 Z-Image Trainer end-to-end LoRA training and Brain-assisted captioning
 Source: live Manager testing took the new Z-Image Trainer from first install through Brain-drafted captions, a real training run, and produced LoRA checkpoint files.
 
 Documented changes:
 
 - added the managed `Z-Image Trainer` flow in the Windows Manager with trainer install, dataset prep, caption drafting, job creation, training start, repair, and runtime status hooks
 - moved trainer assets into a self-contained `/home/<user>/ZImage-Trainer` layout for datasets, LoRAs, jobs, logs, adapters, and the isolated DiffSynth sidecar
-- added `Caption Brain` integration so the trainer can temporarily start Nymphs-Brain with a local vision GGUF plus `mmproj`, draft captions, and write trainer-ready `metadata.csv`
+- added `Caption Brain` integration so the trainer can temporarily start Nymphs-Brain with a local vision GGUF plus `mmproj`, write trainer-ready `metadata.csv`, and keep the captions user-reviewable instead of silently treating them as final
 - aligned trainer metadata to the trainer-native `image,prompt` shape while still tolerating older caption rows during the transition
 - added automatic Turbo training-adapter preparation for `ostris/zimage_turbo_training_adapter`
 - added trainer install-time prefetch of the heavy `Tongyi-MAI/Z-Image-Turbo` training bundle so `Add Trainer` warms the large first-run model downloads instead of surprising the first training job
