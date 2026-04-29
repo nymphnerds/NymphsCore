@@ -23,7 +23,7 @@ The application is **local-first**: all game content stays on the user's machine
 │  └─────────────────────────────────────────────────────────────┘│
 │  ┌─────────────┬────────────────────────┬──────────────────────┐│
 │  │ File/Folder │   Document Editor      │   AI Chat Panel      ││
-│  │ Explorer    │   (Markdown + Preview) │   (Context-Aware)    ││
+│  │ Explorer    │   (Tiptap WYSIWYG)     │   (Context-Aware)    ││
 │  │ (Left)      │   (Center)             │   (Right)            ││
 │  └─────────────┴────────────────────────┴──────────────────────┘│
 │            Header (user, logout, new file)  │  Status Bar       │
@@ -50,7 +50,7 @@ The application is **local-first**: all game content stays on the user's machine
 | **Build Tool** | Vite | Fast HMR development server |
 | **CSS Framework** | Tailwind CSS + tailwindcss-animate | Utility-first styling with animations |
 | **Icons** | Lucide React | Consistent icon library |
-| **Markdown** | react-markdown | Document preview rendering |
+| **Rich Text Editor** | Tiptap v2 | WYSIWYG editor with extensions (underline, image, link, table) |
 | **HTTP Client** | Fetch API | Frontend→Backend communication |
 | **IDE** | Visual Studio Code | Development environment |
 
@@ -75,7 +75,7 @@ WBServer/client/
     │   └── Settings.tsx              # Full LLM configuration page (orphaned in v2.1)
     ├── components/
     │   ├── FileExplorer.tsx          # Left panel: file tree + keyboard nav
-    │   ├── DocumentEditor.tsx        # Center: textarea + markdown preview
+    │   ├── DocumentEditor.tsx        # Center: Tiptap WYSIWYG editor (full-width, native HTML)
     │   ├── ChatPanel.tsx             # Right: AI chat with history
     │   ├── Header.tsx                # Top toolbar (user, logout, settings, new file)
     │   ├── StatusBar.tsx             # Bottom status (path, word count, errors)
@@ -161,9 +161,11 @@ The main app uses a VSCode-inspired layout with three resizable panels:
 - Sorted: folders first, then alphabetical
 - Active file highlighting
 
-###
-- **Native HTML storage (v2.3)**: On edit, `onChange(editor.getHTML())` saves raw HTML. On load, `editor.commands.setContent(content)` loads raw HTML. No conversion. Click any image to toggle between full-width and compact (`max-width: 300px`) — toggle class persisted in saved HTML.
-- **Preview panel**: `editor.getHTML()` rendered via `dangerouslySetInnerHTML` in `RenderedPreview` component
+### DocumentEditor (`components/DocumentEditor.tsx`)
+- **Tiptap WYSIWYG editor** — Full-width, single-panel layout (simplified in v2.5)
+- **Native HTML storage**: On edit, `onChange(editor.getHTML())` saves raw HTML. On load, `editor.commands.setContent(content)` loads raw HTML. No conversion.
+- **Image toggle**: Click any image to toggle between full-width and compact (`max-width: 300px`) — toggle class persisted in saved HTML.
+- **Toolbar**: Bold, Italic, Underline, H1/H2/H3, bullet list, ordered list
 - Create File button — prompts for filename, creates in current explorer folder
 - **Editor refresh fix (v2.3)**: `handleFileSelect` uses `setTimeout` to schedule `editorRef.current?.commands.setContent(newHtml)` after Tiptap re-renders, preventing stale document warnings when switching files
 
