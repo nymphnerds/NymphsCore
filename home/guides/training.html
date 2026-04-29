@@ -157,7 +157,7 @@
   <ul class="nav-links">
     <li><a href="../guides.html">Guide Hub</a></li>
     <li><a href="#captions">Captions</a></li>
-    <li><a href="#first-test">First Test</a></li>
+    <li><a href="#first-test">Hardware & First Run</a></li>
     <li><a href="#results">Results</a></li>
     <li><a href="../alpha.html?v=20260426b" class="nav-cta">Bug Reports</a></li>
   </ul>
@@ -166,7 +166,7 @@
 <section class="hero">
   <div class="eyebrow">Guide 05</div>
   <h1>Train a Z-Image LoRA.<em>Start safe, then push style on purpose.</em></h1>
-  <p class="hero-sub">This is the beginner guide for the new trainer flow. It is written to be practical, not academic: what captions actually do, how to set up a first test on a <strong>4080 Super</strong>, and how to tell whether a run is weak, healthy, or overcooked.</p>
+  <p class="hero-sub">This is the public beginner guide for the Z-Image Trainer. It focuses on the practical parts that matter most: what captions are doing, how to start with a small safe run, and how to read the result whether you are on a stronger GPU or a more modest one.</p>
   <div class="hero-actions">
     <a class="btn" href="#captions">Understand captions</a>
     <a class="ghost" href="#first-test">Run your first test</a>
@@ -176,11 +176,11 @@
     <div>
       <div class="section-tag">// Quick Read</div>
       <h3>The short version.</h3>
-      <p>The trainer uses the same Turbo training adapter approach we discussed from Ostris, and the Manager now treats <strong>captions as user-owned training data</strong>. That means the app helps you open and manage the captions file, but it does not silently write the meaning of your dataset for you.</p>
+      <p>The trainer uses a managed Turbo training-adapter workflow, and the Manager now treats <strong>captions as user-owned training data</strong>. Nymphs Brain can help draft them, but you still review what will actually train.</p>
       <ul>
         <li><strong>Character / Object</strong> is for identity, objects, or repeatable subjects.</li>
         <li><strong>Stylized Look</strong> is for broader rendering shifts like kids drawings or strong illustration language.</li>
-        <li><strong>Quick Test</strong> is your system check and first sanity pass, not the final quality run.</li>
+        <li><strong>Quick Test</strong> is your first safe pass, not your final quality run.</li>
       </ul>
     </div>
     <div class="signal-box">
@@ -189,6 +189,7 @@
       <ul>
         <li>The caption is not busywork. It is part of the training pair.</li>
         <li>You do not need perfect prose. You do need clear intent.</li>
+        <li>Caption Brain is a draft helper, not a final authority.</li>
         <li>For style work, describe the subject normally and let the LoRA learn the rendering style.</li>
       </ul>
     </div>
@@ -198,13 +199,13 @@
 <section class="section" id="captions">
   <div class="section-tag">// Captions</div>
   <h2 class="section-title">What captions are actually doing.</h2>
-  <p class="section-sub">A caption is the text side of the training example. When the trainer sees an image of a bear in a childlike crayon drawing and the caption says <strong>a bear building a log cabin in the snow</strong>, it learns how that subject and wording connect. Later, when you prompt for a bear building a cabin, the LoRA has something meaningful to grab onto.</p>
-  <div class="note-strip"><strong>Most important beginner rule:</strong> you do <strong>not</strong> write one caption for the whole folder. You write <strong>one caption for each image</strong>. So if you put in 10 images, you write 10 captions.</div>
+  <p class="section-sub">A caption is the text side of the training example. When the trainer sees an image of a bear in a childlike crayon drawing and the prompt says <strong>a bear building a log cabin in the snow</strong>, it learns how that subject and wording connect. Later, when you prompt for a bear building a cabin, the LoRA has something meaningful to grab onto.</p>
+  <div class="note-strip"><strong>Most important beginner rule:</strong> you do <strong>not</strong> write one caption for the whole folder. You write <strong>one prompt for each image</strong>. So if you put in 10 images, you end up with 10 rows in <code>metadata.csv</code>.</div>
   <div class="two-col" style="margin-bottom:20px;">
     <div class="info-card">
       <div class="section-tag">// Direct Answer</div>
-      <h3>Do I need one caption per image?</h3>
-      <p><strong>Yes.</strong> The simple beginner rule is: if you have ten training images, write ten captions. Each image should have one matching line in <code>metadata.csv</code>.</p>
+      <h3>Do I need one prompt per image?</h3>
+      <p><strong>Yes.</strong> The simple beginner rule is: if you have ten training images, write ten prompts. Each image should have one matching line in <code>metadata.csv</code>.</p>
     </div>
     <div class="info-card">
       <div class="section-tag">// Beginner Rule</div>
@@ -215,13 +216,13 @@
   <div class="pair-grid">
     <div class="pair-card">
       <h4>Wrong idea</h4>
-      <p>You have 10 images in the folder and write 1 caption for all of them together.</p>
-      <p><strong>Do not do this.</strong> The trainer needs to know which caption belongs to which exact picture.</p>
+      <p>You have 10 images in the folder and write 1 prompt for all of them together.</p>
+      <p><strong>Do not do this.</strong> The trainer needs to know which prompt belongs to which exact picture.</p>
     </div>
     <div class="pair-card">
       <h4>Right idea</h4>
-      <p>You have 10 images in the folder and write 10 captions total.</p>
-      <p>Each row in <code>metadata.csv</code> matches one filename to one caption.</p>
+      <p>You have 10 images in the folder and write 10 prompts total.</p>
+      <p>Each row in <code>metadata.csv</code> matches one image to one prompt.</p>
     </div>
   </div>
   <div class="steps">
@@ -237,12 +238,12 @@
     </div>
     <div class="step-card">
       <div class="step-num">Rule 02</div>
-      <h3>Do not let the app invent the captions for you.</h3>
-      <p>That is why the Manager now opens <code>metadata.csv</code> for you instead of auto-writing caption text. If captions are important, they need to stay in your hands.</p>
+      <h3>Use Caption Brain as a draft assistant.</h3>
+      <p>Nymphs Brain can draft one prompt per image into <code>metadata.csv</code>. That saves time, but the training text is still yours to review and edit before you start a run.</p>
       <ul>
-        <li>The Manager will keep the image filenames in sync.</li>
-        <li>It will preserve captions you already wrote.</li>
-        <li>It will block training if captions are still blank.</li>
+        <li>The Manager keeps the image rows in sync for you.</li>
+        <li>Caption Brain can fill blanks or rewrite draft rows.</li>
+        <li>You should still fix anything that reads vague, wrong, or noisy.</li>
       </ul>
     </div>
     <div class="step-card">
@@ -263,31 +264,31 @@
   </div>
   <div class="code-shell">
     <div class="code-header">Finished Example · metadata.csv</div>
-    <div class="code-body">filename,caption
+    <div class="code-body">image,prompt
 bear_cabin_01.png,"a bear building a small log cabin in the snow"
 rabbit_book_01.png,"a rabbit reading a book at a wooden desk"
 girl_kite_01.png,"a child holding a red kite in a windy field"
 cat_bike_01.png,"a cat riding a bicycle down a quiet street"
 </div>
   </div>
-  <div class="note-strip">That is the shape you are aiming for: one image filename, one caption, repeated all the way down. It does not need to sound fancy. It needs to match the picture.</div>
+  <div class="note-strip">That is the shape you are aiming for: one image name, one prompt, repeated all the way down. It does not need to sound fancy. It needs to match the picture.</div>
   <div class="code-shell">
     <div class="code-header">Plain-English Translation</div>
     <div class="code-body">Image 1 = bear_cabin_01.png
-Caption 1 = "a bear building a small log cabin in the snow"
+Prompt 1 = "a bear building a small log cabin in the snow"
 
 Image 2 = rabbit_book_01.png
-Caption 2 = "a rabbit reading a book at a wooden desk"
+Prompt 2 = "a rabbit reading a book at a wooden desk"
 
 Image 3 = girl_kite_01.png
-Caption 3 = "a child holding a red kite in a windy field"
+Prompt 3 = "a child holding a red kite in a windy field"
 
 Image 4 = cat_bike_01.png
-Caption 4 = "a cat riding a bicycle down a quiet street"
+Prompt 4 = "a cat riding a bicycle down a quiet street"
 
-Keep going like that until every image has its own matching caption.</div>
+Keep going like that until every image has its own matching prompt.</div>
   </div>
-  <div class="note-strip">If you are unsure what to write, aim for one clear sentence per image. Subject first, then action, then the most important visible qualifiers. For kids-drawings style, think: caption the scene like a normal prompt, and let the images teach the childlike rendering.</div>
+  <div class="note-strip">If you are unsure what to write, aim for one clear sentence per image. Subject first, then action, then the most important visible qualifiers. For kids-drawings style, think: prompt the scene normally, and let the images teach the childlike rendering.</div>
 </section>
 
 <section class="section">
@@ -307,13 +308,25 @@ Keep going like that until every image has its own matching caption.</div>
 
 <section class="section" id="first-test">
   <div class="section-tag">// First Test</div>
-  <h2 class="section-title">Your first run on a 4080 Super.</h2>
-  <p class="section-sub">The goal of your first training run is not perfection. It is to confirm the pipeline works, that your captions make sense, and that the LoRA is moving in the right direction before you invest in a longer run.</p>
+  <h2 class="section-title">Your first run, without assuming flagship hardware.</h2>
+  <p class="section-sub">The goal of your first training run is not perfection. It is to confirm the pipeline works, that your prompts make sense, and that the LoRA is moving in the right direction before you invest in a longer run. Smaller GPUs may need more patience, smaller image sets, and more conservative expectations, but they can still learn useful things.</p>
+  <div class="two-col" style="margin-bottom:20px;">
+    <div class="info-card">
+      <div class="section-tag">// Hardware Reality</div>
+      <h3>You do not need the biggest card to start.</h3>
+      <p>If your GPU is more modest, treat <strong>Quick Test</strong> as your friend. Use a smaller, tighter dataset first and judge whether the LoRA is learning at all before you chase strength.</p>
+    </div>
+    <div class="info-card">
+      <div class="section-tag">// What To Expect</div>
+      <h3>Longer waits do not automatically mean failure.</h3>
+      <p>The first install or first model load can take a while. Add Trainer now pulls the heavy base trainer files up front, but the first real run can still be quiet for a bit while the model settles into memory.</p>
+    </div>
+  </div>
   <div class="steps">
     <div class="step-card">
       <div class="step-num">Step 01</div>
       <h3>Start with a tiny, consistent dataset.</h3>
-      <p>Use roughly <strong>10 to 20 images</strong> for the first pass. Keep the style tight and avoid mixing wildly different aesthetics together.</p>
+      <p>Use roughly <strong>8 to 20 images</strong> for the first pass. Keep the style tight and avoid mixing wildly different aesthetics together.</p>
     </div>
     <div class="step-card">
       <div class="step-num">Step 02</div>
@@ -322,8 +335,8 @@ Keep going like that until every image has its own matching caption.</div>
     </div>
     <div class="step-card">
       <div class="step-num">Step 03</div>
-      <h3>Fill in every caption before you hit start.</h3>
-      <p>Use <strong>Open Pictures Folder</strong>, then <strong>Open Captions File</strong>, and make sure every image has a real caption. The current flow intentionally stops you from training on blank text.</p>
+      <h3>Review every prompt before you hit start.</h3>
+      <p>Use <strong>Open Pictures Folder</strong>, then <strong>Open Captions File</strong>, and make sure every image has a real prompt. If you use Caption Brain, scan for anything too generic, repetitive, or simply wrong.</p>
     </div>
     <div class="step-card">
       <div class="step-num">Step 04</div>
@@ -351,22 +364,27 @@ Keep going like that until every image has its own matching caption.</div>
   </div>
   <div class="steps" style="margin-top:20px;">
     <div class="step-card">
+      <div class="step-num">First Check</div>
+      <h3>Compare the later epoch first.</h3>
+      <p>The trainer writes checkpoint files like <code>epoch-0.safetensors</code> and <code>epoch-1.safetensors</code>. Start by testing the later checkpoint first, then compare backward if it feels too weak or too pushy.</p>
+    </div>
+    <div class="step-card">
       <div class="step-num">If It Is Weak</div>
       <h3>Try a cleaner or slightly longer second pass.</h3>
-      <p>Move from Quick Test to Normal, tighten captions, and make sure the images are all really teaching the same visual language.</p>
+      <p>Move from Quick Test to Normal, tighten prompts, and make sure the images are all really teaching the same visual language.</p>
     </div>
     <div class="step-card">
       <div class="step-num">If It Is Overcooked</div>
       <h3>Do not just crank it harder.</h3>
-      <p>Look for noisy captions, mixed styles, or images that do not belong in the set. A stronger run on a confused dataset usually gives a stronger mess.</p>
+      <p>Look for noisy prompts, mixed styles, or images that do not belong in the set. A stronger run on a confused dataset usually gives a stronger mess.</p>
     </div>
   </div>
 </section>
 
 <section class="section" id="demo">
   <div class="section-tag">// Living Guide</div>
-  <h2 class="section-title">Keep updating this as we learn.</h2>
-  <p class="section-sub">This page is meant to evolve with real runs. As we learn what works best for kids-drawing style, stronger illustration styles, and character identity, we can tighten the examples, swap in better defaults, and attach short demos.</p>
+  <h2 class="section-title">This guide should keep getting more useful.</h2>
+  <p class="section-sub">As more people use the trainer on different hardware and different dataset types, this page should keep improving. Better public examples, clearer prompt advice, and more direct LoRA testing guidance will help the trainer feel less experimental and more complete.</p>
   <div class="demo-shell">
     <div class="demo-frame">Future training walkthrough<br>and result-comparison demo</div>
     <div class="demo-meta">Suggested future additions:
