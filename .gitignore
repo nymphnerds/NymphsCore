@@ -26,7 +26,7 @@ Thumbs.db
 **/HANDOFF*.md
 **/*roadmap*.md
 **/ROADMAP.md
-!/Manager/ROADMAP.md
+!/docs/ROADMAP.md
 
 # Local addon notes; keep only customer-facing docs tracked
 /Blender/Addon/docs/*
@@ -36,7 +36,6 @@ Thumbs.db
 # Local manager notes; keep customer-facing and maintainer docs trackable
 /Manager/*.md
 !/Manager/README.md
-!/Manager/ROADMAP.md
 /Manager/apps/**/*.md
 !/Manager/apps/**/README.md
 /Manager/dev/**/*.md

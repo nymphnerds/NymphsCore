@@ -2,7 +2,7 @@
 
 Local-only planning note. Do not publish this until the commercial install story is ready.
 
-Last updated: 2026-04-18
+Last updated: 2026-04-30
 
 ## Requested Work Queue
 
@@ -37,6 +37,31 @@ Exit condition:
 
 - a user with a low-memory or high-memory PC can tune WSL from the installer without editing `.wslconfig` by hand
 - support can ask users which preset or values they chose during troubleshooting
+
+### Curated cloud image model selection in the addon
+
+Goal:
+
+- make the current `Gemini Flash` cloud path feel like a proper `Cloud Image` backend with a small, curated model list instead of one hardcoded provider label
+
+Work:
+
+- rename the addon cloud image path from `Gemini Flash` to something more provider-neutral like `Cloud Image`
+- keep OpenRouter as the first implementation path
+- add a curated default model list instead of exposing the entire OpenRouter catalog
+- group choices in a simple way:
+  - best quality
+  - balanced
+  - budget
+- include the strongest current image models plus a few cheaper options
+- allow a later optional `Refresh Models` flow from OpenRouter, but keep the curated shortlist as the main UX
+- filter out models that are not image-capable or that do not match the addon's current request shape
+- keep guide-image/edit compatibility visible per model where possible
+- consider an OpenAI API path later, but do not tie this to ChatGPT subscription login
+
+Exit condition:
+
+- a user can pick from a short, understandable cloud image model list without reading provider docs or model IDs
 
 ## Current Product Shape
 
