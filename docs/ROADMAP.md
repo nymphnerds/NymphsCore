@@ -11,6 +11,78 @@ Ordering rule:
 - newest requested work goes at the top of this section
 - older requested work stays lower down
 
+### Nunchaku Z-Image LoRA support
+
+Goal:
+
+- make trained Z-Image LoRAs work on the fast Nunchaku runtime, not just the slower fallback path
+
+Work:
+
+- finish the `nymphnerds/nunchaku` fork path for native Z-Image LoRA loading
+- keep Nunchaku-native hooks and control support intact while applying LoRAs
+- make Manager `Repair Runtime` install the forked Nunchaku build reliably
+- confirm the live Z-Image backend uses native Nunchaku LoRA methods when available
+- verify txt2img still works with LoRA enabled
+- verify guide-image / image-edit flows still behave correctly without regressing
+- add clearer runtime-side logging for:
+  - LoRA path selected
+  - LoRA strength
+  - native Nunchaku LoRA load success/failure
+- add a smoke-test or validation path for LoRA-capable runtime installs
+
+Exit condition:
+
+- a user can train a Z-Image LoRA, select it in the addon, and use it on the Nunchaku runtime without manual patching
+
+### Addon LoRA workflow polish
+
+Goal:
+
+- make the Blender-side LoRA flow clear enough that a first-time user can actually test a trained LoRA without confusion
+
+Work:
+
+- keep the run-folder plus checkpoint picker flow clean and understandable
+- make it obvious which checkpoint is selected and which file is actually being used
+- keep `Use Latest` as a convenience path without hiding manual checkpoint choice
+- make runtime limitations visible in plain language:
+  - guide image / image edit vs txt2img
+  - runtime busy states
+  - LoRA unsupported vs failed to load
+- keep prompt editing stable so the prompts panel does not disappear after apply
+- keep server detail/status UI concise instead of dumping backend internals
+- add a simple “LoRA on/off same seed” testing workflow later if it still feels needed
+
+Exit condition:
+
+- a user can select a trained LoRA in Blender, understand what is being used, and test it without backend guesswork
+
+### Curated cloud image model selection in the addon
+
+Goal:
+
+- make the current `Gemini Flash` cloud path feel like a proper `Cloud Image` backend with a small, curated model list instead of one hardcoded provider label
+
+Work:
+
+- rename the addon cloud image path from `Gemini Flash` to something more provider-neutral like `Cloud Image`
+- keep OpenRouter as the first implementation path
+- add a curated default model list instead of exposing the entire OpenRouter catalog
+- group choices in a simple way:
+  - best quality
+  - balanced
+  - budget
+- include the strongest current image models plus a few cheaper options
+- allow a later optional `Refresh Models` flow from OpenRouter, but keep the curated shortlist as the main UX
+- filter out models that are not image-capable or that do not match the addon's current request shape
+- keep guide-image/edit compatibility visible per model where possible
+- consider an OpenAI API path later, but do not tie this to ChatGPT subscription login
+
+Exit condition:
+
+- a user can pick from a short, understandable cloud image model list without reading provider docs or model IDs
+
 ### User-configurable `.wslconfig` in the installer
 
 Goal:
@@ -37,31 +109,6 @@ Exit condition:
 
 - a user with a low-memory or high-memory PC can tune WSL from the installer without editing `.wslconfig` by hand
 - support can ask users which preset or values they chose during troubleshooting
-
-### Curated cloud image model selection in the addon
-
-Goal:
-
-- make the current `Gemini Flash` cloud path feel like a proper `Cloud Image` backend with a small, curated model list instead of one hardcoded provider label
-
-Work:
-
-- rename the addon cloud image path from `Gemini Flash` to something more provider-neutral like `Cloud Image`
-- keep OpenRouter as the first implementation path
-- add a curated default model list instead of exposing the entire OpenRouter catalog
-- group choices in a simple way:
-  - best quality
-  - balanced
-  - budget
-- include the strongest current image models plus a few cheaper options
-- allow a later optional `Refresh Models` flow from OpenRouter, but keep the curated shortlist as the main UX
-- filter out models that are not image-capable or that do not match the addon's current request shape
-- keep guide-image/edit compatibility visible per model where possible
-- consider an OpenAI API path later, but do not tie this to ChatGPT subscription login
-
-Exit condition:
-
-- a user can pick from a short, understandable cloud image model list without reading provider docs or model IDs
 
 ## Current Product Shape
 
