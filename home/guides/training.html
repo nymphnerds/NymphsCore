@@ -157,6 +157,7 @@
   <ul class="nav-links">
     <li><a href="../guides.html">Guide Hub</a></li>
     <li><a href="#captions">Captions</a></li>
+    <li><a href="#source-images">Source Images</a></li>
     <li><a href="#first-test">Hardware & First Run</a></li>
     <li><a href="#results">Results</a></li>
     <li><a href="../alpha.html?v=20260426b" class="nav-cta">Bug Reports</a></li>
@@ -166,7 +167,7 @@
 <section class="hero">
   <div class="eyebrow">Guide 05</div>
   <h1>Train a Z-Image LoRA.<em>Start safe, then push style on purpose.</em></h1>
-  <p class="hero-sub">This is the public beginner guide for the Z-Image Trainer. It focuses on the practical parts that matter most: what captions are doing, how to start with a small safe run, and how to read the result whether you are on a stronger GPU or a more modest one.</p>
+  <p class="hero-sub">This is the public beginner guide for the Z-Image Trainer. It focuses on the practical parts that matter most: what captions are doing, how to start with a small safe AI Toolkit run, and how to read the result whether you are on a stronger GPU or a more modest one.</p>
   <div class="hero-actions">
     <a class="btn" href="#captions">Understand captions</a>
     <a class="ghost" href="#first-test">Run your first test</a>
@@ -176,11 +177,13 @@
     <div>
       <div class="section-tag">// Quick Read</div>
       <h3>The short version.</h3>
-      <p>The trainer uses a managed Turbo training-adapter workflow, and the Manager now treats <strong>captions as user-owned training data</strong>. Nymphs Brain can help draft them, but you still review what will actually train.</p>
+      <p>The trainer now runs through a managed <strong>AI Toolkit sidecar</strong>, and the Manager treats <strong>captions as user-owned training data</strong>. Nymphs Brain can help draft them, but you still review what will actually train.</p>
       <ul>
-        <li><strong>Character / Object</strong> is for identity, objects, or repeatable subjects.</li>
-        <li><strong>Stylized Look</strong> is for broader rendering shifts like kids drawings or strong illustration language.</li>
-        <li><strong>Quick Test</strong> is your first safe pass, not your final quality run.</li>
+        <li><strong>Nymphs UI</strong> is the lighter Gradio path. <strong>Official UI</strong> is the upstream AI Toolkit web UI.</li>
+        <li><strong>Baseline</strong> is the safe first preset for proving the end-to-end flow.</li>
+        <li><strong>Style</strong> is the normal first preset for painterly or illustrative datasets.</li>
+        <li><strong>Style High Noise</strong> is the stronger follow-up when style needs to push composition harder.</li>
+        <li><strong>v1</strong> is the recommended adapter for first tests. Save <strong>v2</strong> for comparison after the stable path works.</li>
       </ul>
     </div>
     <div class="signal-box">
@@ -291,17 +294,63 @@ Keep going like that until every image has its own matching prompt.</div>
   <div class="note-strip">If you are unsure what to write, aim for one clear sentence per image. Subject first, then action, then the most important visible qualifiers. For kids-drawings style, think: prompt the scene normally, and let the images teach the childlike rendering.</div>
 </section>
 
+<section class="section" id="source-images">
+  <div class="section-tag">// Source Images</div>
+  <h2 class="section-title">Use clean images that fit the current trainer.</h2>
+  <p class="section-sub">The current Z-Image Trainer writes AI Toolkit jobs at <strong>1024 resolution</strong>. That does not mean every source file must already be exactly 1024 by 1024, but it does mean the dataset works best when the images are clean, reasonably detailed, and not tiny web thumbnails full of compression damage.</p>
+  <div class="two-col" style="margin-bottom:20px;">
+    <div class="info-card">
+      <div class="section-tag">// Best Practical Size</div>
+      <h3>Aim for images that hold up at 1024.</h3>
+      <p>As a practical rule, use source images that are at least around <strong>1024 pixels on the short side</strong> when you can. Larger originals are fine. Very small images can still be used, but they usually do not teach clean detail because the trainer cannot invent information that is not there.</p>
+    </div>
+    <div class="info-card">
+      <div class="section-tag">// Aspect Ratio</div>
+      <h3>Clean crops beat awkward padding.</h3>
+      <p>The trainer handles resizing for you, but wildly mixed aspect ratios can make the dataset feel less coherent. Try to keep the subject framed clearly, crop away dead space when it is not helping, and avoid relying on ugly borders or screenshots with UI chrome still visible.</p>
+    </div>
+  </div>
+  <div class="steps">
+    <div class="step-card">
+      <div class="step-num">Rule 04</div>
+      <h3>Do not train on junk just because you have it.</h3>
+      <p>Low-resolution thumbnails, heavily compressed exports, blurry grabs, and random near-duplicates usually add more noise than value. A smaller clean set is usually better than a larger messy one.</p>
+      <ul>
+        <li>Good: clear originals, thoughtful crops, consistent visual quality</li>
+        <li>Risky: tiny marketplace previews, screenshots, or mixed-resolution scraps</li>
+        <li>Bad: images where the subject is hard to read even to you</li>
+      </ul>
+    </div>
+    <div class="step-card">
+      <div class="step-num">Rule 05</div>
+      <h3>Watermarks can be learned by the LoRA.</h3>
+      <p>If the same watermark, logo, or signature appears across the set, the LoRA can absorb it as part of the style. If you have cleaner originals, use those. If you only have catalog images, crop or remove the watermark where possible and exclude the worst offenders.</p>
+      <ul>
+        <li>Small corner marks are safer than big centered overlays</li>
+        <li>Repeated marks in the same location are especially likely to be memorized</li>
+        <li>Do not mention the watermark in captions unless it is truly part of the intended subject</li>
+      </ul>
+    </div>
+    <div class="step-card">
+      <div class="step-num">Rule 06</div>
+      <h3>Keep content and style consistent enough to teach one idea.</h3>
+      <p>If you are training a style LoRA, the dataset should still feel like it belongs to one visual family. Mixed mediums, mixed rendering quality, and mixed subject treatment make it harder for the LoRA to settle into a reliable look.</p>
+    </div>
+  </div>
+  <div class="note-strip"><strong>Current system detail:</strong> the Manager keeps <code>metadata.csv</code> as the editable caption source, then mirrors those captions to per-image <code>.txt</code> files for AI Toolkit before training. You do not need to hand-build those text files yourself.</div>
+</section>
+
 <section class="section">
   <div class="two-col">
     <div class="info-card">
-      <div class="section-tag">// Training Focus</div>
-      <h3>Character / Object</h3>
-      <p>Use this when you want a person, creature, object, or repeatable identity to come through more strongly. This mode keeps a full-range training emphasis and is the safer choice when the goal is consistency of subject.</p>
+      <div class="section-tag">// Preset</div>
+      <h3>Baseline</h3>
+      <p>Use this when you want the safest first end-to-end run. It is the best choice for testing whether the trainer, runtime, and addon are all lined up before you start pushing style more aggressively.</p>
     </div>
     <div class="info-card">
-      <div class="section-tag">// Training Focus</div>
-      <h3>Stylized Look</h3>
-      <p>Use this when the point is a broad rendering language, like kids drawings, heavy illustration, or a very particular visual voice. This mode now pushes training toward earlier, higher-noise timesteps so the style can influence more than just surface texture.</p>
+      <div class="section-tag">// Preset</div>
+      <h3>Style</h3>
+      <p>Use this when the point is a broad rendering language, like paintings, kids drawings, heavy illustration, or a very particular visual voice. Start here before moving to <strong>Style High Noise</strong>.</p>
     </div>
   </div>
 </section>
@@ -314,7 +363,7 @@ Keep going like that until every image has its own matching prompt.</div>
     <div class="info-card">
       <div class="section-tag">// Hardware Reality</div>
       <h3>You do not need the biggest card to start.</h3>
-      <p>If your GPU is more modest, treat <strong>Quick Test</strong> as your friend. Use a smaller, tighter dataset first and judge whether the LoRA is learning at all before you chase strength.</p>
+      <p>If your GPU is more modest, treat a small <strong>Baseline</strong> or <strong>Style</strong> run as your friend. Use a smaller, tighter dataset first and judge whether the LoRA is learning at all before you chase strength.</p>
     </div>
     <div class="info-card">
       <div class="section-tag">// What To Expect</div>
@@ -326,12 +375,12 @@ Keep going like that until every image has its own matching prompt.</div>
     <div class="step-card">
       <div class="step-num">Step 01</div>
       <h3>Start with a tiny, consistent dataset.</h3>
-      <p>Use roughly <strong>8 to 20 images</strong> for the first pass. Keep the style tight and avoid mixing wildly different aesthetics together.</p>
+      <p>Use roughly <strong>8 to 20 images</strong> for the first pass. Keep the style tight, prefer clean crops, and avoid mixing wildly different aesthetics together.</p>
     </div>
     <div class="step-card">
       <div class="step-num">Step 02</div>
       <h3>Pick the right focus before you pick strength.</h3>
-      <p>Choose <strong>Stylized Look</strong> for kids-drawing style work. Choose <strong>Quick Test</strong> for the first run even if you already know you want the style to hit hard later.</p>
+      <p>Choose <strong>Baseline</strong> for the safest first proof. Choose <strong>Style</strong> for painterly or illustration-style work. Save <strong>Style High Noise</strong> for the second pass if the style still feels too polite.</p>
     </div>
     <div class="step-card">
       <div class="step-num">Step 03</div>
@@ -340,8 +389,13 @@ Keep going like that until every image has its own matching prompt.</div>
     </div>
     <div class="step-card">
       <div class="step-num">Step 04</div>
-      <h3>Treat Quick Test as a learning run.</h3>
-      <p>If it completes and the result bends output toward your style, that is a win. You can move to <strong>Normal</strong> next. Save <strong>Strong</strong> for when you already know the dataset is healthy and simply needs more push.</p>
+      <h3>Treat the first run as a learning run.</h3>
+      <p>If it completes and the result bends output toward your style, that is a win. Stay on <strong>v1 (Recommended)</strong> for the adapter first. Move to <strong>Style High Noise</strong> or try <strong>v2 (Experimental)</strong> only after the baseline path is behaving.</p>
+    </div>
+    <div class="step-card">
+      <div class="step-num">Step 05</div>
+      <h3>Use Low VRAM mode when the hardware needs it.</h3>
+      <p>Low VRAM mode exists to keep borderline cards in the game. It is a practical stability switch, not a badge of failure. If your GPU is tight on memory, use it early instead of wasting runs on avoidable crashes.</p>
     </div>
   </div>
 </section>
@@ -371,12 +425,17 @@ Keep going like that until every image has its own matching prompt.</div>
     <div class="step-card">
       <div class="step-num">If It Is Weak</div>
       <h3>Try a cleaner or slightly longer second pass.</h3>
-      <p>Move from Quick Test to Normal, tighten prompts, and make sure the images are all really teaching the same visual language.</p>
+      <p>Move from <strong>Baseline</strong> to <strong>Style</strong>, or from <strong>Style</strong> to <strong>Style High Noise</strong>, tighten prompts, and make sure the images are all really teaching the same visual language.</p>
     </div>
     <div class="step-card">
       <div class="step-num">If It Is Overcooked</div>
       <h3>Do not just crank it harder.</h3>
       <p>Look for noisy prompts, mixed styles, or images that do not belong in the set. A stronger run on a confused dataset usually gives a stronger mess.</p>
+    </div>
+    <div class="step-card">
+      <div class="step-num">If It Echoes A Watermark</div>
+      <h3>Fix the dataset before you blame the prompt.</h3>
+      <p>If the LoRA starts echoing catalog marks, signatures, or overlay artifacts, that usually means the dataset taught them too well. Go back to the source images, crop or replace the repeated mark, and rerun with the cleaner set.</p>
     </div>
   </div>
 </section>
@@ -388,9 +447,9 @@ Keep going like that until every image has its own matching prompt.</div>
   <div class="demo-shell">
     <div class="demo-frame">Future training walkthrough<br>and result-comparison demo</div>
     <div class="demo-meta">Suggested future additions:
-Quick Test vs Normal comparison
+Baseline vs Style comparison
 Caption examples that worked well
-Stylized Look dataset examples
+Style High Noise dataset examples
 First bad run / second improved run</div>
   </div>
 </section>
