@@ -9,16 +9,18 @@ public sealed record ZImageTrainerStatus(
     bool Running,
     int LoraCount,
     int DatasetCount,
+    bool OfficialUiRunning,
+    bool GradioUiRunning,
     string Detail)
 {
     public static ZImageTrainerStatus Unknown(string detail) =>
-        new("unknown", false, false, false, false, false, 0, 0, detail);
+        new("unknown", false, false, false, false, false, 0, 0, false, false, detail);
 
     public bool Installed => string.Equals(InstallState, "installed", StringComparison.OrdinalIgnoreCase);
 
     public string ReadinessLabel =>
         Running
-            ? "Training"
+            ? "Training Active"
             : Installed
                 ? "Installed"
                 : "Not Installed";

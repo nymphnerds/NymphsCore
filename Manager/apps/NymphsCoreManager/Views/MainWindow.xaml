@@ -757,7 +757,7 @@
                            FontWeight="SemiBold"
                            FontSize="16" />
                 <TextBlock Margin="0,10,0,0"
-                           Text="Optional isolated DiffSynth-Studio trainer for Z-Image Turbo LoRA training. This does not modify the current Nunchaku inference runtime."
+                           Text="Optional isolated AI Toolkit trainer for Z-Image Turbo LoRA training. This does not modify the current Nunchaku inference runtime."
                            TextWrapping="Wrap"
                            Style="{StaticResource MutedText}" />
                 <CheckBox Margin="0,14,0,0"
@@ -1260,10 +1260,10 @@
         </Border>
 
         <Border Style="{StaticResource CardStyle}"
-                Padding="16"
+                Padding="12"
                 Visibility="{Binding IsZImageTrainerStep, Converter={StaticResource BoolToVisibilityConverter}}">
           <StackPanel>
-            <Border Padding="14"
+            <Border Padding="12"
                     Background="#F7F0E1"
                     BorderBrush="#D8C9B4"
                     BorderThickness="1"
@@ -1286,206 +1286,300 @@
                              Foreground="#1E1C18" />
                 </DockPanel>
 
-                <Grid Margin="0,8,0,0">
-                  <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="1.2*" />
-                    <ColumnDefinition Width="12" />
-                    <ColumnDefinition Width="*" />
-                  </Grid.ColumnDefinitions>
+                <Grid Margin="0,6,0,0">
+                  <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="6" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="6" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="6" />
+                    <RowDefinition Height="Auto" />
+                  </Grid.RowDefinitions>
 
-                  <Border Grid.Column="0"
-                          Padding="12,10"
-                          Background="#FFFDFC"
-                          BorderBrush="#E7DDCF"
-                          BorderThickness="1"
-                          CornerRadius="10">
-                    <StackPanel>
-                      <TextBlock Text="Make a Custom LoRA" FontWeight="SemiBold" FontSize="15" />
-                      <Grid Margin="0,6,0,0">
-                        <Grid.RowDefinitions>
-                          <RowDefinition Height="Auto" />
-                          <RowDefinition Height="8" />
-                          <RowDefinition Height="Auto" />
-                          <RowDefinition Height="8" />
-                          <RowDefinition Height="Auto" />
-                          <RowDefinition Height="8" />
-                          <RowDefinition Height="Auto" />
-                          <RowDefinition Height="8" />
-                          <RowDefinition Height="Auto" />
-                        </Grid.RowDefinitions>
-                        <Grid.ColumnDefinitions>
-                          <ColumnDefinition Width="112" />
-                          <ColumnDefinition Width="*" />
-                        </Grid.ColumnDefinitions>
-                        <TextBlock Grid.Row="0" Grid.Column="0" Text="LoRA name" FontSize="13" VerticalAlignment="Center" />
-                        <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding ZImageTrainerLoraName, UpdateSourceTrigger=PropertyChanged}" FontSize="13" Padding="7,5" />
-                        <TextBlock Grid.Row="2" Grid.Column="0" Text="Pictures" FontSize="13" VerticalAlignment="Center" />
-                        <Grid Grid.Row="2" Grid.Column="1">
-                          <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="8" />
-                            <RowDefinition Height="Auto" />
-                          </Grid.RowDefinitions>
-                          <Button Grid.Row="0"
-                                  HorizontalAlignment="Stretch"
-                                  Padding="8,5"
-                                  FontSize="12"
-                                  Style="{StaticResource SecondaryActionButton}"
-                                  Command="{Binding OpenZImageTrainerPicturesCommand}"
-                                  ToolTip="Open this LoRA's dataset folder so you can add or review the training images."
-                                  Content="Open Pictures Folder" />
-                          <Button Grid.Row="2"
-                                  HorizontalAlignment="Stretch"
-                                  Padding="8,5"
-                                  FontSize="12"
-                                  Style="{StaticResource SecondaryActionButton}"
-                                  Command="{Binding OpenZImageTrainerCaptionsCommand}"
-                                  ToolTip="Open metadata.csv. Write the captions you want there; the Manager only keeps the image filenames in sync."
-                                  Content="Open Captions File" />
-                        </Grid>
-                        <TextBlock Grid.Row="4" Grid.Column="0" Text="Caption help" FontSize="13" VerticalAlignment="Top" />
-                        <StackPanel Grid.Row="4" Grid.Column="1">
-                          <CheckBox IsChecked="{Binding UseZImageTrainerCaptionBrain}"
-                                    FontSize="13"
-                                    FontWeight="SemiBold"
-                                    ToolTip="Use a downloaded Brain vision model to draft one editable caption per image into metadata.csv. You can review and edit every line before training."
-                                    Content="Use Nymphs Brain to caption" />
-                          <Grid Margin="0,6,0,0"
-                                IsEnabled="{Binding UseZImageTrainerCaptionBrain}"
-                                ToolTip="Choose whether Brain should only fill blank caption rows or replace all draft rows in metadata.csv.">
-                            <Grid.ColumnDefinitions>
-                              <ColumnDefinition Width="*" />
-                              <ColumnDefinition Width="8" />
-                              <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
-                            <ComboBox Grid.Column="0"
-                                      SelectedValue="{Binding ZImageTrainerCaptionMode}"
-                                      SelectedValuePath="Tag"
-                                      FontSize="12"
-                                      Padding="7,5">
-                              <ComboBoxItem Content="Fill Blank Only" Tag="fill_blanks" IsSelected="True" />
-                              <ComboBoxItem Content="Overwrite All Drafts" Tag="overwrite_all" />
-                            </ComboBox>
-                            <Button Grid.Column="2"
-                                    MinWidth="112"
-                                    Padding="8,5"
-                                    FontSize="12"
-                                    Style="{StaticResource SecondaryActionButton}"
-                                    Command="{Binding DraftZImageTrainerCaptionsCommand}"
-                                    ToolTip="Draft captions into metadata.csv with Brain. This writes editable first drafts only; you stay in control before training."
-                                    Content="Draft Captions" />
-                          </Grid>
-                        </StackPanel>
-                        <TextBlock Grid.Row="6" Grid.Column="0" Text="Training focus" FontSize="13" VerticalAlignment="Center" />
-                        <ComboBox Grid.Row="6" Grid.Column="1"
-                                  SelectedValue="{Binding ZImageTrainerTrainingType}"
-                                  SelectedValuePath="Tag"
-                                  FontSize="13"
-                                  Padding="7,5">
-                          <ComboBoxItem Content="Character / Object" Tag="character" IsSelected="True" />
-                          <ComboBoxItem Content="Stylized Look" Tag="style" />
-                        </ComboBox>
-                        <TextBlock Grid.Row="8" Grid.Column="0" Text="Training amount" FontSize="13" VerticalAlignment="Center" />
-                        <ComboBox Grid.Row="8" Grid.Column="1"
-                                  SelectedValue="{Binding ZImageTrainerTrainingAmount}"
-                                  SelectedValuePath="Tag"
-                                  FontSize="13"
-                                  Padding="7,5">
-                          <ComboBoxItem Content="Quick Test" Tag="quick" />
-                          <ComboBoxItem Content="Normal" Tag="normal" IsSelected="True" />
-                          <ComboBoxItem Content="Strong" Tag="strong" />
-                        </ComboBox>
-                      </Grid>
-                      <Button Margin="0,12,0,0"
-                              Padding="14,9"
-                              FontSize="14"
-                              Command="{Binding StartZImageTrainingCommand}"
-                              Content="Start Training" />
-                    </StackPanel>
-                  </Border>
+                  <StackPanel Grid.Row="0">
+                    <TextBlock VerticalAlignment="Center"
+                               FontSize="13"
+                               Style="{StaticResource MutedText}">
+                      <Run Text="LoRAs: " />
+                      <Run Text="{Binding ZImageTrainerStatus.LoraCount}" />
+                      <Run Text="  •  Datasets: " />
+                      <Run Text="{Binding ZImageTrainerStatus.DatasetCount}" />
+                    </TextBlock>
 
-                  <Border Grid.Column="2"
-                          Padding="12,10"
-                          Background="#FFFDFC"
-                          BorderBrush="#E7DDCF"
-                          BorderThickness="1"
-                          CornerRadius="10">
-                    <StackPanel>
-                      <TextBlock Text="Finished LoRAs" FontWeight="SemiBold" FontSize="15" />
-                      <TextBlock Margin="0,4,0,0"
-                                 Text="{Binding ZImageTrainerStatus.LoraCount, StringFormat={}{0} safetensors file(s) found}"
-                                 FontSize="13"
-                                 Style="{StaticResource MutedText}" />
-                      <Button Margin="0,10,0,0"
-                              Style="{StaticResource SecondaryActionButton}"
-                              Command="{Binding OpenZImageTrainerLorasCommand}"
-                              Content="Open Finished LoRAs" />
-                      <TextBlock Margin="0,12,0,0"
-                                 Text="Use the LoRA name in prompts to activate the trained look."
-                                 TextWrapping="Wrap"
-                                 FontSize="12"
-                                 Style="{StaticResource MutedText}" />
-                    </StackPanel>
-                  </Border>
-                </Grid>
-
-                <Border Margin="0,12,0,0"
-                        Padding="12,10"
-                        Background="#FFFDFC"
-                        BorderBrush="#E7DDCF"
-                        BorderThickness="1"
-                        CornerRadius="10">
-                  <Grid>
-                    <Grid.ColumnDefinitions>
-                      <ColumnDefinition Width="*" />
-                      <ColumnDefinition Width="Auto" />
-                    </Grid.ColumnDefinitions>
-                    <StackPanel Grid.Column="0">
-                      <TextBlock Text="Status" FontWeight="SemiBold" FontSize="13" />
-                      <TextBlock Margin="0,5,0,0"
-                                 Text="{Binding ZImageTrainerStatus.Detail}"
-                                 TextWrapping="Wrap"
-                                 FontSize="13"
-                                 Style="{StaticResource MutedText}" />
-                    </StackPanel>
-                    <WrapPanel Grid.Column="1"
-                               Margin="14,0,0,0"
-                               VerticalAlignment="Center">
-                      <Button Width="130"
-                              Style="{StaticResource SecondaryActionButton}"
+                    <WrapPanel Margin="0,8,0,0">
+                      <Button Style="{StaticResource SecondaryActionButton}"
+                              Margin="0,0,8,8"
+                              Padding="9,5"
+                              FontSize="12"
+                              Command="{Binding LaunchZImageTrainerGradioUiCommand}"
+                              Content="Gradio UI" />
+                      <Button Style="{StaticResource SecondaryActionButton}"
+                              Margin="0,0,8,8"
+                              Padding="9,5"
+                              FontSize="12"
+                              Command="{Binding LaunchZImageTrainerOfficialUiCommand}"
+                              Content="AI Toolkit" />
+                      <Button Style="{StaticResource SecondaryActionButton}"
+                              Margin="0,0,8,8"
+                              Padding="9,5"
+                              FontSize="12"
+                              Command="{Binding KillZImageTrainerOfficialUiCommand}"
+                              Content="Kill AI Toolkit" />
+                      <Button Style="{StaticResource SecondaryActionButton}"
+                              Margin="0,0,8,8"
+                              Padding="9,5"
+                              FontSize="12"
                               Command="{Binding InstallZImageTrainerCommand}"
                               Content="{Binding ZImageTrainerPrimaryButtonText}" />
-                      <Button Width="100"
-                              Style="{StaticResource SecondaryActionButton}"
+                      <Button Style="{StaticResource SecondaryActionButton}"
+                              Margin="0,0,0,8"
+                              Padding="9,5"
+                              FontSize="12"
                               Command="{Binding RefreshZImageTrainerStatusCommand}"
                               Content="Refresh" />
                     </WrapPanel>
-                  </Grid>
-                </Border>
+                  </StackPanel>
 
-                <Border Margin="0,12,0,0"
+                  <TextBlock Grid.Row="2"
+                             Text="{Binding ZImageTrainerActivitySummary}"
+                             TextWrapping="Wrap"
+                             FontSize="12"
+                             Style="{StaticResource MutedText}" />
+
+                  <Border Grid.Row="4"
+                          Background="#FBF7EF"
+                          BorderBrush="#E5DAC8"
+                          BorderThickness="1"
+                          CornerRadius="14"
+                          Padding="10">
+                    <StackPanel>
+                      <Grid Margin="0,2,0,0">
+                        <Grid.ColumnDefinitions>
+                          <ColumnDefinition Width="120" />
+                          <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0"
+                                   VerticalAlignment="Center"
+                                   FontSize="13"
+                                   Text="LoRA name" />
+                        <WrapPanel Grid.Column="1"
+                                   VerticalAlignment="Center">
+                          <ComboBox Width="300"
+                                    HorizontalAlignment="Left"
+                                    IsEditable="True"
+                                    IsTextSearchEnabled="False"
+                                    ItemsSource="{Binding ExistingZImageTrainerDatasets}"
+                                    Text="{Binding ZImageTrainerLoraName, UpdateSourceTrigger=PropertyChanged}"
+                                    FontSize="13"
+                                    Padding="7,5"
+                                    Foreground="#1E1C18"
+                                    Background="#FFFFFF">
+                            <ComboBox.ItemTemplate>
+                              <DataTemplate>
+                                <TextBlock Text="{Binding}" Foreground="#1E1C18" />
+                              </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                          </ComboBox>
+                          <Button Margin="12,0,0,0"
+                                  Style="{StaticResource SecondaryActionButton}"
+                                  Padding="9,5"
+                                  FontSize="12"
+                                  Command="{Binding OpenZImageTrainerPicturesCommand}"
+                                  Content="Open Pictures Folder" />
+                          <Button Margin="8,0,0,0"
+                                  Style="{StaticResource SecondaryActionButton}"
+                                  Padding="9,5"
+                                  FontSize="12"
+                                  Command="{Binding OpenZImageTrainerLorasCommand}"
+                                  Content="Open LoRAs" />
+                        </WrapPanel>
+                      </Grid>
+
+                      <Separator Margin="0,8,0,8"
+                                 Background="#E5DAC8" />
+
+                      <Grid Margin="0,6,0,0">
+                        <Grid.ColumnDefinitions>
+                          <ColumnDefinition Width="0" />
+                          <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <WrapPanel Grid.Column="1"
+                                   VerticalAlignment="Center">
+                          <Button Margin="0,0,0,0"
+                                  Style="{StaticResource SecondaryActionButton}"
+                                  Padding="9,5"
+                                  FontSize="12"
+                                  Command="{Binding DraftZImageTrainerCaptionsCommand}"
+                                  Content="Caption with Brain" />
+                          <TextBlock Margin="18,0,8,0"
+                                     VerticalAlignment="Center"
+                                     FontSize="13"
+                                     Text="Caption fill" />
+                          <ComboBox Width="152"
+                                    SelectedValue="{Binding ZImageTrainerCaptionMode}"
+                                    SelectedValuePath="Tag"
+                                    FontSize="12"
+                                    Padding="7,5">
+                            <ComboBoxItem Content="Fill Blank Only" Tag="fill_blanks" IsSelected="True" />
+                            <ComboBoxItem Content="Overwrite All Drafts" Tag="overwrite_all" />
+                          </ComboBox>
+                          <Button Margin="12,0,0,0"
+                                  Style="{StaticResource SecondaryActionButton}"
+                                  Padding="9,5"
+                                  FontSize="12"
+                                  Command="{Binding OpenZImageTrainerCaptionsCommand}"
+                                  Content="Open Captions File" />
+                        </WrapPanel>
+                      </Grid>
+
+                      <Separator Margin="0,6,0,6"
+                                 Background="#E5DAC8" />
+
+                      <Grid Margin="0,4,0,0">
+                        <Grid.ColumnDefinitions>
+                          <ColumnDefinition Width="0" />
+                          <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <WrapPanel Grid.Column="1"
+                                   VerticalAlignment="Center">
+                          <ComboBox Width="220"
+                                    HorizontalAlignment="Left"
+                                    SelectedValue="{Binding ZImageTrainerPreset}"
+                                    SelectedValuePath="Tag"
+                                    FontSize="13"
+                                    Padding="7,5">
+                            <ComboBoxItem Content="Baseline" Tag="basic_turbo" IsSelected="True" />
+                            <ComboBoxItem Content="Style Light" Tag="style_light" />
+                            <ComboBoxItem Content="Style" Tag="style" />
+                            <ComboBoxItem Content="Style High Noise" Tag="style_high_noise" />
+                          </ComboBox>
+                          <TextBlock Margin="18,0,8,0"
+                                     VerticalAlignment="Center"
+                                     FontSize="13"
+                                     Text="Training adapter" />
+                          <ComboBox Width="164"
+                                    SelectedValue="{Binding ZImageTrainerAdapterVersion}"
+                                    SelectedValuePath="Tag"
+                                    FontSize="12"
+                                    Padding="7,5">
+                            <ComboBoxItem Content="v1 (Recommended)" Tag="v1" IsSelected="True" />
+                            <ComboBoxItem Content="v2 (Experimental)" Tag="v2" />
+                          </ComboBox>
+                        </WrapPanel>
+                      </Grid>
+
+                      <WrapPanel Margin="120,6,0,0">
+                        <StackPanel Width="230">
+                          <TextBlock Text="Steps"
+                                     FontSize="13" />
+                          <DockPanel Margin="0,6,0,0">
+                            <Slider Width="118"
+                                    Minimum="1000"
+                                    Maximum="5000"
+                                    TickFrequency="500"
+                                    IsSnapToTickEnabled="True"
+                                    SmallChange="500"
+                                    LargeChange="1000"
+                                    Value="{Binding ZImageTrainerSteps, Mode=TwoWay}" />
+                            <TextBox Width="56"
+                                     Margin="8,0,0,0"
+                                     VerticalContentAlignment="Center"
+                                     Text="{Binding ZImageTrainerSteps, UpdateSourceTrigger=PropertyChanged}"
+                                     FontSize="12"
+                                     Padding="6,3" />
+                          </DockPanel>
+                        </StackPanel>
+
+                        <StackPanel Width="130"
+                                    Margin="20,0,0,0">
+                          <TextBlock Text="Learning rate"
+                                     FontSize="13" />
+                          <ComboBox Margin="0,6,0,0"
+                                    Width="98"
+                                    HorizontalAlignment="Left"
+                                    SelectedValue="{Binding ZImageTrainerLearningRate}"
+                                    SelectedValuePath="Tag"
+                                    FontSize="12"
+                                    Padding="7,5">
+                            <ComboBoxItem Content="5e-5" Tag="5e-5" />
+                            <ComboBoxItem Content="8e-5" Tag="8e-5" />
+                            <ComboBoxItem Content="1e-4" Tag="1e-4" IsSelected="True" />
+                          </ComboBox>
+                        </StackPanel>
+
+                        <StackPanel Width="110"
+                                    Margin="20,0,0,0">
+                          <TextBlock Text="LoRA rank"
+                                     FontSize="13" />
+                          <ComboBox Margin="0,6,0,0"
+                                    Width="86"
+                                    HorizontalAlignment="Left"
+                                    SelectedValue="{Binding ZImageTrainerRank}"
+                                    SelectedValuePath="Tag"
+                                    FontSize="12"
+                                    Padding="7,5">
+                            <ComboBoxItem Content="4" Tag="4" />
+                            <ComboBoxItem Content="8" Tag="8" />
+                            <ComboBoxItem Content="16" Tag="16" IsSelected="True" />
+                            <ComboBoxItem Content="32" Tag="32" />
+                          </ComboBox>
+                        </StackPanel>
+                      </WrapPanel>
+
+                      <CheckBox Margin="120,6,0,0"
+                                HorizontalAlignment="Left"
+                                IsChecked="{Binding ZImageTrainerLowVram}"
+                                Content="Low VRAM mode" />
+
+                      <WrapPanel Margin="0,10,0,0">
+                        <Button Width="190"
+                                Margin="0,0,12,0"
+                                Padding="12,8"
+                                FontSize="14"
+                                HorizontalAlignment="Left"
+                                IsEnabled="{Binding CanStartZImageTrainingUi}"
+                                Command="{Binding StartZImageTrainingCommand}"
+                                Content="Start Training" />
+                        <Button Width="160"
+                                Padding="12,8"
+                                FontSize="14"
+                                HorizontalAlignment="Left"
+                                IsEnabled="{Binding CanStopZImageTrainingUi}"
+                                Click="OnStopZImageTrainingClick"
+                                Content="Stop Training" />
+                      </WrapPanel>
+                    </StackPanel>
+                  </Border>
+
+                <Border Grid.Row="6"
+                        Margin="0,8,0,0"
                         Background="#121212"
                         CornerRadius="10"
-                        Padding="8">
+                        Padding="7">
                   <StackPanel>
-                    <DockPanel LastChildFill="True">
-                      <Button DockPanel.Dock="Right"
-                              Width="96"
-                              Padding="8,4"
-                              FontSize="11"
-                              Style="{StaticResource SecondaryActionButton}"
-                              Command="{Binding OpenLogFolderCommand}"
-                              Content="Open Logs" />
-                      <TextBlock Text="Live log"
+                    <StackPanel Margin="0,0,0,6"
+                                Visibility="{Binding ZImageTrainerProgressVisible, Converter={StaticResource BoolToVisibilityConverter}}">
+                      <TextBlock Text="{Binding ZImageTrainerProgressText}"
                                  FontWeight="SemiBold"
-                                 FontSize="13"
+                                 FontSize="12"
                                  Foreground="#E8E8E8"
                                  VerticalAlignment="Center" />
-                    </DockPanel>
+                      <ProgressBar Height="12"
+                                   Margin="0,6,0,0"
+                                   Minimum="0"
+                                   Maximum="100"
+                                   Value="{Binding ZImageTrainerProgressPercent, Mode=OneWay}" />
+                    </StackPanel>
+                    <TextBlock Text="Live log"
+                               FontWeight="SemiBold"
+                               FontSize="13"
+                               Foreground="#E8E8E8"
+                               VerticalAlignment="Center" />
                     <ListBox x:Name="ZImageTrainerLogListBox"
                              ItemsSource="{Binding LogLines}"
-                             Height="78"
-                             Margin="0,4,0,0"
+                             Height="108"
+                             Margin="0,3,0,0"
                              FontFamily="Consolas"
                              FontSize="11"
                              Background="Transparent"
@@ -1493,6 +1587,7 @@
                              Foreground="#E8E8E8" />
                   </StackPanel>
                 </Border>
+              </Grid>
               </StackPanel>
             </Border>
           </StackPanel>

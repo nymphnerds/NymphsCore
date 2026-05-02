@@ -162,4 +162,14 @@ public partial class MainWindow : Window
 
         return null;
     }
+
+    private async void OnStopZImageTrainingClick(object sender, RoutedEventArgs e)
+    {
+        if (_viewModel is null)
+        {
+            return;
+        }
+
+        await _viewModel.StopZImageTrainingFromUiAsync();
+    }
 }

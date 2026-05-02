@@ -9,9 +9,30 @@ REPO_DIR="${NYMPHS3D_N2D2_DIR}"
 REPO_URL="${NYMPHS3D_N2D2_REPO_URL:-https://github.com/nymphnerds/Nymphs2D2.git}"
 REPO_BRANCH="${NYMPHS3D_N2D2_REPO_BRANCH}"
 DIFFUSERS_SPEC="${NYMPHS3D_Z_IMAGE_DIFFUSERS_SPEC:-diffusers==0.37.1}"
+OVERLAY_DIR="${ROOT_DIR}/scripts/zimage_backend_overlay"
 
 configure_nymphs3d_cuda_env
 configure_nymphs3d_hf_env
+
+apply_zimage_backend_overlay() {
+  if [[ ! -d "${OVERLAY_DIR}" ]]; then
+    echo "Expected Z-Image backend overlay directory is missing: ${OVERLAY_DIR}"
+    exit 1
+  fi
+
+  local overlay_file
+  for overlay_file in api_server.py model_manager.py schemas.py; do
+    if [[ ! -f "${OVERLAY_DIR}/${overlay_file}" ]]; then
+      echo "Expected Z-Image backend overlay file is missing: ${OVERLAY_DIR}/${overlay_file}"
+      exit 1
+    fi
+  done
+
+  echo "Applying managed Z-Image backend overlay"
+  cp "${OVERLAY_DIR}/api_server.py" "${REPO_DIR}/api_server.py"
+  cp "${OVERLAY_DIR}/model_manager.py" "${REPO_DIR}/model_manager.py"
+  cp "${OVERLAY_DIR}/schemas.py" "${REPO_DIR}/schemas.py"
+}
 
 if ! command -v python3.11 >/dev/null 2>&1; then
   echo "python3.11 is not installed."
@@ -57,11 +78,100 @@ if [[ ! -f "${LOCK_FILE}" ]]; then
 fi
 
 cd "${REPO_DIR}"
+apply_zimage_backend_overlay
 
 LIVE_VENV_DIR="${REPO_DIR}/.venv-nunchaku"
 STAGING_VENV_DIR="${REPO_DIR}/.venv-nunchaku.staging"
 BACKUP_VENV_DIR="${REPO_DIR}/.venv-nunchaku.backup"
 FILTERED_LOCK_FILE=""
+EXPECTED_NUNCHAKU_REPO=""
+EXPECTED_NUNCHAKU_COMMIT=""
+EXPECTED_DIFFUSERS_VERSION=""
+
+if [[ "${NYMPHS3D_NUNCHAKU_SPEC}" == git+*@* ]]; then
+  EXPECTED_NUNCHAKU_REPO="${NYMPHS3D_NUNCHAKU_SPEC#git+}"
+  EXPECTED_NUNCHAKU_REPO="${EXPECTED_NUNCHAKU_REPO%@*}"
+  EXPECTED_NUNCHAKU_COMMIT="${NYMPHS3D_NUNCHAKU_SPEC##*@}"
+fi
+
+if [[ "${DIFFUSERS_SPEC}" == diffusers==* ]]; then
+  EXPECTED_DIFFUSERS_VERSION="${DIFFUSERS_SPEC#diffusers==}"
+fi
+
+normalize_git_url() {
+  local url="${1:-}"
+  url="${url%.git}"
+  url="${url%/}"
+  printf '%s' "${url,,}"
+}
+
+live_nunchaku_venv_is_current() {
+  local live_python="${LIVE_VENV_DIR}/bin/python"
+  [[ -x "${live_python}" ]] || return 1
+
+  local live_version
+  live_version="$("${live_python}" -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")' 2>/dev/null || true)"
+  if [[ "${live_version}" != "3.11" ]]; then
+    echo "Existing Nunchaku venv uses Python ${live_version:-unknown}; expected 3.11."
+    return 1
+  fi
+
+  EXPECTED_NUNCHAKU_REPO="${EXPECTED_NUNCHAKU_REPO}" \
+  EXPECTED_NUNCHAKU_COMMIT="${EXPECTED_NUNCHAKU_COMMIT}" \
+  EXPECTED_DIFFUSERS_VERSION="${EXPECTED_DIFFUSERS_VERSION}" \
+  NORMALIZED_EXPECTED_NUNCHAKU_REPO="$(normalize_git_url "${EXPECTED_NUNCHAKU_REPO}")" \
+  "${live_python}" -m py_compile api_server.py model_manager.py nunchaku_compat.py scripts/run_nunchaku_zimage_test.py >/dev/null 2>&1 || return 1
+
+  EXPECTED_NUNCHAKU_REPO="${EXPECTED_NUNCHAKU_REPO}" \
+  EXPECTED_NUNCHAKU_COMMIT="${EXPECTED_NUNCHAKU_COMMIT}" \
+  EXPECTED_DIFFUSERS_VERSION="${EXPECTED_DIFFUSERS_VERSION}" \
+  NORMALIZED_EXPECTED_NUNCHAKU_REPO="$(normalize_git_url "${EXPECTED_NUNCHAKU_REPO}")" \
+  "${live_python}" - <<'PY' >/dev/null 2>&1 || return 1
+import json
+import os
+from importlib import metadata
+
+import diffusers
+from diffusers.pipelines.z_image.pipeline_z_image import ZImagePipeline
+from diffusers.pipelines.z_image.pipeline_z_image_img2img import ZImageImg2ImgPipeline
+from nunchaku import NunchakuZImageTransformer2DModel
+from nunchaku_compat import patch_zimage_transformer_forward
+
+expected_repo = os.environ.get("NORMALIZED_EXPECTED_NUNCHAKU_REPO", "")
+expected_commit = os.environ.get("EXPECTED_NUNCHAKU_COMMIT", "")
+expected_diffusers = os.environ.get("EXPECTED_DIFFUSERS_VERSION", "")
+
+if expected_diffusers and diffusers.__version__ != expected_diffusers:
+    raise SystemExit(f"diffusers version drift: {diffusers.__version__} != {expected_diffusers}")
+
+dist = metadata.distribution("nunchaku")
+direct_url_text = dist.read_text("direct_url.json") or ""
+if expected_repo or expected_commit:
+    if not direct_url_text:
+        raise SystemExit("nunchaku direct_url metadata is missing")
+    direct_url = json.loads(direct_url_text)
+    actual_url = (direct_url.get("url") or "").lower().removesuffix(".git").rstrip("/")
+    actual_commit = ((direct_url.get("vcs_info") or {}).get("commit_id") or "").lower()
+    if expected_repo and actual_url != expected_repo:
+        raise SystemExit(f"nunchaku repo drift: {actual_url} != {expected_repo}")
+    if expected_commit and actual_commit != expected_commit.lower():
+        raise SystemExit(f"nunchaku commit drift: {actual_commit} != {expected_commit.lower()}")
+
+patched_forward = patch_zimage_transformer_forward(NunchakuZImageTransformer2DModel)
+if not patched_forward:
+    raise SystemExit("nunchaku forward patch validation failed")
+
+_ = ZImagePipeline.__name__
+_ = ZImageImg2ImgPipeline.__name__
+PY
+}
+
+if live_nunchaku_venv_is_current; then
+  echo "Existing Nunchaku runtime already matches the pinned install. Skipping rebuild."
+  echo
+  echo "Z-Image Turbo via Nunchaku install complete."
+  exit 0
+fi
 
 rm -rf "${STAGING_VENV_DIR}" "${BACKUP_VENV_DIR}"
 
@@ -114,7 +224,11 @@ echo "Installing locked Python environment from requirements.lock.txt"
 
 if ! "${VENV_PYTHON}" -c 'import nunchaku' >/dev/null 2>&1; then
   echo "Installing Nunchaku runtime package"
-  "${VENV_PIP}" install --no-deps --pre --index-url "${NYMPHS3D_NUNCHAKU_INDEX_URL}" "${NYMPHS3D_NUNCHAKU_SPEC}"
+  if [[ -n "${NYMPHS3D_NUNCHAKU_INDEX_URL}" ]]; then
+    "${VENV_PIP}" install --no-deps --pre --index-url "${NYMPHS3D_NUNCHAKU_INDEX_URL}" "${NYMPHS3D_NUNCHAKU_SPEC}"
+  else
+    "${VENV_PIP}" install --no-deps --pre "${NYMPHS3D_NUNCHAKU_SPEC}"
+  fi
 fi
 
 echo "Installing Z-Image compatibility packages for the Nunchaku runtime path"

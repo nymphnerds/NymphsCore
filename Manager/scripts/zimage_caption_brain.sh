@@ -9,6 +9,7 @@ TRAINING_FOCUS="${ZIMAGE_TRAINING_FOCUS:-character}"
 LLMS_START_PATH="${INSTALL_ROOT}/bin/lms-start"
 LMS_STOP_PATH="${INSTALL_ROOT}/bin/lms-stop"
 PYTHON_HELPER="${HOME}/ZImage-Trainer/bin/zimage-caption-brain.py"
+TRAINER_PYTHON="${HOME}/ZImage-Trainer/ai-toolkit/venv/bin/python"
 MODELS_DIR="${INSTALL_ROOT}/models"
 
 if [[ -z "${DATASET_DIR}" || -z "${METADATA_PATH}" ]]; then
@@ -28,6 +29,11 @@ fi
 
 if [[ ! -f "${PYTHON_HELPER}" ]]; then
   echo "Caption Brain helper is missing at ${PYTHON_HELPER}. Repair the trainer first." >&2
+  exit 1
+fi
+
+if [[ ! -x "${TRAINER_PYTHON}" ]]; then
+  echo "Caption Brain could not find trainer Python at ${TRAINER_PYTHON}. Repair the trainer first." >&2
   exit 1
 fi
 
@@ -201,7 +207,7 @@ else
   echo "Caption Brain: reusing the already configured Brain vision model."
 fi
 
-python3 "${PYTHON_HELPER}" \
+"${TRAINER_PYTHON}" "${PYTHON_HELPER}" \
   --dataset-dir "${DATASET_DIR}" \
   --metadata-path "${METADATA_PATH}" \
   --mode "${CAPTION_MODE}" \
