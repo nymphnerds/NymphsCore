@@ -1,4 +1,5 @@
 using System.IO;
+using System.Globalization;
 using System.Net.Http;
 using System.Net.Sockets;
 using System.Runtime.InteropServices;
@@ -463,7 +464,8 @@ public sealed class InstallerWorkflowService
     public async Task<ZImageTrainerStatus> GetZImageTrainerStatusAsync(
         InstallSettings settings,
         IProgress<string>? progress,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        string? selectedJobRef = null)
     {
         var statusScript = RequireScript("zimage_trainer_status.sh");
         var wslStatusScriptPath = ConvertWindowsPathToWsl(statusScript)
@@ -479,14 +481,18 @@ public sealed class InstallerWorkflowService
             "export ZIMAGE_LORA_ROOT=\"$HOME/ZImage-Trainer/loras\"; " +
             $"bash {ToBashSingleQuoted(wslStatusScriptPath)}";
 
-        progress?.Report("Checking Z-Image Trainer sidecar status...");
-        var result = await RunWslBashAsync(settings, bashCommand, progress, cancellationToken).ConfigureAwait(false);
+        var result = await RunWslBashAsync(settings, bashCommand, progress: null, cancellationToken).ConfigureAwait(false);
         if (result.ExitCode != 0)
         {
             throw new InvalidOperationException("Z-Image Trainer status check failed.");
         }
 
-        return ParseZImageTrainerStatus(result.CombinedOutput);
+        var status = ParseZImageTrainerStatus(result.CombinedOutput);
+        return await EnrichZImageTrainerStatusFromAiToolkitAsync(
+            settings,
+            status,
+            selectedJobRef,
+            cancellationToken).ConfigureAwait(false);
     }
 
     public Task<IReadOnlyList<string>> GetZImageTrainerDatasetNamesAsync(
@@ -731,34 +737,49 @@ public sealed class InstallerWorkflowService
         IProgress<string>? progress,
         CancellationToken cancellationToken)
     {
-        const int uiPort = 8675;
+        progress?.Report("Killing AI Toolkit process...");
         var bashCommand =
-            "set -euo pipefail; " +
+            "set +e; " +
             $"export HOME={ToBashSingleQuoted($"/home/{settings.LinuxUser}")}; " +
             $"export USER={ToBashSingleQuoted(settings.LinuxUser)}; " +
             $"export LOGNAME={ToBashSingleQuoted(settings.LinuxUser)}; " +
-            $"UI_PORT={uiPort}; " +
-            "pkill -u \"$(id -u)\" -f \"next start --port ${UI_PORT}\" || true; " +
-            "pkill -u \"$(id -u)\" -f \"node_modules/.bin/next start --port ${UI_PORT}\" || true; " +
-            "pkill -u \"$(id -u)\" -f \"ui/node_modules/.bin/concurrently.*next start --port ${UI_PORT}\" || true; " +
-            "pkill -u \"$(id -u)\" -f \"next-server\" || true; " +
-            "pkill -u \"$(id -u)\" -f \"dist/cron/worker.js\" || true; " +
-            "for _ in {1..20}; do " +
-            "  if ! ss -ltn 2>/dev/null | grep -q \":${UI_PORT} \"; then " +
-            "    echo 'AI Toolkit process killed.'; exit 0; " +
+            "UI_PORT=8675; " +
+            "is_alive() { " +
+            "  if ss -ltn 2>/dev/null | grep -q ':8675 '; then return 0; fi; " +
+            "  if pgrep -u \"$(id -u)\" -f '[n]ext-server' >/dev/null 2>&1; then return 0; fi; " +
+            "  if pgrep -u \"$(id -u)\" -f '[n]ext start --port 8675' >/dev/null 2>&1; then return 0; fi; " +
+            "  if pgrep -u \"$(id -u)\" -f 'dist/cron/[w]orker.js' >/dev/null 2>&1; then return 0; fi; " +
+            "  if pgrep -u \"$(id -u)\" -f 'node_modules/.bin/[c]oncurrently' >/dev/null 2>&1; then return 0; fi; " +
+            "  return 1; " +
+            "}; " +
+            "pkill -9 -u \"$(id -u)\" -f 'node_modules/.bin/[c]oncurrently' >/dev/null 2>&1 || true; " +
+            "pkill -9 -u \"$(id -u)\" -f 'dist/cron/[w]orker.js' >/dev/null 2>&1 || true; " +
+            "pkill -9 -u \"$(id -u)\" -f '[n]ext start --port 8675' >/dev/null 2>&1 || true; " +
+            "pkill -9 -u \"$(id -u)\" -f '[n]ext-server' >/dev/null 2>&1 || true; " +
+            "for _ in {1..16}; do " +
+            "  if ! is_alive; then " +
+            "    echo 'AI Toolkit server stopped.'; exit 0; " +
             "  fi; " +
+            "  pkill -9 -u \"$(id -u)\" -f 'node_modules/.bin/[c]oncurrently' >/dev/null 2>&1 || true; " +
+            "  pkill -9 -u \"$(id -u)\" -f 'dist/cron/[w]orker.js' >/dev/null 2>&1 || true; " +
+            "  pkill -9 -u \"$(id -u)\" -f '[n]ext start --port 8675' >/dev/null 2>&1 || true; " +
+            "  pkill -9 -u \"$(id -u)\" -f '[n]ext-server' >/dev/null 2>&1 || true; " +
             "  sleep 0.25; " +
             "done; " +
-            "PIDS=$(ss -ltnp 2>/dev/null | sed -n 's/.*pid=\\([0-9]\\+\\).*/\\1/p' | sort -u | tr '\\n' ' '); " +
-            "if [[ -n \"${PIDS:-}\" ]]; then kill -9 ${PIDS} || true; fi; " +
-            "sleep 0.5; " +
-            "echo 'AI Toolkit process killed.'";
+            "exit 1";
 
-        progress?.Report("Killing AI Toolkit process...");
         var result = await RunWslBashAsync(settings, bashCommand, progress, cancellationToken).ConfigureAwait(false);
-        if (result.ExitCode != 0)
+        if (!await WaitForAiToolkitUiToStopAsync(settings, cancellationToken).ConfigureAwait(false))
         {
-            throw new InvalidOperationException("Killing AI Toolkit failed.");
+            if (result.ExitCode != 0)
+            {
+                throw new InvalidOperationException("Killing AI Toolkit failed.");
+            }
+        }
+        else
+        {
+            progress?.Report("AI Toolkit server stopped.");
+            return;
         }
     }
 
@@ -941,6 +962,103 @@ public sealed class InstallerWorkflowService
             settings,
             officialUiJobId,
             normalizedLora,
+            progress,
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task StartZImageTrainerQueueAsync(
+        InstallSettings settings,
+        string loraName,
+        IProgress<string>? progress,
+        CancellationToken cancellationToken)
+    {
+        await EnsureAiToolkitApiReadyAsync(settings, progress, cancellationToken, allowLaunchIfClosed: false).ConfigureAwait(false);
+
+        var normalizedLora = NormalizeTrainerName(loraName, "LoRA");
+        var jobId = await FindOfficialUiJobIdAsync(settings, normalizedLora, progress, cancellationToken).ConfigureAwait(false);
+        if (string.IsNullOrWhiteSpace(jobId))
+        {
+            throw new InvalidOperationException("No AI Toolkit job was found for the selected LoRA.");
+        }
+
+        var job = await GetAiToolkitJobByIdAsync(jobId, cancellationToken).ConfigureAwait(false);
+        var gpuIds = job is null ? null : GetStringProperty(job.RootElement, "gpu_ids");
+        if (string.IsNullOrWhiteSpace(gpuIds))
+        {
+            throw new InvalidOperationException("AI Toolkit job does not have a valid queue assignment.");
+        }
+
+        await SendAiToolkitApiRequestAsync(
+            HttpMethod.Get,
+            $"/api/queue/{Uri.EscapeDataString(gpuIds)}/start",
+            null,
+            cancellationToken).ConfigureAwait(false);
+        progress?.Report($"Started AI Toolkit queue {gpuIds}.");
+    }
+
+    public async Task StopZImageTrainerQueueAsync(
+        InstallSettings settings,
+        string loraName,
+        IProgress<string>? progress,
+        CancellationToken cancellationToken)
+    {
+        await EnsureAiToolkitApiReadyAsync(settings, progress, cancellationToken, allowLaunchIfClosed: false).ConfigureAwait(false);
+
+        var normalizedLora = NormalizeTrainerName(loraName, "LoRA");
+        var jobId = await FindOfficialUiJobIdAsync(settings, normalizedLora, progress, cancellationToken).ConfigureAwait(false);
+        if (string.IsNullOrWhiteSpace(jobId))
+        {
+            throw new InvalidOperationException("No AI Toolkit job was found for the selected LoRA.");
+        }
+
+        var job = await GetAiToolkitJobByIdAsync(jobId, cancellationToken).ConfigureAwait(false);
+        var gpuIds = job is null ? null : GetStringProperty(job.RootElement, "gpu_ids");
+        if (string.IsNullOrWhiteSpace(gpuIds))
+        {
+            throw new InvalidOperationException("AI Toolkit job does not have a valid queue assignment.");
+        }
+
+        await SendAiToolkitApiRequestAsync(
+            HttpMethod.Get,
+            $"/api/queue/{Uri.EscapeDataString(gpuIds)}/stop",
+            null,
+            cancellationToken).ConfigureAwait(false);
+        progress?.Report($"Stopped AI Toolkit queue {gpuIds}.");
+    }
+
+    public async Task DeleteZImageTrainerJobAsync(
+        InstallSettings settings,
+        string loraName,
+        IProgress<string>? progress,
+        CancellationToken cancellationToken)
+    {
+        await EnsureAiToolkitApiReadyAsync(settings, progress, cancellationToken, allowLaunchIfClosed: false).ConfigureAwait(false);
+
+        var normalizedLora = NormalizeTrainerName(loraName, "LoRA");
+        var jobId = await FindOfficialUiJobIdAsync(settings, normalizedLora, progress, cancellationToken).ConfigureAwait(false);
+        if (string.IsNullOrWhiteSpace(jobId))
+        {
+            throw new InvalidOperationException("No AI Toolkit job was found for the selected LoRA.");
+        }
+
+        await SendAiToolkitApiRequestAsync(
+            HttpMethod.Get,
+            $"/api/jobs/{Uri.EscapeDataString(jobId)}/delete",
+            null,
+            cancellationToken).ConfigureAwait(false);
+        progress?.Report($"Deleted AI Toolkit job '{normalizedLora}'.");
+    }
+
+    public async Task<string?> GetZImageTrainerJobIdAsync(
+        InstallSettings settings,
+        string loraName,
+        IProgress<string>? progress,
+        CancellationToken cancellationToken)
+    {
+        await EnsureAiToolkitApiReadyAsync(settings, progress, cancellationToken, allowLaunchIfClosed: false).ConfigureAwait(false);
+        return await FindOfficialUiJobIdAsync(
+            settings,
+            NormalizeTrainerName(loraName, "LoRA"),
             progress,
             cancellationToken).ConfigureAwait(false);
     }
@@ -1581,7 +1699,10 @@ public sealed class InstallerWorkflowService
         var uiBuildExists = IsYes(values.GetValueOrDefault("ZIMAGE_TRAINER_UI_BUILD"));
         var uiDbExists = IsYes(values.GetValueOrDefault("ZIMAGE_TRAINER_UI_DB"));
         var uiRunning = IsYes(values.GetValueOrDefault("ZIMAGE_TRAINER_UI_RUNNING"));
+        var queueWorkerRunning = IsYes(values.GetValueOrDefault("ZIMAGE_TRAINER_QUEUE_WORKER_RUNNING"));
+        var queueRunning = IsYes(values.GetValueOrDefault("ZIMAGE_TRAINER_QUEUE_RUNNING"));
         var gradioRunning = IsYes(values.GetValueOrDefault("ZIMAGE_TRAINER_GRADIO_RUNNING"));
+        var activeInfo = ValueOrDash(values.GetValueOrDefault("ZIMAGE_TRAINER_ACTIVE_INFO"));
 
         var detail = installState switch
         {
@@ -1592,9 +1713,14 @@ public sealed class InstallerWorkflowService
 
         if (running)
         {
-            detail += activeState == "queued"
-                ? " Training queued."
-                : " Training running.";
+            detail += activeState switch
+            {
+                "queued" when queueRunning => " Training queued.",
+                "queued" => " Training queued, but the AI Toolkit queue is stopped.",
+                "running" when !string.IsNullOrWhiteSpace(activeInfo) && !string.Equals(activeInfo, "-", StringComparison.Ordinal) => $" {activeInfo}.",
+                "running" => " Training running.",
+                _ => " Trainer activity detected.",
+            };
         }
 
         if (uiRunning)
@@ -1615,6 +1741,11 @@ public sealed class InstallerWorkflowService
             detail += " Gradio ready.";
         }
 
+        if (installState == "installed" && !queueWorkerRunning)
+        {
+            detail += " Queue worker not running.";
+        }
+
         return new ZImageTrainerStatus(
             installState,
             repoExists,
@@ -1625,7 +1756,11 @@ public sealed class InstallerWorkflowService
             loraCount,
             datasetCount,
             uiRunning,
+            queueWorkerRunning,
+            queueRunning,
             gradioRunning,
+            activeState,
+            activeInfo,
             detail);
     }
 
@@ -1985,6 +2120,7 @@ meta:
 
     private static string BuildZImageTrainerConfigJson(string linuxUser, string datasetName, string loraName, string adapterPath, ZImageTrainerPreset preset)
     {
+        var learningRateValue = ParseLearningRateValue(preset.LearningRate);
         var jobConfig = new
         {
             job = "extension",
@@ -2045,7 +2181,7 @@ meta:
                             },
                             unload_text_encoder = false,
                             cache_text_embeddings = false,
-                            lr = preset.LearningRate,
+                            lr = learningRateValue,
                             ema_config = new
                             {
                                 use_ema = false,
@@ -2114,6 +2250,18 @@ meta:
         return JsonSerializer.Serialize(jobConfig);
     }
 
+    private static double ParseLearningRateValue(string? learningRate)
+    {
+        if (!string.IsNullOrWhiteSpace(learningRate) &&
+            double.TryParse(learningRate.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed) &&
+            parsed > 0)
+        {
+            return parsed;
+        }
+
+        return 1e-4;
+    }
+
     private async Task TryRegisterZImageTrainerJobInOfficialUiAsync(
         InstallSettings settings,
         string loraName,
@@ -2168,11 +2316,6 @@ meta:
         }
 
         await SendAiToolkitApiRequestAsync(HttpMethod.Get, $"/api/jobs/{Uri.EscapeDataString(jobId)}/start", null, cancellationToken).ConfigureAwait(false);
-        await SendAiToolkitApiRequestAsync(
-            HttpMethod.Get,
-            $"/api/queue/{Uri.EscapeDataString(gpuIds)}/start",
-            null,
-            cancellationToken).ConfigureAwait(false);
 
         var queuedJob = await WaitForAiToolkitJobLiveStateAsync(jobId, cancellationToken).ConfigureAwait(false);
         var status = queuedJob is null ? null : GetStringProperty(queuedJob.RootElement, "status");
@@ -2194,6 +2337,7 @@ meta:
     {
         if (await IsAiToolkitApiHealthyAsync(cancellationToken).ConfigureAwait(false))
         {
+            await EnsureAiToolkitSettingsConfiguredAsync(settings, cancellationToken).ConfigureAwait(false);
             progress?.Report("AI Toolkit is already running.");
             return;
         }
@@ -2218,6 +2362,36 @@ meta:
             cancellationToken).ConfigureAwait(false);
 
         await WaitForAiToolkitApiHealthyAsync(cancellationToken).ConfigureAwait(false);
+        await EnsureAiToolkitSettingsConfiguredAsync(settings, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task EnsureAiToolkitSettingsConfiguredAsync(
+        InstallSettings settings,
+        CancellationToken cancellationToken)
+    {
+        var desiredTrainingFolder = $"/home/{settings.LinuxUser}/ZImage-Trainer/loras";
+        var desiredDatasetsFolder = $"/home/{settings.LinuxUser}/ZImage-Trainer/datasets";
+
+        var settingsJson = await SendAiToolkitApiRequestAsync(HttpMethod.Get, "/api/settings", null, cancellationToken).ConfigureAwait(false);
+        using var response = JsonDocument.Parse(settingsJson);
+        var currentTrainingFolder = GetStringProperty(response.RootElement, "TRAINING_FOLDER") ?? string.Empty;
+        var currentDatasetsFolder = GetStringProperty(response.RootElement, "DATASETS_FOLDER") ?? string.Empty;
+        var currentToken = GetStringProperty(response.RootElement, "HF_TOKEN") ?? string.Empty;
+
+        if (string.Equals(currentTrainingFolder, desiredTrainingFolder, StringComparison.Ordinal) &&
+            string.Equals(currentDatasetsFolder, desiredDatasetsFolder, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        var payloadJson = JsonSerializer.Serialize(new
+        {
+            HF_TOKEN = currentToken,
+            TRAINING_FOLDER = desiredTrainingFolder,
+            DATASETS_FOLDER = desiredDatasetsFolder,
+        });
+
+        await SendAiToolkitApiRequestAsync(HttpMethod.Post, "/api/settings", payloadJson, cancellationToken).ConfigureAwait(false);
     }
 
     private async Task WaitForAiToolkitApiHealthyAsync(CancellationToken cancellationToken)
@@ -2255,6 +2429,146 @@ meta:
         }
     }
 
+    private async Task<ZImageTrainerStatus> EnrichZImageTrainerStatusFromAiToolkitAsync(
+        InstallSettings settings,
+        ZImageTrainerStatus status,
+        string? selectedJobRef,
+        CancellationToken cancellationToken)
+    {
+        var normalizedRef = string.IsNullOrWhiteSpace(selectedJobRef)
+            ? string.Empty
+            : NormalizeTrainerName(selectedJobRef, "LoRA");
+
+        if (string.IsNullOrWhiteSpace(normalizedRef))
+        {
+            return status;
+        }
+
+        if (!status.OfficialUiRunning || !await IsAiToolkitApiHealthyAsync(cancellationToken).ConfigureAwait(false))
+        {
+            return status;
+        }
+
+        try
+        {
+            await EnsureAiToolkitSettingsConfiguredAsync(settings, cancellationToken).ConfigureAwait(false);
+
+            using var jobDoc = await TryGetAiToolkitJobByRefAsync(normalizedRef, cancellationToken).ConfigureAwait(false);
+            var selectedJobExists = jobDoc is not null;
+            var selectedJobName = selectedJobExists ? (GetStringProperty(jobDoc!.RootElement, "name") ?? normalizedRef) : normalizedRef;
+            var selectedJobState = selectedJobExists ? (GetStringProperty(jobDoc!.RootElement, "status") ?? string.Empty) : string.Empty;
+            var selectedJobInfo = selectedJobExists ? (GetStringProperty(jobDoc!.RootElement, "info") ?? string.Empty) : string.Empty;
+
+            var selectedDatasetName = normalizedRef;
+            if (selectedJobExists)
+            {
+                var jobConfigJson = GetStringProperty(jobDoc!.RootElement, "job_config");
+                var datasetFromConfig = TryGetDatasetNameFromJobConfig(jobConfigJson);
+                if (!string.IsNullOrWhiteSpace(datasetFromConfig))
+                {
+                    selectedDatasetName = datasetFromConfig;
+                }
+            }
+
+            var (datasetVisible, datasetImageCount) = await TryGetAiToolkitDatasetVisibilityAsync(
+                selectedDatasetName,
+                cancellationToken).ConfigureAwait(false);
+
+            return status with
+            {
+                SelectedJobExists = selectedJobExists,
+                SelectedJobName = selectedJobName,
+                SelectedJobState = selectedJobState,
+                SelectedJobInfo = selectedJobInfo,
+                SelectedDatasetName = selectedDatasetName,
+                SelectedDatasetVisible = datasetVisible,
+                SelectedDatasetImageCount = datasetImageCount,
+            };
+        }
+        catch
+        {
+            return status;
+        }
+    }
+
+    private async Task<(bool Visible, int ImageCount)> TryGetAiToolkitDatasetVisibilityAsync(
+        string datasetName,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(datasetName))
+        {
+            return (false, 0);
+        }
+
+        try
+        {
+            var listJson = await SendAiToolkitApiRequestAsync(HttpMethod.Get, "/api/datasets/list", null, cancellationToken).ConfigureAwait(false);
+            using var listDoc = JsonDocument.Parse(listJson);
+            if (listDoc.RootElement.ValueKind != JsonValueKind.Array)
+            {
+                return (false, 0);
+            }
+
+            var visible = listDoc.RootElement
+                .EnumerateArray()
+                .Any(element => string.Equals(element.GetString(), datasetName, StringComparison.OrdinalIgnoreCase));
+
+            if (!visible)
+            {
+                return (false, 0);
+            }
+
+            var payloadJson = JsonSerializer.Serialize(new { datasetName });
+            var imagesJson = await SendAiToolkitApiRequestAsync(HttpMethod.Post, "/api/datasets/listImages", payloadJson, cancellationToken).ConfigureAwait(false);
+            using var imagesDoc = JsonDocument.Parse(imagesJson);
+            var images = TryGetObjectProperty(imagesDoc.RootElement, "images");
+            var count = images.HasValue && images.Value.ValueKind == JsonValueKind.Array
+                ? images.Value.GetArrayLength()
+                : 0;
+
+            return (true, count);
+        }
+        catch
+        {
+            return (false, 0);
+        }
+    }
+
+    private static string? TryGetDatasetNameFromJobConfig(string? jobConfigJson)
+    {
+        if (string.IsNullOrWhiteSpace(jobConfigJson))
+        {
+            return null;
+        }
+
+        try
+        {
+            using var doc = JsonDocument.Parse(jobConfigJson);
+            var config = TryGetObjectProperty(doc.RootElement, "config");
+            var process = TryGetObjectProperty(config, "process");
+            if (!process.HasValue || process.Value.ValueKind != JsonValueKind.Array || process.Value.GetArrayLength() == 0)
+            {
+                return null;
+            }
+
+            var process0 = process.Value[0];
+            var datasets = TryGetObjectProperty(process0, "datasets");
+            if (!datasets.HasValue || datasets.Value.ValueKind != JsonValueKind.Array || datasets.Value.GetArrayLength() == 0)
+            {
+                return null;
+            }
+
+            var folderPath = GetStringProperty(datasets.Value[0], "folder_path");
+            return string.IsNullOrWhiteSpace(folderPath)
+                ? null
+                : Path.GetFileName(folderPath.TrimEnd('/', '\\'));
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
     private async Task<bool> IsAiToolkitUiRespondingAsync(CancellationToken cancellationToken)
     {
         try
@@ -2268,6 +2582,47 @@ meta:
             return false;
         }
     }
+
+    private async Task<bool> WaitForAiToolkitUiToStopAsync(
+        InstallSettings settings,
+        CancellationToken cancellationToken)
+    {
+        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(4);
+        while (DateTime.UtcNow < deadline)
+        {
+            if (!await IsAiToolkitUiAliveInWslAsync(settings, cancellationToken).ConfigureAwait(false))
+            {
+                return true;
+            }
+
+            await Task.Delay(250, cancellationToken).ConfigureAwait(false);
+        }
+
+        return !await IsAiToolkitUiAliveInWslAsync(settings, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task<bool> IsAiToolkitUiAliveInWslAsync(
+        InstallSettings settings,
+        CancellationToken cancellationToken)
+    {
+        var bashCommand =
+            "set +e; " +
+            "if ss -ltn 2>/dev/null | grep -q ':8675 '; then echo alive; exit 0; fi; " +
+            "if ps -eo pid=,ppid=,args= | " +
+            "awk -v self=\"$$\" -v parent=\"$PPID\" ' " +
+            "  $1 != self && $1 != parent && $2 != self && $2 != parent && " +
+            "  ($0 ~ /[n]ext-server/ || " +
+            "   $0 ~ /[n]ext start --port 8675/ || " +
+            "   $0 ~ /dist\\/cron\\/worker\\.js/ || " +
+            "   $0 ~ /node_modules\\/\\.bin\\/concurrently/ || " +
+            "   $0 ~ /WORKER,UI/) { found=1 } END { exit(found ? 0 : 1) }'; " +
+            "then echo alive; exit 0; fi; " +
+            "echo stopped";
+
+        var result = await RunWslBashAsync(settings, bashCommand, progress: null, cancellationToken).ConfigureAwait(false);
+        return result.CombinedOutput.Contains("alive", StringComparison.OrdinalIgnoreCase);
+    }
+
 
     private async Task<string> UpsertAiToolkitJobViaApiAsync(
         string loraName,
@@ -2735,7 +3090,16 @@ meta:
     {
         System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
         {
-            FileName = "http://localhost:8675",
+            FileName = "http://localhost:8675/jobs",
+            UseShellExecute = true,
+        });
+    }
+
+    public void OpenZImageTrainerOfficialUiJob(string jobId)
+    {
+        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+        {
+            FileName = $"http://localhost:8675/jobs/{jobId}",
             UseShellExecute = true,
         });
     }

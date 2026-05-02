@@ -538,7 +538,11 @@ if ss -ltn 2>/dev/null | grep -q ":${UI_PORT} "; then
 fi
 
 cd "$UI_DIR"
-nohup npm run build_and_start > "$UI_LOG" 2>&1 &
+if [[ ! -d ".next" ]]; then
+  echo "AI Toolkit UI build is missing. Run Repair Trainer first." >&2
+  exit 1
+fi
+nohup npm run start > "$UI_LOG" 2>&1 &
 UI_PID=$!
 
 for _ in {1..40}; do
@@ -588,7 +592,8 @@ for _ in {1..40}; do
   fi
   sleep 0.25
 done
-echo "AI Toolkit UI stopped."
+echo "AI Toolkit UI did not stop cleanly." >&2
+exit 1
 EOF
 
 chmod +x "$BIN_ROOT/ztrain-start-queue-worker" "$BIN_ROOT/ztrain-stop-queue-worker" "$BIN_ROOT/ztrain-start-official-ui" "$BIN_ROOT/ztrain-stop-official-ui"

@@ -23,8 +23,11 @@ ui_build_exists="no"
 ui_db_exists="no"
 ui_running="no"
 queue_worker_running="no"
+queue_running="no"
 gradio_running="no"
 active_state="idle"
+active_info=""
+active_gpu_ids=""
 
 [[ -d "$REPO_DIR/.git" ]] && repo_exists="yes"
 [[ -x "$VENV_DIR/bin/python" ]] && venv_exists="yes"
@@ -36,7 +39,7 @@ active_state="idle"
 [[ -f "$UI_DB_PATH" ]] && ui_db_exists="yes"
 
 if [[ -f "$UI_DB_PATH" ]]; then
-  active_state="$(UI_DB_PATH="$UI_DB_PATH" python3 - <<'PYEOF'
+  mapfile -t active_job_fields < <(UI_DB_PATH="$UI_DB_PATH" python3 - <<'PYEOF'
 import os
 import sqlite3
 
@@ -45,15 +48,25 @@ con = sqlite3.connect(db_path, timeout=5.0)
 try:
     cur = con.cursor()
     cur.execute(
-        "SELECT status FROM Job WHERE job_type = 'train' AND status IN ('running', 'queued') "
+        "SELECT status, info, gpu_ids FROM Job WHERE job_type = 'train' AND status IN ('running', 'queued') "
         "ORDER BY CASE status WHEN 'running' THEN 0 ELSE 1 END, updated_at DESC, queue_position ASC LIMIT 1"
     )
     row = cur.fetchone()
-    print((row[0] if row and row[0] else "idle"), end="")
+    if row:
+        print(row[0] or "idle")
+        print((row[1] or "").replace("\r", " ").replace("\n", " ").strip())
+        print(row[2] or "")
+    else:
+        print("idle")
+        print("")
+        print("")
 finally:
     con.close()
 PYEOF
-)"
+)
+  active_state="${active_job_fields[0]:-idle}"
+  active_info="${active_job_fields[1]:-}"
+  active_gpu_ids="${active_job_fields[2]:-}"
 fi
 
 if [[ "$active_state" == "running" || "$active_state" == "queued" ]]; then
@@ -78,6 +91,35 @@ fi
 
 if pgrep -u "$(id -u)" -f "dist/cron/worker.js" >/dev/null 2>&1; then
   queue_worker_running="yes"
+fi
+
+if [[ -f "$UI_DB_PATH" ]]; then
+  queue_running_value="$(UI_DB_PATH="$UI_DB_PATH" ACTIVE_GPU_IDS="$active_gpu_ids" python3 - <<'PYEOF'
+import os
+import sqlite3
+
+db_path = os.environ["UI_DB_PATH"]
+active_gpu_ids = (os.environ.get("ACTIVE_GPU_IDS") or "").strip()
+con = sqlite3.connect(db_path, timeout=5.0)
+try:
+    cur = con.cursor()
+    if active_gpu_ids:
+        cur.execute("SELECT is_running FROM Queue WHERE gpu_ids = ? LIMIT 1", (active_gpu_ids,))
+        row = cur.fetchone()
+        if row is not None:
+            print("yes" if row[0] else "no", end="")
+            raise SystemExit(0)
+
+    cur.execute("SELECT is_running FROM Queue ORDER BY gpu_ids ASC LIMIT 1")
+    row = cur.fetchone()
+    print("yes" if row and row[0] else "no", end="")
+finally:
+    con.close()
+PYEOF
+)"
+  if [[ -n "${queue_running_value:-}" ]]; then
+    queue_running="$queue_running_value"
+  fi
 fi
 
 if ss -ltn 2>/dev/null | grep -q ':8675 '; then
@@ -112,6 +154,8 @@ echo "ZIMAGE_TRAINER_DATASET_ROOT=$dataset_root_exists"
 echo "ZIMAGE_TRAINER_OUTPUT_ROOT=$output_root_exists"
 echo "ZIMAGE_TRAINER_RUNNING=$running"
 echo "ZIMAGE_TRAINER_ACTIVE_STATE=$active_state"
+echo "ZIMAGE_TRAINER_ACTIVE_INFO=$active_info"
+echo "ZIMAGE_TRAINER_ACTIVE_GPU_IDS=$active_gpu_ids"
 echo "ZIMAGE_TRAINER_LORAS_FOUND=$lora_count"
 echo "ZIMAGE_TRAINER_DATASETS_FOUND=$dataset_count"
 echo "ZIMAGE_TRAINER_UI_DIR=$ui_dir_exists"
@@ -120,4 +164,5 @@ echo "ZIMAGE_TRAINER_UI_BUILD=$ui_build_exists"
 echo "ZIMAGE_TRAINER_UI_DB=$ui_db_exists"
 echo "ZIMAGE_TRAINER_UI_RUNNING=$ui_running"
 echo "ZIMAGE_TRAINER_QUEUE_WORKER_RUNNING=$queue_worker_running"
+echo "ZIMAGE_TRAINER_QUEUE_RUNNING=$queue_running"
 echo "ZIMAGE_TRAINER_GRADIO_RUNNING=$gradio_running"

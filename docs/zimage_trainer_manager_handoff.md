@@ -1,6 +1,303 @@
 # Z-Image Trainer Manager Handoff
 
-Date: 2026-04-28
+Date: 2026-04-30
+
+## WSL Context
+
+This handoff is written for the managed `NymphsCore` testing WSL runtime used by the Windows Manager.
+
+It is not a statement about whatever separate developer WSL checkout happens to contain the source tree.
+
+Important:
+
+```text
+- Paths such as /home/nymph/ZImage-Trainer and /home/nymph/Z-Image refer to the live managed trainer/runtime inside the NymphsCore testing distro
+- a missing trainer sidecar in a separate dev WSL does not mean the testing WSL is broken
+- when validating this handoff, run the checks inside the same WSL distro the Manager is targeting
+```
+
+## 2026-04-30 Backend Handoff For Tomorrow
+
+This section is the real restart point. It is backend-only on purpose.
+
+### Current backend systems
+
+```text
+Manager app:
+  /home/nymph/NymphsCore/Manager/apps/NymphsCoreManager
+
+Managed trainer root:
+  /home/nymph/ZImage-Trainer
+
+Trainer virtualenv:
+  /home/nymph/ZImage-Trainer/.venv-ztrain
+
+AI Toolkit repo:
+  /home/nymph/ZImage-Trainer/ai-toolkit
+
+Trainer logs:
+  /home/nymph/ZImage-Trainer/logs
+
+Datasets:
+  /home/nymph/ZImage-Trainer/datasets/<lora_name>/
+
+Jobs/configs:
+  /home/nymph/ZImage-Trainer/jobs/
+
+LoRA outputs:
+  /home/nymph/ZImage-Trainer/loras/
+
+Inference runtime:
+  /home/nymph/Z-Image
+
+Nunchaku venv:
+  /home/nymph/Z-Image/.venv-nunchaku
+```
+
+### Verified state tonight
+
+```text
+- AI Toolkit trainer stack is installed under /home/nymph/ZImage-Trainer
+- Gradio package is installed in .venv-ztrain
+- official AI Toolkit UI stack is installed
+- trainer configs are generated as AI Toolkit YAML jobs
+- manual metadata.csv caption editing is still valid and should remain first-class
+- Nymphs Brain captioning is optional only
+```
+
+### Gradio status
+
+Live Gradio is the important backend fix that must not be lost.
+
+Verified:
+
+```text
+localhost:7861 is listening from the managed trainer install
+```
+
+The live launcher that now works is:
+
+```text
+/home/nymph/ZImage-Trainer/bin/ztrain-start-gradio-ui
+```
+
+Important:
+
+```text
+This launcher had been stale/broken before.
+It was repaired in the live distro and also synced into:
+
+  /home/nymph/NymphsCore/Manager/scripts/install_zimage_trainer_aitk.sh
+  /home/nymph/NymphsCore/Manager/apps/NymphsCoreManager/publish/win-x64/scripts/install_zimage_trainer_aitk.sh
+```
+
+What the fixed launcher now does:
+
+```text
+- starts AI Toolkit Gradio on port 7861
+- uses a socket/listener check instead of the earlier fake-running check
+- launches flux_train_ui via demo.launch(...)
+```
+
+### Why Gradio failed before
+
+The main failure was not “Gradio missing”.
+
+It was:
+
+```text
+- AI Toolkit's flux_train_ui.py still had old Gradio arguments
+  show_share_button
+  show_download_button
+
+- Gradio 6 rejects those arguments
+```
+
+That was patched in the live trainer repo so direct launch works again.
+
+### Direct known-good Gradio launch
+
+If tomorrow needs a backend sanity check, this is the clean direct launch path:
+
+```bash
+cd /home/nymph/ZImage-Trainer/ai-toolkit
+source /home/nymph/ZImage-Trainer/.venv-ztrain/bin/activate
+python -c 'import flux_train_ui as f; f.demo.launch(server_name="127.0.0.1", server_port=7861, share=False, show_error=True, inbrowser=False)'
+```
+
+If that runs, the backend is healthy enough and any remaining breakage is outside the core Gradio stack.
+
+### Trainer logic state
+
+Manager-side trainer logic is now aimed at AI Toolkit, not DiffSynth.
+
+Important current logic:
+
+```text
+- metadata.csv remains the editable manual caption file
+- per-image .txt caption mirrors are generated before training
+- training jobs are AI Toolkit YAML configs in /jobs
+- presets now feed AI Toolkit config generation
+- manual captions must remain a valid path with zero Brain dependency
+```
+
+Critical correction made tonight:
+
+```text
+Caption Brain is optional only.
+It must never be required for the training flow.
+```
+
+### Nunchaku / inference status
+
+This is still separate from trainer install health.
+
+Known state:
+
+```text
+- Manager/runtime plumbing for the Nunchaku fork exists
+- native Z-Image LoRA loading experiments on Nunchaku are not yet trustworthy
+- earlier outputs still collapsed into static / block-noise
+- do not assume LoRA-on-Nunchaku quality is solved
+```
+
+So tomorrow should treat these as separate tracks:
+
+```text
+1. trainer/backend health
+2. inference/runtime health
+3. Nunchaku LoRA correctness
+```
+
+### Exact files touched that matter
+
+Backend-important files:
+
+```text
+/home/nymph/NymphsCore/Manager/scripts/install_zimage_trainer_aitk.sh
+/home/nymph/NymphsCore/Manager/apps/NymphsCoreManager/publish/win-x64/scripts/install_zimage_trainer_aitk.sh
+/home/nymph/NymphsCore/Manager/apps/NymphsCoreManager/Services/InstallerWorkflowService.cs
+/home/nymph/NymphsCore/Manager/apps/NymphsCoreManager/ViewModels/MainWindowViewModel.cs
+/home/nymph/ZImage-Trainer/bin/ztrain-start-gradio-ui
+/home/nymph/ZImage-Trainer/ai-toolkit/flux_train_ui.py
+```
+
+### Known-good backend checks for tomorrow
+
+Run these before touching more code:
+
+1. Gradio install check
+
+```bash
+source /home/nymph/ZImage-Trainer/.venv-ztrain/bin/activate
+python -c 'import gradio; print(gradio.__version__)'
+```
+
+Expected tonight:
+
+```text
+6.13.0
+```
+
+2. Gradio listener check
+
+```bash
+ss -ltn | grep :7861 || true
+```
+
+3. Recent trainer log check
+
+```bash
+tail -n 80 /home/nymph/ZImage-Trainer/logs/aitk-gradio.log
+```
+
+4. Live launcher check
+
+```bash
+/home/nymph/ZImage-Trainer/bin/ztrain-start-gradio-ui
+```
+
+### Backend-only next steps for tomorrow
+
+Do these in order:
+
+1. confirm `ztrain-start-gradio-ui` in the live distro still matches the fixed script
+2. confirm `flux_train_ui.py` in the live trainer repo still lacks the bad Gradio 6 args
+3. keep manual caption workflow valid:
+   - images
+   - metadata.csv
+   - optional Brain captioning
+4. confirm AI Toolkit YAML job generation still works from Manager-side config creation
+5. only after trainer stack is confirmed healthy, resume the separate Nunchaku LoRA reliability work
+
+### Do not lose these conclusions
+
+```text
+- Gradio was a launcher/script issue, not a missing package issue
+- manual captions must remain first-class
+- Brain is optional only
+- AI Toolkit is now the intended trainer backend
+- Nunchaku LoRA correctness is still unresolved and should not be conflated with trainer install health
+```
+
+## 2026-04-30 Verdict
+
+Current verdict after the first full train -> Blender -> Nunchaku test:
+
+```text
+- Manager trainer plumbing works
+- Caption Brain plumbing works
+- Blender addon LoRA selection flow works
+- Z-Image backend now receives lora_path / lora_scale correctly
+- Nunchaku native Z-Image LoRA loading is still not producing trustworthy images
+```
+
+Observed result:
+
+```text
+The generated image completes but collapses into static / block-noise even at tiny LoRA strength values.
+```
+
+Current conclusion:
+
+```text
+The weakest link is no longer the addon UI or request wiring.
+The current mixed stack is:
+
+  training: DiffSynth sidecar
+  adapter: ostris/zimage_turbo_training_adapter
+  inference: Z-Image on Nunchaku
+  LoRA application: custom Nunchaku Z-Image mapper
+
+This is not the official AI Toolkit path the adapter was made for.
+```
+
+Recommended direction:
+
+```text
+Do not treat the current DiffSynth -> custom Nunchaku Z-Image LoRA route as production-ready.
+The better next architecture step is to move the Manager training backend toward AI Toolkit,
+which is the official open-source stack the adapter was built for.
+```
+
+## 2026-04-30 AI Toolkit Pivot Status
+
+Manager-side pivot now started:
+
+```text
+- Trainer install path now targets AI Toolkit
+- Trainer status now checks an AI Toolkit sidecar under /home/nymph/ZImage-Trainer
+- Trainer configs are now intended to be AI Toolkit YAML files under jobs/
+- metadata.csv remains the editable user file
+- per-image .txt captions are mirrored automatically before training
+```
+
+Not yet validated:
+
+```text
+- first real AI Toolkit training run from Manager
+- resulting LoRA quality in Blender
+```
 
 ## Current State
 
@@ -17,6 +314,13 @@ Trainer:
 ```
 
 The trainer installs DiffSynth-Studio and uses Z-Image Turbo Differential LoRA training with the Turbo training adapter.
+
+This still matters historically, but as of 2026-04-30 it should be treated as:
+
+```text
+working prototype path
+not final recommended long-term backend
+```
 
 ## User-Facing Design Direction
 
@@ -144,6 +448,14 @@ with:
 ostris/zimage_turbo_training_adapter
 ```
 
+Important official alignment note:
+
+```text
+The adapter's official model card says it was made for use with AI Toolkit.
+That does not mean DiffSynth use is impossible.
+It does mean AI Toolkit is the cleaner reference backend when trying to match the intended method.
+```
+
 The backend still uses DiffSynth's Z-Image training script:
 
 ```text
@@ -161,6 +473,86 @@ Character/Object:
 Stylized Look:
   early/high-noise timestep emphasis
   intended for broad look/composition shifts like kids-drawing style
+```
+
+This is now known drift from the official AI Toolkit / Ostris framing:
+
+```text
+- Manager presets are repeat + epochs driven
+- AI Toolkit is step-driven
+- AI Toolkit exposes content/style/balanced directly
+- the current Manager preset system is therefore only approximate
+```
+
+## Official Source Notes
+
+Primary public sources:
+
+```text
+AI Toolkit:
+  https://github.com/ostris/ai-toolkit
+
+Training adapter:
+  https://huggingface.co/ostris/zimage_turbo_training_adapter
+
+DiffSynth Z-Image docs:
+  https://github.com/modelscope/DiffSynth-Studio/blob/main/docs/en/Model_Details/Z-Image.md
+
+Nunchaku:
+  https://github.com/nunchaku-tech/nunchaku
+```
+
+Key takeaways from those sources:
+
+```text
+- the adapter is explicitly described as an AI Toolkit training adapter
+- AI Toolkit is public and MIT licensed
+- AI Toolkit is step-based and has assistant_lora_path
+- AI Toolkit exposes content_or_style = balanced/style/content
+- DiffSynth docs warn against Z-Image Turbo quantization for image quality
+- Nunchaku has a mature official LoRA path for FLUX, but Z-Image LoRA support is not a known official path
+```
+
+## AI Toolkit Transition Direction
+
+The current recommendation is:
+
+```text
+keep the existing Trainer page UX
+change the backend over time from DiffSynth sidecar to AI Toolkit
+keep the Blender addon LoRA-use flow
+keep Z-Image inference on Nunchaku as a separate concern
+```
+
+What should stay:
+
+```text
+- LoRA name
+- Open Pictures Folder
+- Open Captions File
+- Brain caption draft flow
+- Training focus
+- Training amount
+- Start Training
+- Open Finished LoRAs
+```
+
+What should change behind the scenes:
+
+```text
+- replace DiffSynth job generation with AI Toolkit config generation
+- replace repeat/epoch framing with step-based presets
+- expose assistant_lora_path via AI Toolkit config
+- align style/content/balanced to AI Toolkit's native semantics
+```
+
+Practical note:
+
+```text
+The local AI Toolkit clone inspected during this handoff had the needed primitives
+(assistant_lora_path, steps, content_or_style, save/sample cadence),
+but did not include a ready-made Z-Image example config in config/examples.
+Expect to author a NymphsCore-owned Z-Image AI Toolkit config template.
 ```
 
 ## Files Touched
@@ -316,7 +708,7 @@ Character/object training and heavily stylized training should both be first-cla
 
 Add `Stop Training`.
 
-Later: attach/load trained LoRAs into the Nunchaku Z-Image runtime.
+Current next frontier: make trained LoRAs work on the fast Nunchaku Z-Image runtime.
 
 Addon follow-up handoff now exists here:
 
@@ -334,8 +726,22 @@ That document covers the exact current gap in:
 Key current truth:
 
 ```text
-The trainer now produces real epoch-*.safetensors files,
-but the addon still has no LoRA controls and the Z-Image backend still has no lora_path / lora_scale request contract.
+The trainer now produces real epoch-*.safetensors files.
+The addon now has LoRA run/checkpoint selection and strength controls.
+The Z-Image backend now accepts lora_path / lora_scale.
+The remaining blocker is native LoRA support inside the Nunchaku Z-Image transformer.
+```
+
+Nunchaku fork:
+
+```text
+https://github.com/nymphnerds/nunchaku
+```
+
+Manager is now pinned to the LoRA-capable fork commit:
+
+```text
+2e7d391f8fb4c0a2aa04d9788dcc465cc281465a
 ```
 
 If Brain caption-help is added later, account for GPU memory pressure:
@@ -402,6 +808,61 @@ Stylized Look:
   emphasize scene/content/composition
   let the images teach the rendering style
   avoid keyword soup and broad generic style tags
+```
+
+## Transcript Alignment Note
+
+Current `Stylized Look` is directionally inspired by the Ostris Z-Image Turbo training walkthrough, but it is **not** a 1:1 match yet.
+
+Current truth:
+
+```text
+What matches:
+  - Turbo training adapter path
+  - conservative 1e-4 / 8e-5 style learning-rate direction
+  - content-first captioning philosophy for style work
+  - high-noise emphasis as an important tool for broad style/composition changes
+
+What does not match 1:1:
+  - the Manager starts Stylized Look with a high-noise-biased timestep range immediately
+  - Ostris demonstrated starting more balanced, then switching to high-noise later
+  - the Manager presets are expressed as repeat/epochs presets, not a direct "3000 steps" style control
+  - the Manager does not currently expose Differential Guidance as an advanced option
+```
+
+If the goal is transcript-faithful behavior, the next refinement should move closer to this:
+
+```text
+Stylized Look preferred future flow:
+  1. start style runs in a balanced timestep mode
+  2. allow switching to high-noise emphasis later when the goal is stronger composition/style takeover
+  3. optionally expose Differential Guidance in an advanced section
+  4. consider a clearer user-facing "target steps" framing or at least a visible step estimate
+```
+
+Important product note:
+
+```text
+Earlier discussion wanted the style path to match the transcript more closely at the start.
+That has not been completed yet.
+Do not describe the current preset as a 1:1 Ostris clone.
+Describe it as an approximation or inspired-by preset until the above alignment work is done.
+```
+
+Possible future inference feature:
+
+```text
+Z-Image-Turbo-Fun-Controlnet-Union-2.1 may be worth exploring later for the generation side.
+
+This is not part of the current LoRA training path and should not distract from:
+  - simplifying the trainer flow
+  - matching Ostris more closely
+  - adding clean addon LoRA-use support
+
+Treat it as a separate future generation/control feature for things like:
+  - pose guidance
+  - canny/depth/hed/scribble control
+  - inpaint/control workflows
 ```
 
 The training page should treat Caption Brain as a temporary helper session:

@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NymphsCore - AI Toolkit Trainer</title>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@900&family=DM+Mono:wght@400;500&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --lime: #63e35f;
+    --teal: #55dff0;
+    --dark: #0d0d0d;
+    --dark2: #151515;
+    --dark3: #1d1d1d;
+    --dark4: #2b2b2b;
+    --muted: #8a8a8a;
+    --light: #f0ede6;
+    --font-head: "Archivo", sans-serif;
+    --font-mono: "DM Mono", monospace;
+    --font-body: "Inter", sans-serif;
+    --shadow: 0 22px 60px rgba(0,0,0,0.34);
+  }
+
+  html { font-size: 16px; }
+
+  body {
+    min-height: 100vh;
+    background:
+      radial-gradient(circle at 84% 10%, rgba(85,223,240,0.12) 0%, transparent 22%),
+      radial-gradient(circle at 10% 80%, rgba(99,227,95,0.10) 0%, transparent 24%),
+      linear-gradient(180deg, #090b0a 0%, #0d0d0d 50%, #0b0e0d 100%);
+    color: var(--light);
+    font-family: var(--font-body);
+    line-height: 1.6;
+  }
+
+  img { max-width: 100%; display: block; }
+  a { color: inherit; text-decoration: none; }
+
+  nav {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 100;
+    padding: 16px 30px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: rgba(13,13,13,0.88);
+    backdrop-filter: blur(14px);
+    border-bottom: 1px solid var(--dark4);
+  }
+
+  .nav-logo img { width: 210px; height: auto; }
+
+  .nav-links {
+    list-style: none;
+    display: flex;
+    gap: 26px;
+    align-items: center;
+  }
+
+  .nav-links a { color: var(--muted); font-size: 14px; }
+  .nav-links a:hover { color: var(--light); }
+
+  .nav-cta {
+    background: var(--lime);
+    color: var(--dark) !important;
+    padding: 8px 18px;
+    border-radius: 999px;
+    font-family: var(--font-head);
+    font-size: 12px;
+    font-weight: 900;
+  }
+
+  .page {
+    width: min(980px, calc(100% - 28px));
+    margin: 0 auto;
+    padding: 112px 0 40px;
+  }
+
+  .shell,
+  .panel,
+  .caption-row,
+  .log-shell {
+    border: 1px solid var(--dark4);
+    border-radius: 20px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.02));
+    box-shadow: var(--shadow);
+  }
+
+  .shell {
+    padding: 26px;
+  }
+
+  .lead {
+    text-align: center;
+    margin-bottom: 22px;
+  }
+
+  .lead h1 {
+    font-family: var(--font-head);
+    font-size: clamp(38px, 5vw, 64px);
+    line-height: 0.95;
+    letter-spacing: -0.03em;
+    margin-bottom: 10px;
+  }
+
+  .lead p {
+    color: var(--muted);
+    font-size: 16px;
+    line-height: 1.8;
+  }
+
+  .lead p a {
+    color: var(--teal);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+
+  .main-ui {
+    display: grid;
+    gap: 18px;
+  }
+
+  .row-2,
+  .row-3 {
+    display: grid;
+    gap: 14px;
+  }
+
+  .row-2 { grid-template-columns: 1fr 1fr; }
+  .row-3 { grid-template-columns: repeat(3, 1fr); }
+
+  .field,
+  .panel {
+    display: grid;
+    gap: 8px;
+  }
+
+  .panel {
+    padding: 18px;
+  }
+
+  label {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--light);
+  }
+
+  .subtext {
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.7;
+  }
+
+  input[type="text"],
+  input[type="number"],
+  textarea,
+  select {
+    width: 100%;
+    padding: 12px 14px;
+    border-radius: 14px;
+    border: 1px solid var(--dark4);
+    background: #121212;
+    color: var(--light);
+    font: inherit;
+  }
+
+  textarea {
+    min-height: 96px;
+    resize: vertical;
+  }
+
+  .upload {
+    border: 1px dashed rgba(85,223,240,0.30);
+    border-radius: 18px;
+    background:
+      radial-gradient(circle at 20% 20%, rgba(99,227,95,0.06), transparent 28%),
+      radial-gradient(circle at 80% 80%, rgba(85,223,240,0.08), transparent 30%),
+      #111;
+    padding: 24px;
+    text-align: center;
+  }
+
+  .upload strong {
+    display: block;
+    font-family: var(--font-head);
+    font-size: 26px;
+    margin-bottom: 8px;
+  }
+
+  .upload p {
+    color: var(--muted);
+    font-size: 14px;
+    max-width: 520px;
+    margin: 0 auto;
+  }
+
+  .upload-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    justify-content: center;
+    margin-top: 18px;
+  }
+
+  .btn-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .btn,
+  .btn-ghost,
+  .btn-soft {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 12px 18px;
+    border-radius: 12px;
+    font-size: 14px;
+    border: 1px solid transparent;
+  }
+
+  .btn {
+    background: var(--lime);
+    color: var(--dark);
+    font-family: var(--font-head);
+    font-weight: 900;
+  }
+
+  .btn-ghost {
+    border-color: var(--dark4);
+    color: var(--light);
+  }
+
+  .btn-soft {
+    background: rgba(85,223,240,0.08);
+    color: var(--teal);
+    border-color: rgba(85,223,240,0.24);
+  }
+
+  .caption-block {
+    display: grid;
+    gap: 12px;
+  }
+
+  .caption-row {
+    padding: 14px;
+    display: grid;
+    grid-template-columns: 110px 1fr;
+    gap: 14px;
+  }
+
+  .thumb {
+    aspect-ratio: 1 / 1;
+    border-radius: 14px;
+    overflow: hidden;
+    border: 1px solid rgba(255,255,255,0.04);
+    background: #171717;
+  }
+
+  .thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  .accordion {
+    overflow: hidden;
+  }
+
+  .accordion summary {
+    list-style: none;
+    cursor: pointer;
+    padding: 16px 18px;
+    font-family: var(--font-head);
+    font-size: 22px;
+  }
+
+  .accordion summary::-webkit-details-marker { display: none; }
+
+  .accordion .inner {
+    padding: 0 18px 18px;
+    display: grid;
+    gap: 16px;
+  }
+
+  .toggle {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    padding: 12px 14px;
+    border-radius: 14px;
+    background: rgba(255,255,255,0.02);
+    border: 1px solid rgba(255,255,255,0.05);
+  }
+
+  .toggle input { accent-color: var(--lime); margin-top: 3px; }
+
+  .codebox {
+    border: 1px solid var(--dark4);
+    border-radius: 14px;
+    background: #101212;
+    padding: 14px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    line-height: 1.8;
+    color: #d9f6fb;
+    white-space: pre-wrap;
+  }
+
+  .start {
+    width: 100%;
+    padding: 16px 22px;
+    border: none;
+    border-radius: 16px;
+    background: linear-gradient(90deg, var(--lime) 0%, #8ff36d 100%);
+    color: var(--dark);
+    font-family: var(--font-head);
+    font-size: 18px;
+    font-weight: 900;
+    cursor: pointer;
+  }
+
+  .progress {
+    text-align: center;
+    color: var(--muted);
+    font-size: 14px;
+  }
+
+  .log-shell {
+    overflow: hidden;
+  }
+
+  .log-head {
+    padding: 16px 18px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    align-items: center;
+  }
+
+  .log-head h3 {
+    font-family: var(--font-head);
+    font-size: 22px;
+  }
+
+  .log-body {
+    padding: 18px;
+    background: #101212;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    line-height: 1.9;
+    color: #d7f6de;
+    white-space: pre-wrap;
+  }
+
+  .quiet { color: #829685; }
+  .active { color: var(--teal); }
+  .step { color: var(--lime); }
+
+  @media (max-width: 860px) {
+    .row-2, .row-3, .caption-row { grid-template-columns: 1fr; }
+  }
+
+  @media (max-width: 760px) {
+    nav { padding: 14px 18px; }
+    .nav-links { display: none; }
+    .page { width: min(100% - 18px, 980px); padding-top: 92px; }
+    .shell { padding: 18px; }
+  }
+</style>
+</head>
+<body>
+<nav>
+  <a class="nav-logo" href="index.html" aria-label="NymphsCore home">
+    <img src="assets/NymphsCoreLogo.png" alt="NymphsCore logo">
+  </a>
+  <ul class="nav-links">
+    <li><a href="#upload">Upload</a></li>
+    <li><a href="#captions">Captions</a></li>
+    <li><a href="#advanced">Advanced</a></li>
+    <li><a href="#samples">Samples</a></li>
+    <li><a href="#train">Train</a></li>
+    <li><a class="nav-cta" href="guides/training.html">Training Guide</a></li>
+  </ul>
+</nav>
+
+<main class="page">
+  <section class="shell">
+    <div class="lead">
+      <h1>LoRA Ease for Z-Image</h1>
+      <p>Train a high quality Z-Image LoRA in a calmer NymphsCore skin using <a href="https://github.com/ostris/ai-toolkit">Ostris' AI Toolkit</a>.</p>
+    </div>
+
+    <div class="main-ui">
+      <div class="row-2">
+        <div class="field">
+          <label>The name of your LoRA</label>
+          <input type="text" value="my_first_lora">
+          <div class="subtext">This has to be a unique name.</div>
+        </div>
+        <div class="field">
+          <label>Trigger word / sentence</label>
+          <input type="text" value="jpnwood">
+          <div class="subtext">Optional. Use a rare token or short phrase if you want one.</div>
+        </div>
+      </div>
+
+      <section class="panel" id="upload">
+        <label>Upload your images</label>
+        <div class="upload">
+          <strong>Drop images and optional .txt captions here</strong>
+          <p>Use <code>.jpg</code>, <code>.jpeg</code>, or <code>.png</code>. Matching caption files should share the same base filename.</p>
+          <div class="upload-actions">
+            <label class="btn" for="pick-files">Choose files</label>
+            <label class="btn-ghost" for="pick-folder">Choose folder</label>
+            <a class="btn-soft" href="#captions">Use existing dataset</a>
+          </div>
+          <input id="pick-files" type="file" accept=".jpg,.jpeg,.png,.txt" multiple hidden>
+          <input id="pick-folder" type="file" webkitdirectory directory multiple hidden>
+        </div>
+      </section>
+
+      <section class="panel" id="captions">
+        <div class="btn-row" style="margin-bottom:14px;">
+          <a class="btn-soft" href="#captions">Add AI captions with Florence-2</a>
+        </div>
+        <div class="subtext" style="margin-bottom:14px;">You can optionally add a custom caption for each image. For Z-Image style work, keep them plain and content-first.</div>
+        <div class="caption-block">
+          <article class="caption-row">
+            <div class="thumb"><img alt="Preview image 1" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 320 320'%3E%3Crect width='320' height='320' fill='%23121718'/%3E%3Crect y='182' width='320' height='138' fill='%232f4355'/%3E%3Ccircle cx='233' cy='68' r='29' fill='%2389dce7' fill-opacity='0.92'/%3E%3Cpath d='M0 206 L72 132 L118 166 L184 78 L250 196 L320 146 L320 320 L0 320 Z' fill='%23435e71'/%3E%3Cpath d='M110 96 L155 45 L202 96 L181 96 L159 73 L137 96 Z' fill='%23f2ede6'/%3E%3Cpath d='M0 232 C54 212 110 208 160 219 C218 231 274 228 320 214 L320 320 L0 320 Z' fill='%235f8098'/%3E%3C/svg%3E"></div>
+            <div class="field">
+              <label>Caption 1</label>
+              <textarea>mount fuji reflected in calm water beneath a pale sky</textarea>
+            </div>
+          </article>
+          <article class="caption-row">
+            <div class="thumb"><img alt="Preview image 2" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 320 320'%3E%3Crect width='320' height='320' fill='%23151717'/%3E%3Crect y='188' width='320' height='132' fill='%2338444b'/%3E%3Cpath d='M0 214 L54 168 L88 189 L123 150 L170 178 L220 126 L272 159 L320 130 L320 320 L0 320 Z' fill='%23505e64'/%3E%3Cpath d='M0 88 C44 95 82 133 108 164 C124 184 134 202 144 229 C103 201 58 168 24 143 C12 134 4 126 0 119 Z' fill='%23a43b32'/%3E%3Cpath d='M320 96 C286 104 249 140 224 171 C204 196 193 213 182 238 C227 210 271 181 301 160 C311 152 317 146 320 140 Z' fill='%23cb573b'/%3E%3Cpath d='M144 226 C168 209 190 198 216 193 C245 188 282 190 320 202 L320 320 L144 320 Z' fill='%235f6d74'/%3E%3C/svg%3E"></div>
+            <div class="field">
+              <label>Caption 2</label>
+              <textarea>red maple leaves framing a river with hills and a small village</textarea>
+            </div>
+          </article>
+          <article class="caption-row">
+            <div class="thumb"><img alt="Preview image 3" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 320 320'%3E%3Crect width='320' height='320' fill='%23131718'/%3E%3Crect y='194' width='320' height='126' fill='%23344a59'/%3E%3Cpath d='M0 204 L48 159 L96 180 L143 114 L183 138 L230 90 L280 170 L320 150 L320 320 L0 320 Z' fill='%234c6270'/%3E%3Cpath d='M0 232 C60 218 113 214 161 221 C220 229 271 224 320 210 L320 320 L0 320 Z' fill='%23667f91'/%3E%3Cpath d='M216 82 L247 48 L282 82 L267 82 L247 60 L231 82 Z' fill='%23dfeaf2'/%3E%3Ccircle cx='76' cy='84' r='22' fill='%2363e35f' fill-opacity='0.28'/%3E%3C/svg%3E"></div>
+            <div class="field">
+              <label>Caption 3</label>
+              <textarea>mountain rising above a lake with layered hills and trees</textarea>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <details class="accordion panel" id="advanced" open>
+        <summary>Advanced options</summary>
+        <div class="inner">
+          <div class="row-3">
+            <div class="field">
+              <label>Steps</label>
+              <input type="number" value="3000">
+            </div>
+            <div class="field">
+              <label>Learning rate</label>
+              <input type="text" value="0.0001">
+            </div>
+            <div class="field">
+              <label>LoRA Rank</label>
+              <input type="number" value="32">
+            </div>
+          </div>
+          <div class="row-2">
+            <div class="field">
+              <label>Model to train</label>
+              <select>
+                <option selected>Z-Image Turbo</option>
+                <option>Z-Image</option>
+              </select>
+            </div>
+            <div class="toggle">
+              <input type="checkbox" checked>
+              <div>
+                <label style="margin-bottom:4px;">Low VRAM</label>
+                <div class="subtext">Use the lower-memory path when needed.</div>
+              </div>
+            </div>
+          </div>
+
+          <details class="accordion panel">
+            <summary>Even more advanced options</summary>
+            <div class="inner">
+              <div class="toggle">
+                <input type="checkbox">
+                <div>
+                  <label style="margin-bottom:4px;">Use more advanced options</label>
+                  <div class="subtext">Optional override block for real AI Toolkit config control.</div>
+                </div>
+              </div>
+              <div class="codebox">network:
+  linear: 32
+  linear_alpha: 32
+train:
+  steps: 3000
+  lr: 0.0001
+sample:
+  sample_every: 1000</div>
+            </div>
+          </details>
+        </div>
+      </details>
+
+      <details class="accordion panel" id="samples" open>
+        <summary>Sample prompts (optional)</summary>
+        <div class="inner">
+          <div class="subtext">Include sample prompts to test the trained model while it runs.</div>
+          <div class="field">
+            <label>Test prompt 1</label>
+            <input type="text" value="mount fuji above a lake with shoreline trees">
+          </div>
+          <div class="field">
+            <label>Test prompt 2</label>
+            <input type="text" value="red maple leaves framing a river and distant hills">
+          </div>
+          <div class="field">
+            <label>Test prompt 3</label>
+            <input type="text" value="steep mountain ridge above blue water">
+          </div>
+        </div>
+      </details>
+
+      <section class="panel" id="train">
+        <button class="start">Start training</button>
+        <div class="progress">Training completed successfully. Model saved as my_first_lora</div>
+      </section>
+
+      <section class="log-shell">
+        <div class="log-head">
+          <h3>Progress</h3>
+          <a class="btn-ghost" href="#logs">Open full log</a>
+        </div>
+        <div class="log-body"><span class="quiet">Dataset: /home/nymph/ZImage-Trainer/datasets/my_first_lora</span>
+<span class="step">100% | 3 images found | 3 buckets made</span>
+<span class="quiet">Generating baseline samples before training</span>
+<span class="active">sample[0]: mount fuji above a lake with shoreline trees</span>
+<span class="step">next: begin step loop at 0 / 3000</span></div>
+      </section>
+    </div>
+  </section>
+</main>
+</body>
+</html>

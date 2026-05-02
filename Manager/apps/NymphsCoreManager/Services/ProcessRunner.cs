@@ -22,6 +22,11 @@ public sealed class ProcessRunner
             return $"[stderr warning] {sanitized}";
         }
 
+        if (sanitized.Contains("screen size is bogus. expect trouble", StringComparison.OrdinalIgnoreCase))
+        {
+            return string.Empty;
+        }
+
         return $"[stderr] {sanitized}";
     }
 

@@ -8,6 +8,125 @@ This file focuses on user-facing and system-level changes rather than package-by
 
 Newest entries first.
 
+### 2026-05-02 Z-Image Trainer handoff slog: from custom sidecar control to AI Toolkit-first job flow
+Source: several days of local Manager + WSL debugging focused on one brutal theme: the trainer page had drifted into being its own orchestration system instead of a clean AI Toolkit front end, which made simple things like queueing, starting, stopping, and killing AI Toolkit far harder than they should have been.
+
+Documented changes:
+
+- traced the trainer history back to its original DiffSynth-style managed-sidecar form:
+  - first shipped as a Manager-owned `Z-Image Trainer` flow in commit `acb21cb`
+  - originally centered on its own dataset prep, caption drafting, YAML/job generation, and direct DiffSynth-style training control rather than the AI Toolkit job/queue model
+  - only later began transitioning onto the AI Toolkit sidecar path
+- confirmed the core architectural pain point:
+  - Manager had grown a parallel control layer for trainer start/stop/status
+  - AI Toolkit had its own job, queue, worker, and UI state
+  - the mismatch between those two worlds caused most of the stop-button, stale-status, and “it says queued but nothing is there” failures
+- pushed the trainer runtime back toward the official AI Toolkit layout:
+  - repo-local AI Toolkit DB at `ai-toolkit/aitk_db.db`
+  - repo-local AI Toolkit venv under `ai-toolkit`
+  - official UI launch path based on the UI package scripts instead of bespoke Manager-only launch assumptions
+- documented and reworked the Brain captioning side of the trainer too, because it was part of the same mess:
+  - the original caption workflow revolved around `metadata.csv`
+  - AI Toolkit training wanted per-image `.txt` sidecars
+  - the Manager had to mirror or sync those two worlds instead of naturally sharing one source of truth
+  - trainer captioning also suffered from isolated-venv confusion, image normalization issues, request-shape retries against the OpenAI-compatible vision path, and prompt-quality passes to stop captions collapsing into stale style phrases
+- reworked the Manager job flow so it now hands off through AI Toolkit concepts instead of pretending to be the engine:
+  - `Add Job`
+  - `Start Job`
+  - `Stop Job`
+  - `Delete Job`
+- separated job creation from job start:
+  - `Add Job` now creates or updates the AI Toolkit job and prepares the trainer metadata/caption handoff
+  - `Start Job` now starts the existing AI Toolkit job instead of silently recreating it
+- fixed a real AI Toolkit job-config bug discovered during live testing:
+  - Manager was serializing `lr` as a string like `"1e-4"`
+  - AI Toolkit / bitsandbytes needed a numeric learning rate
+  - this produced the runtime `'<=' not supported between instances of 'float' and 'str'` failure until the Manager config serialization was corrected
+- changed the Manager-facing AI Toolkit launch target to the jobs page instead of the dashboard queue so created jobs are visible where AI Toolkit actually stores them before start
+- improved Manager status so it now tries to reflect the selected AI Toolkit job and dataset rather than only dumping generic sidecar probes
+- taught Manager to push AI Toolkit settings for the shared trainer folders so AI Toolkit can see the same datasets and LoRA output folders the Manager is using
+- cleaned up the trainer log/status noise:
+  - removed or reduced raw `ZIMAGE_TRAINER_*=` dump lines from the visible trainer log
+  - cut back on sidecar-check spam after kill/start actions
+  - made more of the visible status text track actual AI Toolkit job states instead of old Manager assumptions
+- repeatedly reworked `Kill AI Toolkit` after live testing showed several ugly failure modes:
+  - false failure logs even when the server was actually gone
+  - stale browser tabs making it look alive even when the server was dead
+  - process-pattern drift between `concurrently`, worker, `next start`, and `next-server`
+  - misleading “not open” Manager status while the browser still showed the last rendered page
+- reached a usable checkpoint where the fundamental flow now works again:
+  - Manager can create/update a real AI Toolkit job
+  - Manager can start that job
+  - Manager can stop that job
+  - Manager can kill the AI Toolkit server
+
+Pain points this pass exposed:
+
+- the original trainer module was not AI Toolkit-first, and that architectural drift cost days
+- queue state, idle job state, and dashboard state were easy to confuse because AI Toolkit shows them in different places
+- browser-page visibility after shutdown made the UI feel “still alive” even when the AI Toolkit server was actually gone
+- Manager had several places where it was telling a simpler story than the underlying AI Toolkit runtime was actually living
+- Brain captioning pain overlapped with the backend pain:
+  - CSV vs `.txt` caption truth
+  - caption review/edit expectations
+  - local trainer-venv module drift
+  - prompt wording and quality issues that made “captioning works” and “captioning is usable” two different milestones
+- progress is real, but the trainer page is still not finished and still needs cleanup around dataset/image visibility, final wording, and overall simplicity
+
+Validation:
+
+- confirmed a real AI Toolkit job can now be created from the Manager and appears under the AI Toolkit jobs flow
+- confirmed `Start Job` can move that job into AI Toolkit runtime state instead of only creating a placeholder
+- confirmed `Stop Job` now works through the AI Toolkit job path
+- confirmed `Kill AI Toolkit` can now stop the server even though stale browser tabs can still visually confuse the result until refreshed
+- confirmed the trainer dataset visibility can now be checked against AI Toolkit instead of guessed from Manager-only state
+
+Why it matters:
+
+- this is the point where the trainer finally starts behaving like an AI Toolkit front end instead of a competing trainer controller
+- just as importantly, the changelog now reflects the painful reality: this was not a neat one-shot integration, it was a multi-day cleanup of a split-brain trainer architecture, and the job still is not fully finished
+
+### 2026-05-01 Z-Image Trainer AI Toolkit transition, preset cleanup, and UI launch recovery
+Source: live Manager and `NymphsCore` WSL testing focused on bringing the trainer onto the AI Toolkit sidecar path, tightening the training presets, and restoring the Official UI / Nymphs UI launch flow so end-to-end LoRA testing could continue.
+
+Documented changes:
+
+- switched the managed trainer install flow onto the AI Toolkit sidecar script at `install_zimage_trainer_aitk.sh`
+- updated trainer copy in the Manager away from stale DiffSynth wording and toward explicit `Z-Image Turbo` / `AI Toolkit` terminology
+- added a cleaner preset model for training:
+  - `Baseline`
+  - `Style`
+  - `Style High Noise`
+- added an explicit training-adapter selector in the Manager:
+  - `v1 (Recommended)`
+  - `v2 (Experimental)`
+- changed trainer job generation to AI Toolkit-style YAML configs and mirrored `metadata.csv` captions into per-image text captions for the sidecar flow
+- added managed stop support for active trainer jobs from the Manager
+- improved trainer live-log streaming so carriage-return progress updates show up instead of feeling frozen during long runs
+- increased the trainer log panel height slightly for easier monitoring during training
+- reorganized the trainer page flow so dataset/output actions sit nearer the LoRA name and setup flow
+- changed the trainer name field into an editable existing-dataset picker so users can select current picture sets from `/home/nymph/ZImage-Trainer/datasets` instead of relying on hidden naming conventions
+- repaired the trainer sidecar scripts for current AI Toolkit / Gradio behavior, including the Gradio 6 launch-path compatibility fixes
+- restored the Official AI Toolkit UI launch path to the fast working `npm run start` behavior after confirming the heavier `build_and_start` path was blocking day-to-day launch reliability in live testing
+- fixed the final Official UI browser-launch timing issue by waiting briefly for `localhost:8675` before opening the browser
+- updated `Caption with Brain` to normalize source images before upload, retry a second OpenAI-compatible image request shape when needed, and use the trainer venv Python instead of bare `python3`
+- added `Pillow` to the trainer install/repair path and to the caption-sync fallback so Brain-assisted captioning works inside the isolated trainer venv
+- tuned the style-caption drafting prompt to push harder against medium/style phrases such as `woodblock`, `woodblock print`, and `Japanese woodblock print`
+- added a standalone internal trainer feature map at `docs/z-image-trainer-features.md`
+
+Validation:
+
+- confirmed `Nymphs UI` launches successfully from the Manager after repair
+- confirmed the live `Official UI` launcher in `NymphsCore` starts `next start --port 8675` and binds `localhost:8675`
+- confirmed the remaining browser-side failure was launch timing rather than a dead UI service
+- confirmed `Official UI` opens again once the Manager waits for the local port before opening the browser
+- confirmed the live trainer datasets in `NymphsCore` are discoverable as `my_first_lora` and `ukiyo`, and switched dataset enumeration to direct WSL-path filesystem listing instead of a brittle shell roundtrip
+- confirmed `Caption with Brain` now runs far enough to produce real caption drafts, with remaining quality issues narrowed down to prompt wording rather than missing modules or broken helper launch paths
+
+Why it matters:
+
+- NymphsCore’s trainer path is now aligned around the AI Toolkit sidecar instead of split old/new flows, the Manager is back to a usable state for real LoRA testing, and the caption/dataset workflow is more discoverable and much less brittle.
+
 ### 2026-04-29 Z-Image Trainer end-to-end LoRA training and Brain-assisted captioning
 Source: live Manager testing took the new Z-Image Trainer from first install through Brain-drafted captions, a real training run, and produced LoRA checkpoint files.
 

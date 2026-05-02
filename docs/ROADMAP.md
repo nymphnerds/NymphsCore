@@ -11,6 +11,72 @@ Ordering rule:
 - newest requested work goes at the top of this section
 - older requested work stays lower down
 
+### Nymphs AI Toolkit frontend
+
+Goal:
+
+- create a Nymphs-owned frontend for AI Toolkit so Z-Image training can follow the official backend while still feeling like part of the Nymphs product
+
+Work:
+
+- decide the first delivery shape:
+  - Manager launches AI Toolkit UI
+  - Manager launches a Nymphs wrapper UI on top of AI Toolkit
+  - later, deeper native integration if still worth it
+- keep the current Trainer page as the simple entry point, not a dead-end
+- make the frontend speak in Nymphs language instead of raw trainer jargon
+- keep the user-facing flow simple:
+  - pictures
+  - captions
+  - training focus
+  - training amount
+  - start training
+  - test the LoRA
+- preserve transcript-faithful training concepts where possible:
+  - steps
+  - balanced vs style/content behavior
+  - official adapter usage
+- decide whether the AI Toolkit web UI should be:
+  - launched externally
+  - embedded in Manager
+  - or selectively re-skinned for the Z-Image path only
+- keep custom Nymphs guardrails around:
+  - install state
+  - runtime health
+  - model availability
+  - logs
+  - simple recovery actions
+- avoid duplicating the whole AI Toolkit UI in C# unless there is a clear product win
+
+Exit condition:
+
+- a user can install the trainer from Manager, open a Nymphs-friendly AI Toolkit training frontend, and run Z-Image training through the official stack without the flow feeling bolted on
+
+### Avoid unnecessary Nunchaku rebuilds on repair
+
+Goal:
+
+- stop `Repair Runtime` from rebuilding `nunchaku` when the installed fork revision already matches the pinned commit
+
+Work:
+
+- tighten the runtime dependency check so source-installed `nunchaku` can be recognized as already current
+- distinguish:
+  - pinned commit changed
+  - package missing
+  - package drifted
+  - package already matches expected fork revision
+- avoid forcing a wheel rebuild when only a status/repair pass is being run and nothing changed
+- keep rebuilds when they are genuinely needed:
+  - new fork commit
+  - broken venv
+  - missing package
+- make the log message clearer so users can tell why a rebuild is happening
+
+Exit condition:
+
+- routine repair runs do not rebuild `nunchaku` unless the fork pin or live package state actually changed
+
 ### Nunchaku Z-Image LoRA support
 
 Goal:
@@ -34,6 +100,32 @@ Work:
 Exit condition:
 
 - a user can train a Z-Image LoRA, select it in the addon, and use it on the Nunchaku runtime without manual patching
+
+### AI Toolkit Z-Image trainer backend
+
+Goal:
+
+- move the Manager's Z-Image LoRA training backend toward `ostris/ai-toolkit`, which is the stack the official training adapter was made for
+
+Work:
+
+- add a separate AI Toolkit sidecar path first instead of replacing the DiffSynth sidecar immediately
+- generate Nymphs-owned AI Toolkit config templates for Z-Image because the local clone does not currently provide a ready-made Z-Image example config
+- remap Manager presets from repeat/epoch language to step-based training
+- normalize AI Toolkit tqdm/carriage-return progress output so the Manager live log shows readable progress instead of garbled bars
+- expose AI Toolkit-native concepts cleanly:
+  - `steps`
+  - `content_or_style`
+  - `assistant_lora_path`
+  - `save_every`
+  - `sample_every`
+- keep the existing Trainer page UX stable while swapping the backend underneath
+- compare one AI Toolkit-trained LoRA against the current DiffSynth-trained LoRA before deciding whether to replace the current backend completely
+- revisit whether the official adapter should default to `v2` instead of `v1`
+
+Exit condition:
+
+- the Manager can run a Z-Image training job through AI Toolkit and the resulting LoRA is at least as usable as the current path, ideally clearly better
 
 ### Addon LoRA workflow polish
 
