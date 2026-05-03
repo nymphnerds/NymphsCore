@@ -34,6 +34,7 @@ public sealed class MainWindowViewModel : ViewModelBase
     private readonly RelayCommand _addOptionalModulesCommand;
     private readonly RelayCommand _repairRuntimeCommand;
     private readonly AsyncRelayCommand _openRuntimeToolsCommand;
+    private readonly RelayCommand _openManageInstallCommand;
     private readonly AsyncRelayCommand _refreshRuntimeStatusCommand;
     private readonly AsyncRelayCommand _openZImageTrainerCommand;
     private readonly AsyncRelayCommand _installZImageTrainerCommand;
@@ -75,6 +76,7 @@ public sealed class MainWindowViewModel : ViewModelBase
     private readonly RelayCommand _openLogFolderCommand;
     private readonly RelayCommand _openGuideCommand;
     private readonly DispatcherTimer _brainMonitorRefreshTimer;
+    private readonly DispatcherTimer _zImageTrainerMonitorRefreshTimer;
     private readonly string _installSessionLogPath;
 
     private int _currentStepIndex;
@@ -128,18 +130,25 @@ public sealed class MainWindowViewModel : ViewModelBase
     private ZImageTrainerStatus _zImageTrainerStatus = ZImageTrainerStatus.Unknown("Open Z-Image Trainer to check status.");
     private string _zImageTrainerDatasetName = "my_first_dataset";
     private string _zImageTrainerLoraName = "my_first_lora";
-    private string _zImageTrainerPreset = "basic_turbo";
+    private string _zImageTrainerPreset = "baseline";
     private string _zImageTrainerTrainingType = "character";
     private string _zImageTrainerTrainingAmount = "normal";
     private int _zImageTrainerSteps = 3000;
+    private int _zImageTrainerCheckpointCount = 4;
     private string _zImageTrainerLearningRate = "1e-4";
     private int _zImageTrainerRank = 16;
     private string _zImageTrainerAdapterVersion = "v1";
+    private string _zImageTrainerSamplePrompt = string.Empty;
     private bool _zImageTrainerLowVram;
+    private bool _zImageTrainerHasSavedJobConfig;
+    private bool _zImageTrainerJobConfigDirty;
+    private bool _suppressZImageTrainerDirtyTracking;
+    private bool _zImageTrainerMonitorRefreshInFlight;
     private bool _useZImageTrainerCaptionBrain;
     private string _zImageTrainerCaptionMode = "fill_blanks";
     private bool _zImageTrainerStopRequested;
     private bool _zImageTrainerHasRealStepProgress;
+    private bool _zImageTrainerCompleted;
     private double _zImageTrainerProgressPercent;
     private string _zImageTrainerProgressText = "No training run in progress yet.";
     private bool _zImageTrainerProgressVisible;
@@ -166,6 +175,7 @@ public sealed class MainWindowViewModel : ViewModelBase
         _checkForUpdatesCommand = new AsyncRelayCommand(RunManagedRepoUpdateCheckAsync, CanRunManagedRepoUpdateCheck);
         _addOptionalModulesCommand = new RelayCommand(StartAddOptionalModules, CanStartAddOptionalModules);
         _repairRuntimeCommand = new RelayCommand(StartRepairRuntime, CanStartRepairRuntime);
+        _openManageInstallCommand = new RelayCommand(OpenManageInstall);
         _openRuntimeToolsCommand = new AsyncRelayCommand(OpenRuntimeToolsAsync, CanRunManagedRuntimeAction);
         _refreshRuntimeStatusCommand = new AsyncRelayCommand(RefreshRuntimeStatusAsync, CanRunManagedRuntimeAction);
         _openZImageTrainerCommand = new AsyncRelayCommand(OpenZImageTrainerAsync, CanRunManagedRuntimeAction);
@@ -213,6 +223,12 @@ public sealed class MainWindowViewModel : ViewModelBase
         };
         _brainMonitorRefreshTimer.Tick += async (_, _) => await RefreshBrainMonitorPanelAsync().ConfigureAwait(true);
         _brainMonitorRefreshTimer.Start();
+        _zImageTrainerMonitorRefreshTimer = new DispatcherTimer
+        {
+            Interval = TimeSpan.FromSeconds(2),
+        };
+        _zImageTrainerMonitorRefreshTimer.Tick += async (_, _) => await RefreshZImageTrainerLiveStateAsync().ConfigureAwait(true);
+        _zImageTrainerMonitorRefreshTimer.Start();
 
         AvailableDrives = new ObservableCollection<DriveChoice>(_workflowService.GetAvailableDrives());
         SelectedDrive = AvailableDrives
@@ -277,6 +293,8 @@ public sealed class MainWindowViewModel : ViewModelBase
     public RelayCommand RepairRuntimeCommand => _repairRuntimeCommand;
 
     public AsyncRelayCommand OpenRuntimeToolsCommand => _openRuntimeToolsCommand;
+
+    public RelayCommand OpenManageInstallCommand => _openManageInstallCommand;
 
     public AsyncRelayCommand RefreshRuntimeStatusCommand => _refreshRuntimeStatusCommand;
 
@@ -467,7 +485,11 @@ public sealed class MainWindowViewModel : ViewModelBase
 
     private bool IsToolStep => IsRuntimeToolsStep || IsZImageTrainerStep || IsBrainToolsStep;
 
+    public bool IsManageInstallStep => !IsToolStep;
+
     public bool ShowFooterPrimaryButton => !IsToolStep;
+
+    public bool ShowBackButton => !IsToolStep && _currentStepIndex > 0;
 
     public bool HasSystemCheckFailures => SystemChecks.Any(item => item.Status == CheckState.Fail);
 
@@ -1065,7 +1087,7 @@ public sealed class MainWindowViewModel : ViewModelBase
         ZImageTrainerStatus.Installed ? "Repair Trainer" : "Install Trainer";
 
     public string ZImageTrainerSummary =>
-        "Default method: Z-Image Turbo LoRA training with AI Toolkit and the Turbo training adapter. Captions stay under your control in metadata.csv. Trainer datasets, jobs, and LoRAs live under /home/nymph/ZImage-Trainer/.";
+        "Default method: Z-Image Turbo LoRA training with AI Toolkit and the Turbo training adapter. Edit caption drafts in metadata.csv, then click Add Job to mirror them into the per-image .txt files AI Toolkit trains from. Trainer datasets, jobs, and LoRAs live under /home/nymph/ZImage-Trainer/.";
 
     public bool CanStartZImageTrainingUi => CanCreateZImageTrainerJob();
 
@@ -1077,6 +1099,11 @@ public sealed class MainWindowViewModel : ViewModelBase
         ZImageTrainerStatus.Running || IsBusy
             ? "An AI Toolkit trainer job or job action is active. You can keep this page open and use the job controls below."
             : "Trainer is idle. Create or review captions, then use the job controls below.";
+
+    public bool HasZImageTrainerPendingChanges => _zImageTrainerHasSavedJobConfig && _zImageTrainerJobConfigDirty;
+
+    public string ZImageTrainerPendingChangesSummary =>
+        "Settings changed. Click Add Job to apply them before Start Job.";
 
     public double ZImageTrainerProgressPercent
     {
@@ -1103,6 +1130,7 @@ public sealed class MainWindowViewModel : ViewModelBase
         {
             if (SetProperty(ref _zImageTrainerDatasetName, value))
             {
+                MarkZImageTrainerJobNeedsUpdate();
                 _createZImageTrainerJobCommand.RaiseCanExecuteChanged();
                 _openZImageTrainerPicturesCommand.RaiseCanExecuteChanged();
                 _openZImageTrainerCaptionsCommand.RaiseCanExecuteChanged();
@@ -1119,6 +1147,7 @@ public sealed class MainWindowViewModel : ViewModelBase
         {
             if (SetProperty(ref _zImageTrainerLoraName, value))
             {
+                MarkZImageTrainerJobNeedsUpdate();
                 _createZImageTrainerJobCommand.RaiseCanExecuteChanged();
                 _openZImageTrainerPicturesCommand.RaiseCanExecuteChanged();
                 _openZImageTrainerCaptionsCommand.RaiseCanExecuteChanged();
@@ -1145,10 +1174,11 @@ public sealed class MainWindowViewModel : ViewModelBase
         get => _zImageTrainerPreset;
         set
         {
-            var normalized = string.IsNullOrWhiteSpace(value) ? "basic_turbo" : value;
+            var normalized = NormalizeZImageTrainerPresetId(value);
             if (SetProperty(ref _zImageTrainerPreset, normalized))
             {
                 ApplyZImageTrainerPresetDefaults(normalized);
+                MarkZImageTrainerJobNeedsUpdate();
             }
         }
     }
@@ -1156,19 +1186,59 @@ public sealed class MainWindowViewModel : ViewModelBase
     public int ZImageTrainerSteps
     {
         get => _zImageTrainerSteps;
-        set => SetProperty(ref _zImageTrainerSteps, value < 1 ? 1 : value);
+        set
+        {
+            if (SetProperty(ref _zImageTrainerSteps, value < 1 ? 1 : value))
+            {
+                OnPropertyChanged(nameof(ZImageTrainerCheckpointSummary));
+                MarkZImageTrainerJobNeedsUpdate();
+            }
+        }
+    }
+
+    public int ZImageTrainerCheckpointCount
+    {
+        get => _zImageTrainerCheckpointCount;
+        set
+        {
+            var normalized = value switch
+            {
+                <= 0 => 0,
+                <= 2 => 2,
+                <= 4 => 4,
+                _ => 8,
+            };
+
+            if (SetProperty(ref _zImageTrainerCheckpointCount, normalized))
+            {
+                OnPropertyChanged(nameof(ZImageTrainerCheckpointSummary));
+                MarkZImageTrainerJobNeedsUpdate();
+            }
+        }
     }
 
     public string ZImageTrainerLearningRate
     {
         get => _zImageTrainerLearningRate;
-        set => SetProperty(ref _zImageTrainerLearningRate, string.IsNullOrWhiteSpace(value) ? "1e-4" : value.Trim());
+        set
+        {
+            if (SetProperty(ref _zImageTrainerLearningRate, NormalizeZImageTrainerLearningRateOption(value)))
+            {
+                MarkZImageTrainerJobNeedsUpdate();
+            }
+        }
     }
 
     public int ZImageTrainerRank
     {
         get => _zImageTrainerRank;
-        set => SetProperty(ref _zImageTrainerRank, value < 1 ? 1 : value);
+        set
+        {
+            if (SetProperty(ref _zImageTrainerRank, value < 1 ? 1 : value))
+            {
+                MarkZImageTrainerJobNeedsUpdate();
+            }
+        }
     }
 
     public string ZImageTrainerAdapterVersion
@@ -1179,15 +1249,41 @@ public sealed class MainWindowViewModel : ViewModelBase
             var normalized = string.Equals(value, "v2", StringComparison.OrdinalIgnoreCase)
                 ? "v2"
                 : "v1";
-            SetProperty(ref _zImageTrainerAdapterVersion, normalized);
+            if (SetProperty(ref _zImageTrainerAdapterVersion, normalized))
+            {
+                MarkZImageTrainerJobNeedsUpdate();
+            }
+        }
+    }
+
+    public string ZImageTrainerSamplePrompt
+    {
+        get => _zImageTrainerSamplePrompt;
+        set
+        {
+            if (SetProperty(ref _zImageTrainerSamplePrompt, value ?? string.Empty))
+            {
+                MarkZImageTrainerJobNeedsUpdate();
+            }
         }
     }
 
     public bool ZImageTrainerLowVram
     {
         get => _zImageTrainerLowVram;
-        set => SetProperty(ref _zImageTrainerLowVram, value);
+        set
+        {
+            if (SetProperty(ref _zImageTrainerLowVram, value))
+            {
+                MarkZImageTrainerJobNeedsUpdate();
+            }
+        }
     }
+
+    public string ZImageTrainerCheckpointSummary =>
+        ZImageTrainerCheckpointCount <= 0
+            ? "No checkpoints"
+            : $"Every {Math.Max(1, ZImageTrainerSteps / ZImageTrainerCheckpointCount)} steps";
 
     public bool UseZImageTrainerCaptionBrain
     {
@@ -1571,6 +1667,7 @@ public sealed class MainWindowViewModel : ViewModelBase
             LogLines.Clear();
             PostInstallActionSummary = string.Empty;
             StatusMessage = "No managed runtime install detected yet.";
+            ClearZImageTrainerSavedJobState();
             ZImageTrainerStatus = ZImageTrainerStatus.Unknown("Run the Manager install first, then install the trainer sidecar.");
             AppendInstallLog(StatusMessage);
             RaiseCommandStateChanged();
@@ -1600,6 +1697,10 @@ public sealed class MainWindowViewModel : ViewModelBase
         {
             ZImageTrainerStatus = await _workflowService.GetZImageTrainerStatusAsync(settings, progress, CancellationToken.None, ZImageTrainerLoraName).ConfigureAwait(true);
             await RefreshExistingZImageTrainerDatasetsAsync(settings).ConfigureAwait(true);
+            if (!ZImageTrainerStatus.SelectedJobExists)
+            {
+                ClearZImageTrainerSavedJobState();
+            }
             await TryImportZImageTrainerJobSettingsAsync(settings).ConfigureAwait(true);
             PostInstallActionSummary = ZImageTrainerStatus.Detail;
             StatusMessage = "Z-Image Trainer status check completed.";
@@ -1619,6 +1720,84 @@ public sealed class MainWindowViewModel : ViewModelBase
         {
             IsBusy = false;
             RaiseCommandStateChanged();
+        }
+    }
+
+    private async Task RefreshZImageTrainerLiveStateAsync()
+    {
+        if (_zImageTrainerMonitorRefreshInFlight ||
+            IsBusy ||
+            !ManagedDistroDetected ||
+            !IsZImageTrainerStep ||
+            string.IsNullOrWhiteSpace(ZImageTrainerLoraName))
+        {
+            return;
+        }
+
+        _zImageTrainerMonitorRefreshInFlight = true;
+
+        try
+        {
+            var settings = BuildManagedActionSettings();
+            var finalCheckpointExists = _workflowService.DoesZImageTrainerFinalCheckpointExist(
+                settings,
+                ZImageTrainerLoraName);
+
+            var status = await _workflowService.GetZImageTrainerStatusAsync(
+                settings,
+                progress: null,
+                CancellationToken.None,
+                ZImageTrainerLoraName).ConfigureAwait(true);
+
+            ZImageTrainerStatus = status;
+            ApplyZImageTrainerStageFromStatus();
+
+            var jobLog = await _workflowService.TryGetZImageTrainerJobLogAsync(
+                settings,
+                ZImageTrainerLoraName,
+                CancellationToken.None).ConfigureAwait(true);
+
+            if (!string.IsNullOrWhiteSpace(jobLog))
+            {
+                var lines = jobLog
+                    .Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+                var startIndex = Math.Max(0, lines.Length - 300);
+                for (var i = startIndex; i < lines.Length; i++)
+                {
+                    UpdateZImageTrainerProgressFromLine(lines[i]);
+                }
+            }
+
+            if (finalCheckpointExists && !_zImageTrainerCompleted)
+            {
+                MarkZImageTrainerProgressComplete();
+            }
+
+            if (_zImageTrainerHasRealStepProgress || ZImageTrainerStatus.Running)
+            {
+                if (_zImageTrainerCompleted)
+                {
+                    StatusMessage = "Z-Image training completed.";
+                }
+                else if (!ZImageTrainerStatus.Running && _zImageTrainerHasRealStepProgress && ZImageTrainerProgressPercent >= 99)
+                {
+                    MarkZImageTrainerProgressComplete();
+                    StatusMessage = "Z-Image training completed.";
+                }
+                else
+                {
+                    StatusMessage = ZImageTrainerProgressText;
+                }
+            }
+        }
+        catch
+        {
+            // Keep the existing UI state if a background trainer refresh fails.
+        }
+        finally
+        {
+            _zImageTrainerMonitorRefreshInFlight = false;
         }
     }
 
@@ -1717,7 +1896,7 @@ public sealed class MainWindowViewModel : ViewModelBase
                 CancellationToken.None).ConfigureAwait(true);
             _workflowService.OpenZImageTrainerPicturesFolder(settings, ZImageTrainerLoraName);
             StatusMessage = metadataStatus.ImageCount == 0
-                ? "Opened pictures folder. Add images, then open the captions file."
+                ? "Opened pictures folder. Add images, then open the draft CSV."
                 : "Opened pictures folder and refreshed metadata.csv.";
             AppendInstallLog(StatusMessage);
         }
@@ -1751,12 +1930,12 @@ public sealed class MainWindowViewModel : ViewModelBase
                 progress,
                 CancellationToken.None).ConfigureAwait(true);
             _workflowService.OpenZImageTrainerMetadataFile(settings, ZImageTrainerLoraName);
-            StatusMessage = "Opened metadata.csv for captions.";
+            StatusMessage = "Opened metadata.csv draft captions. Click Add Job after editing to update the .txt captions AI Toolkit uses.";
             AppendInstallLog(StatusMessage);
         }
         catch (Exception ex)
         {
-            StatusMessage = "Could not open captions file.";
+            StatusMessage = "Could not open draft CSV.";
             LogLines.Add($"ERROR: {ex.Message}");
             AppendInstallLog($"ERROR: {ex}");
         }
@@ -1793,9 +1972,9 @@ public sealed class MainWindowViewModel : ViewModelBase
                 CancellationToken.None).ConfigureAwait(true);
 
             StatusMessage = metadataStatus.MissingCaptionCount == 0
-                ? "Caption Brain drafted captions for the dataset. Review metadata.csv, then train when it looks right."
+                ? "Caption Brain drafted captions into metadata.csv. Review them, then click Add Job to update the .txt captions AI Toolkit trains from."
                 : $"Caption Brain finished, but {metadataStatus.MissingCaptionCount} caption(s) are still blank. Review metadata.csv.";
-            PostInstallActionSummary = "Caption drafts are editable. Open metadata.csv to tweak any line before training.";
+            PostInstallActionSummary = "Caption drafts are editable in metadata.csv. Click Add Job after editing to mirror them into the training .txt files.";
             AppendInstallLog(StatusMessage);
         }
         catch (Exception ex)
@@ -1844,11 +2023,14 @@ public sealed class MainWindowViewModel : ViewModelBase
                 ZImageTrainerLearningRate,
                 ZImageTrainerRank,
                 ZImageTrainerLowVram,
+                ZImageTrainerSamplePrompt,
+                ZImageTrainerCheckpointCount,
                 progress,
                 CancellationToken.None).ConfigureAwait(true);
 
             ZImageTrainerStatus = await _workflowService.GetZImageTrainerStatusAsync(settings, progress, CancellationToken.None, ZImageTrainerLoraName).ConfigureAwait(true);
             await TryImportZImageTrainerJobSettingsAsync(settings).ConfigureAwait(true);
+            MarkZImageTrainerJobSaved();
             PostInstallActionSummary = BuildCreatedAiToolkitJobSummary(ZImageTrainerStatus);
             StatusMessage = BuildCreatedAiToolkitJobStatus(ZImageTrainerStatus);
             AppendInstallLog(StatusMessage);
@@ -1869,6 +2051,16 @@ public sealed class MainWindowViewModel : ViewModelBase
 
     private async Task StartZImageTrainingAsync()
     {
+        if (HasZImageTrainerPendingChanges)
+        {
+            PostInstallActionSummary = ZImageTrainerPendingChangesSummary;
+            StatusMessage = ZImageTrainerPendingChangesSummary;
+            LogLines.Add(StatusMessage);
+            AppendInstallLog(StatusMessage);
+            RaiseCommandStateChanged();
+            return;
+        }
+
         var settings = BuildManagedActionSettings();
         PrepareManagedActionRun(
             "Starting AI Toolkit job...",
@@ -2100,6 +2292,7 @@ public sealed class MainWindowViewModel : ViewModelBase
                 ZImageTrainerLoraName,
                 progress,
                 CancellationToken.None).ConfigureAwait(true);
+            ClearZImageTrainerSavedJobState();
             ZImageTrainerStatus = await _workflowService.GetZImageTrainerStatusAsync(settings, progress, CancellationToken.None, ZImageTrainerLoraName).ConfigureAwait(true);
             ApplyZImageTrainerStageFromStatus();
             StatusMessage = "AI Toolkit job deleted.";
@@ -2344,6 +2537,7 @@ public sealed class MainWindowViewModel : ViewModelBase
     private void ResetZImageTrainerProgress(bool show = false, string? text = null)
     {
         _zImageTrainerHasRealStepProgress = false;
+        _zImageTrainerCompleted = false;
         ZImageTrainerProgressPercent = 0;
         ZImageTrainerProgressVisible = show;
         ZImageTrainerProgressText = text ?? "No training run in progress yet.";
@@ -2351,6 +2545,14 @@ public sealed class MainWindowViewModel : ViewModelBase
 
     private void ApplyZImageTrainerStageFromStatus()
     {
+        if (_zImageTrainerCompleted)
+        {
+            ZImageTrainerProgressVisible = true;
+            ZImageTrainerProgressPercent = 100;
+            ZImageTrainerProgressText = "Training completed.";
+            return;
+        }
+
         if (_zImageTrainerHasRealStepProgress)
         {
             return;
@@ -2371,6 +2573,16 @@ public sealed class MainWindowViewModel : ViewModelBase
         if (!status.OfficialUiRunning)
         {
             return "AI Toolkit is not open.";
+        }
+
+        if (string.Equals(status.ActiveState, "running", StringComparison.OrdinalIgnoreCase))
+        {
+            if (!string.IsNullOrWhiteSpace(status.ActiveInfo))
+            {
+                return $"AI Toolkit: {status.ActiveInfo}";
+            }
+
+            return "AI Toolkit job is running.";
         }
 
         if (status.SelectedJobExists)
@@ -2411,16 +2623,6 @@ public sealed class MainWindowViewModel : ViewModelBase
             return status.QueueRunning
                 ? "AI Toolkit job is queued and waiting to start."
                 : "AI Toolkit job is queued.";
-        }
-
-        if (string.Equals(status.ActiveState, "running", StringComparison.OrdinalIgnoreCase))
-        {
-            if (!string.IsNullOrWhiteSpace(status.ActiveInfo))
-            {
-                return $"AI Toolkit: {status.ActiveInfo}";
-            }
-
-            return "Training is running in AI Toolkit.";
         }
 
         if (status.QueueWorkerRunning && status.QueueRunning)
@@ -2485,20 +2687,103 @@ public sealed class MainWindowViewModel : ViewModelBase
             return;
         }
 
-        ZImageTrainerPreset = imported.PresetId;
-        ZImageTrainerSteps = imported.Steps;
-        ZImageTrainerLearningRate = imported.LearningRate;
-        ZImageTrainerRank = imported.Rank;
-        ZImageTrainerLowVram = imported.LowVram;
+        _suppressZImageTrainerDirtyTracking = true;
+        try
+        {
+            ZImageTrainerPreset = imported.PresetId;
+            ZImageTrainerSteps = imported.Steps;
+            ZImageTrainerLearningRate = imported.LearningRate;
+            ZImageTrainerRank = imported.Rank;
+            ZImageTrainerCheckpointCount = imported.CheckpointCount;
+            ZImageTrainerLowVram = imported.LowVram;
+            ZImageTrainerSamplePrompt = imported.SamplePrompt;
+        }
+        finally
+        {
+            _suppressZImageTrainerDirtyTracking = false;
+        }
+
+        MarkZImageTrainerJobSaved();
         // Keep the safer UI default / user choice for adapter version instead of
         // silently re-importing an older experimental v2 job setting here.
         // Existing jobs can still be recreated with the current UI selection.
         AppendInstallLog($"Imported trainer settings from jobs/{imported.LoraName}.yaml.");
     }
 
+    private void MarkZImageTrainerJobNeedsUpdate()
+    {
+        if (_suppressZImageTrainerDirtyTracking || !_zImageTrainerHasSavedJobConfig || _zImageTrainerJobConfigDirty)
+        {
+            return;
+        }
+
+        _zImageTrainerJobConfigDirty = true;
+        OnPropertyChanged(nameof(HasZImageTrainerPendingChanges));
+        OnPropertyChanged(nameof(ZImageTrainerPendingChangesSummary));
+    }
+
+    private static string NormalizeZImageTrainerLearningRateOption(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return "1e-4";
+        }
+
+        var trimmed = value.Trim();
+        if (string.Equals(trimmed, "5e-5", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(trimmed, "8e-5", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(trimmed, "1e-4", StringComparison.OrdinalIgnoreCase))
+        {
+            return trimmed.ToLowerInvariant();
+        }
+
+        if (double.TryParse(trimmed, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var parsed) &&
+            parsed > 0)
+        {
+            if (Math.Abs(parsed - 5e-5) < 1e-10)
+            {
+                return "5e-5";
+            }
+
+            if (Math.Abs(parsed - 8e-5) < 1e-10)
+            {
+                return "8e-5";
+            }
+
+            if (Math.Abs(parsed - 1e-4) < 1e-10)
+            {
+                return "1e-4";
+            }
+        }
+
+        return "1e-4";
+    }
+
+    private void MarkZImageTrainerJobSaved()
+    {
+        _zImageTrainerHasSavedJobConfig = true;
+        _zImageTrainerJobConfigDirty = false;
+        OnPropertyChanged(nameof(HasZImageTrainerPendingChanges));
+        OnPropertyChanged(nameof(ZImageTrainerPendingChangesSummary));
+    }
+
+    private void ClearZImageTrainerSavedJobState()
+    {
+        _zImageTrainerHasSavedJobConfig = false;
+        _zImageTrainerJobConfigDirty = false;
+        OnPropertyChanged(nameof(HasZImageTrainerPendingChanges));
+        OnPropertyChanged(nameof(ZImageTrainerPendingChangesSummary));
+    }
+
     private void UpdateZImageTrainerProgressFromLine(string line)
     {
         var lowerLine = line.ToLowerInvariant();
+
+        if (LooksLikeFinalZImageTrainerCheckpoint(line, lowerLine))
+        {
+            MarkZImageTrainerProgressComplete();
+            return;
+        }
 
         var structuredMatch = TrainerStructuredProgressRegex.Match(line);
         if (structuredMatch.Success &&
@@ -2618,6 +2903,36 @@ public sealed class MainWindowViewModel : ViewModelBase
         }
     }
 
+    private bool LooksLikeFinalZImageTrainerCheckpoint(string line, string lowerLine)
+    {
+        if (!lowerLine.Contains("saved checkpoint to", StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        var loraName = ZImageTrainerLoraName?.Trim();
+        if (string.IsNullOrWhiteSpace(loraName))
+        {
+            return !_zImageTrainerHasRealStepProgress ? false : !lowerLine.Contains("._000", StringComparison.Ordinal);
+        }
+
+        var finalFileName = $"{loraName}.safetensors";
+        var numberedCheckpointStem = $"{loraName}_";
+
+        return line.Contains(finalFileName, StringComparison.OrdinalIgnoreCase) &&
+               !line.Contains(numberedCheckpointStem, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private void MarkZImageTrainerProgressComplete()
+    {
+        var totalSteps = Math.Max(1, ZImageTrainerSteps);
+        _zImageTrainerHasRealStepProgress = true;
+        _zImageTrainerCompleted = true;
+        ZImageTrainerProgressVisible = true;
+        ZImageTrainerProgressPercent = 100;
+        ZImageTrainerProgressText = $"Training completed: {totalSteps}/{totalSteps} steps";
+    }
+
     private async Task RefreshExistingZImageTrainerDatasetsAsync(InstallSettings settings)
     {
         var datasetNames = await _workflowService.GetZImageTrainerDatasetNamesAsync(settings, CancellationToken.None).ConfigureAwait(true);
@@ -2660,40 +2975,62 @@ public sealed class MainWindowViewModel : ViewModelBase
     {
         switch ((presetId ?? string.Empty).Trim().ToLowerInvariant())
         {
-            case "style_light":
-                ZImageTrainerTrainingType = "style";
-                ZImageTrainerTrainingAmount = "light";
-                ZImageTrainerSteps = 2500;
-                ZImageTrainerLearningRate = "8e-5";
+            case "fast_test":
+                ZImageTrainerTrainingType = "character";
+                ZImageTrainerTrainingAmount = "quick";
+                ZImageTrainerSteps = 500;
+                ZImageTrainerCheckpointCount = 0;
+                ZImageTrainerLearningRate = "1e-4";
                 ZImageTrainerRank = 8;
+                ZImageTrainerSamplePrompt = string.Empty;
                 ZImageTrainerLowVram = false;
                 break;
-            case "style_high_noise":
+            case "strong_style":
                 ZImageTrainerTrainingType = "style";
                 ZImageTrainerTrainingAmount = "strong";
-                ZImageTrainerSteps = 3000;
+                ZImageTrainerSteps = 5000;
+                ZImageTrainerCheckpointCount = 4;
                 ZImageTrainerLearningRate = "1e-4";
                 ZImageTrainerRank = 16;
+                ZImageTrainerSamplePrompt = string.Empty;
                 ZImageTrainerLowVram = false;
                 break;
             case "style":
-            case "style_balanced":
                 ZImageTrainerTrainingType = "style";
                 ZImageTrainerTrainingAmount = "normal";
                 ZImageTrainerSteps = 3000;
+                ZImageTrainerCheckpointCount = 4;
                 ZImageTrainerLearningRate = "1e-4";
                 ZImageTrainerRank = 16;
+                ZImageTrainerSamplePrompt = string.Empty;
                 ZImageTrainerLowVram = false;
                 break;
+            case "baseline":
+            case "basic_turbo":
             default:
                 ZImageTrainerTrainingType = "character";
-                ZImageTrainerTrainingAmount = "quick";
+                ZImageTrainerTrainingAmount = "normal";
                 ZImageTrainerSteps = 3000;
+                ZImageTrainerCheckpointCount = 4;
                 ZImageTrainerLearningRate = "1e-4";
                 ZImageTrainerRank = 16;
+                ZImageTrainerSamplePrompt = string.Empty;
                 ZImageTrainerLowVram = false;
                 break;
         }
+    }
+
+    private static string NormalizeZImageTrainerPresetId(string? presetId)
+    {
+        return (presetId ?? string.Empty).Trim().ToLowerInvariant() switch
+        {
+            "basic_turbo" => "baseline",
+            "style_light" => "style",
+            "style_high_noise" => "strong_style",
+            "style_balanced" => "style",
+            "" => "baseline",
+            var normalized => normalized,
+        };
     }
 
     private async Task RefreshRuntimeStatusAsync()
@@ -3949,6 +4286,11 @@ public sealed class MainWindowViewModel : ViewModelBase
         MoveToStep(_currentStepIndex - 1);
     }
 
+    private void OpenManageInstall()
+    {
+        MoveToStep(0);
+    }
+
     private bool CanStartAddOptionalModules()
     {
         return !IsBusy && ManagedDistroDetected && IsSystemCheckStep && !HasSystemCheckFailures;
@@ -4045,9 +4387,11 @@ public sealed class MainWindowViewModel : ViewModelBase
         OnPropertyChanged(nameof(IsRuntimeToolsStep));
         OnPropertyChanged(nameof(IsZImageTrainerStep));
         OnPropertyChanged(nameof(IsBrainToolsStep));
+        OnPropertyChanged(nameof(IsManageInstallStep));
         OnPropertyChanged(nameof(ShowDefaultSidebarArt));
         OnPropertyChanged(nameof(ShowBrainSidebarArt));
         OnPropertyChanged(nameof(ShowFooterPrimaryButton));
+        OnPropertyChanged(nameof(ShowBackButton));
         OnPropertyChanged(nameof(ShowExistingInstallActions));
         RecomputeStepState();
     }

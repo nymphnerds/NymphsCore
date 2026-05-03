@@ -33,7 +33,10 @@ public sealed class InstallerWorkflowService
     private static readonly Regex TrainerYamlRankRegex = new(@"^\s*linear:\s*(?<value>\d+)\s*$", RegexOptions.Compiled | RegexOptions.Multiline);
     private static readonly Regex TrainerYamlContentStyleRegex = new(@"^\s*content_or_style:\s*[""']?(?<value>[^""'\r\n#]+)", RegexOptions.Compiled | RegexOptions.Multiline);
     private static readonly Regex TrainerYamlLowVramRegex = new(@"^\s*low_vram:\s*(?<value>true|false)\s*$", RegexOptions.Compiled | RegexOptions.Multiline | RegexOptions.IgnoreCase);
+    private static readonly Regex TrainerYamlSaveEveryRegex = new(@"^\s*save_every:\s*(?<value>\d+)\s*$", RegexOptions.Compiled | RegexOptions.Multiline);
+    private static readonly Regex TrainerYamlMaxSavesRegex = new(@"^\s*max_step_saves_to_keep:\s*(?<value>\d+)\s*$", RegexOptions.Compiled | RegexOptions.Multiline);
     private static readonly Regex TrainerYamlAdapterPathRegex = new(@"^\s*assistant_lora_path:\s*[""']?(?<value>[^""'\r\n#]+)", RegexOptions.Compiled | RegexOptions.Multiline);
+    private static readonly Regex TrainerYamlSamplePromptRegex = new(@"^\s*-\s*prompt:\s*(?<value>.+?)\s*$", RegexOptions.Compiled | RegexOptions.Multiline);
 
     public InstallerWorkflowService()
     {
@@ -555,7 +558,10 @@ public sealed class InstallerWorkflowService
         var rank = ParseMatchInt(TrainerYamlRankRegex, yaml);
         var contentOrStyle = ParseMatchString(TrainerYamlContentStyleRegex, yaml) ?? "content";
         var lowVram = ParseMatchBool(TrainerYamlLowVramRegex, yaml);
+        var saveEvery = ParseMatchInt(TrainerYamlSaveEveryRegex, yaml);
+        var maxSaves = ParseMatchInt(TrainerYamlMaxSavesRegex, yaml);
         var adapterPath = ParseMatchString(TrainerYamlAdapterPathRegex, yaml) ?? string.Empty;
+        var samplePrompt = NormalizeTrainerSamplePrompt(ParseMatchString(TrainerYamlSamplePromptRegex, yaml));
         var adapterVersion = adapterPath.Contains("_v2", StringComparison.OrdinalIgnoreCase) ? "v2" : "v1";
         var presetId = ParseMatchString(TrainerYamlPresetIdRegex, yaml);
         if (string.IsNullOrWhiteSpace(presetId))
@@ -569,9 +575,11 @@ public sealed class InstallerWorkflowService
             steps > 0 ? steps : 3000,
             string.IsNullOrWhiteSpace(learningRate) ? "1e-4" : learningRate,
             rank > 0 ? rank : 16,
+            ComputeCheckpointCount(steps > 0 ? steps : 3000, saveEvery, maxSaves),
             lowVram,
             adapterVersion,
-            contentOrStyle);
+            contentOrStyle,
+            samplePrompt);
     }
 
     private async Task<string?> TryGetOfficialUiJobConfigJsonAsync(
@@ -669,18 +677,26 @@ public sealed class InstallerWorkflowService
             var learningRate = GetStringProperty(train, "lr") ?? "1e-4";
             var rank = GetIntProperty(network, "linear");
             var lowVram = GetBoolProperty(model, "low_vram");
+            var save = TryGetObjectProperty(process, "save");
+            var sample = TryGetObjectProperty(process, "sample");
+            var saveEvery = GetIntProperty(save, "save_every");
+            var maxSaves = GetIntProperty(save, "max_step_saves_to_keep");
             var adapterPath = GetStringProperty(model, "assistant_lora_path") ?? string.Empty;
             var adapterVersion = adapterPath.Contains("_v2", StringComparison.OrdinalIgnoreCase) ? "v2" : "v1";
+            var steps = GetIntProperty(train, "steps") > 0 ? GetIntProperty(train, "steps") : 3000;
+            var samplePrompt = ResolveTrainerSamplePromptFromJson(sample);
 
             return new ZImageTrainerJobSettings(
                 normalizedLora,
                 presetId,
-                GetIntProperty(train, "steps") > 0 ? GetIntProperty(train, "steps") : 3000,
+                steps,
                 string.IsNullOrWhiteSpace(learningRate) ? "1e-4" : learningRate,
                 rank > 0 ? rank : 16,
+                ComputeCheckpointCount(steps, saveEvery, maxSaves),
                 lowVram,
                 adapterVersion,
-                contentOrStyle);
+                contentOrStyle,
+                samplePrompt);
         }
         catch (JsonException)
         {
@@ -863,6 +879,8 @@ public sealed class InstallerWorkflowService
             null,
             null,
             null,
+            null,
+            null,
             progress,
             cancellationToken).ConfigureAwait(false);
     }
@@ -877,6 +895,8 @@ public sealed class InstallerWorkflowService
         string? learningRateOverride,
         int? rankOverride,
         bool? lowVramOverride,
+        string? samplePromptOverride,
+        int? checkpointCountOverride,
         IProgress<string> progress,
         CancellationToken cancellationToken)
     {
@@ -902,7 +922,9 @@ public sealed class InstallerWorkflowService
             stepsOverride,
             learningRateOverride,
             rankOverride,
-            lowVramOverride);
+            lowVramOverride,
+            samplePromptOverride,
+            checkpointCountOverride);
         var jobScript = BuildZImageTrainerConfig(settings.LinuxUser, normalizedDataset, normalizedLora, adapterPath, jobPreset);
         var jobConfigJson = BuildZImageTrainerConfigJson(settings.LinuxUser, normalizedDataset, normalizedLora, adapterPath, jobPreset);
         const string jobHeredocMarker = "__NYMPHS_ZIMAGE_CONFIG__";
@@ -1063,6 +1085,52 @@ public sealed class InstallerWorkflowService
             cancellationToken).ConfigureAwait(false);
     }
 
+    public async Task<string?> TryGetZImageTrainerJobLogAsync(
+        InstallSettings settings,
+        string loraName,
+        CancellationToken cancellationToken)
+    {
+        var normalizedLora = NormalizeTrainerName(loraName, "LoRA");
+
+        try
+        {
+            if (!await IsAiToolkitApiHealthyAsync(cancellationToken).ConfigureAwait(false))
+            {
+                return null;
+            }
+
+            using var job = await TryGetAiToolkitJobByRefAsync(normalizedLora, cancellationToken).ConfigureAwait(false);
+            var jobId = job is null ? null : GetStringProperty(job.RootElement, "id");
+            if (string.IsNullOrWhiteSpace(jobId))
+            {
+                return null;
+            }
+
+            var responseJson = await SendAiToolkitApiRequestAsync(
+                HttpMethod.Get,
+                $"/api/jobs/{Uri.EscapeDataString(jobId)}/log",
+                null,
+                cancellationToken).ConfigureAwait(false);
+
+            using var response = JsonDocument.Parse(responseJson);
+            return GetStringProperty(response.RootElement, "log");
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    public bool DoesZImageTrainerFinalCheckpointExist(
+        InstallSettings settings,
+        string loraName)
+    {
+        var normalizedLora = NormalizeTrainerName(loraName, "LoRA");
+        var finalCheckpointLinuxPath = $"/home/{settings.LinuxUser}/ZImage-Trainer/loras/{normalizedLora}/{normalizedLora}.safetensors";
+        var finalCheckpointWindowsPath = ToWindowsWslPath(settings, finalCheckpointLinuxPath);
+        return File.Exists(finalCheckpointWindowsPath);
+    }
+
     public async Task<bool> StopZImageTrainerJobAsync(
         InstallSettings settings,
         IProgress<string>? progress,
@@ -1168,6 +1236,7 @@ public sealed class InstallerWorkflowService
 
         return new ZImageTrainerMetadataStatus(rows.Count, missingCaptionCount, datasetPath, metadataPath);
     }
+
 
     private async Task<string> EnsureZImageTrainerTrainingAdapterAsync(
         InstallSettings settings,
@@ -1860,9 +1929,10 @@ public sealed class InstallerWorkflowService
     {
         return (contentOrStyle ?? string.Empty).Trim().ToLowerInvariant() switch
         {
-            "style" => "style_high_noise",
-            "balanced" => "style",
-            _ => "basic_turbo",
+            "content" => "strong_style",
+            "style" => "style",
+            "balanced" => "baseline",
+            _ => "baseline",
         };
     }
 
@@ -1908,9 +1978,11 @@ public sealed class InstallerWorkflowService
         int Steps,
         string LearningRate,
         int Rank,
+        int CheckpointCount,
         bool LowVram,
         string AdapterVersion,
-        string ContentOrStyle);
+        string ContentOrStyle,
+        string SamplePrompt);
 
     private sealed record ZImageTrainerPreset(
         string Id,
@@ -1919,7 +1991,10 @@ public sealed class InstallerWorkflowService
         string AmountLabel,
         int Steps,
         int SaveEvery,
+        int MaxStepSavesToKeep,
         int SampleEvery,
+        bool DisableSampling,
+        bool CacheTextEmbeddings,
         string LearningRate,
         int Rank,
         int Resolution,
@@ -1935,62 +2010,36 @@ public sealed class InstallerWorkflowService
 
         return normalizedPreset switch
         {
-            "style_light" => new ZImageTrainerPreset(
-                "style_light",
-                "Style Light",
-                "Style",
-                "Light",
-                2500,
-                250,
-                250,
-                "8e-5",
+            "fast_test" => new ZImageTrainerPreset(
+                "fast_test",
+                "Fast Test",
+                "Turbo",
+                "Quick Check",
+                500,
+                0,
+                0,
+                0,
+                true,
+                true,
+                "1e-4",
                 8,
-                1024,
+                512,
                 "balanced",
                 false,
                 1,
                 8,
-                "a childlike crayon drawing of a small house and a tree"),
-            "style_high_noise" => new ZImageTrainerPreset(
-                "style_high_noise",
-                "Style High Noise",
+                string.Empty),
+            "strong_style" or "style_high_noise" => new ZImageTrainerPreset(
+                "strong_style",
+                "Strong Style",
                 "Style",
                 "High Noise",
-                3000,
+                5000,
+                1250,
+                4,
                 250,
-                250,
-                "1e-4",
-                16,
-                1024,
-                "style",
                 false,
-                1,
-                8,
-                "a childlike crayon drawing of a small house and a tree"),
-            "style" or "style_balanced" => new ZImageTrainerPreset(
-                "style",
-                "Style",
-                "Style",
-                "Baseline",
-                3000,
-                250,
-                250,
-                "1e-4",
-                16,
-                1024,
-                "balanced",
-                false,
-                1,
-                8,
-                "a childlike crayon drawing of a small house and a tree"),
-            "basic_turbo" or "baseline" or _ => new ZImageTrainerPreset(
-                "basic_turbo",
-                "Baseline",
-                "Turbo",
-                "Baseline",
-                3000,
-                250,
-                250,
+                true,
                 "1e-4",
                 16,
                 1024,
@@ -1998,7 +2047,45 @@ public sealed class InstallerWorkflowService
                 false,
                 1,
                 8,
-                "portrait photo of the trained subject"),
+                string.Empty),
+            "style" or "style_balanced" or "style_light" => new ZImageTrainerPreset(
+                "style",
+                "Style",
+                "Style",
+                "Balanced",
+                3000,
+                750,
+                4,
+                250,
+                false,
+                true,
+                "1e-4",
+                16,
+                1024,
+                "balanced",
+                false,
+                1,
+                8,
+                string.Empty),
+            "basic_turbo" or "baseline" or _ => new ZImageTrainerPreset(
+                "baseline",
+                "Baseline",
+                "Turbo",
+                "Baseline",
+                3000,
+                750,
+                4,
+                250,
+                false,
+                true,
+                "1e-4",
+                16,
+                1024,
+                "balanced",
+                false,
+                1,
+                8,
+                string.Empty),
         };
     }
 
@@ -2007,7 +2094,9 @@ public sealed class InstallerWorkflowService
         int? stepsOverride,
         string? learningRateOverride,
         int? rankOverride,
-        bool? lowVramOverride)
+        bool? lowVramOverride,
+        string? samplePromptOverride,
+        int? checkpointCountOverride)
     {
         var resolvedSteps = stepsOverride is > 0 ? stepsOverride.Value : preset.Steps;
         var resolvedRank = rankOverride is > 0 ? rankOverride.Value : preset.Rank;
@@ -2015,6 +2104,13 @@ public sealed class InstallerWorkflowService
             ? preset.LearningRate
             : learningRateOverride.Trim();
         var resolvedLowVram = lowVramOverride ?? preset.LowVram;
+        var resolvedSamplePrompt = string.IsNullOrWhiteSpace(samplePromptOverride)
+            ? preset.SamplePrompt
+            : samplePromptOverride.Trim();
+        var resolvedCheckpointCount = checkpointCountOverride is >= 0
+            ? checkpointCountOverride.Value
+            : preset.MaxStepSavesToKeep;
+        var resolvedSaveEvery = ComputeSaveEvery(resolvedSteps, resolvedCheckpointCount);
 
         return preset with
         {
@@ -2022,7 +2118,66 @@ public sealed class InstallerWorkflowService
             LearningRate = resolvedLearningRate,
             Rank = resolvedRank,
             LowVram = resolvedLowVram,
+            SamplePrompt = resolvedSamplePrompt,
+            SaveEvery = resolvedSaveEvery,
+            MaxStepSavesToKeep = resolvedCheckpointCount,
         };
+    }
+
+    private static int ComputeSaveEvery(int steps, int checkpointCount)
+    {
+        if (steps <= 0 || checkpointCount <= 0)
+        {
+            return 0;
+        }
+
+        return Math.Max(1, steps / checkpointCount);
+    }
+
+    private static int ComputeCheckpointCount(int steps, int saveEvery, int maxSaves)
+    {
+        if (steps <= 0 || saveEvery <= 0 || maxSaves <= 0)
+        {
+            return 0;
+        }
+
+        var derivedCount = Math.Max(1, (int)Math.Round(steps / (double)saveEvery, MidpointRounding.AwayFromZero));
+        return Math.Max(1, Math.Min(maxSaves, derivedCount));
+    }
+
+    private static string NormalizeTrainerSamplePrompt(string? prompt)
+    {
+        if (string.IsNullOrWhiteSpace(prompt))
+        {
+            return string.Empty;
+        }
+
+        var trimmed = prompt.Trim();
+        if ((trimmed.StartsWith("'") && trimmed.EndsWith("'")) ||
+            (trimmed.StartsWith("\"") && trimmed.EndsWith("\"")))
+        {
+            trimmed = trimmed[1..^1];
+        }
+
+        return trimmed.Replace("''", "'").Trim();
+    }
+
+    private static string ResolveTrainerSamplePromptFromJson(JsonElement? sample)
+    {
+        if (!sample.HasValue || sample.Value.ValueKind != JsonValueKind.Object)
+        {
+            return string.Empty;
+        }
+
+        if (!sample.Value.TryGetProperty("samples", out var samples) ||
+            samples.ValueKind != JsonValueKind.Array ||
+            samples.GetArrayLength() == 0)
+        {
+            return string.Empty;
+        }
+
+        var firstSample = samples[0];
+        return GetStringProperty(firstSample, "prompt") ?? string.Empty;
     }
 
     private static string BuildZImageTrainerConfig(string linuxUser, string datasetName, string loraName, string adapterPath, ZImageTrainerPreset preset)
@@ -2043,9 +2198,9 @@ config:
         linear: {{preset.Rank}}
         linear_alpha: {{preset.Rank}}
       save:
-        dtype: "fp16"
+        dtype: "bf16"
         save_every: {{preset.SaveEvery}}
-        max_step_saves_to_keep: 4
+        max_step_saves_to_keep: {{preset.MaxStepSavesToKeep}}
       logging:
         log_every: 1
         use_ui_logger: true
@@ -2069,15 +2224,15 @@ config:
         optimizer_params:
           weight_decay: 0.0001
         unload_text_encoder: false
-        cache_text_embeddings: false
+        cache_text_embeddings: {{preset.CacheTextEmbeddings.ToString().ToLowerInvariant()}}
         lr: {{preset.LearningRate}}
         ema_config:
           use_ema: false
           ema_decay: 0.99
         skip_first_sample: true
         force_first_sample: false
-        disable_sampling: false
-        dtype: "fp16"
+        disable_sampling: {{preset.DisableSampling.ToString().ToLowerInvariant()}}
+        dtype: "bf16"
         diff_output_preservation: false
         diff_output_preservation_multiplier: 1
         diff_output_preservation_class: "person"
@@ -2143,9 +2298,9 @@ meta:
                         },
                         save = new
                         {
-                            dtype = "fp16",
+                            dtype = "bf16",
                             save_every = preset.SaveEvery,
-                            max_step_saves_to_keep = 4,
+                            max_step_saves_to_keep = preset.MaxStepSavesToKeep,
                         },
                         logging = new
                         {
@@ -2180,7 +2335,7 @@ meta:
                                 weight_decay = 0.0001,
                             },
                             unload_text_encoder = false,
-                            cache_text_embeddings = false,
+                            cache_text_embeddings = preset.CacheTextEmbeddings,
                             lr = learningRateValue,
                             ema_config = new
                             {
@@ -2189,8 +2344,8 @@ meta:
                             },
                             skip_first_sample = true,
                             force_first_sample = false,
-                            disable_sampling = false,
-                            dtype = "fp16",
+                            disable_sampling = preset.DisableSampling,
+                            dtype = "bf16",
                             diff_output_preservation = false,
                             diff_output_preservation_multiplier = 1,
                             diff_output_preservation_class = "person",

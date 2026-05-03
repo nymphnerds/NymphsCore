@@ -8,6 +8,37 @@ This file focuses on user-facing and system-level changes rather than package-by
 
 Newest entries first.
 
+### 2026-05-03 Z-Image trainer completion fix, healthy LoRA milestone, and AI Toolkit UI caveat
+Source: live end-to-end LoRA training on `yamamoto`, plus follow-up Manager work after a successful long run still looked unfinished in both Manager and AI Toolkit UI.
+
+Documented changes:
+
+- confirmed a real healthy Z-Image Turbo LoRA run completed through the rebuilt Manager / AI Toolkit path:
+  - training reached `3000` steps
+  - loss stayed finite and trended down instead of collapsing into `NaN`
+  - intermediate checkpoints and final LoRA outputs were written successfully
+- fixed a Manager completion bug where the trainer progress could stop at `2999/3000` and feel failed even though the final checkpoint had already been saved
+- changed Manager completion detection so it no longer relies only on AI Toolkit’s stale job state or the last visible tqdm line
+- taught Manager to treat the real final LoRA file:
+  - `loras/<name>/<name>.safetensors`
+  as the authoritative completion signal for the trainer page
+- kept the Manager-side progress parser improvements so long Z-Image runs still show real warmup/training progress instead of only queue/handoff messages
+
+Observed reality during validation:
+
+- AI Toolkit’s own queue and overview UI can still stay stuck on:
+  - `Starting job...`
+  - `0 / 3000`
+  - `running`
+  even when the raw trainer log and final saved checkpoint prove the job is already far ahead or fully finished
+- the Manager fix is specifically about making the Manager truthful at the end of a run even when AI Toolkit’s own UI remains stale
+
+Why it matters:
+
+- this is the first point where a long real LoRA run both completed healthily and also stopped looking like a silent failure inside the Manager
+- it also locks in the practical rule for current Z-Image work:
+  - trust raw trainer logs and final saved checkpoints more than AI Toolkit’s queue/overview progress surfaces
+
 ### 2026-05-03 Manager UI redesign pass: unified sidebar flow, darker shell, and ongoing control polish
 Source: live visual iteration against the new Manager mockup, with repeated rebuild-and-review passes focused on making the Windows Manager feel like one coherent app instead of a mix of legacy beige panels and newer trainer UI fragments.
 
