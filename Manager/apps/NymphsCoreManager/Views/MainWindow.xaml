@@ -1768,9 +1768,6 @@
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="6" />
                     <RowDefinition Height="Auto" />
-                    <RowDefinition Height="6" />
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="6" />
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="8" />
                     <RowDefinition Height="Auto" />
@@ -1820,22 +1817,28 @@
                     </WrapPanel>
                   </StackPanel>
 
-                  <TextBlock Grid.Row="2"
-                             Text="{Binding ZImageTrainerActivitySummary}"
-                             TextWrapping="Wrap"
-                             FontSize="12"
-                             Style="{StaticResource MutedText}" />
+                  <Grid Grid.Row="2">
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="*" />
+                      <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0"
+                               Text="{Binding ZImageTrainerActivitySummary}"
+                               TextWrapping="Wrap"
+                               FontSize="12"
+                               Style="{StaticResource MutedText}" />
+                    <TextBlock Grid.Column="1"
+                               Margin="16,0,0,0"
+                               VerticalAlignment="Center"
+                               Text="{Binding ZImageTrainerPendingChangesSummary}"
+                               TextWrapping="NoWrap"
+                               FontSize="12"
+                               FontWeight="SemiBold"
+                               Foreground="#E6C36A"
+                               Visibility="{Binding HasZImageTrainerPendingChanges, Converter={StaticResource BoolToVisibilityConverter}}" />
+                  </Grid>
 
-                  <TextBlock Grid.Row="4"
-                             Margin="0,6,0,0"
-                             Text="{Binding ZImageTrainerPendingChangesSummary}"
-                             TextWrapping="Wrap"
-                             FontSize="12"
-                             FontWeight="SemiBold"
-                             Foreground="#E6C36A"
-                             Visibility="{Binding HasZImageTrainerPendingChanges, Converter={StaticResource BoolToVisibilityConverter}}" />
-
-                  <Border Grid.Row="6"
+                  <Border Grid.Row="3"
                           Background="{StaticResource SubCardBackgroundBrush}"
                           BorderBrush="{StaticResource SubCardBackgroundBrush}"
                           BorderThickness="1"
@@ -2145,7 +2148,7 @@
                     </StackPanel>
                   </Border>
 
-                <Border Grid.Row="8"
+                <Border Grid.Row="5"
                         Margin="0,8,0,0"
                         Background="{StaticResource SubCardBackgroundBrush}"
                         BorderBrush="{StaticResource SubCardBackgroundBrush}"
