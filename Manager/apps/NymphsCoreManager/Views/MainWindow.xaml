@@ -376,7 +376,9 @@
                              HorizontalContentAlignment="Left"
                              Background="Transparent"
                              BorderThickness="0"
+                             Text="{Binding Text, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                              Foreground="{TemplateBinding Foreground}"
+                             FontSize="{TemplateBinding FontSize}"
                              CaretBrush="{TemplateBinding Foreground}"
                              Visibility="Hidden" />
                     <ToggleButton x:Name="DropDownToggle"
@@ -1852,22 +1854,65 @@
                                    Text="LoRA name" />
                         <WrapPanel Grid.Column="1"
                                    VerticalAlignment="Center">
-                          <ComboBox Width="300"
-                                    HorizontalAlignment="Left"
-                                    IsEditable="True"
-                                    IsTextSearchEnabled="False"
-                                    ItemsSource="{Binding ExistingZImageTrainerDatasets}"
-                                    Text="{Binding ZImageTrainerLoraName, UpdateSourceTrigger=PropertyChanged}"
-                                    FontSize="13"
-                                    Padding="7,5"
-                                    Foreground="#F3F7FA"
-                                    Background="{StaticResource SubCardBackgroundBrush}">
-                            <ComboBox.ItemTemplate>
-                              <DataTemplate>
-                                <TextBlock Text="{Binding}" Foreground="#F3F7FA" />
-                              </DataTemplate>
-                            </ComboBox.ItemTemplate>
-                          </ComboBox>
+                          <Grid Width="300"
+                                HorizontalAlignment="Left"
+                                x:Name="ZImageTrainerDatasetPickerHost">
+                            <Grid.ColumnDefinitions>
+                              <ColumnDefinition Width="*" />
+                              <ColumnDefinition Width="26" />
+                            </Grid.ColumnDefinitions>
+                            <TextBox Grid.Column="0"
+                                     Text="{Binding ZImageTrainerLoraName, UpdateSourceTrigger=PropertyChanged}"
+                                     FontSize="13"
+                                     Padding="7,5"
+                                     Foreground="#F3F7FA"
+                                     Background="{StaticResource SubCardBackgroundBrush}"
+                                     BorderThickness="1,1,0,1" />
+                            <ToggleButton x:Name="ZImageTrainerDatasetPickerToggle"
+                                          Grid.Column="1"
+                                          Background="#1D2D28"
+                                          BorderBrush="#315045"
+                                          BorderThickness="1"
+                                          Foreground="#95A4B2"
+                                          FontSize="8"
+                                          Content="▾"
+                                          Focusable="False"
+                                          IsChecked="{Binding IsOpen, ElementName=ZImageTrainerDatasetPickerPopup, Mode=TwoWay}">
+                              <ToggleButton.Template>
+                                <ControlTemplate TargetType="ToggleButton">
+                                  <Border Background="{TemplateBinding Background}"
+                                          BorderBrush="{TemplateBinding BorderBrush}"
+                                          BorderThickness="{TemplateBinding BorderThickness}"
+                                          CornerRadius="0,8,8,0">
+                                    <ContentPresenter HorizontalAlignment="Center"
+                                                      VerticalAlignment="Center" />
+                                  </Border>
+                                </ControlTemplate>
+                              </ToggleButton.Template>
+                            </ToggleButton>
+                            <Popup x:Name="ZImageTrainerDatasetPickerPopup"
+                                   PlacementTarget="{Binding ElementName=ZImageTrainerDatasetPickerHost}"
+                                   Placement="Bottom"
+                                   AllowsTransparency="True"
+                                   StaysOpen="False"
+                                   PopupAnimation="Slide">
+                              <Border Margin="0,4,0,0"
+                                      Width="300"
+                                      MaxHeight="240"
+                                      Background="#182520"
+                                      BorderBrush="#315045"
+                                      BorderThickness="1"
+                                      CornerRadius="12">
+                                <ListBox x:Name="ZImageTrainerDatasetPickerListBox"
+                                         ItemsSource="{Binding ExistingZImageTrainerDatasets}"
+                                         Background="Transparent"
+                                         BorderThickness="0"
+                                         Foreground="#F3F7FA"
+                                         FontSize="13"
+                                         SelectionChanged="OnZImageTrainerDatasetPicked" />
+                              </Border>
+                            </Popup>
+                          </Grid>
                           <Button Margin="12,0,0,0"
                                   Style="{StaticResource SecondaryActionButton}"
                                   Padding="9,5"
@@ -2128,7 +2173,7 @@
                                VerticalAlignment="Center" />
                     <ListBox x:Name="ZImageTrainerLogListBox"
                              ItemsSource="{Binding LogLines}"
-                             Height="72"
+                             Height="96"
                              Margin="0,3,0,0"
                              FontFamily="Consolas"
                              FontSize="11"

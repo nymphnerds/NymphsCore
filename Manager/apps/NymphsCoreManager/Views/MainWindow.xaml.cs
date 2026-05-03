@@ -202,6 +202,23 @@ public partial class MainWindow : Window
         await _viewModel.StopZImageTrainingFromUiAsync();
     }
 
+    private void OnZImageTrainerDatasetPicked(object sender, SelectionChangedEventArgs e)
+    {
+        if (_viewModel is null || sender is not ListBox listBox)
+        {
+            return;
+        }
+
+        if (listBox.SelectedItem is string datasetName && !string.IsNullOrWhiteSpace(datasetName))
+        {
+            _viewModel.ZImageTrainerLoraName = datasetName;
+        }
+
+        ZImageTrainerDatasetPickerPopup.IsOpen = false;
+        ZImageTrainerDatasetPickerToggle.IsChecked = false;
+        listBox.SelectedIndex = -1;
+    }
+
     [DllImport("dwmapi.dll")]
     private static extern int DwmSetWindowAttribute(IntPtr hwnd, int dwAttribute, ref int pvAttribute, int cbAttribute);
 }
