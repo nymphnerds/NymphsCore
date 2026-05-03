@@ -8,6 +8,98 @@ This file focuses on user-facing and system-level changes rather than package-by
 
 Newest entries first.
 
+### 2026-05-03 Manager UI redesign pass: unified sidebar flow, darker shell, and ongoing control polish
+Source: live visual iteration against the new Manager mockup, with repeated rebuild-and-review passes focused on making the Windows Manager feel like one coherent app instead of a mix of legacy beige panels and newer trainer UI fragments.
+
+Documented changes:
+
+- added a real `Manage Install` destination to the left sidebar so the install/setup flow is no longer hidden behind bottom-page back navigation
+- changed sidebar behavior so:
+  - `Manage Install` owns the install/setup flow pages
+  - tool pages like `Runtime Tools`, `Z-Image Trainer`, and `Brain` no longer rely on the same bottom `Back` flow control
+- reworked the Manager shell into a dark redesign pass with:
+  - unified dark app chrome
+  - a flatter green-grey shell direction
+  - restyled buttons, inputs, and log surfaces
+- styled more of the previously untouched pages in the install-management flow so `Welcome`, `System Check`, and related pages stop looking like an older beige app embedded inside the new shell
+- restyled the embedded `Brain` monitor panel so it no longer ships as a hard black block against the new Manager theme
+- centered the footer quote in the left sidebar
+- kept iterating on the trainer-page controls, especially:
+  - dropdown styling
+  - button vividness
+  - shell/background flattening
+
+Important reality from this pass:
+
+- the redesign direction improved a lot, but several style tweaks were noisy and required rework after live screenshots
+- dropdown styling in particular regressed multiple times during the pass:
+  - stock WPF white toggle chrome briefly leaked back in
+  - geometry became chunkier than intended
+  - later passes had to focus specifically on restoring slimmer, cleaner dropdowns
+- button styling also drifted during shell recolor passes, and needed to be re-aligned with the brighter vivid shaded look the user preferred
+- top-bar/title-bar matching remains a sensitive area because native Windows caption styling and the WPF client shell have to be kept in sync manually
+
+Why it matters:
+
+- this is the pass where the Manager finally started behaving like one navigable product instead of a collection of semi-related screens
+- it also made clear that future polish work should be more disciplined:
+  - preserve good geometry once it lands
+  - separate background changes from control-style changes
+  - stop letting shared resource edits accidentally fatten controls or mute buttons that were already approved
+
+### 2026-05-03 Manager dark-theme redesign notes still open
+Source: live visual review of the ongoing Manager charcoal/blue-grey restyle against the reference mockup.
+
+Open notes captured:
+
+- there is still a visible seam / tone mismatch between the native dark title bar and the app shell on some screens
+- the redesign direction is now clearly graphite / blue-grey overall, with green used as a vivid accent rather than a full green sidebar shell
+- some pages still need consistency cleanup so the app stops looking like a mix of old beige-era panels and new dark cards
+- `Runtime Tools`, `Brain`, and `Z-Image Trainer` have all needed page-specific cleanup because shared shell styling alone was not enough
+- form controls should keep moving toward the mockup style globally:
+  - dropdowns
+  - API/token/password fields
+  - other text-entry controls
+- there are still places where the page structure feels over-boxed, so flattening nested card-inside-card layouts remains part of the polish pass
+
+### 2026-05-02 Z-Image Trainer breakthrough: `bf16` + lower LR finally produced a healthy-looking run
+Source: follow-up debugging after the AI Toolkit-first handoff work, focused on repeated `loss is nan`, stale AI Toolkit status surfaces, and whether the Manager-generated trainer config itself was destabilizing Z-Image Turbo training.
+
+Documented changes:
+
+- traced the repeated `loss is nan` spam through AI Toolkit source instead of guessing:
+  - confirmed AI Toolkit really does print `loss is nan` only when `torch.isnan(loss)` is true
+  - confirmed it then replaces that loss with a zero tensor and keeps training
+  - confirmed old runs were not poisoning the current run log because AI Toolkit rotates prior `log.txt` files into a `logs/` folder before each new launch
+- compared Manager-generated Z-Image trainer config against AI Toolkit’s own Z-Image defaults and found a major mismatch:
+  - Manager was generating `fp16`
+  - AI Toolkit defaults and Z-Image model code both pointed toward `bf16`
+  - this matched Tongyi-MAI / community reports that Z-Image can be numerically unstable in `fp16`
+- changed Manager-generated trainer jobs to use `bf16` instead of `fp16`
+- normalized learning-rate UI values so imported AI Toolkit jobs using decimal notation like `0.0001` no longer left the Manager dropdown looking blank
+- validated that a later retry using:
+  - `Fast Test`
+  - `Low VRAM`
+  - learning rate `8e-5`
+  - `bf16`
+  finally produced a healthy-looking live training line instead of immediate NaN spam
+
+Observed healthy-looking signal:
+
+- `lr: 8.0e-05 loss: 5.098e-01`
+
+Why it matters:
+
+- this is the first strong sign that the rebuilt Manager -> AI Toolkit trainer path is not only handing jobs off correctly, but can also drive a numerically sane Z-Image Turbo training run
+- it strongly suggests `fp16` was a major part of the earlier failure pattern
+
+What still remains messy:
+
+- AI Toolkit overview can still sit on `Starting job...` / `Step 0` while the raw run is advancing
+- AI Toolkit loss graph can still be empty even when the raw log is active, because it relies on separate `loss_log.db` telemetry
+- Manager progress is now much more truthful, but the Manager live log panel can still lag behind the progress bar
+- `Stop Job` appears to work, but slowly; the earlier assumption that it was outright broken turned out to be too harsh
+
 ### 2026-05-02 Z-Image Trainer handoff slog: from custom sidecar control to AI Toolkit-first job flow
 Source: several days of local Manager + WSL debugging focused on one brutal theme: the trainer page had drifted into being its own orchestration system instead of a clean AI Toolkit front end, which made simple things like queueing, starting, stopping, and killing AI Toolkit far harder than they should have been.
 
