@@ -158,6 +158,7 @@
     <li><a href="../guides.html">Guide Hub</a></li>
     <li><a href="#captions">Captions</a></li>
     <li><a href="#source-images">Source Images</a></li>
+    <li><a href="#settings">Settings</a></li>
     <li><a href="#activation">Activation</a></li>
     <li><a href="#blender">Blender</a></li>
     <li><a href="#first-test">Hardware & First Run</a></li>
@@ -358,6 +359,47 @@ Keep going like that until every image has its own matching prompt.</div>
   </div>
 </section>
 
+<section class="section" id="settings">
+  <div class="section-tag">// Settings</div>
+  <h2 class="section-title">What the transcript-backed defaults are really trying to do.</h2>
+  <p class="section-sub">You do not need to memorize every AI Toolkit field to get a good first run. The useful pattern from the research so far is much simpler: start from a stable, balanced setup, prove the LoRA is learning, then push harder only if the first run is too polite.</p>
+  <div class="two-col" style="margin-bottom:20px;">
+    <div class="info-card">
+      <div class="section-tag">// Short Version</div>
+      <h3>Start from the calm middle.</h3>
+      <p>The current transcript-backed direction is a conservative Z-Image Turbo setup: <strong>1e-4 learning rate</strong>, <strong>AdamW8Bit</strong>, <strong>weighted timesteps</strong>, <strong>MSE loss</strong>, and a more <strong>balanced</strong> style/content mix before moving to stronger style takeover later.</p>
+    </div>
+    <div class="info-card">
+      <div class="section-tag">// Why It Matters</div>
+      <h3>It is easier to tune a run that already has signal.</h3>
+      <p>If the first run clearly bends output in the right direction, you have something solid to iterate on. Jumping straight to the most aggressive style path can make it harder to tell whether the problem is the dataset, the captions, or the strength of the run.</p>
+    </div>
+  </div>
+  <div class="steps">
+    <div class="step-card">
+      <div class="step-num">Rule 07</div>
+      <h3><code>1e-4</code> is the main starting learning rate right now.</h3>
+      <p>This is the most consistently recommended Z-Image Turbo default from the transcript notes we have so far. It is strong enough to learn, but still conservative enough to use as a first serious baseline.</p>
+    </div>
+    <div class="step-card">
+      <div class="step-num">Rule 08</div>
+      <h3>For style work, start balanced before going high-noise.</h3>
+      <p>The important idea is not just “more style.” It is <strong>when</strong> to push harder. Current NymphsCore presets are inspired by that workflow, but they are not yet a perfect 1:1 mirror of every upstream AI Toolkit setting or sequence.</p>
+    </div>
+    <div class="step-card">
+      <div class="step-num">Rule 09</div>
+      <h3>Some advanced toggles matter less than dataset quality.</h3>
+      <p>Useful defaults like <strong>EMA off</strong>, <strong>cache text embeddings on</strong>, and <strong>weight decay 1e-4</strong> help keep the job sane, but they will not rescue a noisy, inconsistent, or badly captioned dataset.</p>
+    </div>
+    <div class="step-card">
+      <div class="step-num">Rule 10</div>
+      <h3>Do not treat trigger words like a religion.</h3>
+      <p>That same transcript research also lines up with what we saw in testing: some LoRAs need an activation phrase, some do not. Start with the recommended activation, but do not assume a trigger phrase is a universal law of the universe.</p>
+    </div>
+  </div>
+  <div class="note-strip"><strong>Current product truth:</strong> the guide should describe the current presets as <strong>transcript-informed</strong> rather than a perfect clone of Ostris' exact walkthrough. The useful part for beginners is the direction: balanced first, stronger style later if the LoRA needs more push.</div>
+</section>
+
 <section class="section" id="activation">
   <div class="section-tag">// Recommended Activation</div>
   <h2 class="section-title">What recommended activation means.</h2>
@@ -376,17 +418,17 @@ Keep going like that until every image has its own matching prompt.</div>
   </div>
   <div class="steps">
     <div class="step-card">
-      <div class="step-num">Rule 07</div>
+      <div class="step-num">Rule 11</div>
       <h3>Recommended activation is a suggestion, not a law.</h3>
       <p>Some LoRAs look great without it. Some feel weak until you use it. That is why the addon lets you keep it on by default, then turn it off later if the style is already strong enough.</p>
     </div>
     <div class="step-card">
-      <div class="step-num">Rule 08</div>
+      <div class="step-num">Rule 12</div>
       <h3>The current default is just the LoRA name.</h3>
       <p>If your LoRA is called <strong>yamamoto</strong>, the system now recommends <strong>yamamoto</strong> as the starting activation text. Keep it simple first, then change it only if testing shows the LoRA wants something else.</p>
     </div>
     <div class="step-card">
-      <div class="step-num">Rule 09</div>
+      <div class="step-num">Rule 13</div>
       <h3>Downloaded LoRAs may need a quick manual setup.</h3>
       <p>If a downloaded LoRA does not already have metadata, you can type the recommended activation once in Blender. The addon saves it beside the LoRA so you do not have to remember it next time.</p>
     </div>
