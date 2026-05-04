@@ -589,8 +589,8 @@
       <li><a href="#wiki-extract">Extract modular parts</a><span class="wiki-status">coming soon</span></li>
       <li><a href="#wiki-shape-pick">Choose the best image for shape</a></li>
       <li><a href="#wiki-shape-run">Run image to shape</a></li>
-      <li><a href="#wiki-train-captions">Write captions for Z-Image training</a></li>
-      <li><a href="#wiki-train-first-run">Run your first Z-Image training test</a></li>
+      <li><a href="#wiki-train-setup">Set up the Z-Image training job</a></li>
+      <li><a href="#wiki-train-first-run">Add and start the Z-Image training job</a></li>
       <li><a href="#wiki-shape-read">Understand the first 3D draft</a><span class="wiki-status">coming soon</span></li>
       <li><a href="#wiki-shape-fix">What to do when shape output is weak</a><span class="wiki-status">coming soon</span></li>
       <li><a href="#wiki-troubleshoot-install">Troubleshooting install issues</a><span class="wiki-status">coming soon</span></li>
@@ -668,19 +668,19 @@
         </div>
       </div>
 
-      <div class="wiki-entry" id="wiki-train-captions">
-        <h3>Write captions for Z-Image training</h3>
-        <p>Captions are part of the training pair, not disposable metadata. Use the captions file to describe the subject clearly so the LoRA learns what words should bring the style or identity back later.</p>
+      <div class="wiki-entry" id="wiki-train-setup">
+        <h3>Set up the Z-Image training job</h3>
+        <p>Start in the trainer screen. Use Open Pictures Folder to build or update the dataset, review captions only if you need them, then choose the preset, adapter, prompt, steps, checkpoints, learning rate, and rank before creating the job.</p>
         <div class="wiki-entry-links">
-          <a href="guides/training.html#captions">Open full guide</a>
+          <a href="guides/training.html#settings">Open full guide</a>
         </div>
       </div>
 
       <div class="wiki-entry" id="wiki-train-first-run">
-        <h3>Run your first Z-Image training test</h3>
-        <p>Start with a small dataset, pick the right training focus, and use Quick Test as your first learning pass. This guide explains what to expect on a 4080 Super and how to tell whether the result is weak, healthy, or overtrained.</p>
+        <h3>Add and start the Z-Image training job</h3>
+        <p>Add Job saves the current trainer state into the real AI Toolkit job. Start Job runs that saved job. Once the run begins, judge it by the preview samples and checkpoints instead of trying to reason it out from settings alone.</p>
         <div class="wiki-entry-links">
-          <a href="guides/training.html">Open full guide</a>
+          <a href="guides/training.html#run-job">Open full guide</a>
         </div>
       </div>
 
