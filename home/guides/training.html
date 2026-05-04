@@ -350,6 +350,10 @@
         <div class="ref-value"><strong>Fast Test</strong> is the quickest path when you just want to see whether the LoRA is learning at all. <strong>Baseline</strong> is the safest normal first run. <strong>Style</strong> is the normal style preset. <strong>Strong Style</strong> is the follow-up when the normal style run still feels too polite.</div>
       </div>
       <div class="ref-row">
+        <div class="ref-key">Preset meanings</div>
+        <div class="ref-value"><strong>Fast Test:</strong> quick learning check, not a final-quality run. <strong>Baseline:</strong> safest normal first run. <strong>Style:</strong> normal preset for style-focused training. <strong>Strong Style:</strong> harder style push when Style is still too weak.</div>
+      </div>
+      <div class="ref-row">
         <div class="ref-key">Preset defaults</div>
         <div class="ref-value"><strong>Fast Test</strong> sets <code>500</code> steps, checkpoints off, <code>1e-4</code> learning rate, rank <code>8</code>. <strong>Baseline</strong> sets <code>3000</code> steps, <code>4</code> checkpoints, <code>1e-4</code> learning rate, rank <code>16</code>. <strong>Style</strong> uses the same numbers as Baseline but switches to style mode. <strong>Strong Style</strong> pushes that to <code>5000</code> steps with <code>4</code> checkpoints and rank <code>16</code>.</div>
       </div>
