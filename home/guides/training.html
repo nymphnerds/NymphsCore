@@ -433,21 +433,58 @@
 </section>
 
 <section class="section" id="advanced">
-  <h2 class="section-title">5. Advanced: if you want to do the whole run in the AI Toolkit UI.</h2>
-  <p class="section-sub">This section is for advanced users who want to work directly in the upstream AI Toolkit UI instead of staying in the simplified Manager layer.</p>
-  <div class="note-strip"><strong>GPU ID:</strong> only matters if the machine has more than one GPU. It tells AI Toolkit which card should do the training job.</div>
-  <div class="note-strip"><strong>Trigger word:</strong> if you set one here, AI Toolkit can prepend it to the training text. Use it when you want a deliberate activation token. Skip it when you want the LoRA to behave more naturally from normal prompting.</div>
-  <div class="note-strip"><strong>Starting point:</strong> for the AI Toolkit UI, a common starting direction is <code>AdamW8Bit</code>, <code>1e-4</code> learning rate, <code>weight_decay 1e-4</code>, <code>weighted</code> timesteps, <code>MSE</code> loss, <strong>EMA off</strong>, <strong>cache text embeddings on</strong>, and a <strong>balanced</strong> bias before moving into a stronger style push later.</div>
-  <div class="note-strip"><strong>Save dtype:</strong> this is the precision format used when the checkpoints or LoRA files are written. <code>BF16</code> is a good practical default because it is stable and light enough for most modern training runs.</div>
-  <div class="note-strip"><strong>Save every, sample every, and sample steps:</strong> <strong>save every</strong> controls how often AI Toolkit writes a checkpoint. <strong>sample every</strong> controls how often it renders preview images. It is usually smartest to keep those aligned so each saved checkpoint has matching preview samples. <strong>sample steps</strong> is just the number of denoising steps used to render those previews.</div>
-  <div class="note-strip"><strong>Batch size and gradient accumulation:</strong> batch size is how many images the job sees at once. Bigger batches usually give the model a better sense of the concept, but they use more VRAM. Gradient accumulation is the slower workaround when you want batch-like behavior without actually fitting that bigger batch in memory.</div>
-  <div class="note-strip"><strong>Optimizer, learning rate, and weight decay:</strong> <code>AdamW8Bit</code> is the normal default when VRAM allows it. Learning rate is how hard each step pushes the LoRA. Too low and it barely learns. Too high and it overlearns or breaks down. Weight decay is a light anti-overcooking control that helps stop the model from clinging too hard to exact training images.</div>
-  <div class="note-strip"><strong>Loss, timestep type, timestep bias, and noise type:</strong> <code>MSE</code> is the normal loss choice here. Timestep settings control where training pays attention across the denoising process. <strong>Balanced</strong> is the safe start. <strong>High noise</strong> shifts attention earlier in the denoising process, which can help with stronger style takeover or bigger composition changes. Newer models use <strong>flow match</strong> while older SD-style models use <strong>DDPM</strong>.</div>
-  <div class="note-strip"><strong>EMA and EMA decay:</strong> EMA is a smoothing option. Leaving it off gives a more direct baseline. Turning it on smooths the update path, which can make results more consistent on some smaller or fussier runs. EMA decay is just the strength of that smoothing.</div>
-  <div class="note-strip"><strong>Text encoder, cache text embeddings, and unload text encoder:</strong> the text encoder helps the model tie prompt words to the concept more specifically. Caching text embeddings is the convenient speed-and-VRAM choice when the captions are static. Unloading the text encoder saves VRAM, but it slows training because AI Toolkit has to keep reloading that component.</div>
-  <div class="note-strip"><strong>What those settings mean together:</strong> the baseline logic is simple. Start balanced, keep the learning rate sane, use an optimizer that fits your VRAM, save checkpoints at useful intervals, and only lean into more aggressive noise bias or experimental tweaks when the normal run is clearly too weak.</div>
-  <div class="note-strip"><strong>Style-specific note:</strong> for extreme style changes, start from a balanced setup and only later switch toward a <strong>high noise</strong> bias if you need the model to rebuild more of the early composition. That is useful later, but it is not the first thing to reach for on every run.</div>
-  <div class="note-strip"><strong>Trigger words and captions:</strong> trigger words are optional. Some runs use them, some do not. For style work, it usually makes more sense to caption the content normally and let the images teach the style.</div>
+  <h2 class="section-title">5. AI Toolkit UI reference.</h2>
+  <p class="section-sub">Use this section only if you want to work directly in the upstream AI Toolkit UI instead of staying in the Manager screen.</p>
+  <div class="ref-table">
+    <div class="ref-row">
+      <div class="ref-key">GPU ID</div>
+      <div class="ref-value">Only matters if the machine has more than one GPU. It tells AI Toolkit which card should do the training job.</div>
+    </div>
+    <div class="ref-row">
+      <div class="ref-key">Trigger word</div>
+      <div class="ref-value">If you set one here, AI Toolkit can prepend it to the training text. Use it when you want a deliberate activation token. Skip it when you want the LoRA to behave more naturally from normal prompting.</div>
+    </div>
+    <div class="ref-row">
+      <div class="ref-key">Starting point</div>
+      <div class="ref-value"><code>AdamW8Bit</code>, <code>1e-4</code> learning rate, <code>weight_decay 1e-4</code>, <code>weighted</code> timesteps, <code>MSE</code> loss, <strong>EMA off</strong>, <strong>cache text embeddings on</strong>, and a <strong>balanced</strong> bias is a solid starting direction.</div>
+    </div>
+    <div class="ref-row">
+      <div class="ref-key">Save dtype</div>
+      <div class="ref-value">This is the precision format used when the checkpoints or LoRA files are written. <code>BF16</code> is a good practical default because it is stable and light enough for most modern training runs.</div>
+    </div>
+    <div class="ref-row">
+      <div class="ref-key">Save every / sample every / sample steps</div>
+      <div class="ref-value"><strong>Save every</strong> controls how often AI Toolkit writes a checkpoint. <strong>Sample every</strong> controls how often it renders preview images. <strong>Sample steps</strong> is the number of denoising steps used for those previews.</div>
+    </div>
+    <div class="ref-row">
+      <div class="ref-key">Batch size / gradient accumulation</div>
+      <div class="ref-value">Batch size is how many images the job sees at once. Gradient accumulation is the slower workaround when you want batch-like behavior without actually fitting that bigger batch in memory.</div>
+    </div>
+    <div class="ref-row">
+      <div class="ref-key">Optimizer / learning rate / weight decay</div>
+      <div class="ref-value"><code>AdamW8Bit</code> is the normal default when VRAM allows it. Learning rate is how hard each step pushes the LoRA. Weight decay is a light anti-overcooking control that helps stop the model from clinging too hard to exact training images.</div>
+    </div>
+    <div class="ref-row">
+      <div class="ref-key">Loss / timestep settings / noise type</div>
+      <div class="ref-value"><code>MSE</code> is the normal loss choice here. <strong>Balanced</strong> is the safe start. <strong>High noise</strong> shifts attention earlier in the denoising process and can help with stronger style takeover. Newer models use <strong>flow match</strong> while older SD-style models use <strong>DDPM</strong>.</div>
+    </div>
+    <div class="ref-row">
+      <div class="ref-key">EMA / EMA decay</div>
+      <div class="ref-value">EMA is a smoothing option. Leaving it off gives a more direct baseline. Turning it on smooths the update path. EMA decay is the strength of that smoothing.</div>
+    </div>
+    <div class="ref-row">
+      <div class="ref-key">Text encoder / cache / unload</div>
+      <div class="ref-value">The text encoder helps the model tie prompt words to the concept more specifically. Caching text embeddings is the convenient speed-and-VRAM choice when the captions are static. Unloading the text encoder saves VRAM, but it slows training because AI Toolkit has to keep reloading that component.</div>
+    </div>
+    <div class="ref-row">
+      <div class="ref-key">Style note</div>
+      <div class="ref-value">For extreme style changes, start from a balanced setup and only later switch toward a <strong>high noise</strong> bias if you need the model to rebuild more of the early composition.</div>
+    </div>
+    <div class="ref-row">
+      <div class="ref-key">Trigger words and captions</div>
+      <div class="ref-value">Trigger words are optional. For style work, it usually makes more sense to caption the content normally and let the images teach the style.</div>
+    </div>
+  </div>
   <div class="code-shell">
     <div class="code-header">Direct AI Toolkit UI Order</div>
     <div class="code-body">1. Datasets -> New Dataset
