@@ -161,9 +161,26 @@
     line-height: 1.7;
   }
   footer { border-top: 1px solid var(--dark4); padding: 28px 60px; display: flex; justify-content: space-between; color: #5d5d5d; font-family: var(--font-mono); font-size: 12px; gap: 16px; }
+  @media (max-width: 1100px) {
+    nav {
+      padding: 14px 24px;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 12px;
+    }
+    .nav-logo img { width: 184px; }
+    .nav-links {
+      display: flex;
+      width: 100%;
+      flex-wrap: wrap;
+      gap: 10px 18px;
+      align-items: center;
+    }
+    .nav-links a { font-size: 13px; }
+    .nav-cta { padding: 6px 14px; font-size: 12px; }
+    .hero { padding-top: 212px; }
+  }
   @media (max-width: 900px) {
-    nav { padding: 14px 24px; }
-    .nav-links { display: none; }
     .hero, .section { padding-left: 24px; padding-right: 24px; }
     .hero-panel, .two-col, .pair-grid { grid-template-columns: 1fr; }
     footer { padding: 24px; flex-direction: column; }
