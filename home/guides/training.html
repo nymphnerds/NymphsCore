@@ -178,7 +178,7 @@
   <ul class="nav-links">
     <li><a href="../guides.html">Guide Hub</a></li>
     <li><a href="#dataset">Dataset</a></li>
-    <li><a href="#captions">Captions</a></li>
+    <li><a href="#trainer">Trainer</a></li>
     <li><a href="#settings">Settings</a></li>
     <li><a href="#run-job">Run Job</a></li>
     <li><a href="#results">Results</a></li>
@@ -227,16 +227,15 @@
   <div class="note-strip"><strong>For style LoRAs:</strong> keep the dataset visually coherent. If the images do not feel like they belong to one family, the LoRA has a much harder time settling into a reliable look.</div>
 </section>
 
-<section class="section" id="captions">
-  <h2 class="section-title">2. Optionally draft captions with Brain, then review them.</h2>
-  <p class="section-sub">After the dataset exists, you can use <strong>Caption with Brain</strong> if you want help drafting captions. This is optional. It is not the first step of the workflow, and it is not a substitute for good images or sensible settings.</p>
-  <div class="note-strip"><strong>What Brain does:</strong> it drafts one editable caption per image into <code>metadata.csv</code>. The UI lets you choose <strong>Fill Blank Only</strong> or <strong>Overwrite All Drafts</strong>, then review the result through <strong>Open Draft CSV</strong>.</div>
-  <div class="note-strip"><strong>What Add Job does later:</strong> when you click <strong>Add Job</strong>, the app mirrors those draft captions into the per-image <code>.txt</code> files that AI Toolkit actually trains from. That means <code>metadata.csv</code> is the sheet you edit, but the final training text lives beside the images.</div>
-  <div class="note-strip"><strong>How to caption style work:</strong> describe the content normally instead of padding every line with repeated style labels. The images should teach the rendering style. The captions should teach what to ask for. If you have 10 images, you should end up with 10 matching caption rows.</div>
+<section class="section" id="trainer">
+  <h2 class="section-title">2. Open the trainer for that dataset.</h2>
+  <p class="section-sub">Once the images are in place, go to the Z-Image Trainer screen and work from the same LoRA name. This is the point where you stop thinking about folders and start working in the actual training UI.</p>
+  <div class="note-strip"><strong>Keep the name consistent:</strong> the LoRA name, dataset folder, job files, and final outputs are easier to track when they all stay tied to the same name.</div>
+  <div class="note-strip"><strong>This is where the real setup happens:</strong> once you are on the trainer screen, you can review captions if you want them, choose the preset and adapter, set the prompt and training values, then add and start the job.</div>
 </section>
 
 <section class="section" id="settings">
-  <h2 class="section-title">3. Decide the training settings before you click Add Job.</h2>
+  <h2 class="section-title">3. Review captions if you want them, then choose the training settings.</h2>
   <p class="section-sub">This is the part that comes before job creation. In the Manager, you choose the preset, adapter, sample prompt, steps, checkpoints, learning rate, rank, and whether to use <strong>Low VRAM mode</strong>. The notes in this section explain the <strong>NymphsCore Manager screen</strong> shown below.</p>
   <figure class="guide-figure">
     <img src="../assets/trainer.png" alt="NymphsCore Manager Z-Image Trainer settings screen">
@@ -245,7 +244,10 @@
   <div class="note-strip"><strong>LoRA name:</strong> this is the training/job name. Keep it short and specific so you can recognize the output files later. If you use a trigger word, it is often simplest to keep the name close to that trigger so you do not forget what to prompt.</div>
   <div class="note-strip"><strong>Open Pictures Folder:</strong> opens the dataset image folder for the current LoRA name. This is where the actual training images live.</div>
   <div class="note-strip"><strong>Open LoRAs:</strong> opens the output folder where finished LoRAs and checkpoints end up.</div>
+  <div class="note-strip"><strong>Caption with Brain:</strong> this is an optional helper inside the setup stage, not a separate major step. It drafts one editable caption per image into <code>metadata.csv</code>.</div>
   <div class="note-strip"><strong>Caption fill:</strong> this is not a training quality knob. It only controls how <strong>Caption with Brain</strong> writes draft caption rows. <strong>Fill Blank Only</strong> keeps anything you already wrote. <strong>Overwrite All Drafts</strong> regenerates everything.</div>
+  <div class="note-strip"><strong>Open Draft CSV:</strong> this opens the editable caption sheet. When you later click <strong>Add Job</strong>, the app mirrors those captions into the per-image <code>.txt</code> files that AI Toolkit actually trains from.</div>
+  <div class="note-strip"><strong>How to caption style work:</strong> describe the content normally instead of padding every line with repeated style labels. The images should teach the rendering style. The captions should teach what to ask for.</div>
   <div class="note-strip"><strong>Preset choice:</strong> <strong>Fast Test</strong> is the quickest path when you just want to see whether the LoRA is learning at all. <strong>Baseline</strong> is the safest normal first run. <strong>Style</strong> is the normal style preset. <strong>Strong Style</strong> is the follow-up when the normal style run still feels too polite.</div>
   <div class="note-strip"><strong>What the presets currently write in Manager:</strong> <strong>Fast Test</strong> sets character mode, quick training, <code>500</code> steps, checkpoints off, <code>1e-4</code> learning rate, rank <code>8</code>. <strong>Baseline</strong> sets character mode, normal training, <code>3000</code> steps, <code>4</code> checkpoints, <code>1e-4</code> learning rate, rank <code>16</code>. <strong>Style</strong> uses the same numbers as Baseline but switches to style mode. <strong>Strong Style</strong> pushes that to <code>5000</code> steps with <code>4</code> checkpoints and rank <code>16</code>.</div>
   <div class="note-strip"><strong>Adapter choice:</strong> stay on <strong>v1 (Recommended)</strong> for the first serious run. Use <strong>v2 (Experimental)</strong> only after the normal path is behaving and you actually want a comparison.</div>
