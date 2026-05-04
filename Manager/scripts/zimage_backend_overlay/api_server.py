@@ -5,6 +5,7 @@ import base64
 import traceback
 import uuid
 from io import BytesIO
+from time import perf_counter
 
 import uvicorn
 from fastapi import FastAPI, HTTPException
@@ -37,6 +38,12 @@ app = FastAPI(
     version=VERSION,
     description="Local Nymphs Stable Diffusion-style backend scaffold.",
 )
+
+
+def _log_stage(message: str, **fields):
+    parts = [f"{key}={value}" for key, value in fields.items()]
+    suffix = f" {' '.join(parts)}" if parts else ""
+    print(f"[nymphs:zimage:stage] {message}{suffix}", flush=True)
 
 
 def _coerce_dimension(value: int, *, maximum: int, label: str) -> int:
@@ -99,6 +106,15 @@ def _normalize_request(payload: GenerateRequest) -> GenerateRequest:
 
 
 def _generate(payload: GenerateRequest) -> GenerateResponse:
+    started_at = perf_counter()
+    _log_stage(
+        "generate.begin",
+        mode=payload.mode,
+        steps=payload.steps,
+        width=payload.width,
+        height=payload.height,
+        lora=bool(payload.lora_path),
+    )
     progress_update(
         status="processing",
         stage="loading_model",
@@ -118,6 +134,7 @@ def _generate(payload: GenerateRequest) -> GenerateResponse:
             progress_total=3,
             progress_percent=33.0,
         )
+        _log_stage("txt2img.call.begin")
         image, model_id = MODEL_MANAGER.generate_text_to_image(
             prompt=payload.prompt,
             negative_prompt=payload.negative_prompt,
@@ -130,6 +147,7 @@ def _generate(payload: GenerateRequest) -> GenerateResponse:
             lora_path=payload.lora_path,
             lora_scale=payload.lora_scale,
         )
+        _log_stage("txt2img.call.end", elapsed=f"{perf_counter() - started_at:.2f}s")
     else:
         init_image = _decode_base64_image(payload.image or "")
         init_image = _resize_init_image(init_image, payload.width, payload.height)
@@ -141,6 +159,7 @@ def _generate(payload: GenerateRequest) -> GenerateResponse:
             progress_total=3,
             progress_percent=33.0,
         )
+        _log_stage("img2img.call.begin")
         image, model_id = MODEL_MANAGER.generate_image_to_image(
             prompt=payload.prompt,
             negative_prompt=payload.negative_prompt,
@@ -155,6 +174,7 @@ def _generate(payload: GenerateRequest) -> GenerateResponse:
             lora_path=payload.lora_path,
             lora_scale=payload.lora_scale,
         )
+        _log_stage("img2img.call.end", elapsed=f"{perf_counter() - started_at:.2f}s")
 
     progress_update(
         status="processing",
@@ -184,12 +204,19 @@ def _generate(payload: GenerateRequest) -> GenerateResponse:
         "lora_scale": payload.lora_scale,
         "strength": payload.strength,
     }
+    _log_stage("save.begin", output_dir=SETTINGS.output_dir)
     output_path, metadata_path = save_image_and_metadata(
         image,
         SETTINGS.output_dir,
         mode=payload.mode,
         prompt=payload.prompt,
         metadata=metadata,
+    )
+    _log_stage(
+        "save.end",
+        output_path=output_path,
+        metadata_path=metadata_path,
+        elapsed=f"{perf_counter() - started_at:.2f}s",
     )
 
     progress_update(
@@ -205,6 +232,7 @@ def _generate(payload: GenerateRequest) -> GenerateResponse:
     progress_reset()
     progress_update(last_output_path=str(output_path), model_id=model_id)
 
+    _log_stage("generate.end", elapsed=f"{perf_counter() - started_at:.2f}s")
     return GenerateResponse(
         status="ok",
         worker_id=WORKER_ID,
@@ -256,6 +284,7 @@ async def generate(payload: GenerateRequest):
     try:
         normalized = _normalize_request(payload)
     except ValueError as exc:
+        print(f"[nymphs:zimage:error] normalize.value_error detail={exc}", flush=True)
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     try:
@@ -263,6 +292,7 @@ async def generate(payload: GenerateRequest):
     except HTTPException:
         raise
     except ValueError as exc:
+        print(f"[nymphs:zimage:error] generate.value_error detail={exc}", flush=True)
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
         detail = str(exc) or exc.__class__.__name__

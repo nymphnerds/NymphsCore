@@ -17,7 +17,7 @@
       "kind": "git",
       "repo": "https://github.com/nymphnerds/nunchaku.git",
       "tracking_ref": "refs/heads/main",
-      "pinned": "78210f92c1f4934a9a81881978f0fa0d9a5cff60"
+      "pinned": "a2a4f2444a092974ba53323ba0681a523ff98031"
     },
     "diffusers": {
       "kind": "pypi",

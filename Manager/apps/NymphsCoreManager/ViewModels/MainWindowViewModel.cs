@@ -98,6 +98,7 @@ public sealed class MainWindowViewModel : ViewModelBase
     private string _finishSummary = string.Empty;
     private string _postInstallActionSummary = string.Empty;
     private string _runtimeToolsSummary = string.Empty;
+    private string _runtimeCodeModeSummary = "Current mode: Unknown. Repair Runtime or choose a Runtime code option to set it explicitly.";
     private string _updateCheckSummary = string.Empty;
     private string _recommendedWslConfigSummary = string.Empty;
     private string _currentWslConfigSummary = string.Empty;
@@ -879,6 +880,12 @@ public sealed class MainWindowViewModel : ViewModelBase
         private set => SetProperty(ref _runtimeToolsSummary, value);
     }
 
+    public string RuntimeCodeModeSummary
+    {
+        get => _runtimeCodeModeSummary;
+        private set => SetProperty(ref _runtimeCodeModeSummary, value);
+    }
+
     public string BrainRuntimeStatusText
     {
         get => _brainRuntimeStatusText;
@@ -1147,6 +1154,8 @@ public sealed class MainWindowViewModel : ViewModelBase
         {
             if (SetProperty(ref _zImageTrainerLoraName, value))
             {
+                OnPropertyChanged(nameof(ZImageTrainerRecommendedActivationText));
+                OnPropertyChanged(nameof(ZImageTrainerRecommendedActivationSummary));
                 MarkZImageTrainerJobNeedsUpdate();
                 _createZImageTrainerJobCommand.RaiseCanExecuteChanged();
                 _openZImageTrainerPicturesCommand.RaiseCanExecuteChanged();
@@ -1178,8 +1187,38 @@ public sealed class MainWindowViewModel : ViewModelBase
             if (SetProperty(ref _zImageTrainerPreset, normalized))
             {
                 ApplyZImageTrainerPresetDefaults(normalized);
+                OnPropertyChanged(nameof(ZImageTrainerRecommendedActivationText));
+                OnPropertyChanged(nameof(ZImageTrainerRecommendedActivationSummary));
                 MarkZImageTrainerJobNeedsUpdate();
             }
+        }
+    }
+
+    public string ZImageTrainerRecommendedActivationText
+    {
+        get
+        {
+            var loraName = (ZImageTrainerLoraName ?? string.Empty).Trim();
+            if (string.IsNullOrWhiteSpace(loraName))
+            {
+                return string.Empty;
+            }
+
+            return loraName;
+        }
+    }
+
+    public string ZImageTrainerRecommendedActivationSummary
+    {
+        get
+        {
+            var activationText = ZImageTrainerRecommendedActivationText;
+            if (string.IsNullOrWhiteSpace(activationText))
+            {
+                return "The addon will fill this in automatically once you name the LoRA.";
+            }
+
+            return "Blender will use this automatically by default. If the look is already strong enough, you can turn it off later in the addon.";
         }
     }
 
@@ -3052,6 +3091,7 @@ public sealed class MainWindowViewModel : ViewModelBase
         IsBusy = true;
         LogLines.Clear();
         RuntimeToolsSummary = "Checking backend readiness...";
+        RuntimeCodeModeSummary = "Checking current runtime code mode...";
         PostInstallActionSummary = string.Empty;
         StatusMessage = "Checking backend readiness...";
         AppendInstallLog("Starting runtime tools status check.");
@@ -3077,7 +3117,11 @@ public sealed class MainWindowViewModel : ViewModelBase
         {
             var statuses = await RefreshCoreRuntimeStatusSnapshotAsync(settings, progress).ConfigureAwait(true);
             await RefreshBrainRuntimeStatusSnapshotAsync(settings).ConfigureAwait(true);
-            RuntimeToolsSummary = BuildRuntimeToolsSummary(statuses);
+            var runtimeCodeMode = await _workflowService.GetRuntimeDependencyModeAsync(settings, CancellationToken.None).ConfigureAwait(true);
+            RuntimeCodeModeSummary = BuildRuntimeCodeModeSummary(runtimeCodeMode);
+            var readinessSummary = BuildRuntimeToolsSummary(statuses);
+            var runtimeCodeSummary = await CheckInstalledRuntimeStateForRuntimeToolsAsync(settings, runtimeCodeMode).ConfigureAwait(true);
+            RuntimeToolsSummary = CombineRuntimeToolsSummary(readinessSummary, runtimeCodeSummary);
             StatusMessage = "Runtime tool status check completed.";
             LogLines.Add(StatusMessage);
             AppendInstallLog(StatusMessage);
@@ -3094,6 +3138,49 @@ public sealed class MainWindowViewModel : ViewModelBase
         {
             IsBusy = false;
             RaiseCommandStateChanged();
+        }
+    }
+
+    private async Task<string> CheckInstalledRuntimeStateForRuntimeToolsAsync(InstallSettings settings, string? runtimeCodeMode)
+    {
+        var normalizedMode = (runtimeCodeMode ?? string.Empty).Trim().ToLowerInvariant();
+        if (string.Equals(normalizedMode, "latest", StringComparison.Ordinal))
+        {
+            PostInstallActionSummary = "Using Latest upstream.";
+            return PostInstallActionSummary;
+        }
+
+        var updatesAvailable = false;
+        var progress = new Progress<string>(line =>
+        {
+            var sanitizedLine = line.Replace("\0", string.Empty);
+            if (!string.IsNullOrWhiteSpace(sanitizedLine))
+            {
+                if (sanitizedLine.Contains("installed_runtime_state=drift", StringComparison.OrdinalIgnoreCase))
+                {
+                    updatesAvailable = true;
+                }
+
+                LogLines.Add(sanitizedLine);
+                StatusMessage = sanitizedLine;
+                AppendInstallLog(sanitizedLine);
+            }
+        });
+
+        try
+        {
+            await _workflowService.CheckInstalledRuntimeStateAsync(settings, progress, CancellationToken.None).ConfigureAwait(true);
+            PostInstallActionSummary = updatesAvailable
+                ? "Using Release-tested. Installed runtime needs refresh."
+                : "Using Release-tested.";
+            return PostInstallActionSummary;
+        }
+        catch (Exception ex)
+        {
+            PostInstallActionSummary = "Installed runtime state check failed. Check the live log and log folder.";
+            LogLines.Add($"ERROR: {ex.Message}");
+            AppendInstallLog($"ERROR: {ex}");
+            return PostInstallActionSummary;
         }
     }
 
@@ -3523,6 +3610,31 @@ public sealed class MainWindowViewModel : ViewModelBase
         return "Runtime tools are available, but backend readiness could not be confirmed.";
     }
 
+    private static string CombineRuntimeToolsSummary(string readinessSummary, string runtimeCodeSummary)
+    {
+        if (string.IsNullOrWhiteSpace(runtimeCodeSummary))
+        {
+            return readinessSummary;
+        }
+
+        if (string.Equals(readinessSummary, runtimeCodeSummary, StringComparison.Ordinal))
+        {
+            return readinessSummary;
+        }
+
+        return $"{readinessSummary} {runtimeCodeSummary}";
+    }
+
+    private static string BuildRuntimeCodeModeSummary(string? mode)
+    {
+        return (mode ?? string.Empty).Trim().ToLowerInvariant() switch
+        {
+            "latest" => "Current mode: Latest upstream. Z-Image and TRELLIS are using the latest tracked upstream code.",
+            "pinned" => "Current mode: Release-tested. Z-Image and TRELLIS are using the pinned versions from this Manager build.",
+            _ => "Current mode: Unknown. Repair Runtime or choose a Runtime code option to set it explicitly.",
+        };
+    }
+
     private async Task RunFetchModelsNowAsync()
     {
         await RunFetchModelsNowAsync("all").ConfigureAwait(true);
@@ -3639,6 +3751,32 @@ public sealed class MainWindowViewModel : ViewModelBase
     private async Task CheckRuntimeDependencyUpdatesAsync()
     {
         var settings = BuildManagedActionSettings();
+        var runtimeCodeMode = await _workflowService.GetRuntimeDependencyModeAsync(settings, CancellationToken.None).ConfigureAwait(true);
+        var normalizedMode = (runtimeCodeMode ?? string.Empty).Trim().ToLowerInvariant();
+
+        if (string.Equals(normalizedMode, "latest", StringComparison.Ordinal))
+        {
+            PrepareManagedActionRun(
+                "Checking runtime code mode...",
+                "Latest upstream mode is already active for this runtime.");
+            IsBusy = true;
+            try
+            {
+                RuntimeCodeModeSummary = BuildRuntimeCodeModeSummary(runtimeCodeMode);
+                PostInstallActionSummary = "Using Latest upstream.";
+                RuntimeToolsSummary = PostInstallActionSummary;
+                StatusMessage = "Runtime code mode check completed.";
+                AppendInstallLog(StatusMessage);
+            }
+            finally
+            {
+                IsBusy = false;
+                RaiseCommandStateChanged();
+            }
+
+            return;
+        }
+
         PrepareManagedActionRun(
             "Checking runtime code updates...",
             "Comparing release-tested runtime source and packages against upstream.");
@@ -3665,8 +3803,8 @@ public sealed class MainWindowViewModel : ViewModelBase
         {
             await _workflowService.CheckRuntimeDependencyUpdatesAsync(settings, progress, CancellationToken.None).ConfigureAwait(true);
             PostInstallActionSummary = updatesAvailable
-                ? "Runtime code updates are available. Use this as your dev test list before moving release pins."
-                : "Runtime code pins are up to date.";
+                ? "Newer runtime code is available online. Stay on Release-tested to keep the current pinned versions, or choose Latest upstream to try the newer code."
+                : "Runtime code is already on the current pinned versions.";
             RuntimeToolsSummary = PostInstallActionSummary;
             StatusMessage = "Runtime code update check completed.";
             AppendInstallLog(StatusMessage);
@@ -3713,6 +3851,8 @@ public sealed class MainWindowViewModel : ViewModelBase
             await _workflowService.ApplyRuntimeDependencyModeAsync(settings, mode, progress, CancellationToken.None).ConfigureAwait(true);
             var statuses = await RefreshCoreRuntimeStatusSnapshotAsync(settings, progress).ConfigureAwait(true);
             await RefreshBrainRuntimeStatusSnapshotAsync(settings).ConfigureAwait(true);
+            RuntimeCodeModeSummary = BuildRuntimeCodeModeSummary(
+                await _workflowService.GetRuntimeDependencyModeAsync(settings, CancellationToken.None).ConfigureAwait(true));
 
             PostInstallActionSummary = latestMode
                 ? "Latest runtime code was applied to this dev runtime. Run smoke tests before moving release pins."

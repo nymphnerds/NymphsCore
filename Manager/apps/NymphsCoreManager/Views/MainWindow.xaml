@@ -527,7 +527,7 @@
     <Border Grid.Column="0"
             Background="{StaticResource SidebarShellBrush}"
             CornerRadius="24"
-            Padding="24">
+            Padding="24,12,24,24">
         <Grid>
           <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
@@ -561,17 +561,18 @@
                  IsHitTestVisible="False"
                  Visibility="{Binding ShowBrainSidebarArt, Converter={StaticResource BoolToVisibilityConverter}}" />
 
-        <Image Panel.ZIndex="1"
+        <Image Grid.Row="0"
+               Panel.ZIndex="1"
                Source="/AppAssets/NymphsCoreLogo.png"
                Height="56"
-               Margin="0,0,0,2"
+               Margin="0,-2,0,0"
                HorizontalAlignment="Left"
                VerticalAlignment="Top"
                Stretch="Uniform" />
 
         <TextBlock Grid.Row="1"
                    Panel.ZIndex="1"
-                   Margin="0,8,0,0"
+                   Margin="0,4,0,0"
                    Text="{Binding StepCounterText}"
                    FontSize="16"
                    Foreground="{StaticResource MutedTextBrush}" />
@@ -1605,7 +1606,7 @@
                         Command="{Binding TestLatestRuntimeDependenciesCommand}"
                         Content="Latest upstream" />
                 <TextBlock Grid.Column="8"
-                           Text="Switches source/package code only. Use Fetch for model files, then Test each backend."
+                           Text="{Binding RuntimeCodeModeSummary}"
                            TextWrapping="Wrap"
                            FontSize="11"
                            VerticalAlignment="Center"

@@ -158,6 +158,8 @@
     <li><a href="../guides.html">Guide Hub</a></li>
     <li><a href="#captions">Captions</a></li>
     <li><a href="#source-images">Source Images</a></li>
+    <li><a href="#activation">Activation</a></li>
+    <li><a href="#blender">Blender</a></li>
     <li><a href="#first-test">Hardware & First Run</a></li>
     <li><a href="#results">Results</a></li>
     <li><a href="../alpha.html?v=20260426b" class="nav-cta">Bug Reports</a></li>
@@ -167,7 +169,7 @@
 <section class="hero">
   <div class="eyebrow">Guide 05</div>
   <h1>Train a Z-Image LoRA.<em>Start safe, then push style on purpose.</em></h1>
-  <p class="hero-sub">This is the public beginner guide for the Z-Image Trainer. It focuses on the practical parts that matter most: what captions are doing, how to start with a small safe AI Toolkit run, and how to read the result whether you are on a stronger GPU or a more modest one.</p>
+  <p class="hero-sub">This is the public beginner guide for the Z-Image Trainer as it works right now inside NymphsCore. It covers the practical parts that matter most: how captions work, how to start a safe first run in Manager, what <strong>recommended activation</strong> means, and how to actually use the finished LoRA in Blender.</p>
   <div class="hero-actions">
     <a class="btn" href="#captions">Understand captions</a>
     <a class="ghost" href="#first-test">Run your first test</a>
@@ -182,13 +184,14 @@
         <li><strong>Nymphs UI</strong> is the lighter Gradio path. <strong>Official UI</strong> is the upstream AI Toolkit web UI.</li>
         <li><strong>Baseline</strong> is the safe first preset for proving the end-to-end flow.</li>
         <li><strong>Style</strong> is the normal first preset for painterly or illustrative datasets.</li>
-        <li><strong>Style High Noise</strong> is the stronger follow-up when style needs to push composition harder.</li>
+        <li><strong>Strong Style</strong> is the stronger follow-up when style needs to push composition harder.</li>
         <li><strong>v1</strong> is the recommended adapter for first tests. Save <strong>v2</strong> for comparison after the stable path works.</li>
+        <li>Manager now saves a <strong>recommended activation</strong> with the LoRA, and Blender can use it automatically.</li>
       </ul>
     </div>
     <div class="signal-box">
-      <div class="section-tag">// Why Captions Matter</div>
-      <p>The images teach the model what things look like. The captions teach it what words should call those things back up later. If the caption is vague, noisy, or wrong, the LoRA can still learn something, but it will be much harder to prompt cleanly.</p>
+      <div class="section-tag">// Captions + Activation</div>
+      <p>The images teach the model what things look like. The captions teach it what words should call those things back up later. Then, after training, some LoRAs also respond better when Blender includes a short <strong>activation phrase</strong> like the LoRA name itself.</p>
       <ul>
         <li>The caption is not busywork. It is part of the training pair.</li>
         <li>You do not need perfect prose. You do need clear intent.</li>
@@ -350,8 +353,87 @@ Keep going like that until every image has its own matching prompt.</div>
     <div class="info-card">
       <div class="section-tag">// Preset</div>
       <h3>Style</h3>
-      <p>Use this when the point is a broad rendering language, like paintings, kids drawings, heavy illustration, or a very particular visual voice. Start here before moving to <strong>Style High Noise</strong>.</p>
+      <p>Use this when the point is a broad rendering language, like paintings, kids drawings, heavy illustration, or a very particular visual voice. Start here before moving to <strong>Strong Style</strong>.</p>
     </div>
+  </div>
+</section>
+
+<section class="section" id="activation">
+  <div class="section-tag">// Recommended Activation</div>
+  <h2 class="section-title">What recommended activation means.</h2>
+  <p class="section-sub">This is the simple version: some LoRAs work strongly just by being turned on, and some work better when Blender also adds a short phrase to the prompt. NymphsCore calls that phrase the <strong>recommended activation</strong> so you do not need to think in trigger-word theory first.</p>
+  <div class="two-col" style="margin-bottom:20px;">
+    <div class="info-card">
+      <div class="section-tag">// Plain English</div>
+      <h3>Think of it as the extra nudge.</h3>
+      <p>The LoRA is the attachment. The activation phrase is the extra nudge that tells the model to lean into that learned look more clearly.</p>
+    </div>
+    <div class="info-card">
+      <div class="section-tag">// Product Rule</div>
+      <h3>You should not have to guess.</h3>
+      <p>Manager now writes a recommended activation into LoRA metadata. Blender reads it and can use it automatically, so the system does the remembering for you.</p>
+    </div>
+  </div>
+  <div class="steps">
+    <div class="step-card">
+      <div class="step-num">Rule 07</div>
+      <h3>Recommended activation is a suggestion, not a law.</h3>
+      <p>Some LoRAs look great without it. Some feel weak until you use it. That is why the addon lets you keep it on by default, then turn it off later if the style is already strong enough.</p>
+    </div>
+    <div class="step-card">
+      <div class="step-num">Rule 08</div>
+      <h3>The current default is just the LoRA name.</h3>
+      <p>If your LoRA is called <strong>yamamoto</strong>, the system now recommends <strong>yamamoto</strong> as the starting activation text. Keep it simple first, then change it only if testing shows the LoRA wants something else.</p>
+    </div>
+    <div class="step-card">
+      <div class="step-num">Rule 09</div>
+      <h3>Downloaded LoRAs may need a quick manual setup.</h3>
+      <p>If a downloaded LoRA does not already have metadata, you can type the recommended activation once in Blender. The addon saves it beside the LoRA so you do not have to remember it next time.</p>
+    </div>
+  </div>
+  <div class="note-strip"><strong>Current system detail:</strong> Manager-trained LoRAs now get a <code>nymphs_lora.json</code> sidecar with activation metadata. Blender reads that sidecar and uses it to fill the LoRA controls automatically.</div>
+</section>
+
+<section class="section" id="blender">
+  <div class="section-tag">// Blender</div>
+  <h2 class="section-title">How to use the trained LoRA in Blender.</h2>
+  <p class="section-sub">Once training is done, the normal flow is simple: pick the LoRA in the addon, leave the recommended activation on for the first test, and compare a run with it on versus off only if you need to judge how much it helps.</p>
+  <div class="steps">
+    <div class="step-card">
+      <div class="step-num">Step 01</div>
+      <h3>Open the Z-Image panel and enable the LoRA.</h3>
+      <p>Turn on <strong>Use LoRA</strong>, choose the LoRA run, and select a checkpoint or final file. The addon now lists LoRAs from the LoRA library as well as trainer run folders.</p>
+    </div>
+    <div class="step-card">
+      <div class="step-num">Step 02</div>
+      <h3>Leave recommended activation on for the first test.</h3>
+      <p>The addon shows <strong>Use Recommended Activation</strong> and <strong>Recommended Activation</strong>. Start with that enabled so you are testing the LoRA the way NymphsCore currently recommends it.</p>
+    </div>
+    <div class="step-card">
+      <div class="step-num">Step 03</div>
+      <h3>Write the rest of the prompt normally.</h3>
+      <p>You still prompt the scene, subject, or idea you want. The activation phrase is only there to help the model call up the LoRA more reliably when needed.</p>
+    </div>
+    <div class="step-card">
+      <div class="step-num">Step 04</div>
+      <h3>If the result is weak, keep activation on before changing everything else.</h3>
+      <p>First try the recommended activation, then adjust LoRA strength, then compare checkpoints. Do not make five different changes at once or it becomes hard to tell what actually helped.</p>
+    </div>
+    <div class="step-card">
+      <div class="step-num">Step 05</div>
+      <h3>If the result is already strong, try turning activation off.</h3>
+      <p>That is the clean way to judge whether the LoRA really needs the extra phrase or whether it is already asserting the style strongly enough on its own.</p>
+    </div>
+  </div>
+  <div class="code-shell">
+    <div class="code-header">Simple Blender Flow</div>
+    <div class="code-body">1. Train LoRA in Manager
+2. Open Blender
+3. Z-Image panel -> Use LoRA
+4. Pick LoRA
+5. Leave "Use Recommended Activation" on
+6. Generate once
+7. If needed, compare with activation off</div>
   </div>
 </section>
 
@@ -368,7 +450,7 @@ Keep going like that until every image has its own matching prompt.</div>
     <div class="info-card">
       <div class="section-tag">// What To Expect</div>
       <h3>Longer waits do not automatically mean failure.</h3>
-      <p>The first install or first model load can take a while. Add Trainer now pulls the heavy base trainer files up front, but the first real run can still be quiet for a bit while the model settles into memory.</p>
+      <p>The first install or first model load can take a while. The trainer now pulls the heavy base trainer files up front, but the first real run can still be quiet for a bit while the model settles into memory.</p>
     </div>
   </div>
   <div class="steps">
@@ -380,17 +462,17 @@ Keep going like that until every image has its own matching prompt.</div>
     <div class="step-card">
       <div class="step-num">Step 02</div>
       <h3>Pick the right focus before you pick strength.</h3>
-      <p>Choose <strong>Baseline</strong> for the safest first proof. Choose <strong>Style</strong> for painterly or illustration-style work. Save <strong>Style High Noise</strong> for the second pass if the style still feels too polite.</p>
+      <p>Choose <strong>Baseline</strong> for the safest first proof. Choose <strong>Style</strong> for painterly or illustration-style work. Save <strong>Strong Style</strong> for the second pass if the style still feels too polite.</p>
     </div>
     <div class="step-card">
       <div class="step-num">Step 03</div>
       <h3>Review every prompt before you hit start.</h3>
-      <p>Use <strong>Open Pictures Folder</strong>, then <strong>Open Captions File</strong>, and make sure every image has a real prompt. If you use Caption Brain, scan for anything too generic, repetitive, or simply wrong.</p>
+      <p>Use <strong>Open Pictures Folder</strong>, then <strong>Open Draft CSV</strong>, and make sure every image has a real prompt. If you use Caption Brain, scan for anything too generic, repetitive, or simply wrong.</p>
     </div>
     <div class="step-card">
       <div class="step-num">Step 04</div>
       <h3>Treat the first run as a learning run.</h3>
-      <p>If it completes and the result bends output toward your style, that is a win. Stay on <strong>v1 (Recommended)</strong> for the adapter first. Move to <strong>Style High Noise</strong> or try <strong>v2 (Experimental)</strong> only after the baseline path is behaving.</p>
+      <p>If it completes and the result bends output toward your style, that is a win. Stay on <strong>v1 (Recommended)</strong> for the adapter first. Move to <strong>Strong Style</strong> or try <strong>v2 (Experimental)</strong> only after the baseline path is behaving.</p>
     </div>
     <div class="step-card">
       <div class="step-num">Step 05</div>
@@ -420,12 +502,12 @@ Keep going like that until every image has its own matching prompt.</div>
     <div class="step-card">
       <div class="step-num">First Check</div>
       <h3>Compare the later epoch first.</h3>
-      <p>The trainer writes checkpoint files like <code>epoch-0.safetensors</code> and <code>epoch-1.safetensors</code>. Start by testing the later checkpoint first, then compare backward if it feels too weak or too pushy.</p>
+      <p>The trainer writes multiple checkpoints while it trains, plus the final LoRA file in the LoRA folder. Start by testing the later checkpoint or final file first, then compare backward if it feels too weak or too pushy.</p>
     </div>
     <div class="step-card">
       <div class="step-num">If It Is Weak</div>
       <h3>Try a cleaner or slightly longer second pass.</h3>
-      <p>Move from <strong>Baseline</strong> to <strong>Style</strong>, or from <strong>Style</strong> to <strong>Style High Noise</strong>, tighten prompts, and make sure the images are all really teaching the same visual language.</p>
+      <p>Move from <strong>Baseline</strong> to <strong>Style</strong>, or from <strong>Style</strong> to <strong>Strong Style</strong>, tighten prompts, and make sure the images are all really teaching the same visual language. Also test the recommended activation in Blender before assuming the LoRA itself failed.</p>
     </div>
     <div class="step-card">
       <div class="step-num">If It Is Overcooked</div>
@@ -449,7 +531,7 @@ Keep going like that until every image has its own matching prompt.</div>
     <div class="demo-meta">Suggested future additions:
 Baseline vs Style comparison
 Caption examples that worked well
-Style High Noise dataset examples
+Strong Style dataset examples
 First bad run / second improved run</div>
   </div>
 </section>

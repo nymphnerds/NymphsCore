@@ -5,6 +5,7 @@ import os
 from threading import RLock
 
 import torch
+import torch.nn as nn
 from safetensors.torch import load_file
 
 from config import Settings
@@ -14,6 +15,76 @@ from nunchaku_compat import patch_zimage_transformer_forward
 def _experimental_nunchaku_img2img_enabled() -> bool:
     raw = os.getenv("Z_IMAGE_NUNCHAKU_IMG2IMG") or os.getenv("NYMPHS2D2_NUNCHAKU_IMG2IMG")
     return (raw or "").strip().lower() in {"1", "true", "yes", "on"}
+
+
+class DeferredNunchakuLoraWrapper(nn.Module):
+    def __init__(self, model: nn.Module):
+        super().__init__()
+        self.model = model
+        self._desired_lora_path: str | None = None
+        self._desired_lora_scale: float = 1.0
+        self._applied_lora_path: str | None = None
+        self._applied_lora_scale: float | None = None
+
+    def __getattr__(self, name):
+        if name != "model":
+            modules = self.__dict__.get("_modules", {})
+            model = modules.get("model")
+            if model is not None:
+                try:
+                    return getattr(model, name)
+                except AttributeError:
+                    pass
+        return super().__getattr__(name)
+
+    def update_lora_params(self, path_or_state_dict: str | dict[str, torch.Tensor]):
+        if not isinstance(path_or_state_dict, str):
+            raise TypeError("DeferredNunchakuLoraWrapper currently expects a LoRA file path.")
+        self._desired_lora_path = path_or_state_dict
+
+    def set_lora_strength(self, strength: float = 1.0):
+        self._desired_lora_scale = float(strength)
+
+    def reset_lora(self):
+        self._desired_lora_path = None
+        self._desired_lora_scale = 1.0
+
+    def _sync_lora_state(self):
+        desired_path = self._desired_lora_path
+        desired_scale = self._desired_lora_scale
+        if desired_path == self._applied_lora_path and (
+            desired_path is None or desired_scale == self._applied_lora_scale
+        ):
+            return
+
+        if hasattr(self.model, "reset_lora"):
+            self.model.reset_lora()
+
+        if desired_path:
+            print(
+                f"[nymphs:zimage:lora] wrapper.compose path={desired_path} strength={desired_scale}",
+                flush=True,
+            )
+            self.model.update_lora_params(desired_path)
+            self.model.set_lora_strength(desired_scale)
+            self._applied_lora_path = desired_path
+            self._applied_lora_scale = desired_scale
+        else:
+            print("[nymphs:zimage:lora] wrapper.reset", flush=True)
+            self._applied_lora_path = None
+            self._applied_lora_scale = None
+
+    def forward(self, *args, **kwargs):
+        self._sync_lora_state()
+        return self.model(*args, **kwargs)
+
+
+def _wrap_pipeline_transformer_for_deferred_lora(pipeline):
+    transformer = getattr(pipeline, "transformer", None)
+    if transformer is None or isinstance(transformer, DeferredNunchakuLoraWrapper):
+        return pipeline
+    pipeline.transformer = DeferredNunchakuLoraWrapper(transformer)
+    return pipeline
 
 
 class ModelManager:
@@ -123,13 +194,11 @@ class ModelManager:
 
     def _prepare_pipeline(self, pipeline, runtime: str):
         if runtime == "nunchaku":
-            # Native Nunchaku LoRA support mutates quantized low-rank tensors in-place.
-            # Accelerate's sequential CPU offload snapshots the original parameter shapes
-            # and later tries to restore them, which breaks once LoRA expands the fused
-            # ranks (e.g. qkv_proj_down from 32 -> 80). Keep Nunchaku resident on the
-            # target device so LoRA application remains compatible.
+            if hasattr(pipeline, "remove_all_hooks"):
+                pipeline.remove_all_hooks()
             if self.settings.device:
                 pipeline = pipeline.to(self.settings.device)
+            pipeline._nymphs_nunchaku_offload_enabled = False
             return pipeline
 
         if self.settings.device:
@@ -137,6 +206,9 @@ class ModelManager:
         if hasattr(pipeline, "enable_attention_slicing"):
             pipeline.enable_attention_slicing()
         return pipeline
+
+    def _set_nunchaku_lora_execution_mode(self, pipeline, lora_active: bool):
+        return
 
     def _unload_pipelines(self):
         self._txt2img = None
@@ -204,11 +276,12 @@ class ModelManager:
                 "zimage_forward_shim": True,
                 "experimental_img2img": _experimental_nunchaku_img2img_enabled(),
             }
-            return ZImagePipeline.from_pretrained(
+            pipeline = ZImagePipeline.from_pretrained(
                 model_id,
                 transformer=transformer,
                 **self._pipeline_kwargs(model_id, runtime),
             )
+            return _wrap_pipeline_transformer_for_deferred_lora(pipeline)
 
         if self._model_family(model_id) == "zimage":
             try:
@@ -276,6 +349,7 @@ class ModelManager:
                 transformer=transformer,
                 **self._pipeline_kwargs(self._loaded_model_id, self._loaded_runtime or "nunchaku"),
             )
+            self._img2img = _wrap_pipeline_transformer_for_deferred_lora(self._img2img)
             self._img2img = self._prepare_pipeline(self._img2img, self._loaded_runtime or "nunchaku")
             return self._img2img
 
@@ -361,6 +435,7 @@ class ModelManager:
                     transformer = getattr(pipeline, "transformer", None)
                     if transformer is not None and hasattr(transformer, "reset_lora"):
                         transformer.reset_lora()
+                    self._set_nunchaku_lora_execution_mode(pipeline, False)
                 else:
                     pipeline.unload_lora_weights()
                 pipeline._nymphs_lora_path = None
@@ -372,6 +447,7 @@ class ModelManager:
 
         desired_scale = float(1.0 if lora_scale is None else lora_scale)
         if self._loaded_runtime == "nunchaku":
+            self._set_nunchaku_lora_execution_mode(pipeline, True)
             transformer = getattr(pipeline, "transformer", None)
             if (
                 transformer is None
@@ -429,8 +505,12 @@ class ModelManager:
             }
             if self._loaded_runtime != "nunchaku":
                 kwargs["negative_prompt"] = negative_prompt
+            print("[nymphs:zimage:stage] pipeline.txt2img.begin", flush=True)
             result = self._txt2img(**kwargs)
-            return result.images[0], active_model_id
+            print("[nymphs:zimage:stage] pipeline.txt2img.returned", flush=True)
+            image = result.images[0]
+            print("[nymphs:zimage:stage] pipeline.txt2img.image_extracted", flush=True)
+            return image, active_model_id
 
     def generate_image_to_image(
         self,
@@ -453,6 +533,7 @@ class ModelManager:
             pipeline = self._ensure_img2img()
             self._configure_pipeline_lora(pipeline, lora_path, lora_scale)
             generator = self._build_generator(seed)
+            print("[nymphs:zimage:stage] pipeline.img2img.begin", flush=True)
             result = pipeline(
                 prompt=prompt,
                 negative_prompt=negative_prompt,
@@ -464,4 +545,7 @@ class ModelManager:
                 strength=strength,
                 generator=generator,
             )
-            return result.images[0], active_model_id
+            print("[nymphs:zimage:stage] pipeline.img2img.returned", flush=True)
+            output_image = result.images[0]
+            print("[nymphs:zimage:stage] pipeline.img2img.image_extracted", flush=True)
+            return output_image, active_model_id

@@ -83,10 +83,12 @@ apply_zimage_backend_overlay
 LIVE_VENV_DIR="${REPO_DIR}/.venv-nunchaku"
 STAGING_VENV_DIR="${REPO_DIR}/.venv-nunchaku.staging"
 BACKUP_VENV_DIR="${REPO_DIR}/.venv-nunchaku.backup"
+LIVE_VENV_STAMP_FILE="${LIVE_VENV_DIR}/.nymphs_nunchaku_runtime.json"
 FILTERED_LOCK_FILE=""
 EXPECTED_NUNCHAKU_REPO=""
 EXPECTED_NUNCHAKU_COMMIT=""
 EXPECTED_DIFFUSERS_VERSION=""
+LIVE_NUNCHAKU_VALIDATION_DETAIL=""
 
 if [[ "${NYMPHS3D_NUNCHAKU_SPEC}" == git+*@* ]]; then
   EXPECTED_NUNCHAKU_REPO="${NYMPHS3D_NUNCHAKU_SPEC#git+}"
@@ -103,6 +105,34 @@ normalize_git_url() {
   url="${url%.git}"
   url="${url%/}"
   printf '%s' "${url,,}"
+}
+
+write_nunchaku_runtime_stamp() {
+  local stamp_file="$1"
+  LIVE_NUNCHAKU_STAMP_FILE="${stamp_file}" \
+  EXPECTED_NUNCHAKU_REPO="${EXPECTED_NUNCHAKU_REPO}" \
+  EXPECTED_NUNCHAKU_COMMIT="${EXPECTED_NUNCHAKU_COMMIT}" \
+  EXPECTED_DIFFUSERS_VERSION="${EXPECTED_DIFFUSERS_VERSION}" \
+  python3 - <<'PY'
+import json
+import os
+from pathlib import Path
+
+stamp_path = Path(os.environ["LIVE_NUNCHAKU_STAMP_FILE"])
+stamp_path.write_text(
+    json.dumps(
+        {
+            "expected_repo": os.environ.get("EXPECTED_NUNCHAKU_REPO", ""),
+            "expected_commit": os.environ.get("EXPECTED_NUNCHAKU_COMMIT", ""),
+            "expected_diffusers_version": os.environ.get("EXPECTED_DIFFUSERS_VERSION", ""),
+        },
+        indent=2,
+        sort_keys=True,
+    )
+    + "\n",
+    encoding="utf-8",
+)
+PY
 }
 
 live_nunchaku_venv_is_current() {
@@ -122,14 +152,18 @@ live_nunchaku_venv_is_current() {
   NORMALIZED_EXPECTED_NUNCHAKU_REPO="$(normalize_git_url "${EXPECTED_NUNCHAKU_REPO}")" \
   "${live_python}" -m py_compile api_server.py model_manager.py nunchaku_compat.py scripts/run_nunchaku_zimage_test.py >/dev/null 2>&1 || return 1
 
-  EXPECTED_NUNCHAKU_REPO="${EXPECTED_NUNCHAKU_REPO}" \
-  EXPECTED_NUNCHAKU_COMMIT="${EXPECTED_NUNCHAKU_COMMIT}" \
-  EXPECTED_DIFFUSERS_VERSION="${EXPECTED_DIFFUSERS_VERSION}" \
-  NORMALIZED_EXPECTED_NUNCHAKU_REPO="$(normalize_git_url "${EXPECTED_NUNCHAKU_REPO}")" \
-  "${live_python}" - <<'PY' >/dev/null 2>&1 || return 1
+  local validation_detail
+  if ! validation_detail="$(
+    EXPECTED_NUNCHAKU_REPO="${EXPECTED_NUNCHAKU_REPO}" \
+    EXPECTED_NUNCHAKU_COMMIT="${EXPECTED_NUNCHAKU_COMMIT}" \
+    EXPECTED_DIFFUSERS_VERSION="${EXPECTED_DIFFUSERS_VERSION}" \
+    NORMALIZED_EXPECTED_NUNCHAKU_REPO="$(normalize_git_url "${EXPECTED_NUNCHAKU_REPO}")" \
+    LIVE_NUNCHAKU_STAMP_FILE="${LIVE_VENV_STAMP_FILE}" \
+    "${live_python}" - <<'PY' 2>&1
 import json
 import os
 from importlib import metadata
+from pathlib import Path
 
 import diffusers
 from diffusers.pipelines.z_image.pipeline_z_image import ZImagePipeline
@@ -140,37 +174,74 @@ from nunchaku_compat import patch_zimage_transformer_forward
 expected_repo = os.environ.get("NORMALIZED_EXPECTED_NUNCHAKU_REPO", "")
 expected_commit = os.environ.get("EXPECTED_NUNCHAKU_COMMIT", "")
 expected_diffusers = os.environ.get("EXPECTED_DIFFUSERS_VERSION", "")
+stamp_file = Path(os.environ.get("LIVE_NUNCHAKU_STAMP_FILE", ""))
 
 if expected_diffusers and diffusers.__version__ != expected_diffusers:
     raise SystemExit(f"diffusers version drift: {diffusers.__version__} != {expected_diffusers}")
 
 dist = metadata.distribution("nunchaku")
 direct_url_text = dist.read_text("direct_url.json") or ""
+provenance = "feature-fallback"
 if expected_repo or expected_commit:
-    if not direct_url_text:
-        raise SystemExit("nunchaku direct_url metadata is missing")
-    direct_url = json.loads(direct_url_text)
-    actual_url = (direct_url.get("url") or "").lower().removesuffix(".git").rstrip("/")
-    actual_commit = ((direct_url.get("vcs_info") or {}).get("commit_id") or "").lower()
-    if expected_repo and actual_url != expected_repo:
-        raise SystemExit(f"nunchaku repo drift: {actual_url} != {expected_repo}")
-    if expected_commit and actual_commit != expected_commit.lower():
-        raise SystemExit(f"nunchaku commit drift: {actual_commit} != {expected_commit.lower()}")
+    if direct_url_text:
+        direct_url = json.loads(direct_url_text)
+        actual_url = (direct_url.get("url") or "").lower().removesuffix(".git").rstrip("/")
+        actual_commit = ((direct_url.get("vcs_info") or {}).get("commit_id") or "").lower()
+        if expected_repo and actual_url != expected_repo:
+            raise SystemExit(f"nunchaku repo drift: {actual_url} != {expected_repo}")
+        if expected_commit and actual_commit != expected_commit.lower():
+            raise SystemExit(f"nunchaku commit drift: {actual_commit} != {expected_commit.lower()}")
+        provenance = "direct-url"
+    elif stamp_file.is_file():
+        stamp = json.loads(stamp_file.read_text(encoding="utf-8"))
+        stamp_repo = (stamp.get("expected_repo") or "").lower().removesuffix(".git").rstrip("/")
+        stamp_commit = (stamp.get("expected_commit") or "").lower()
+        stamp_diffusers = stamp.get("expected_diffusers_version") or ""
+        if expected_repo and stamp_repo != expected_repo:
+            raise SystemExit(f"nunchaku stamp repo drift: {stamp_repo} != {expected_repo}")
+        if expected_commit and stamp_commit != expected_commit.lower():
+            raise SystemExit(f"nunchaku stamp commit drift: {stamp_commit} != {expected_commit.lower()}")
+        if expected_diffusers and stamp_diffusers and stamp_diffusers != expected_diffusers:
+            raise SystemExit(f"nunchaku stamp diffusers drift: {stamp_diffusers} != {expected_diffusers}")
+        provenance = "stamp"
 
 patched_forward = patch_zimage_transformer_forward(NunchakuZImageTransformer2DModel)
 if not patched_forward:
     raise SystemExit("nunchaku forward patch validation failed")
 
+missing_methods = [
+    name
+    for name in ("update_lora_params", "set_lora_strength", "reset_lora")
+    if not hasattr(NunchakuZImageTransformer2DModel, name)
+]
+if missing_methods:
+    raise SystemExit(f"nunchaku LoRA method(s) missing: {', '.join(missing_methods)}")
+
 _ = ZImagePipeline.__name__
 _ = ZImageImg2ImgPipeline.__name__
+print(f"validated={provenance}")
 PY
+  )"; then
+    LIVE_NUNCHAKU_VALIDATION_DETAIL="${validation_detail}"
+    return 1
+  fi
+
+  LIVE_NUNCHAKU_VALIDATION_DETAIL="${validation_detail}"
+  return 0
 }
 
 if live_nunchaku_venv_is_current; then
-  echo "Existing Nunchaku runtime already matches the pinned install. Skipping rebuild."
+  if [[ ! -f "${LIVE_VENV_STAMP_FILE}" ]]; then
+    write_nunchaku_runtime_stamp "${LIVE_VENV_STAMP_FILE}"
+  fi
+  echo "Existing Nunchaku runtime already matches the pinned install. Skipping rebuild. ${LIVE_NUNCHAKU_VALIDATION_DETAIL}"
   echo
   echo "Z-Image Turbo via Nunchaku install complete."
   exit 0
+fi
+
+if [[ -n "${LIVE_NUNCHAKU_VALIDATION_DETAIL}" ]]; then
+  echo "Existing Nunchaku runtime needs rebuild: ${LIVE_NUNCHAKU_VALIDATION_DETAIL}"
 fi
 
 rm -rf "${STAGING_VENV_DIR}" "${BACKUP_VENV_DIR}"
@@ -262,6 +333,13 @@ from nunchaku import NunchakuZImageTransformer2DModel
 from nunchaku_compat import patch_zimage_transformer_forward
 
 patched_forward = patch_zimage_transformer_forward(NunchakuZImageTransformer2DModel)
+missing_methods = [
+    name
+    for name in ("update_lora_params", "set_lora_strength", "reset_lora")
+    if not hasattr(NunchakuZImageTransformer2DModel, name)
+]
+if missing_methods:
+    raise SystemExit(f"nunchaku LoRA method(s) missing after install: {', '.join(missing_methods)}")
 print(f"zimage_pipeline={ZImagePipeline.__name__}")
 print(f"zimage_img2img_pipeline={ZImageImg2ImgPipeline.__name__}")
 print(f"nunchaku_transformer={NunchakuZImageTransformer2DModel.__name__}")
@@ -289,6 +367,11 @@ for activate_file in \
     sed -i "s|${STAGING_VENV_DIR}|${LIVE_VENV_DIR}|g; s|\\.venv-nunchaku\\.staging|.venv-nunchaku|g" "${activate_file}"
   fi
 done
+
+write_nunchaku_runtime_stamp "${LIVE_VENV_STAMP_FILE}"
+if [[ ! -f "${NYMPHS3D_RUNTIME_CODE_MODE_FILE}" ]]; then
+  printf '%s\n' "pinned" > "${NYMPHS3D_RUNTIME_CODE_MODE_FILE}"
+fi
 
 rm -rf "${BACKUP_VENV_DIR}"
 rm -f "${FILTERED_LOCK_FILE}"

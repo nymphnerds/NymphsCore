@@ -275,4 +275,5 @@ echo "Applying runtime dependency mode: ${MODE}"
 apply_zimage_runtime_code
 apply_zimage_diffusers
 apply_trellis_gguf_helpers
+printf '%s\n' "${MODE}" > "${NYMPHS3D_RUNTIME_CODE_MODE_FILE}"
 echo "Runtime dependency mode '${MODE}' applied."

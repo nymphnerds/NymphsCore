@@ -904,6 +904,8 @@ public sealed class InstallerWorkflowService
         var normalizedLora = NormalizeTrainerName(loraName, "LoRA");
         var datasetPath = $"/home/{settings.LinuxUser}/ZImage-Trainer/datasets/{normalizedDataset}";
         var jobPath = $"/home/{settings.LinuxUser}/ZImage-Trainer/jobs/{normalizedLora}.yaml";
+        var loraOutputPath = $"/home/{settings.LinuxUser}/ZImage-Trainer/loras/{normalizedLora}";
+        var loraMetadataPath = $"{loraOutputPath}/nymphs_lora.json";
         var metadataPath = $"{datasetPath}/metadata.csv";
         await SyncZImageTrainerSupportFilesAsync(settings, progress, cancellationToken).ConfigureAwait(false);
         var normalizedAdapterVersion = NormalizeZImageTrainerAdapterVersion(adapterVersion);
@@ -925,19 +927,25 @@ public sealed class InstallerWorkflowService
             lowVramOverride,
             samplePromptOverride,
             checkpointCountOverride);
+        var loraMetadataJson = BuildZImageLoraMetadataJson(loraName, normalizedLora, jobPreset);
         var jobScript = BuildZImageTrainerConfig(settings.LinuxUser, normalizedDataset, normalizedLora, adapterPath, jobPreset);
         var jobConfigJson = BuildZImageTrainerConfigJson(settings.LinuxUser, normalizedDataset, normalizedLora, adapterPath, jobPreset);
         const string jobHeredocMarker = "__NYMPHS_ZIMAGE_CONFIG__";
+        const string loraMetadataHeredocMarker = "__NYMPHS_ZIMAGE_LORA_METADATA__";
 
         var bashCommand =
             "set -euo pipefail; " +
-            $"mkdir -p {ToBashSingleQuoted(datasetPath)} {ToBashSingleQuoted($"/home/{settings.LinuxUser}/ZImage-Trainer/jobs")} {ToBashSingleQuoted($"/home/{settings.LinuxUser}/ZImage-Trainer/loras")}; " +
+            $"mkdir -p {ToBashSingleQuoted(datasetPath)} {ToBashSingleQuoted($"/home/{settings.LinuxUser}/ZImage-Trainer/jobs")} {ToBashSingleQuoted($"/home/{settings.LinuxUser}/ZImage-Trainer/loras")} {ToBashSingleQuoted(loraOutputPath)}; " +
             $"cat > {ToBashSingleQuoted(jobPath)} <<'{jobHeredocMarker}'\n" +
             $"{jobScript}\n" +
             $"{jobHeredocMarker}\n" +
+            $"cat > {ToBashSingleQuoted(loraMetadataPath)} <<'{loraMetadataHeredocMarker}'\n" +
+            $"{loraMetadataJson}\n" +
+            $"{loraMetadataHeredocMarker}\n" +
             $"echo 'Created training config: {jobPath}'; " +
             $"echo 'Dataset folder: {datasetPath}'; " +
             $"echo 'Metadata file: {metadataPath}'; " +
+            $"echo 'LoRA metadata: {loraMetadataPath}'; " +
             $"echo 'Images found: {metadataStatus.ImageCount}'; " +
             $"echo 'Captions still blank: {metadataStatus.MissingCaptionCount}'; " +
             $"echo 'Caption text files mirrored beside the images for AI Toolkit.'; " +
@@ -2405,6 +2413,38 @@ meta:
         return JsonSerializer.Serialize(jobConfig);
     }
 
+    private static string BuildZImageLoraMetadataJson(string rawLoraName, string normalizedLoraName, ZImageTrainerPreset preset)
+    {
+        var displayName = string.IsNullOrWhiteSpace(rawLoraName) ? normalizedLoraName : rawLoraName.Trim();
+        var activationText = BuildDefaultZImageLoraActivationText(displayName, preset);
+        var metadata = new
+        {
+            schema_version = 1,
+            source = "nymphs_manager",
+            display_name = displayName,
+            activation_text = activationText,
+            auto_use_trigger = !string.IsNullOrWhiteSpace(activationText),
+            lora_type = string.Equals(preset.ContentOrStyle, "style", StringComparison.OrdinalIgnoreCase) ? "style" : "character",
+            notes = "Manager default: use the LoRA name itself as activation text.",
+        };
+
+        return JsonSerializer.Serialize(metadata, new JsonSerializerOptions
+        {
+            WriteIndented = true,
+        });
+    }
+
+    private static string BuildDefaultZImageLoraActivationText(string displayName, ZImageTrainerPreset preset)
+    {
+        var trimmed = (displayName ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(trimmed))
+        {
+            return string.Empty;
+        }
+
+        return trimmed;
+    }
+
     private static double ParseLearningRateValue(string? learningRate)
     {
         if (!string.IsNullOrWhiteSpace(learningRate) &&
@@ -3602,6 +3642,95 @@ meta:
             result.ExitCode == 0
                 ? "Runtime dependency pins are up to date."
                 : "Runtime dependency updates are available. Test them before changing release pins.");
+    }
+
+    public async Task CheckInstalledRuntimeStateAsync(
+        InstallSettings settings,
+        IProgress<string> progress,
+        CancellationToken cancellationToken)
+    {
+        var checkerScript = RequireScript("check_installed_runtime_state.py");
+        var wslCheckerScriptPath = ConvertWindowsPathToWsl(checkerScript)
+            ?? throw new InvalidOperationException($"Could not convert script path for WSL: {checkerScript}");
+
+        var bashCommand =
+            "set -euo pipefail; " +
+            $"export HOME={ToBashSingleQuoted($"/home/{settings.LinuxUser}")}; " +
+            $"export USER={ToBashSingleQuoted(settings.LinuxUser)}; " +
+            $"export LOGNAME={ToBashSingleQuoted(settings.LinuxUser)}; " +
+            $"python3 {ToBashSingleQuoted(wslCheckerScriptPath)}";
+
+        var arguments = new List<string>
+        {
+            "-d", settings.DistroName,
+            "--user", settings.LinuxUser,
+            "--",
+            "/bin/bash", "-lc", bashCommand,
+        };
+
+        progress.Report("Checking installed runtime against the current Manager pins...");
+
+        var result = await _processRunner.RunAsync(
+            fileName: "wsl.exe",
+            arguments,
+            workingDirectory: Environment.SystemDirectory,
+            progress,
+            environmentVariables: null,
+            cancellationToken).ConfigureAwait(false);
+
+        if (result.ExitCode > 1)
+        {
+            throw new InvalidOperationException("Installed runtime state check failed.");
+        }
+
+        progress.Report(
+            result.ExitCode == 0
+                ? "Installed runtime matches the current Manager pins."
+                : "Installed runtime differs from the current Manager pins.");
+    }
+
+    public async Task<string> GetRuntimeDependencyModeAsync(
+        InstallSettings settings,
+        CancellationToken cancellationToken)
+    {
+        var commonPathsScript = RequireScript("common_paths.sh");
+        var wslCommonPathsPath = ConvertWindowsPathToWsl(commonPathsScript)
+            ?? throw new InvalidOperationException($"Could not convert script path for WSL: {commonPathsScript}");
+
+        var bashCommand =
+            "set -euo pipefail; " +
+            $"export HOME={ToBashSingleQuoted($"/home/{settings.LinuxUser}")}; " +
+            $"export USER={ToBashSingleQuoted(settings.LinuxUser)}; " +
+            $"export LOGNAME={ToBashSingleQuoted(settings.LinuxUser)}; " +
+            $"source {ToBashSingleQuoted(wslCommonPathsPath)}; " +
+            "if [[ -f \"${NYMPHS3D_RUNTIME_CODE_MODE_FILE}\" ]]; then " +
+            "  tr -d '\\r\\n' < \"${NYMPHS3D_RUNTIME_CODE_MODE_FILE}\"; " +
+            "else " +
+            "  printf 'pinned'; " +
+            "fi";
+
+        var arguments = new List<string>
+        {
+            "-d", settings.DistroName,
+            "--user", settings.LinuxUser,
+            "--",
+            "/bin/bash", "-lc", bashCommand,
+        };
+
+        var result = await _processRunner.RunAsync(
+            fileName: "wsl.exe",
+            arguments,
+            workingDirectory: Environment.SystemDirectory,
+            progress: null,
+            environmentVariables: null,
+            cancellationToken).ConfigureAwait(false);
+
+        if (result.ExitCode != 0)
+        {
+            throw new InvalidOperationException("Runtime dependency mode check failed.");
+        }
+
+        return (result.CombinedOutput ?? string.Empty).Trim();
     }
 
     public async Task ApplyRuntimeDependencyModeAsync(

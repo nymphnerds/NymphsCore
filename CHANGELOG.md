@@ -8,6 +8,46 @@ This file focuses on user-facing and system-level changes rather than package-by
 
 Newest entries first.
 
+### 2026-05-04 Z-Image LoRA usability pass: activation cleanup, runtime recovery, and follow-up performance concern
+Source: live Blender -> Manager -> Z-Image -> Nunchaku LoRA testing, using both downloaded public control LoRAs and the user's own `yamamoto` LoRA, plus multiple addon / runtime correction passes after regressions were introduced mid-session.
+
+Documented changes:
+
+- confirmed Z-Image LoRAs are working again end-to-end from Blender through Manager into the Nunchaku runtime
+- confirmed the user's own Manager-trained `yamamoto` LoRA is usable again, not just the downloaded public control LoRAs
+- simplified the product direction for LoRA activation:
+  - default activation is now the LoRA name itself
+  - the Blender addon now inserts that activation into the visible managed prompt system instead of hiding it in a send-time append
+- cleaned up the addon LoRA UI wording around activation so it is less theory-heavy
+- updated the Trainer guide and LoRA handoff notes to reflect the real workflow as it exists now
+- added recovery for stale saved TRELLIS GGUF enum values that were spamming Blender terminal warnings
+- fixed a Manager nullability warning in `BuildRuntimeCodeModeSummary`
+- adjusted the Manager sidebar/header spacing so the left logo area sits more cleanly
+
+Important runtime reality from this pass:
+
+- the LoRA path was working, then regressed after later backend/runtime changes were made around activation/VRAM/offload work
+- the runtime was pushed back toward the simpler working-style backend path after that regression
+- the current session ended with LoRAs working again, but not with a strong enough explanation of every intermediate regression to treat the backend as fully understood
+
+Known unresolved concern going into the next session:
+
+- Blender, and at times the whole PC, felt unusually sluggish during this work
+- that still needs a focused investigation for possible:
+  - timer/polling pressure
+  - memory leak behavior
+  - broader runtime residency / resource buildup
+
+Why it matters:
+
+- this is the point where LoRA usability got much closer to a real product surface:
+  - easier activation behavior
+  - working end-to-end LoRA path again
+  - clearer docs
+- but it also established the next priority clearly:
+  - stop destabilizing the working LoRA backend
+  - investigate performance/sluggishness before doing more feature drift
+
 ### 2026-05-03 Z-Image trainer completion fix, healthy LoRA milestone, and AI Toolkit UI caveat
 Source: live end-to-end LoRA training on `yamamoto`, plus follow-up Manager work after a successful long run still looked unfinished in both Manager and AI Toolkit UI.
 

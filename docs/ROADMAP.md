@@ -11,6 +11,37 @@ Ordering rule:
 - newest requested work goes at the top of this section
 - older requested work stays lower down
 
+### Quantized Z-Image Turbo model fetch in Runtime Tools
+
+Goal:
+
+- let users fetch supported quantized `Tongyi-MAI/Z-Image-Turbo` variants from Manager, similar to the existing TRELLIS quant download flow
+
+Work:
+
+- research which Hugging Face quantized `Z-Image-Turbo` repos/variants are worth supporting first
+- decide whether this should be:
+  - a curated shortlist
+  - a dropdown like TRELLIS quant selection
+  - or a hybrid with a safe default plus advanced choices
+- make it clear which runtime paths support which Z-Image quantized variants:
+  - standard diffusers path
+  - Nunchaku path
+  - unsupported combinations
+- add Runtime Tools fetch/install support for approved Z-Image Turbo quantized model variants
+- show plain-English labels instead of raw repo IDs where possible
+- display expected size / download cost before the user starts a large fetch
+- keep the current base-model path working without forcing quantized downloads
+- make sure Blender/addon-side runtime checks can tell the user which Z-Image model variant is currently installed
+
+Reference:
+
+- https://huggingface.co/models?other=base_model%3Aquantized%3ATongyi-MAI%2FZ-Image-Turbo
+
+Exit condition:
+
+- a user can open Runtime Tools, choose a supported quantized Z-Image Turbo model, fetch it, and know which installed model/runtime path they are testing
+
 ### Nymphs AI Toolkit frontend
 
 Goal:
