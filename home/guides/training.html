@@ -177,8 +177,6 @@
   </a>
   <ul class="nav-links">
     <li><a href="../guides.html">Guide Hub</a></li>
-    <li><a href="#dataset">Dataset</a></li>
-    <li><a href="#trainer">Trainer</a></li>
     <li><a href="#settings">Settings</a></li>
     <li><a href="#run-job">Run Job</a></li>
     <li><a href="#results">Results</a></li>
@@ -192,16 +190,17 @@
   <div class="eyebrow">Guide 05</div>
   <h1>Z-Image Turbo<em>AI Toolkit LoRA Training Guide</em></h1>
   <div class="hero-actions">
-    <a class="btn" href="#dataset">Prepare the dataset</a>
-    <a class="ghost" href="#settings">Choose settings</a>
+    <a class="btn" href="#settings">Choose settings</a>
+    <a class="ghost" href="#run-job">Add and start the job</a>
     <a class="ghost" href="#advanced">Advanced AI Toolkit</a>
   </div>
   <div class="hero-panel">
     <div>
-      <p>This guide follows the real training flow in NymphsCore: prepare the dataset, optionally draft captions with Brain, choose the training settings, click <strong>Add Job</strong>, then click <strong>Start Job</strong>. The Manager is just the front end. <strong>AI Toolkit</strong> is the real job runner underneath.</p>
+      <p>This guide starts at the trainer screen because that is where the practical setup happens: name the LoRA, open the pictures folder, put the images in place, review captions if you want them, choose the settings, click <strong>Add Job</strong>, then click <strong>Start Job</strong>. The Manager is just the front end. <strong>AI Toolkit</strong> is the real job runner underneath.</p>
       <ul>
         <li>Good images and a tight visual target matter more than any single magic setting.</li>
-        <li><strong>Caption with Brain</strong> is optional and comes after the dataset exists.</li>
+        <li><strong>Open Pictures Folder</strong> is part of dataset prep and it lives right here in the trainer screen.</li>
+        <li><strong>Caption with Brain</strong> is optional and lives inside the same setup stage.</li>
         <li><strong>Add Job</strong> happens after you decide the settings, not before.</li>
         <li><strong>Start Job</strong> only runs the saved AI Toolkit job.</li>
         <li>The first run is about getting signal, not perfection.</li>
@@ -210,8 +209,8 @@
     <div class="signal-box">
       <p>The shortest honest version is this: put the right images in first, keep the dataset coherent, use captions as support instead of as the main event, and judge the run by its samples and checkpoints rather than by theory.</p>
       <ul>
-        <li>Use clean images that all teach the same idea.</li>
-        <li>Use captions to describe what is in each image when you need them.</li>
+        <li>Use <strong>Open Pictures Folder</strong> here to build or update the dataset.</li>
+        <li>Use captions to describe what is in each image only when you need them.</li>
         <li>Use <strong>Fast Test</strong> for quick signal and <strong>Baseline</strong> for the safest normal first run.</li>
         <li>Use the advanced section at the end only if you want to stay inside the upstream AI Toolkit UI.</li>
       </ul>
@@ -219,30 +218,15 @@
   </div>
 </section>
 
-<section class="section" id="dataset">
-  <h2 class="section-title">1. Prepare the dataset first.</h2>
-  <p class="section-sub">Start by creating or picking the dataset name, then use <strong>Open Pictures Folder</strong> and put the training images there. The guide makes more sense once the dataset already exists, because the rest of the flow depends on those images being in place.</p>
-  <div class="note-strip"><strong>What to use:</strong> aim for clean images that hold up at the trainer's current <strong>1024</strong> resolution target. Larger originals are fine. Roughly speaking, images that are at least around <strong>1024 pixels on the short side</strong> are the easiest starting point.</div>
-  <div class="note-strip"><strong>What to avoid:</strong> blurry grabs, heavily compressed thumbnails, mixed-quality scraps, and random near-duplicates usually add more noise than value. A smaller clean set is usually better than a larger messy one.</div>
-  <div class="note-strip"><strong>For style LoRAs:</strong> keep the dataset visually coherent. If the images do not feel like they belong to one family, the LoRA has a much harder time settling into a reliable look.</div>
-</section>
-
-<section class="section" id="trainer">
-  <h2 class="section-title">2. Open the trainer for that dataset.</h2>
-  <p class="section-sub">Once the images are in place, go to the Z-Image Trainer screen and work from the same LoRA name. This is the point where you stop thinking about folders and start working in the actual training UI.</p>
-  <div class="note-strip"><strong>Keep the name consistent:</strong> the LoRA name, dataset folder, job files, and final outputs are easier to track when they all stay tied to the same name.</div>
-  <div class="note-strip"><strong>This is where the real setup happens:</strong> once you are on the trainer screen, you can review captions if you want them, choose the preset and adapter, set the prompt and training values, then add and start the job.</div>
-</section>
-
 <section class="section" id="settings">
-  <h2 class="section-title">3. Review captions if you want them, then choose the training settings.</h2>
-  <p class="section-sub">This is the part that comes before job creation. In the Manager, you choose the preset, adapter, sample prompt, steps, checkpoints, learning rate, rank, and whether to use <strong>Low VRAM mode</strong>. The notes in this section explain the <strong>NymphsCore Manager screen</strong> shown below.</p>
+  <h2 class="section-title">1. Decide the training settings before you click Add Job.</h2>
+  <p class="section-sub">This is the part that comes before job creation. In the Manager, this is also where you prepare the dataset with <strong>Open Pictures Folder</strong>, then choose the preset, adapter, sample prompt, steps, checkpoints, learning rate, rank, and whether to use <strong>Low VRAM mode</strong>. This section explains the <strong>NymphsCore Manager screen</strong> shown below.</p>
   <figure class="guide-figure">
     <img src="../assets/trainer.png" alt="NymphsCore Manager Z-Image Trainer settings screen">
     <figcaption>The Manager screen is the NymphsCore front end. It simplifies the flow into dataset, optional captions, settings, then <strong>Add Job</strong> and <strong>Start Job</strong>.</figcaption>
   </figure>
   <div class="note-strip"><strong>LoRA name:</strong> this is the training/job name. Keep it short and specific so you can recognize the output files later. If you use a trigger word, it is often simplest to keep the name close to that trigger so you do not forget what to prompt.</div>
-  <div class="note-strip"><strong>Open Pictures Folder:</strong> opens the dataset image folder for the current LoRA name. This is where the actual training images live.</div>
+  <div class="note-strip"><strong>Open Pictures Folder:</strong> this is where dataset prep happens. It opens the image folder for the current LoRA name so you can add, remove, or replace the actual training images before you start worrying about the rest of the settings.</div>
   <div class="note-strip"><strong>Open LoRAs:</strong> opens the output folder where finished LoRAs and checkpoints end up.</div>
   <div class="note-strip"><strong>Caption with Brain:</strong> this is an optional helper inside the setup stage, not a separate major step. It drafts one editable caption per image into <code>metadata.csv</code>.</div>
   <div class="note-strip"><strong>Caption fill:</strong> this is not a training quality knob. It only controls how <strong>Caption with Brain</strong> writes draft caption rows. <strong>Fill Blank Only</strong> keeps anything you already wrote. <strong>Overwrite All Drafts</strong> regenerates everything.</div>
@@ -268,7 +252,7 @@
 </section>
 
 <section class="section" id="run-job">
-  <h2 class="section-title">4. Click Add Job, then Start Job.</h2>
+  <h2 class="section-title">2. Click Add Job, then Start Job.</h2>
   <p class="section-sub">These are two separate steps. <strong>Add Job</strong> is the commit point. <strong>Start Job</strong> is the run point. The app is designed around that distinction.</p>
   <div class="note-strip"><strong>Add Job:</strong> prepares the dataset support files, refreshes <code>metadata.csv</code>, mirrors the captions into per-image <code>.txt</code> files, writes the AI Toolkit YAML job, writes the LoRA metadata, and registers the job with the official AI Toolkit UI.</div>
   <div class="note-strip"><strong>Start Job:</strong> queues and starts the saved AI Toolkit job. If you changed settings after the last Add Job, the app will stop you and tell you to apply those pending changes first.</div>
@@ -285,7 +269,7 @@
 </section>
 
 <section class="section" id="results">
-  <h2 class="section-title">5. Use samples and checkpoints to judge the run.</h2>
+  <h2 class="section-title">3. Use samples and checkpoints to judge the run.</h2>
   <p class="section-sub">The first run does not need to be perfect to be useful. What matters is whether the samples and checkpoints show the LoRA moving in the right direction. That is the signal you use to decide whether to keep, adjust, or rerun.</p>
   <div class="note-strip"><strong>What success looks like:</strong> the job finishes cleanly, writes checkpoints or a final LoRA, and the training samples visibly move toward the intended character, style, or concept. Halfway there is still useful information.</div>
   <div class="note-strip"><strong>What weak results usually mean:</strong> the dataset may need to be cleaner, the style signal may need a stronger preset or longer run, or the sample prompt may not be showing the thing you actually care about.</div>
@@ -294,7 +278,7 @@
 </section>
 
 <section class="section" id="blender">
-  <h2 class="section-title">6. Test the LoRA in Blender.</h2>
+  <h2 class="section-title">4. Test the LoRA in Blender.</h2>
   <p class="section-sub">Once the run is done, the Blender side should be simple: enable the LoRA, pick the checkpoint or final file, prompt normally, and only start comparing variations after you have seen one clean first result.</p>
   <div class="note-strip"><strong>First test:</strong> choose the LoRA in the Z-Image panel, leave the recommended activation on for the first run, and generate once before changing several things at the same time.</div>
   <div class="note-strip"><strong>Prompting:</strong> prompt the scene or subject normally. The activation phrase is only there to help some LoRAs lean into their learned look more clearly if they need that extra nudge.</div>
@@ -302,7 +286,7 @@
 </section>
 
 <section class="section" id="advanced">
-  <h2 class="section-title">7. Advanced: if you want to do the whole run in the AI Toolkit UI.</h2>
+  <h2 class="section-title">5. Advanced: if you want to do the whole run in the AI Toolkit UI.</h2>
   <p class="section-sub">This section is for advanced users who want to work directly in the upstream AI Toolkit UI instead of staying in the simplified Manager layer.</p>
   <div class="note-strip"><strong>GPU ID:</strong> only matters if the machine has more than one GPU. It tells AI Toolkit which card should do the training job.</div>
   <div class="note-strip"><strong>Trigger word:</strong> if you set one here, AI Toolkit can prepend it to the training text. Use it when you want a deliberate activation token. Skip it when you want the LoRA to behave more naturally from normal prompting.</div>
