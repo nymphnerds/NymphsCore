@@ -149,6 +149,20 @@
     color: var(--teal);
     font-weight: 600;
   }
+  .wiki-group {
+    margin-top: 28px;
+    padding-top: 22px;
+    border-top: 1px solid rgba(255,255,255,0.08);
+  }
+  .wiki-group h3 {
+    font-size: 24px;
+    margin-bottom: 6px;
+  }
+  .wiki-group p {
+    color: var(--muted);
+    font-size: 15px;
+    line-height: 1.8;
+  }
   .guide-figure {
     margin-top: 22px;
   }
@@ -225,30 +239,40 @@
     <img src="../assets/trainer.png" alt="NymphsCore Manager Z-Image Trainer settings screen">
     <figcaption>The Manager screen is the NymphsCore front end. It simplifies the flow into dataset, optional captions, settings, then <strong>Add Job</strong> and <strong>Start Job</strong>.</figcaption>
   </figure>
-  <div class="note-strip"><strong>LoRA name:</strong> this is the training/job name. Keep it short and specific so you can recognize the output files later. If you use a trigger word, it is often simplest to keep the name close to that trigger so you do not forget what to prompt.</div>
-  <div class="note-strip"><strong>Open Pictures Folder:</strong> this is where dataset prep happens. It opens the image folder for the current LoRA name so you can add, remove, or replace the actual training images before you start worrying about the rest of the settings.</div>
-  <div class="note-strip"><strong>Open LoRAs:</strong> opens the output folder where finished LoRAs and checkpoints end up.</div>
-  <div class="note-strip"><strong>Caption with Brain:</strong> this is an optional helper inside the setup stage, not a separate major step. It drafts one editable caption per image into <code>metadata.csv</code>. It needs a downloaded local Brain <strong>vision</strong> model first, not just a normal text model. A good recommendation here is <strong>Qwen2.5-VL</strong>, with its matching <code>mmproj</code> file kept beside the GGUF.</div>
-  <div class="note-strip"><strong>Caption fill:</strong> this is not a training quality knob. It only controls how <strong>Caption with Brain</strong> writes draft caption rows. <strong>Fill Blank Only</strong> keeps anything you already wrote. <strong>Overwrite All Drafts</strong> regenerates everything.</div>
-  <div class="note-strip"><strong>Open Draft CSV:</strong> this opens the editable caption sheet. When you later click <strong>Add Job</strong>, the app mirrors those captions into the per-image <code>.txt</code> files that AI Toolkit actually trains from.</div>
-  <div class="note-strip"><strong>How to caption style work:</strong> describe the content normally instead of padding every line with repeated style labels. The images should teach the rendering style. The captions should teach what to ask for.</div>
-  <div class="note-strip"><strong>Preset choice:</strong> <strong>Fast Test</strong> is the quickest path when you just want to see whether the LoRA is learning at all. <strong>Baseline</strong> is the safest normal first run. <strong>Style</strong> is the normal style preset. <strong>Strong Style</strong> is the follow-up when the normal style run still feels too polite.</div>
-  <div class="note-strip"><strong>What the presets currently write in Manager:</strong> <strong>Fast Test</strong> sets character mode, quick training, <code>500</code> steps, checkpoints off, <code>1e-4</code> learning rate, rank <code>8</code>. <strong>Baseline</strong> sets character mode, normal training, <code>3000</code> steps, <code>4</code> checkpoints, <code>1e-4</code> learning rate, rank <code>16</code>. <strong>Style</strong> uses the same numbers as Baseline but switches to style mode. <strong>Strong Style</strong> pushes that to <code>5000</code> steps with <code>4</code> checkpoints and rank <code>16</code>.</div>
-  <div class="note-strip"><strong>Adapter choice:</strong> stay on <strong>v1 (Recommended)</strong> for the first serious run. Use <strong>v2 (Experimental)</strong> only after the normal path is behaving and you actually want a comparison.</div>
-  <div class="note-strip"><strong>Sample prompt:</strong> this matters more than it looks. AI Toolkit uses it to generate preview samples while the job is running, so it should reflect the kind of image you actually want to judge during training.</div>
-  <div class="note-strip"><strong>Steps:</strong> this is the total training length. More steps give the LoRA more chances to lock onto the concept, but more is not automatically better. For Z-Image Turbo, a practical starting point is usually <code>3000</code> for a normal run, with <code>500</code> used only for a quick signal check.</div>
-  <div class="note-strip"><strong>Checkpoints:</strong> this controls how many intermediate save points the Manager keeps available for you to test. <strong>Off</strong> means you only care about the final output. <strong>2</strong>, <strong>4</strong>, or <strong>8</strong> gives you fallback versions in case the final result is too weak or too cooked.</div>
-  <div class="note-strip"><strong>Learning rate:</strong> this is how hard each step pushes the LoRA. Too low and training crawls. Too high and it can overlearn or destabilize. A solid starting point for Z-Image Turbo is still <code>1e-4</code>. The Manager also exposes <code>8e-5</code> and <code>5e-5</code> if you want a gentler run.</div>
-  <div class="note-strip"><strong>LoRA rank:</strong> rank is part of the LoRA's capacity. Lower ranks are lighter and can be enough for quick tests or simpler concepts. Higher ranks can hold more detail, but they are not automatically better. In this trainer, rank <code>8</code> is the quick-test setting and rank <code>16</code> is the normal default.</div>
-  <div class="note-strip"><strong>Low VRAM mode:</strong> turn this on when your GPU is the bottleneck and the normal path does not fit comfortably. The tradeoff is speed. It exists to get the run through on smaller cards, not because it improves quality by itself.</div>
-  <div class="note-strip"><strong>Add Job, Start Job, Stop Job, Delete Job:</strong> these are not interchangeable. <strong>Add Job</strong> writes the current settings into the real AI Toolkit job. <strong>Start Job</strong> runs that saved job. <strong>Stop Job</strong> stops the active run. <strong>Delete Job</strong> removes the saved job entry, so use that one deliberately.</div>
-  <div class="note-strip"><strong>Simple rule:</strong> choose the smallest set of settings that answers the question you have. If you only want to know whether the dataset works at all, use the quick path. If you want the safest normal proof, use Baseline. Save heavier style pushes for later.</div>
-  <div class="note-strip"><strong>Job name and trigger word:</strong> the training name is just the LoRA/job name. A trigger word is optional. If you use one, keeping the job name and trigger word close to each other makes it easier not to forget what to prompt later.</div>
-  <div class="note-strip"><strong>Steps, save every, and checkpoints:</strong> steps are the total length of the run. <strong>Save every</strong> controls how often a checkpoint is written. <strong>Max steps to keep saved</strong> controls how many of those checkpoints survive instead of being overwritten. In plain English: longer training and more saved checkpoints give you more chances to find the sweet spot, but they also cost more time and disk space.</div>
-  <div class="note-strip"><strong>Batch size and gradient accumulation:</strong> batch size is how many images the job sees at once. Bigger batches usually give the model a better sense of the concept, but they use more VRAM. Gradient accumulation is the slower workaround when you want batch-like behavior without actually fitting that bigger batch in memory.</div>
-  <div class="note-strip"><strong>Optimizer, learning rate, and weight decay:</strong> <code>AdamW8Bit</code> is a strong normal default when VRAM allows it. Learning rate is how hard each step pushes the LoRA. Too low and it barely learns. Too high and it overlearns or breaks down. Weight decay is a light anti-overcooking control that helps stop the model from clinging too hard to exact training images.</div>
-  <div class="note-strip"><strong>Timestep type and bias:</strong> these control where training pays attention across the denoising process. <strong>Balanced</strong> is the normal safe start. <strong>High noise</strong> is more about earlier composition-building stages and can help when you are trying to force a much stronger overall style shift. For style runs, it usually makes sense to start balanced and only lean harder into high noise if the style still is not taking over enough.</div>
-  <div class="note-strip"><strong>Text encoder and unload text encoder:</strong> the text encoder is what helps the model understand prompt words more specifically. Turning it off or unloading it is mostly a VRAM tradeoff. If you are memory-constrained, unloading it can help, but it slows training down because it keeps having to reload that component.</div>
+  <div class="wiki-group">
+    <h3>Files and dataset</h3>
+    <p>These controls are about the dataset and the files around it.</p>
+    <div class="note-strip"><strong>LoRA name:</strong> this is the training/job name. Keep it short and specific so you can recognize the output files later.</div>
+    <div class="note-strip"><strong>Open Pictures Folder:</strong> this is where dataset prep happens. It opens the image folder for the current LoRA name so you can add, remove, or replace the actual training images.</div>
+    <div class="note-strip"><strong>Open LoRAs:</strong> opens the output folder where finished LoRAs and checkpoints end up.</div>
+  </div>
+  <div class="wiki-group">
+    <h3>Captions</h3>
+    <p>Captions are optional support data. Keep them editable and content-focused.</p>
+    <div class="note-strip"><strong>Caption with Brain:</strong> drafts one editable caption per image into <code>metadata.csv</code>. It needs a downloaded local Brain <strong>vision</strong> model first. A good recommendation is <strong>Qwen2.5-VL</strong>, with its matching <code>mmproj</code> file beside the GGUF.</div>
+    <div class="note-strip"><strong>Caption fill:</strong> this only controls how <strong>Caption with Brain</strong> writes draft rows. <strong>Fill Blank Only</strong> keeps anything you already wrote. <strong>Overwrite All Drafts</strong> regenerates everything.</div>
+    <div class="note-strip"><strong>Open Draft CSV:</strong> this opens the editable caption sheet. When you later click <strong>Add Job</strong>, the app mirrors those captions into the per-image <code>.txt</code> files that AI Toolkit actually trains from.</div>
+    <div class="note-strip"><strong>How to caption style work:</strong> describe the content normally instead of padding every line with repeated style labels. The images should teach the rendering style.</div>
+  </div>
+  <div class="wiki-group">
+    <h3>Presets and core controls</h3>
+    <p>This is the main setup block you choose before you create the job.</p>
+    <div class="note-strip"><strong>Preset choice:</strong> <strong>Fast Test</strong> is the quickest path when you just want to see whether the LoRA is learning at all. <strong>Baseline</strong> is the safest normal first run. <strong>Style</strong> is the normal style preset. <strong>Strong Style</strong> is the follow-up when the normal style run still feels too polite.</div>
+    <div class="note-strip"><strong>What the presets currently write in Manager:</strong> <strong>Fast Test</strong> sets <code>500</code> steps, checkpoints off, <code>1e-4</code> learning rate, rank <code>8</code>. <strong>Baseline</strong> sets <code>3000</code> steps, <code>4</code> checkpoints, <code>1e-4</code> learning rate, rank <code>16</code>. <strong>Style</strong> uses the same numbers as Baseline but switches to style mode. <strong>Strong Style</strong> pushes that to <code>5000</code> steps with <code>4</code> checkpoints and rank <code>16</code>.</div>
+    <div class="note-strip"><strong>Adapter choice:</strong> stay on <strong>v1 (Recommended)</strong> for the first serious run. Use <strong>v2 (Experimental)</strong> only after the normal path is behaving and you actually want a comparison.</div>
+    <div class="note-strip"><strong>Sample prompt:</strong> AI Toolkit uses this to generate preview samples while the job is running, so it should reflect the kind of image you actually want to judge during training.</div>
+    <div class="note-strip"><strong>Steps:</strong> this is the total training length. A practical starting point is usually <code>3000</code> for a normal run, with <code>500</code> used only for a quick signal check.</div>
+    <div class="note-strip"><strong>Checkpoints:</strong> this controls how many intermediate save points the Manager keeps available for you to test. <strong>Off</strong> means you only care about the final output. <strong>2</strong>, <strong>4</strong>, or <strong>8</strong> gives you fallback versions.</div>
+    <div class="note-strip"><strong>Learning rate:</strong> this is how hard each step pushes the LoRA. A solid starting point for Z-Image Turbo is still <code>1e-4</code>. The Manager also exposes <code>8e-5</code> and <code>5e-5</code> if you want a gentler run.</div>
+    <div class="note-strip"><strong>LoRA rank:</strong> lower ranks are lighter and can be enough for quick tests. Higher ranks can hold more detail, but they are not automatically better. In this trainer, rank <code>8</code> is the quick-test setting and rank <code>16</code> is the normal default.</div>
+    <div class="note-strip"><strong>Low VRAM mode:</strong> turn this on when your GPU is the bottleneck and the normal path does not fit comfortably. The tradeoff is speed.</div>
+  </div>
+  <div class="wiki-group">
+    <h3>Job buttons</h3>
+    <p>These controls act on the saved trainer job.</p>
+    <div class="note-strip"><strong>Add Job, Start Job, Stop Job, Delete Job:</strong> these are not interchangeable. <strong>Add Job</strong> writes the current settings into the real AI Toolkit job. <strong>Start Job</strong> runs that saved job. <strong>Stop Job</strong> stops the active run. <strong>Delete Job</strong> removes the saved job entry.</div>
+    <div class="note-strip"><strong>Simple rule:</strong> use the smallest setup that answers the question you have. If you only want to know whether the dataset works at all, use the quick path. If you want the safest normal proof, use Baseline.</div>
+  </div>
 </section>
 
 <section class="section" id="run-job">
