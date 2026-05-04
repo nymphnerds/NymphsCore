@@ -192,18 +192,18 @@
   .settings-list {
     margin-top: 24px;
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 10px 18px;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 6px 14px;
     list-style: none;
   }
   .settings-list li {
-    color: var(--light);
-    font-size: 14px;
+    color: var(--muted);
+    font-size: 13px;
     line-height: 1.5;
-    padding: 10px 12px;
-    border: 1px solid rgba(255,255,255,0.08);
-    border-radius: 10px;
-    background: rgba(255,255,255,0.02);
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: none;
   }
   .guide-figure {
     margin-top: 22px;
@@ -245,7 +245,7 @@
     .hero-panel, .two-col, .pair-grid { grid-template-columns: 1fr; }
     .ref-row { grid-template-columns: 1fr; gap: 8px; }
     .ref-key { font-size: 17px; }
-    .settings-list { grid-template-columns: 1fr 1fr; }
+    .settings-list { grid-template-columns: 1fr 1fr; gap: 6px 12px; }
     footer { padding: 24px; flex-direction: column; }
   }
 </style>
