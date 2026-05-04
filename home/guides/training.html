@@ -138,6 +138,11 @@
     font-size: 14px;
     line-height: 1.75;
   }
+  .hero-panel .section-tag,
+  .signal-box .section-tag,
+  .info-card .section-tag {
+    display: none;
+  }
   .note-strip { padding: 18px 22px; margin-top: 24px; font-size: 14px; color: var(--muted); }
   footer { border-top: 1px solid var(--dark4); padding: 28px 60px; display: flex; justify-content: space-between; color: #5d5d5d; font-family: var(--font-mono); font-size: 12px; gap: 16px; }
   @media (max-width: 900px) {
@@ -158,7 +163,6 @@
     <li><a href="../guides.html">Guide Hub</a></li>
     <li><a href="#captions">Captions</a></li>
     <li><a href="#source-images">Source Images</a></li>
-    <li><a href="#settings">Settings</a></li>
     <li><a href="#activation">Activation</a></li>
     <li><a href="#blender">Blender</a></li>
     <li><a href="#first-test">Hardware & First Run</a></li>
@@ -177,20 +181,17 @@
   </div>
   <div class="hero-panel">
     <div>
-      <div class="section-tag">// Quick Read</div>
-      <h3>The short version.</h3>
       <p>The trainer now runs through a managed <strong>AI Toolkit sidecar</strong>, and the Manager treats <strong>captions as user-owned training data</strong>. Nymphs Brain can help draft them, but you still review what will actually train.</p>
       <ul>
-        <li><strong>Nymphs UI</strong> is the lighter Gradio path. <strong>Official UI</strong> is the upstream AI Toolkit web UI.</li>
-        <li><strong>Baseline</strong> is the safe first preset for proving the end-to-end flow.</li>
-        <li><strong>Style</strong> is the normal first preset for painterly or illustrative datasets.</li>
-        <li><strong>Strong Style</strong> is the stronger follow-up when style needs to push composition harder.</li>
+        <li>The Manager prepares the dataset and job, then hands training off to <strong>AI Toolkit</strong>.</li>
+        <li><strong>Fast Test</strong> is the shortest path when you just want a quick training signal.</li>
+        <li><strong>Baseline</strong> is the safe normal first preset for proving the end-to-end flow.</li>
+        <li><strong>Style</strong> and <strong>Strong Style</strong> are the current style presets in the Manager.</li>
         <li><strong>v1</strong> is the recommended adapter for first tests. Save <strong>v2</strong> for comparison after the stable path works.</li>
         <li>Manager now saves a <strong>recommended activation</strong> with the LoRA, and Blender can use it automatically.</li>
       </ul>
     </div>
     <div class="signal-box">
-      <div class="section-tag">// Captions + Activation</div>
       <p>The images teach the model what things look like. The captions teach it what words should call those things back up later. Then, after training, some LoRAs also respond better when Blender includes a short <strong>activation phrase</strong> like the LoRA name itself.</p>
       <ul>
         <li>The caption is not busywork. It is part of the training pair.</li>
@@ -344,59 +345,11 @@ Keep going like that until every image has its own matching prompt.</div>
 </section>
 
 <section class="section">
-  <div class="two-col">
-    <div class="info-card">
-      <div class="section-tag">// Preset</div>
-      <h3>Baseline</h3>
-      <p>Use this when you want the safest first end-to-end run. It is the best choice for testing whether the trainer, runtime, and addon are all lined up before you start pushing style more aggressively.</p>
-    </div>
-    <div class="info-card">
-      <div class="section-tag">// Preset</div>
-      <h3>Style</h3>
-      <p>Use this when the point is a broad rendering language, like paintings, kids drawings, heavy illustration, or a very particular visual voice. Start here before moving to <strong>Strong Style</strong>.</p>
-    </div>
-  </div>
-</section>
-
-<section class="section" id="settings">
-  <div class="section-tag">// Settings</div>
-  <h2 class="section-title">What the transcript-backed defaults are really trying to do.</h2>
-  <p class="section-sub">You do not need to memorize every AI Toolkit field to get a good first run. The useful pattern from the research so far is much simpler: start from a stable, balanced setup, prove the LoRA is learning, then push harder only if the first run is too polite.</p>
-  <div class="two-col" style="margin-bottom:20px;">
-    <div class="info-card">
-      <div class="section-tag">// Short Version</div>
-      <h3>Start from the calm middle.</h3>
-      <p>The current transcript-backed direction is a conservative Z-Image Turbo setup: <strong>1e-4 learning rate</strong>, <strong>AdamW8Bit</strong>, <strong>weighted timesteps</strong>, <strong>MSE loss</strong>, and a more <strong>balanced</strong> style/content mix before moving to stronger style takeover later.</p>
-    </div>
-    <div class="info-card">
-      <div class="section-tag">// Why It Matters</div>
-      <h3>It is easier to tune a run that already has signal.</h3>
-      <p>If the first run clearly bends output in the right direction, you have something solid to iterate on. Jumping straight to the most aggressive style path can make it harder to tell whether the problem is the dataset, the captions, or the strength of the run.</p>
-    </div>
-  </div>
-  <div class="steps">
-    <div class="step-card">
-      <div class="step-num">Rule 07</div>
-      <h3><code>1e-4</code> is the main starting learning rate right now.</h3>
-      <p>This is the most consistently recommended Z-Image Turbo default from the transcript notes we have so far. It is strong enough to learn, but still conservative enough to use as a first serious baseline.</p>
-    </div>
-    <div class="step-card">
-      <div class="step-num">Rule 08</div>
-      <h3>For style work, start balanced before going high-noise.</h3>
-      <p>The important idea is not just “more style.” It is <strong>when</strong> to push harder. Current NymphsCore presets are inspired by that workflow, but they are not yet a perfect 1:1 mirror of every upstream AI Toolkit setting or sequence.</p>
-    </div>
-    <div class="step-card">
-      <div class="step-num">Rule 09</div>
-      <h3>Some advanced toggles matter less than dataset quality.</h3>
-      <p>Useful defaults like <strong>EMA off</strong>, <strong>cache text embeddings on</strong>, and <strong>weight decay 1e-4</strong> help keep the job sane, but they will not rescue a noisy, inconsistent, or badly captioned dataset.</p>
-    </div>
-    <div class="step-card">
-      <div class="step-num">Rule 10</div>
-      <h3>Do not treat trigger words like a religion.</h3>
-      <p>That same transcript research also lines up with what we saw in testing: some LoRAs need an activation phrase, some do not. Start with the recommended activation, but do not assume a trigger phrase is a universal law of the universe.</p>
-    </div>
-  </div>
-  <div class="note-strip"><strong>Current product truth:</strong> the guide should describe the current presets as <strong>transcript-informed</strong> rather than a perfect clone of Ostris' exact walkthrough. The useful part for beginners is the direction: balanced first, stronger style later if the LoRA needs more push.</div>
+  <div class="section-tag">// Presets</div>
+  <h2 class="section-title">Pick the preset that matches the job.</h2>
+  <p class="section-sub">The current Manager exposes four preset choices: <strong>Fast Test</strong>, <strong>Baseline</strong>, <strong>Style</strong>, and <strong>Strong Style</strong>. You do not need to think about every underlying AI Toolkit knob first. Start with the shortest or safest path that answers the question you actually have.</p>
+  <div class="note-strip"><strong>Fast Test:</strong> use this when you want a quick signal and do not want to wait through a longer run first. <strong>Baseline:</strong> use this for the safest normal first proof that the trainer, runtime, and addon are all lined up.</div>
+  <div class="note-strip"><strong>Style:</strong> use this for painterly or illustrative datasets. <strong>Strong Style:</strong> use it as the stronger follow-up when the normal style run still feels too polite.</div>
 </section>
 
 <section class="section" id="activation">
@@ -561,6 +514,16 @@ Keep going like that until every image has its own matching prompt.</div>
       <p>If the LoRA starts echoing catalog marks, signatures, or overlay artifacts, that usually means the dataset taught them too well. Go back to the source images, crop or replace the repeated mark, and rerun with the cleaner set.</p>
     </div>
   </div>
+</section>
+
+<section class="section" id="advanced">
+  <div class="section-tag">// Advanced</div>
+  <h2 class="section-title">If you want to do the whole run in the AI Toolkit UI.</h2>
+  <p class="section-sub">This page is still written around the simpler guided flow, but some of the transcript research is more useful if you are working directly in the upstream AI Toolkit UI. Treat this as a practical starting point for advanced users, not as a law that every dataset must follow exactly.</p>
+  <div class="note-strip"><strong>Good starting direction from the transcript:</strong> <code>AdamW8Bit</code>, <code>1e-4</code> learning rate, <code>weight_decay 1e-4</code>, <code>weighted</code> timesteps, <code>MSE</code> loss, <strong>EMA off</strong>, <strong>cache text embeddings on</strong>, and a more <strong>balanced</strong> style/content setup before you move into a stronger style push.</div>
+  <div class="note-strip"><strong>What those settings mean:</strong> learning rate is how hard each step pushes the LoRA; weighted timesteps decide where training attention lands across the noise schedule; balanced style/content is the safer middle ground before going more aggressive; MSE is the normal loss choice here; EMA off and cache text embeddings on are part of the current recommended baseline rather than special expert tricks.</div>
+  <div class="note-strip"><strong>The practical workflow idea:</strong> start with a sane baseline that gives you signal, then push harder only if the result is still too weak or too polite. For style work, keep the captions focused on the image content instead of stuffing them with repeated style labels. The images should teach the rendering style. The captions should teach what to ask for.</div>
+  <div class="note-strip"><strong>Two easy mistakes to avoid:</strong> do not assume a trigger phrase is mandatory for every LoRA, and do not assume stronger settings will rescue a messy dataset. The transcript notes and local testing both point the same way: clean images, honest captions, and a balanced first pass matter more than trying to win with one magic knob.</div>
 </section>
 
 <section class="section" id="demo">
