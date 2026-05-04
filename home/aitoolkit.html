@@ -315,6 +315,39 @@
     white-space: pre-wrap;
   }
 
+  .fact-list {
+    list-style: none;
+    display: grid;
+    gap: 8px;
+  }
+
+  .fact-list li {
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.75;
+  }
+
+  .fact-list li::before {
+    content: ">";
+    color: var(--lime);
+    margin-right: 8px;
+    font-family: var(--font-mono);
+  }
+
+  .callout {
+    padding: 14px 16px;
+    border-radius: 14px;
+    border: 1px solid rgba(85,223,240,0.24);
+    background: rgba(85,223,240,0.06);
+  }
+
+  .callout strong {
+    display: block;
+    margin-bottom: 6px;
+    font-family: var(--font-head);
+    font-size: 18px;
+  }
+
   .start {
     width: 100%;
     padding: 16px 22px;
@@ -387,6 +420,7 @@
     <li><a href="#upload">Upload</a></li>
     <li><a href="#captions">Captions</a></li>
     <li><a href="#advanced">Advanced</a></li>
+    <li><a href="#transcript">Transcript Notes</a></li>
     <li><a href="#samples">Samples</a></li>
     <li><a href="#train">Train</a></li>
     <li><a class="nav-cta" href="guides/training.html">Training Guide</a></li>
@@ -423,7 +457,7 @@
         <div class="field">
           <label>Trigger word / sentence</label>
           <input type="text" value="jpnwood">
-          <div class="subtext">Optional. Use a rare token or short phrase if you want one.</div>
+          <div class="subtext">Optional. The transcript-backed workflow does not treat triggers as mandatory for every LoRA, so start simple and only keep one if testing shows it helps.</div>
         </div>
         <div class="field">
           <label>Training adapter</label>
@@ -535,11 +569,23 @@ datasets:
 train:
   batch_size: 1
   gradient_accumulation: 1
+  train_unet: true
+  train_text_encoder: false
+  gradient_checkpointing: true
+  noise_scheduler: flowmatch
+  timestep_type: weighted
+  content_or_style: balanced
   optimizer: adamw8bit
-  weight_decay: 0.0001
+  optimizer_params:
+    weight_decay: 0.0001
   steps: 3000
   lr: 0.0001
+  unload_text_encoder: false
+  cache_text_embeddings: true
+  ema_config:
+    use_ema: false
   loss_type: mse
+  diff_output_preservation: false
 model:
   arch: zimage:turbo
   low_vram: false
@@ -549,6 +595,37 @@ sample:
           </details>
         </div>
       </details>
+
+      <section class="panel" id="transcript">
+        <label>Transcript-backed notes from "AI ToolKit - Every Setting Explained"</label>
+        <div class="subtext">These are the practical defaults and habits we wanted carried into the calmer NymphsCore front end. This page is still a simplification, not a 1:1 clone of every upstream control.</div>
+        <div class="row-2">
+          <div class="panel">
+            <label>Settings that kept coming up</label>
+            <ul class="fact-list">
+              <li><strong>Learning rate:</strong> <code>1e-4</code> is the main safe starting point shown in the walkthrough.</li>
+              <li><strong>Optimizer:</strong> <code>AdamW8Bit</code> with <code>weight_decay 1e-4</code> is the default direction.</li>
+              <li><strong>Timesteps:</strong> use <code>weighted</code> sampling and start from a more <strong>balanced</strong> style/content mix before pushing harder.</li>
+              <li><strong>Loss:</strong> <code>MSE</code> stays on. <strong>EMA</strong> stays off for this path.</li>
+              <li><strong>Caching:</strong> <code>cache_text_embeddings</code> on, <strong>unload text encoder</strong> off.</li>
+              <li><strong>Preservation toggles:</strong> differential output preservation and blank-prompt preservation were not part of the recommended baseline.</li>
+            </ul>
+          </div>
+          <div class="panel">
+            <label>What matters more than memorizing knobs</label>
+            <ul class="fact-list">
+              <li><strong>For style LoRAs, caption the scene normally.</strong> Let the images teach the rendering style instead of stuffing captions with repeated style labels.</li>
+              <li><strong>Triggers are optional.</strong> Some LoRAs want one, some do not. Test with and without instead of assuming trigger-word theory is law.</li>
+              <li><strong>Start balanced, then push style later.</strong> Use the first run to prove the signal before you jump to stronger high-noise behavior.</li>
+              <li><strong>The first run is for signal, not perfection.</strong> If the LoRA clearly bends output in the right direction, that is enough information to tune the next pass.</li>
+            </ul>
+          </div>
+        </div>
+        <div class="callout">
+          <strong>Current NymphsCore simplification</strong>
+          The Manager keeps the surface smaller on purpose. Presets are meant to own most of the deeper AI Toolkit config, while this page exposes only the settings users actually need to steer first.
+        </div>
+      </section>
 
       <details class="accordion panel" id="samples" open>
         <summary>Sample prompts (optional)</summary>
