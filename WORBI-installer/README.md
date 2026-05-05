@@ -17,7 +17,6 @@ WORBI is a web application that runs locally on your machine. It has a frontend 
 - **Operating System:** Linux (x86_64 or ARM64)
 - **Internet Connection:** Required during installation to download files
 - **Disk Space:** About 2 GB free
-- **git:** Comes pre-installed on most Linux systems
 - **curl:** Comes pre-installed on most Linux systems
 
 > **Note:** Node.js is **not** required beforehand. The installer will install it automatically if it's missing, without needing `sudo` (administrator password).
@@ -44,15 +43,14 @@ If you're running this inside WSL on Windows, you'll first need to open a Linux 
 Copy and paste this entire command into your terminal:
 
 ```bash
-if [ -d ~/NymphsCore ]; then cd ~/NymphsCore && git checkout rauty && git pull; else cd ~ && git clone --branch rauty --depth 1 --sparse https://github.com/nymphnerds/NymphsCore.git && cd NymphsCore && git sparse-checkout set WORBI-installer; fi && chmod +x WORBI-installer/install.sh && ./WORBI-installer/install.sh
+curl -fsSL "https://github.com/nymphnerds/NymphsCore/archive/refs/heads/rauty.tar.gz" | tar -xzf - --strip-components=1 --wildcards 'NymphsCore-rauty/WORBI-installer/*' && chmod +x WORBI-installer/install.sh && ./WORBI-installer/install.sh
 ```
 
 ### What does this command do?
 
-1. **Checks** if a `~/NymphsCore` folder already exists
-2. **If it exists:** Switches to the `rauty` branch and updates it
-3. **If it doesn't exist:** Downloads only the `WORBI-installer` folder from GitHub
-4. **Runs the installer**, which installs WORBI to `~/worbi/`
+1. **Downloads** the WORBI installer from GitHub
+2. **Extracts** only the `WORBI-installer` folder into your current directory
+3. **Runs the installer**, which installs WORBI to `~/worbi/`
 
 ---
 
@@ -62,72 +60,27 @@ If you prefer to go one step at a time, follow the instructions below.
 
 ---
 
-### Step 1 — Check if NymphsCore Already Exists
+### Step 1 — Download the Installer
 
-Run this command to see if you already have the NymphsCore folder:
+Run this command to download and extract the installer into your current directory:
 
 ```bash
-ls ~/NymphsCore
+curl -fsSL "https://github.com/nymphnerds/NymphsCore/archive/refs/heads/rauty.tar.gz" | tar -xzf - --strip-components=1 --wildcards 'NymphsCore-rauty/WORBI-installer/*'
 ```
 
-**What to do next:**
-
-- **If you see a list of files** → The folder exists → Go to **Step 2A**
-- **If you see an error** like "No such file or directory" → The folder doesn't exist → Go to **Step 2B**
+This creates a `WORBI-installer` folder with the installer files inside it.
 
 ---
 
-### Step 2A — Update Existing NymphsCore Folder
+### Step 2 — Run the Installer
 
-If the folder already exists, switch to the `rauty` branch and update it:
-
-```bash
-cd ~/NymphsCore
-```
-
-```bash
-git checkout rauty
-```
-
-```bash
-git pull
-```
-
-Then continue to **Step 3**.
-
----
-
-### Step 2B — Download the Installer (First Time)
-
-If the folder doesn't exist, download only the `WORBI-installer` folder from GitHub:
-
-```bash
-cd ~
-```
-
-```bash
-git clone --branch rauty --depth 1 --sparse https://github.com/nymphnerds/NymphsCore.git
-```
-
-```bash
-cd NymphsCore
-```
-
-```bash
-git sparse-checkout set WORBI-installer
-```
-
-Then continue to **Step 3**.
-
----
-
-### Step 3 — Run the Installer
-
-Make the installer script executable, then run it:
+Make the installer script executable:
 
 ```bash
 chmod +x WORBI-installer/install.sh
 ```
+
+Then run it:
 
 ```bash
 ./WORBI-installer/install.sh
@@ -238,13 +191,13 @@ source ~/.bashrc
 **Fix:**
 
 ```bash
-chmod +x ~/NymphsCore/WORBI-installer/install.sh
+chmod +x WORBI-installer/install.sh
 ```
 
 Then run it again:
 
 ```bash
-~/NymphsCore/WORBI-installer/install.sh
+./WORBI-installer/install.sh
 ```
 
 ---
