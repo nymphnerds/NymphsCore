@@ -40,7 +40,7 @@ case "${1:-}" in
         used=$(echo "$used" | tr -d ' ')
         total=$(echo "$total" | tr -d ' ')
         if [ -n "$used" ] && [ "$used" != "N/A" ] && [ -n "$total" ] && [ "$total" != "N/A" ]; then
-            awk "BEGIN {printf \"%.0f GB/%.0f GB\", $used/1024, $total/1024}"
+            awk "BEGIN {printf \"%.1f GB/%.1f GB\", $used/1024, $total/1024}"
         else
             echo "—"
         fi
