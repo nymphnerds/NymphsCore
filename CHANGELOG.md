@@ -8,53 +8,341 @@ This file focuses on user-facing and system-level changes rather than package-by
 
 Newest entries first.
 
-### 2026-04-29 RautysIdeas technical handoff documentation suite
-Source: need for durable, searchable technical documentation that preserves how the Monitor, Brain LLM lifecycle, and MCP infrastructure actually work instead of relying on scattered session notes or tribal knowledge.
+### 2026-05-04 Z-Image LoRA usability pass: activation cleanup, runtime recovery, and follow-up performance concern
+Source: live Blender -> Manager -> Z-Image -> Nunchaku LoRA testing, using both downloaded public control LoRAs and the user's own `yamamoto` LoRA, plus multiple addon / runtime correction passes after regressions were introduced mid-session.
 
 Documented changes:
 
-- created `NymphsCore/docs/RautysIdeas/` as a dedicated documentation home for architectural handoff notes
-- added **MONITOR_PROJECT_HANDOFF.md** — complete technical documentation of the NymphsCore/Monitor project:
-  - .NET WinForms app architecture, API integration with the Llama Server Manager, and dark theme UI
-  - Windows↔WSL communication via `monitor_query.sh` bridge script
-  - full data flow from server discovery (`/llama/servers`) to start/stop/restart actions (`/llama/start`, `/llama/stop`, `/llama/restart`)
-  - JSON response schema, error handling, auto-refresh, search/filter, and context menu
-- added **AUTO_CONTEXT_HANDOFF_FOR_LMS-START.md** — documentation of the `lms-start` and `lms-model` scripts:
-  - role-aware Act/Plan model profiles (`lms-get-profile`, `lms-set-profile`)
-  - how `lms-start` loads Act first then Plan via `lms load -y`
-  - `lms-model` interactive model manager (download, set, remove, profile operations)
-  - interaction with the Monitor's server discovery pipeline and LM Studio HTTP API
-  - full LLM lifecycle from cold start to role-aware multi-model operation
-- added **MCP_UPDATES.md** — comprehensive documentation of the MCP infrastructure:
-  - three-layer architecture: native stdio servers → mcpo proxy (port 8100) → HTTP clients
-  - Context7 MCP setup (`@upstash/context7-mcp`), tools (`resolve-library-id`, `query-docs`), version-aware docs
-  - Unity MCP two-part architecture (Node.js TypeScript server + Unity Editor C# extension), WebSocket on port 8090, ~25 tools, ~8 resources
-  - mcpo proxy bridging stdio to streamable-http, keeping servers alive across client sessions
-  - web-forager (DuckDuckGo search, Jina fetch, news), filesystem (path-restricted), memory (JSONL persistent)
-  - client configurations for Cline (3 servers + direct Context7), Open WebUI (3 servers), mcpo full set (5 servers)
-  - virtual environments (`mcp-venv`, `mcpo-venv`), npm global packages, directory structure
-  - step-by-step guide for adding new MCP servers
+- confirmed Z-Image LoRAs are working again end-to-end from Blender through Manager into the Nunchaku runtime
+- confirmed the user's own Manager-trained `yamamoto` LoRA is usable again, not just the downloaded public control LoRAs
+- simplified the product direction for LoRA activation:
+  - default activation is now the LoRA name itself
+  - the Blender addon now inserts that activation into the visible managed prompt system instead of hiding it in a send-time append
+- cleaned up the addon LoRA UI wording around activation so it is less theory-heavy
+- updated the Trainer guide and LoRA handoff notes to reflect the real workflow as it exists now
+- added recovery for stale saved TRELLIS GGUF enum values that were spamming Blender terminal warnings
+- fixed a Manager nullability warning in `BuildRuntimeCodeModeSummary`
+- adjusted the Manager sidebar/header spacing so the left logo area sits more cleanly
+
+Important runtime reality from this pass:
+
+- the LoRA path was working, then regressed after later backend/runtime changes were made around activation/VRAM/offload work
+- the runtime was pushed back toward the simpler working-style backend path after that regression
+- the current session ended with LoRAs working again, but not with a strong enough explanation of every intermediate regression to treat the backend as fully understood
+
+Known unresolved concern going into the next session:
+
+- Blender, and at times the whole PC, felt unusually sluggish during this work
+- that still needs a focused investigation for possible:
+  - timer/polling pressure
+  - memory leak behavior
+  - broader runtime residency / resource buildup
 
 Why it matters:
 
-- the Monitor, Brain LLM lifecycle, and MCP infrastructure can now be understood from documentation alone without reverse-engineering scripts or asking someone who was there
-- new contributors or future sessions can onboard into how these systems work without losing context
-- the three-layer MCP architecture (native → proxy → clients) is now documented as a recoverable pattern, not just a working config
+- this is the point where LoRA usability got much closer to a real product surface:
+  - easier activation behavior
+  - working end-to-end LoRA path again
+  - clearer docs
+- but it also established the next priority clearly:
+  - stop destabilizing the working LoRA backend
+  - investigate performance/sluggishness before doing more feature drift
 
-### 2026-04-28 Llama Server Monitor desktop app
-Source: need for a quick visual way to manage multiple local Llama servers without reaching for the terminal.
+### 2026-05-03 Z-Image trainer completion fix, healthy LoRA milestone, and AI Toolkit UI caveat
+Source: live end-to-end LoRA training on `yamamoto`, plus follow-up Manager work after a successful long run still looked unfinished in both Manager and AI Toolkit UI.
 
 Documented changes:
 
-- added **Llama Server Monitor**, a .NET WinForms desktop app that queries a local HTTP API to discover all managed Llama servers
-- displays each server with its status, port, and model path in a compact modern dark theme
-- one-click Start/Stop/Restart actions per server via left-click buttons and a right-click context menu
-- auto-refresh keeps status current; search/filter lets users narrow the list by name, port, or path
+- confirmed a real healthy Z-Image Turbo LoRA run completed through the rebuilt Manager / AI Toolkit path:
+  - training reached `3000` steps
+  - loss stayed finite and trended down instead of collapsing into `NaN`
+  - intermediate checkpoints and final LoRA outputs were written successfully
+- fixed a Manager completion bug where the trainer progress could stop at `2999/3000` and feel failed even though the final checkpoint had already been saved
+- changed Manager completion detection so it no longer relies only on AI Toolkit’s stale job state or the last visible tqdm line
+- taught Manager to treat the real final LoRA file:
+  - `loras/<name>/<name>.safetensors`
+  as the authoritative completion signal for the trainer page
+- kept the Manager-side progress parser improvements so long Z-Image runs still show real warmup/training progress instead of only queue/handoff messages
+
+Observed reality during validation:
+
+- AI Toolkit’s own queue and overview UI can still stay stuck on:
+  - `Starting job...`
+  - `0 / 3000`
+  - `running`
+  even when the raw trainer log and final saved checkpoint prove the job is already far ahead or fully finished
+- the Manager fix is specifically about making the Manager truthful at the end of a run even when AI Toolkit’s own UI remains stale
 
 Why it matters:
 
-- users managing multiple local Llama servers now have a visual control surface instead of relying solely on shell scripts or terminal queries
-- start/stop/restart decisions are faster and less error-prone with per-server buttons and live status feedback
+- this is the first point where a long real LoRA run both completed healthily and also stopped looking like a silent failure inside the Manager
+- it also locks in the practical rule for current Z-Image work:
+  - trust raw trainer logs and final saved checkpoints more than AI Toolkit’s queue/overview progress surfaces
+
+### 2026-05-03 Manager UI redesign pass: unified sidebar flow, darker shell, and ongoing control polish
+Source: live visual iteration against the new Manager mockup, with repeated rebuild-and-review passes focused on making the Windows Manager feel like one coherent app instead of a mix of legacy beige panels and newer trainer UI fragments.
+
+Documented changes:
+
+- added a real `Manage Install` destination to the left sidebar so the install/setup flow is no longer hidden behind bottom-page back navigation
+- changed sidebar behavior so:
+  - `Manage Install` owns the install/setup flow pages
+  - tool pages like `Runtime Tools`, `Z-Image Trainer`, and `Brain` no longer rely on the same bottom `Back` flow control
+- reworked the Manager shell into a dark redesign pass with:
+  - unified dark app chrome
+  - a flatter green-grey shell direction
+  - restyled buttons, inputs, and log surfaces
+- styled more of the previously untouched pages in the install-management flow so `Welcome`, `System Check`, and related pages stop looking like an older beige app embedded inside the new shell
+- restyled the embedded `Brain` monitor panel so it no longer ships as a hard black block against the new Manager theme
+- centered the footer quote in the left sidebar
+- kept iterating on the trainer-page controls, especially:
+  - dropdown styling
+  - button vividness
+  - shell/background flattening
+
+Important reality from this pass:
+
+- the redesign direction improved a lot, but several style tweaks were noisy and required rework after live screenshots
+- dropdown styling in particular regressed multiple times during the pass:
+  - stock WPF white toggle chrome briefly leaked back in
+  - geometry became chunkier than intended
+  - later passes had to focus specifically on restoring slimmer, cleaner dropdowns
+- button styling also drifted during shell recolor passes, and needed to be re-aligned with the brighter vivid shaded look the user preferred
+- top-bar/title-bar matching remains a sensitive area because native Windows caption styling and the WPF client shell have to be kept in sync manually
+
+Why it matters:
+
+- this is the pass where the Manager finally started behaving like one navigable product instead of a collection of semi-related screens
+- it also made clear that future polish work should be more disciplined:
+  - preserve good geometry once it lands
+  - separate background changes from control-style changes
+  - stop letting shared resource edits accidentally fatten controls or mute buttons that were already approved
+
+### 2026-05-03 Manager dark-theme redesign notes still open
+Source: live visual review of the ongoing Manager charcoal/blue-grey restyle against the reference mockup.
+
+Open notes captured:
+
+- there is still a visible seam / tone mismatch between the native dark title bar and the app shell on some screens
+- the redesign direction is now clearly graphite / blue-grey overall, with green used as a vivid accent rather than a full green sidebar shell
+- some pages still need consistency cleanup so the app stops looking like a mix of old beige-era panels and new dark cards
+- `Runtime Tools`, `Brain`, and `Z-Image Trainer` have all needed page-specific cleanup because shared shell styling alone was not enough
+- form controls should keep moving toward the mockup style globally:
+  - dropdowns
+  - API/token/password fields
+  - other text-entry controls
+- there are still places where the page structure feels over-boxed, so flattening nested card-inside-card layouts remains part of the polish pass
+
+### 2026-05-02 Z-Image Trainer breakthrough: `bf16` + lower LR finally produced a healthy-looking run
+Source: follow-up debugging after the AI Toolkit-first handoff work, focused on repeated `loss is nan`, stale AI Toolkit status surfaces, and whether the Manager-generated trainer config itself was destabilizing Z-Image Turbo training.
+
+Documented changes:
+
+- traced the repeated `loss is nan` spam through AI Toolkit source instead of guessing:
+  - confirmed AI Toolkit really does print `loss is nan` only when `torch.isnan(loss)` is true
+  - confirmed it then replaces that loss with a zero tensor and keeps training
+  - confirmed old runs were not poisoning the current run log because AI Toolkit rotates prior `log.txt` files into a `logs/` folder before each new launch
+- compared Manager-generated Z-Image trainer config against AI Toolkit’s own Z-Image defaults and found a major mismatch:
+  - Manager was generating `fp16`
+  - AI Toolkit defaults and Z-Image model code both pointed toward `bf16`
+  - this matched Tongyi-MAI / community reports that Z-Image can be numerically unstable in `fp16`
+- changed Manager-generated trainer jobs to use `bf16` instead of `fp16`
+- normalized learning-rate UI values so imported AI Toolkit jobs using decimal notation like `0.0001` no longer left the Manager dropdown looking blank
+- validated that a later retry using:
+  - `Fast Test`
+  - `Low VRAM`
+  - learning rate `8e-5`
+  - `bf16`
+  finally produced a healthy-looking live training line instead of immediate NaN spam
+
+Observed healthy-looking signal:
+
+- `lr: 8.0e-05 loss: 5.098e-01`
+
+Why it matters:
+
+- this is the first strong sign that the rebuilt Manager -> AI Toolkit trainer path is not only handing jobs off correctly, but can also drive a numerically sane Z-Image Turbo training run
+- it strongly suggests `fp16` was a major part of the earlier failure pattern
+
+What still remains messy:
+
+- AI Toolkit overview can still sit on `Starting job...` / `Step 0` while the raw run is advancing
+- AI Toolkit loss graph can still be empty even when the raw log is active, because it relies on separate `loss_log.db` telemetry
+- Manager progress is now much more truthful, but the Manager live log panel can still lag behind the progress bar
+- `Stop Job` appears to work, but slowly; the earlier assumption that it was outright broken turned out to be too harsh
+
+### 2026-05-02 Z-Image Trainer handoff slog: from custom sidecar control to AI Toolkit-first job flow
+Source: several days of local Manager + WSL debugging focused on one brutal theme: the trainer page had drifted into being its own orchestration system instead of a clean AI Toolkit front end, which made simple things like queueing, starting, stopping, and killing AI Toolkit far harder than they should have been.
+
+Documented changes:
+
+- traced the trainer history back to its original DiffSynth-style managed-sidecar form:
+  - first shipped as a Manager-owned `Z-Image Trainer` flow in commit `acb21cb`
+  - originally centered on its own dataset prep, caption drafting, YAML/job generation, and direct DiffSynth-style training control rather than the AI Toolkit job/queue model
+  - only later began transitioning onto the AI Toolkit sidecar path
+- confirmed the core architectural pain point:
+  - Manager had grown a parallel control layer for trainer start/stop/status
+  - AI Toolkit had its own job, queue, worker, and UI state
+  - the mismatch between those two worlds caused most of the stop-button, stale-status, and “it says queued but nothing is there” failures
+- pushed the trainer runtime back toward the official AI Toolkit layout:
+  - repo-local AI Toolkit DB at `ai-toolkit/aitk_db.db`
+  - repo-local AI Toolkit venv under `ai-toolkit`
+  - official UI launch path based on the UI package scripts instead of bespoke Manager-only launch assumptions
+- documented and reworked the Brain captioning side of the trainer too, because it was part of the same mess:
+  - the original caption workflow revolved around `metadata.csv`
+  - AI Toolkit training wanted per-image `.txt` sidecars
+  - the Manager had to mirror or sync those two worlds instead of naturally sharing one source of truth
+  - trainer captioning also suffered from isolated-venv confusion, image normalization issues, request-shape retries against the OpenAI-compatible vision path, and prompt-quality passes to stop captions collapsing into stale style phrases
+- reworked the Manager job flow so it now hands off through AI Toolkit concepts instead of pretending to be the engine:
+  - `Add Job`
+  - `Start Job`
+  - `Stop Job`
+  - `Delete Job`
+- separated job creation from job start:
+  - `Add Job` now creates or updates the AI Toolkit job and prepares the trainer metadata/caption handoff
+  - `Start Job` now starts the existing AI Toolkit job instead of silently recreating it
+- fixed a real AI Toolkit job-config bug discovered during live testing:
+  - Manager was serializing `lr` as a string like `"1e-4"`
+  - AI Toolkit / bitsandbytes needed a numeric learning rate
+  - this produced the runtime `'<=' not supported between instances of 'float' and 'str'` failure until the Manager config serialization was corrected
+- changed the Manager-facing AI Toolkit launch target to the jobs page instead of the dashboard queue so created jobs are visible where AI Toolkit actually stores them before start
+- improved Manager status so it now tries to reflect the selected AI Toolkit job and dataset rather than only dumping generic sidecar probes
+- taught Manager to push AI Toolkit settings for the shared trainer folders so AI Toolkit can see the same datasets and LoRA output folders the Manager is using
+- cleaned up the trainer log/status noise:
+  - removed or reduced raw `ZIMAGE_TRAINER_*=` dump lines from the visible trainer log
+  - cut back on sidecar-check spam after kill/start actions
+  - made more of the visible status text track actual AI Toolkit job states instead of old Manager assumptions
+- repeatedly reworked `Kill AI Toolkit` after live testing showed several ugly failure modes:
+  - false failure logs even when the server was actually gone
+  - stale browser tabs making it look alive even when the server was dead
+  - process-pattern drift between `concurrently`, worker, `next start`, and `next-server`
+  - misleading “not open” Manager status while the browser still showed the last rendered page
+- reached a usable checkpoint where the fundamental flow now works again:
+  - Manager can create/update a real AI Toolkit job
+  - Manager can start that job
+  - Manager can stop that job
+  - Manager can kill the AI Toolkit server
+
+Pain points this pass exposed:
+
+- the original trainer module was not AI Toolkit-first, and that architectural drift cost days
+- queue state, idle job state, and dashboard state were easy to confuse because AI Toolkit shows them in different places
+- browser-page visibility after shutdown made the UI feel “still alive” even when the AI Toolkit server was actually gone
+- Manager had several places where it was telling a simpler story than the underlying AI Toolkit runtime was actually living
+- Brain captioning pain overlapped with the backend pain:
+  - CSV vs `.txt` caption truth
+  - caption review/edit expectations
+  - local trainer-venv module drift
+  - prompt wording and quality issues that made “captioning works” and “captioning is usable” two different milestones
+- progress is real, but the trainer page is still not finished and still needs cleanup around dataset/image visibility, final wording, and overall simplicity
+
+Validation:
+
+- confirmed a real AI Toolkit job can now be created from the Manager and appears under the AI Toolkit jobs flow
+- confirmed `Start Job` can move that job into AI Toolkit runtime state instead of only creating a placeholder
+- confirmed `Stop Job` now works through the AI Toolkit job path
+- confirmed `Kill AI Toolkit` can now stop the server even though stale browser tabs can still visually confuse the result until refreshed
+- confirmed the trainer dataset visibility can now be checked against AI Toolkit instead of guessed from Manager-only state
+
+Why it matters:
+
+- this is the point where the trainer finally starts behaving like an AI Toolkit front end instead of a competing trainer controller
+- just as importantly, the changelog now reflects the painful reality: this was not a neat one-shot integration, it was a multi-day cleanup of a split-brain trainer architecture, and the job still is not fully finished
+
+### 2026-05-01 Z-Image Trainer AI Toolkit transition, preset cleanup, and UI launch recovery
+Source: live Manager and `NymphsCore` WSL testing focused on bringing the trainer onto the AI Toolkit sidecar path, tightening the training presets, and restoring the Official UI / Nymphs UI launch flow so end-to-end LoRA testing could continue.
+
+Documented changes:
+
+- switched the managed trainer install flow onto the AI Toolkit sidecar script at `install_zimage_trainer_aitk.sh`
+- updated trainer copy in the Manager away from stale DiffSynth wording and toward explicit `Z-Image Turbo` / `AI Toolkit` terminology
+- added a cleaner preset model for training:
+  - `Baseline`
+  - `Style`
+  - `Style High Noise`
+- added an explicit training-adapter selector in the Manager:
+  - `v1 (Recommended)`
+  - `v2 (Experimental)`
+- changed trainer job generation to AI Toolkit-style YAML configs and mirrored `metadata.csv` captions into per-image text captions for the sidecar flow
+- added managed stop support for active trainer jobs from the Manager
+- improved trainer live-log streaming so carriage-return progress updates show up instead of feeling frozen during long runs
+- increased the trainer log panel height slightly for easier monitoring during training
+- reorganized the trainer page flow so dataset/output actions sit nearer the LoRA name and setup flow
+- changed the trainer name field into an editable existing-dataset picker so users can select current picture sets from `/home/nymph/ZImage-Trainer/datasets` instead of relying on hidden naming conventions
+- repaired the trainer sidecar scripts for current AI Toolkit / Gradio behavior, including the Gradio 6 launch-path compatibility fixes
+- restored the Official AI Toolkit UI launch path to the fast working `npm run start` behavior after confirming the heavier `build_and_start` path was blocking day-to-day launch reliability in live testing
+- fixed the final Official UI browser-launch timing issue by waiting briefly for `localhost:8675` before opening the browser
+- updated `Caption with Brain` to normalize source images before upload, retry a second OpenAI-compatible image request shape when needed, and use the trainer venv Python instead of bare `python3`
+- added `Pillow` to the trainer install/repair path and to the caption-sync fallback so Brain-assisted captioning works inside the isolated trainer venv
+- tuned the style-caption drafting prompt to push harder against medium/style phrases such as `woodblock`, `woodblock print`, and `Japanese woodblock print`
+- added a standalone internal trainer feature map at `docs/z-image-trainer-features.md`
+
+Validation:
+
+- confirmed `Nymphs UI` launches successfully from the Manager after repair
+- confirmed the live `Official UI` launcher in `NymphsCore` starts `next start --port 8675` and binds `localhost:8675`
+- confirmed the remaining browser-side failure was launch timing rather than a dead UI service
+- confirmed `Official UI` opens again once the Manager waits for the local port before opening the browser
+- confirmed the live trainer datasets in `NymphsCore` are discoverable as `my_first_lora` and `ukiyo`, and switched dataset enumeration to direct WSL-path filesystem listing instead of a brittle shell roundtrip
+- confirmed `Caption with Brain` now runs far enough to produce real caption drafts, with remaining quality issues narrowed down to prompt wording rather than missing modules or broken helper launch paths
+
+Why it matters:
+
+- NymphsCore’s trainer path is now aligned around the AI Toolkit sidecar instead of split old/new flows, the Manager is back to a usable state for real LoRA testing, and the caption/dataset workflow is more discoverable and much less brittle.
+
+### 2026-04-29 Z-Image Trainer end-to-end LoRA training and Brain-assisted captioning
+Source: live Manager testing took the new Z-Image Trainer from first install through Brain-drafted captions, a real training run, and produced LoRA checkpoint files.
+
+Documented changes:
+
+- added the managed `Z-Image Trainer` flow in the Windows Manager with trainer install, dataset prep, caption drafting, job creation, training start, repair, and runtime status hooks
+- moved trainer assets into a self-contained `/home/<user>/ZImage-Trainer` layout for datasets, LoRAs, jobs, logs, adapters, and the isolated DiffSynth sidecar
+- added `Caption Brain` integration so the trainer can temporarily start Nymphs-Brain with a local vision GGUF plus `mmproj`, write trainer-ready `metadata.csv`, and keep the captions user-reviewable instead of silently treating them as final
+- aligned trainer metadata to the trainer-native `image,prompt` shape while still tolerating older caption rows during the transition
+- added automatic Turbo training-adapter preparation for `ostris/zimage_turbo_training_adapter`
+- added trainer install-time prefetch of the heavy `Tongyi-MAI/Z-Image-Turbo` training bundle so `Add Trainer` warms the large first-run model downloads instead of surprising the first training job
+- fixed the managed training wrapper to accept Manager-written caption/image fields, resolve dataset image paths reliably, and launch real DiffSynth training successfully
+- fixed trainer output discovery so finished LoRAs are found recursively inside subfolders like `loras/<name>/epoch-*.safetensors`
+- improved the trainer log flow with clearer bootstrap messaging during the quiet first model load
+
+Validation:
+
+- user confirmed `Caption Brain` drafted valid captions into `metadata.csv` from a local Qwen2.5-VL-7B GGUF + `mmproj`
+- user completed a full `Stylized Look / Quick Test` training run from the Manager
+- user confirmed real LoRA outputs were created at `ZImage-Trainer/loras/my_first_lora/epoch-0.safetensors` and `epoch-1.safetensors`
+- verified shell syntax, Python compile, and `git diff --check` for the managed trainer scripts and support files during the implementation pass
+
+Why it matters:
+
+- NymphsCore now has a real end-to-end local LoRA training path for Z-Image, with Brain-assisted caption drafting and a first successful managed training workflow instead of a hand-run experimental side process.
+
+### 2026-04-28 Nymphs-Brain llama-server migration and Manager integration
+Source: Rauty's Nymphs-Brain branch moved the local LLM runtime onto direct `llama-server` control while keeping LM Studio for model download and management.
+
+Documented changes:
+
+- migrated Nymphs-Brain from the LM Studio server runtime to `llama-server` on `http://localhost:8000/v1`
+- kept LM Studio CLI as the local model download and model management surface
+- reworked Brain model management from Plan/Act profiles to Local/Remote model settings
+- added the embedded Brain monitor panel showing runtime state, model, context size, GPU VRAM, GPU temperature, and tokens/sec
+- restored Open WebUI tool seeding through the MCP + `mcpo` OpenAPI bridge for Filesystem, Memory, Web Forager, Context7, and LLM Wrapper tools
+- added OpenRouter key handling for the remote `llm-wrapper` tool path
+- updated Brain start/update/stop flows for `llama-server`, MCP proxy, `mcpo`, and Open WebUI
+- changed Update Stack to refresh the new Brain scripts and Open WebUI packages without running legacy LM Studio server update logic
+- improved Brain stop scripts so stale PIDs and slow service shutdowns do not hang the Manager
+- updated the Manager Brain page layout, live monitor refresh, and sidebar copy for the new stack
+
+Validation:
+
+- user rebuilt the Manager and ran repair against the test WSL distro
+- confirmed Brain start brings up the LLM and MCP services
+- confirmed Open WebUI loads all five seeded tools
+- confirmed the monitor reports model, context, GPU VRAM, GPU temperature, and tokens/sec
+- confirmed Update Stack completes on the new path after removing the legacy `lms-update` sequence
+
+Why it matters:
+
+- Nymphs-Brain now uses the more flexible `llama-server` backend while preserving LM Studio's model-management convenience, and the Manager can install, repair, monitor, update, and stop the full Brain stack from one page.
 
 ### 2026-04-27 Installer commit-pin checkout fix
 Source: fresh installer testing failed while cloning the TRELLIS.2 GGUF helper package because the installer treated a pinned commit SHA as a Git branch name.
