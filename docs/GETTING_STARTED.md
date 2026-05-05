@@ -180,6 +180,7 @@ It keeps its Python environment, npm tools, model cache, and wrappers under that
 If you enable it, the manager also prepares:
 
 - local LLM start/stop/model helper commands
+- LM Studio CLI model management with `llama-server` inference on `http://localhost:8000/v1`
 - a local MCP gateway for tool access
 - Open WebUI on:
 
@@ -246,7 +247,7 @@ If `Nymphs-Brain` was installed, use the dedicated `Brain` page to:
 - start or stop the Brain stack
 - start or stop Open WebUI
 - check Brain `LLM`, `MCP`, and model status
-- open the role-aware `Manage Models` flow for `Act` / `Plan` model assignment
+- open `Manage Models` for the local model, context length, and optional remote wrapper model
 - inspect the Brain activity log
 
 ## Which Backend Should I Use?

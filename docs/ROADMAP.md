@@ -2,7 +2,7 @@
 
 Local-only planning note. Do not publish this until the commercial install story is ready.
 
-Last updated: 2026-04-18
+Last updated: 2026-04-30
 
 ## Requested Work Queue
 
@@ -10,6 +10,201 @@ Ordering rule:
 
 - newest requested work goes at the top of this section
 - older requested work stays lower down
+
+### Quantized Z-Image Turbo model fetch in Runtime Tools
+
+Goal:
+
+- let users fetch supported quantized `Tongyi-MAI/Z-Image-Turbo` variants from Manager, similar to the existing TRELLIS quant download flow
+
+Work:
+
+- research which Hugging Face quantized `Z-Image-Turbo` repos/variants are worth supporting first
+- decide whether this should be:
+  - a curated shortlist
+  - a dropdown like TRELLIS quant selection
+  - or a hybrid with a safe default plus advanced choices
+- make it clear which runtime paths support which Z-Image quantized variants:
+  - standard diffusers path
+  - Nunchaku path
+  - unsupported combinations
+- add Runtime Tools fetch/install support for approved Z-Image Turbo quantized model variants
+- show plain-English labels instead of raw repo IDs where possible
+- display expected size / download cost before the user starts a large fetch
+- keep the current base-model path working without forcing quantized downloads
+- make sure Blender/addon-side runtime checks can tell the user which Z-Image model variant is currently installed
+
+Reference:
+
+- https://huggingface.co/models?other=base_model%3Aquantized%3ATongyi-MAI%2FZ-Image-Turbo
+
+Exit condition:
+
+- a user can open Runtime Tools, choose a supported quantized Z-Image Turbo model, fetch it, and know which installed model/runtime path they are testing
+
+### Nymphs AI Toolkit frontend
+
+Goal:
+
+- create a Nymphs-owned frontend for AI Toolkit so Z-Image training can follow the official backend while still feeling like part of the Nymphs product
+
+Work:
+
+- decide the first delivery shape:
+  - Manager launches AI Toolkit UI
+  - Manager launches a Nymphs wrapper UI on top of AI Toolkit
+  - later, deeper native integration if still worth it
+- keep the current Trainer page as the simple entry point, not a dead-end
+- make the frontend speak in Nymphs language instead of raw trainer jargon
+- keep the user-facing flow simple:
+  - pictures
+  - captions
+  - training focus
+  - training amount
+  - start training
+  - test the LoRA
+- preserve transcript-faithful training concepts where possible:
+  - steps
+  - balanced vs style/content behavior
+  - official adapter usage
+- decide whether the AI Toolkit web UI should be:
+  - launched externally
+  - embedded in Manager
+  - or selectively re-skinned for the Z-Image path only
+- keep custom Nymphs guardrails around:
+  - install state
+  - runtime health
+  - model availability
+  - logs
+  - simple recovery actions
+- avoid duplicating the whole AI Toolkit UI in C# unless there is a clear product win
+
+Exit condition:
+
+- a user can install the trainer from Manager, open a Nymphs-friendly AI Toolkit training frontend, and run Z-Image training through the official stack without the flow feeling bolted on
+
+### Avoid unnecessary Nunchaku rebuilds on repair
+
+Goal:
+
+- stop `Repair Runtime` from rebuilding `nunchaku` when the installed fork revision already matches the pinned commit
+
+Work:
+
+- tighten the runtime dependency check so source-installed `nunchaku` can be recognized as already current
+- distinguish:
+  - pinned commit changed
+  - package missing
+  - package drifted
+  - package already matches expected fork revision
+- avoid forcing a wheel rebuild when only a status/repair pass is being run and nothing changed
+- keep rebuilds when they are genuinely needed:
+  - new fork commit
+  - broken venv
+  - missing package
+- make the log message clearer so users can tell why a rebuild is happening
+
+Exit condition:
+
+- routine repair runs do not rebuild `nunchaku` unless the fork pin or live package state actually changed
+
+### Nunchaku Z-Image LoRA support
+
+Goal:
+
+- make trained Z-Image LoRAs work on the fast Nunchaku runtime, not just the slower fallback path
+
+Work:
+
+- finish the `nymphnerds/nunchaku` fork path for native Z-Image LoRA loading
+- keep Nunchaku-native hooks and control support intact while applying LoRAs
+- make Manager `Repair Runtime` install the forked Nunchaku build reliably
+- confirm the live Z-Image backend uses native Nunchaku LoRA methods when available
+- verify txt2img still works with LoRA enabled
+- verify guide-image / image-edit flows still behave correctly without regressing
+- add clearer runtime-side logging for:
+  - LoRA path selected
+  - LoRA strength
+  - native Nunchaku LoRA load success/failure
+- add a smoke-test or validation path for LoRA-capable runtime installs
+
+Exit condition:
+
+- a user can train a Z-Image LoRA, select it in the addon, and use it on the Nunchaku runtime without manual patching
+
+### AI Toolkit Z-Image trainer backend
+
+Goal:
+
+- move the Manager's Z-Image LoRA training backend toward `ostris/ai-toolkit`, which is the stack the official training adapter was made for
+
+Work:
+
+- add a separate AI Toolkit sidecar path first instead of replacing the DiffSynth sidecar immediately
+- generate Nymphs-owned AI Toolkit config templates for Z-Image because the local clone does not currently provide a ready-made Z-Image example config
+- remap Manager presets from repeat/epoch language to step-based training
+- normalize AI Toolkit tqdm/carriage-return progress output so the Manager live log shows readable progress instead of garbled bars
+- expose AI Toolkit-native concepts cleanly:
+  - `steps`
+  - `content_or_style`
+  - `assistant_lora_path`
+  - `save_every`
+  - `sample_every`
+- keep the existing Trainer page UX stable while swapping the backend underneath
+- compare one AI Toolkit-trained LoRA against the current DiffSynth-trained LoRA before deciding whether to replace the current backend completely
+- revisit whether the official adapter should default to `v2` instead of `v1`
+
+Exit condition:
+
+- the Manager can run a Z-Image training job through AI Toolkit and the resulting LoRA is at least as usable as the current path, ideally clearly better
+
+### Addon LoRA workflow polish
+
+Goal:
+
+- make the Blender-side LoRA flow clear enough that a first-time user can actually test a trained LoRA without confusion
+
+Work:
+
+- keep the run-folder plus checkpoint picker flow clean and understandable
+- make it obvious which checkpoint is selected and which file is actually being used
+- keep `Use Latest` as a convenience path without hiding manual checkpoint choice
+- make runtime limitations visible in plain language:
+  - guide image / image edit vs txt2img
+  - runtime busy states
+  - LoRA unsupported vs failed to load
+- keep prompt editing stable so the prompts panel does not disappear after apply
+- keep server detail/status UI concise instead of dumping backend internals
+- add a simple “LoRA on/off same seed” testing workflow later if it still feels needed
+
+Exit condition:
+
+- a user can select a trained LoRA in Blender, understand what is being used, and test it without backend guesswork
+
+### Curated cloud image model selection in the addon
+
+Goal:
+
+- make the current `Gemini Flash` cloud path feel like a proper `Cloud Image` backend with a small, curated model list instead of one hardcoded provider label
+
+Work:
+
+- rename the addon cloud image path from `Gemini Flash` to something more provider-neutral like `Cloud Image`
+- keep OpenRouter as the first implementation path
+- add a curated default model list instead of exposing the entire OpenRouter catalog
+- group choices in a simple way:
+  - best quality
+  - balanced
+  - budget
+- include the strongest current image models plus a few cheaper options
+- allow a later optional `Refresh Models` flow from OpenRouter, but keep the curated shortlist as the main UX
+- filter out models that are not image-capable or that do not match the addon's current request shape
+- keep guide-image/edit compatibility visible per model where possible
+- consider an OpenAI API path later, but do not tie this to ChatGPT subscription login
+
+Exit condition:
+
+- a user can pick from a short, understandable cloud image model list without reading provider docs or model IDs
 
 ### User-configurable `.wslconfig` in the installer
 

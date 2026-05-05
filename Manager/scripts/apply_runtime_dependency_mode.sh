@@ -4,6 +4,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SCRIPT_DIR="${ROOT_DIR}/scripts"
 LOCK_FILE="${SCRIPT_DIR}/runtime-deps.lock.json"
+ZIMAGE_OVERLAY_DIR="${SCRIPT_DIR}/zimage_backend_overlay"
 
 source "${SCRIPT_DIR}/common_paths.sh"
 
@@ -63,14 +64,26 @@ deps = data["dependencies"]
 if mode == "latest":
     zimage_ref = deps["Nymphs2D2"].get("tracking_ref") or "HEAD"
     trellis_source_ref = deps["TRELLIS.2"].get("tracking_ref") or "HEAD"
-    nunchaku_spec = deps["nunchaku"]["package"]
+    if deps["nunchaku"]["kind"] == "git":
+        nunchaku_ref = deps["nunchaku"].get("tracking_ref") or "HEAD"
+        nunchaku_spec = f"git+{deps['nunchaku']['repo']}@{nunchaku_ref}"
+        nunchaku_index_url = ""
+    else:
+        nunchaku_spec = deps["nunchaku"]["package"]
+        nunchaku_index_url = deps["nunchaku"]["index_url"]
     diffusers_spec = deps["diffusers"]["package"]
     trellis_ref = deps["ComfyUI-Trellis2-GGUF"].get("tracking_ref") or "HEAD"
     comfy_ref = deps["ComfyUI-GGUF"].get("tracking_ref") or "HEAD"
 else:
     zimage_ref = deps["Nymphs2D2"]["pinned"]
     trellis_source_ref = deps["TRELLIS.2"]["pinned"]
-    nunchaku_spec = deps["nunchaku"]["install_spec"]
+    if deps["nunchaku"]["kind"] == "git":
+        nunchaku_ref = deps["nunchaku"]["pinned"]
+        nunchaku_spec = f"git+{deps['nunchaku']['repo']}@{nunchaku_ref}"
+        nunchaku_index_url = ""
+    else:
+        nunchaku_spec = deps["nunchaku"]["install_spec"]
+        nunchaku_index_url = deps["nunchaku"]["index_url"]
     diffusers_spec = deps["diffusers"]["install_spec"]
     trellis_ref = deps["ComfyUI-Trellis2-GGUF"]["pinned"]
     comfy_ref = deps["ComfyUI-GGUF"]["pinned"]
@@ -80,7 +93,7 @@ values = {
     "ZIMAGE_REPO_REF": zimage_ref,
     "TRELLIS_SOURCE_REPO_URL": deps["TRELLIS.2"]["repo"],
     "TRELLIS_SOURCE_REPO_REF": trellis_source_ref,
-    "NUNCHAKU_INDEX_URL": deps["nunchaku"]["index_url"],
+    "NUNCHAKU_INDEX_URL": nunchaku_index_url,
     "NUNCHAKU_SPEC": nunchaku_spec,
     "DIFFUSERS_SPEC": diffusers_spec,
     "TRELLIS2_GGUF_REPO_URL": deps["ComfyUI-Trellis2-GGUF"]["repo"],
@@ -110,6 +123,26 @@ sync_git_ref() {
   GIT_TERMINAL_PROMPT=0 git -C "${repo_path}" fetch --depth 1 origin "${repo_ref}"
   git -C "${repo_path}" checkout --detach FETCH_HEAD
   echo "${name}: active commit $(git -C "${repo_path}" rev-parse --short HEAD)"
+}
+
+apply_zimage_backend_overlay() {
+  if [[ ! -d "${ZIMAGE_OVERLAY_DIR}" ]]; then
+    echo "Expected Z-Image backend overlay directory is missing: ${ZIMAGE_OVERLAY_DIR}" >&2
+    exit 1
+  fi
+
+  local overlay_file
+  for overlay_file in api_server.py model_manager.py schemas.py; do
+    if [[ ! -f "${ZIMAGE_OVERLAY_DIR}/${overlay_file}" ]]; then
+      echo "Expected Z-Image backend overlay file is missing: ${ZIMAGE_OVERLAY_DIR}/${overlay_file}" >&2
+      exit 1
+    fi
+  done
+
+  echo "Applying managed Z-Image backend overlay"
+  cp "${ZIMAGE_OVERLAY_DIR}/api_server.py" "${NYMPHS3D_N2D2_DIR}/api_server.py"
+  cp "${ZIMAGE_OVERLAY_DIR}/model_manager.py" "${NYMPHS3D_N2D2_DIR}/model_manager.py"
+  cp "${ZIMAGE_OVERLAY_DIR}/schemas.py" "${NYMPHS3D_N2D2_DIR}/schemas.py"
 }
 
 site_packages_dir() {
@@ -162,6 +195,7 @@ apply_zimage_runtime_code() {
   local pip_args=()
 
   sync_git_ref "Z-Image backend" "${ZIMAGE_REPO_URL}" "${ZIMAGE_REPO_REF}" "${NYMPHS3D_N2D2_DIR}"
+  apply_zimage_backend_overlay
 
   if [[ ! -x "${venv_python}" ]]; then
     echo "Z-Image Nunchaku venv is missing. Run Runtime Tools repair/install first." >&2
@@ -176,7 +210,10 @@ except Exception as exc:
     print(f"nunchaku_before=unavailable ({exc})")
 PY
 
-  pip_args=(install --no-deps --pre --force-reinstall --index-url "${NUNCHAKU_INDEX_URL}")
+  pip_args=(install --no-deps --pre --force-reinstall)
+  if [[ -n "${NUNCHAKU_INDEX_URL}" ]]; then
+    pip_args+=(--index-url "${NUNCHAKU_INDEX_URL}")
+  fi
   if [[ "${MODE}" == "latest" ]]; then
     pip_args+=(--upgrade)
   fi
@@ -238,4 +275,5 @@ echo "Applying runtime dependency mode: ${MODE}"
 apply_zimage_runtime_code
 apply_zimage_diffusers
 apply_trellis_gguf_helpers
+printf '%s\n' "${MODE}" > "${NYMPHS3D_RUNTIME_CODE_MODE_FILE}"
 echo "Runtime dependency mode '${MODE}' applied."

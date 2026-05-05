@@ -523,5 +523,9 @@ install_trellis_gguf_runtime
 echo "Running TRELLIS adapter entrypoint sanity check"
 "${VENV_PYTHON}" scripts/api_server_trellis_gguf.py --help >/dev/null
 
+if [[ ! -f "${NYMPHS3D_RUNTIME_CODE_MODE_FILE}" ]]; then
+  printf '%s\n' "pinned" > "${NYMPHS3D_RUNTIME_CODE_MODE_FILE}"
+fi
+
 echo
 echo "TRELLIS.2 GGUF install complete."

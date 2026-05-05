@@ -22,10 +22,11 @@ The Manager app handles everything: WSL setup, CUDA installation, Python environ
 NymphsCore also includes an optional local AI assistant stack for coding and tool workflows.
 
 - `Nymphs-Brain` installs inside the managed WSL distro
-- local OpenAI-compatible LLM endpoint on `http://localhost:1234/v1`
+- local OpenAI-compatible LLM endpoint on `http://localhost:8000/v1`
 - Open WebUI on `http://localhost:8081`
 - local MCP gateway on `http://localhost:8100`
-- role-aware `Act` and optional `Plan` model setup
+- LM Studio CLI model management with `llama-server` inference
+- local model, context length, and optional remote `llm-wrapper` setup
 - dedicated `Brain` page in Manager for start, stop, update, logs, and model management
 
 ---
@@ -117,7 +118,8 @@ Optional local LLM and MCP workflows without leaving the managed NymphsCore syst
 - local coding/chat model access through an OpenAI-compatible endpoint
 - Open WebUI for browser-based local chat
 - MCP servers for filesystem, memory, and web-forager tools
-- separate `Act` and optional `Plan` model roles
+- local model selection with configurable context length
+- optional remote `llm-wrapper` model for OpenRouter-backed delegation
 - designed for local clients such as Cline without requiring a separate manual stack setup
 
 ---

@@ -38,6 +38,8 @@ public sealed class InstallSettings
 
     public bool InstallNymphsBrain { get; set; }
 
+    public bool InstallZImageTrainer { get; set; }
+
     public bool DownloadBrainModelNow { get; set; }
 
     public string BrainInstallRoot { get; set; } = "/home/nymph/Nymphs-Brain";

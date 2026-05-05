@@ -93,12 +93,13 @@ The installer can also offer an experimental optional `Nymphs-Brain` local LLM s
 
 If selected, `Nymphs-Brain` now includes:
 
-- an LM Studio-backed local LLM runtime
+- LM Studio CLI model management
+- a CUDA-accelerated `llama-server` local LLM runtime on `http://localhost:8000/v1`
 - an Open WebUI install that opens on `http://localhost:8081`
 - a local MCP gateway for Cline/Open WebUI tool access
 - helper commands under `/home/nymph/Nymphs-Brain/bin`
 
-The installer and runtime wrappers use LM Studio's standard CLI flow for model download and server start. No separate manual daemon bootstrap step should be needed.
+The installer and runtime wrappers use LM Studio's standard CLI flow for model download and management, then serve the selected GGUF model through `llama-server`. No separate manual daemon bootstrap step should be needed.
 
 For the full optional Brain stack guide, see:
 
@@ -111,20 +112,19 @@ Useful Brain commands:
 ```text
 /home/nymph/Nymphs-Brain/bin/lms-start
 /home/nymph/Nymphs-Brain/bin/lms-model
-/home/nymph/Nymphs-Brain/bin/lms-get-profile
-/home/nymph/Nymphs-Brain/bin/lms-set-profile
+/home/nymph/Nymphs-Brain/bin/lms-status
 /home/nymph/Nymphs-Brain/bin/lms-stop
 /home/nymph/Nymphs-Brain/bin/mcp-start
 /home/nymph/Nymphs-Brain/bin/open-webui-start
 /home/nymph/Nymphs-Brain/bin/brain-status
 ```
 
-The current Brain stack is plan-first and supports:
+The current Brain stack supports:
 
-- one local `Plan` model
-- one optional local `Act` model
-- keeping `Act` external if your workflow uses an online action model
-- loading `Plan` first, then `Act` if an `Act` profile is configured
+- one configured local GGUF model served by `llama-server`
+- a selected context length for that local model
+- an optional remote `llm-wrapper` model for OpenRouter-backed delegation
+- keeping additional client roles external if your workflow uses an online model
 - refreshing installed Brain wrapper scripts from the Brain page `Update Stack` action
 
 ## Runtime Tools
@@ -146,7 +146,7 @@ Use the dedicated `Brain` page to:
 - check Brain `LLM`, `MCP`, `Open WebUI`, and model status
 - start or stop the Brain stack
 - start or stop Open WebUI
-- open the role-aware `Manage Models` terminal flow
+- open the `Manage Models` terminal flow
 - update the Linux-side Brain stack components
 - inspect the Brain activity log
 

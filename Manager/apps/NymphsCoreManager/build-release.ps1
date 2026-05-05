@@ -5,6 +5,11 @@ param(
 $ErrorActionPreference = "Stop"
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 
+# Maintainer note:
+# If you are invoking builds from WSL, you can use the Windows SDK directly with
+# `dotnet.exe` against the `\\wsl.localhost\...` project path instead of needing
+# a Linux .NET install inside WSL.
+
 $scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $repoRoot = Split-Path -Parent (Split-Path -Parent $scriptRoot)
 $publishBase = Join-Path $scriptRoot "publish"

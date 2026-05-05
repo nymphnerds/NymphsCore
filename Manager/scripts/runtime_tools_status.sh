@@ -77,11 +77,14 @@ manager = ModelManager(get_settings())
 modes = manager.supported_modes()
 if "img2img" not in modes:
     raise RuntimeError(f"Z-Image img2img mode is not advertised by the Nunchaku runtime: {modes}")
+if not manager.supports_lora():
+    raise RuntimeError("Z-Image runtime is present, but native Nunchaku LoRA support is not available.")
 print(f"zimage_pipeline_ready={ZImagePipeline.__name__}")
 print(f"zimage_img2img_pipeline_ready={ZImageImg2ImgPipeline.__name__}")
 print(f"nunchaku_transformer_ready={NunchakuZImageTransformer2DModel.__name__}")
 print(f"zimage_forward_shim_ready={patched_forward}")
 print(f"supported_modes={','.join(modes)}")
+print("supports_lora=yes")
 PY
     python scripts/prefetch_model.py --local-files-only
     python - <<'PY'

@@ -14,11 +14,10 @@
       "pinned": "5565d240c4a494caaf9ece7a554542b76ffa36d3"
     },
     "nunchaku": {
-      "kind": "pip_index",
-      "package": "nunchaku",
-      "pinned": "1.3.0.dev20260302+cu130",
-      "install_spec": "nunchaku==1.3.0.dev20260302+cu130",
-      "index_url": "https://appmana.github.io/forks-nunchaku-stable-abi/cu130"
+      "kind": "git",
+      "repo": "https://github.com/nymphnerds/nunchaku.git",
+      "tracking_ref": "refs/heads/main",
+      "pinned": "a2a4f2444a092974ba53323ba0681a523ff98031"
     },
     "diffusers": {
       "kind": "pypi",

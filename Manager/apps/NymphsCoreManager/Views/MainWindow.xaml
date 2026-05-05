@@ -11,43 +11,165 @@
         MinWidth="816"
         MinHeight="578"
         WindowStartupLocation="CenterScreen"
-        Background="#F3EFE6">
+        Background="#142520">
   <Window.Resources>
+    <SolidColorBrush x:Key="OuterShellBrush" Color="#142520" />
+    <SolidColorBrush x:Key="AppShellBrush" Color="#142520" />
+    <SolidColorBrush x:Key="SidebarShellBrush" Color="#142520" />
+    <SolidColorBrush x:Key="CardBackgroundBrush" Color="#142520" />
+    <SolidColorBrush x:Key="SubCardBackgroundBrush" Color="#142520" />
+    <SolidColorBrush x:Key="BodyTextBrush" Color="#D2DCE3" />
+    <SolidColorBrush x:Key="MutedTextBrush" Color="#9DAAB6" />
+    <SolidColorBrush x:Key="HeadingTextBrush" Color="#F3ECDC" />
+    <SolidColorBrush x:Key="AccentTealBrush" Color="#35D5F6" />
+    <SolidColorBrush x:Key="AccentTealSoftBrush" Color="#1EC4E8" />
+    <LinearGradientBrush x:Key="ButtonSurfaceBrush" StartPoint="0,0" EndPoint="0,1">
+      <GradientStop Color="#1A222A" Offset="0" />
+      <GradientStop Color="#182028" Offset="1" />
+    </LinearGradientBrush>
+    <LinearGradientBrush x:Key="ButtonHoverBrush" StartPoint="0,0" EndPoint="0,1">
+      <GradientStop Color="#202932" Offset="0" />
+      <GradientStop Color="#1B242C" Offset="1" />
+    </LinearGradientBrush>
+    <LinearGradientBrush x:Key="PrimaryButtonBrush" StartPoint="0,0" EndPoint="0,1">
+      <GradientStop Color="#78F7A3" Offset="0" />
+      <GradientStop Color="#41DDA0" Offset="0.5" />
+      <GradientStop Color="#2CB6D8" Offset="1" />
+    </LinearGradientBrush>
+    <LinearGradientBrush x:Key="PrimaryButtonHoverBrush" StartPoint="0,0" EndPoint="0,1">
+      <GradientStop Color="#92FFB8" Offset="0" />
+      <GradientStop Color="#5BEAB5" Offset="0.5" />
+      <GradientStop Color="#42C9E8" Offset="1" />
+    </LinearGradientBrush>
+    <Style x:Key="ScrollThumbStyle" TargetType="Thumb">
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Thumb">
+            <Border Background="#44525E"
+                    CornerRadius="6" />
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+    <Style x:Key="ScrollBarPageButtonStyle" TargetType="RepeatButton">
+      <Setter Property="Focusable" Value="False" />
+      <Setter Property="IsTabStop" Value="False" />
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="RepeatButton">
+            <Rectangle Fill="Transparent" />
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+    <Style TargetType="ScrollBar">
+      <Setter Property="Background" Value="#141B22" />
+      <Setter Property="Width" Value="10" />
+      <Setter Property="Height" Value="10" />
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="ScrollBar">
+            <Grid Background="{TemplateBinding Background}">
+              <Track x:Name="PART_Track"
+                     IsDirectionReversed="True">
+                <Track.DecreaseRepeatButton>
+                  <RepeatButton Style="{StaticResource ScrollBarPageButtonStyle}"
+                                Command="ScrollBar.PageUpCommand" />
+                </Track.DecreaseRepeatButton>
+                <Track.Thumb>
+                  <Thumb Style="{StaticResource ScrollThumbStyle}" />
+                </Track.Thumb>
+                <Track.IncreaseRepeatButton>
+                  <RepeatButton Style="{StaticResource ScrollBarPageButtonStyle}"
+                                Command="ScrollBar.PageDownCommand" />
+                </Track.IncreaseRepeatButton>
+              </Track>
+            </Grid>
+            <ControlTemplate.Triggers>
+              <Trigger Property="Orientation" Value="Horizontal">
+                <Setter Property="Height" Value="10" />
+                <Setter Property="Width" Value="Auto" />
+              </Trigger>
+              <Trigger Property="Orientation" Value="Vertical">
+                <Setter Property="Width" Value="10" />
+                <Setter Property="Height" Value="Auto" />
+              </Trigger>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter Property="Background" Value="#172028" />
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
     <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter" />
     <Style TargetType="Border" x:Key="CardStyle">
-      <Setter Property="Background" Value="#FFFDFC" />
+      <Setter Property="Background" Value="{StaticResource CardBackgroundBrush}" />
       <Setter Property="CornerRadius" Value="18" />
       <Setter Property="Padding" Value="24" />
-      <Setter Property="BorderBrush" Value="#E5DAC8" />
-      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="BorderBrush" Value="{StaticResource CardBackgroundBrush}" />
+      <Setter Property="BorderThickness" Value="0" />
       <Setter Property="Margin" Value="0,0,0,16" />
+      <Setter Property="TextElement.Foreground" Value="{StaticResource BodyTextBrush}" />
     </Style>
     <Style TargetType="Button">
-      <Setter Property="Padding" Value="16,10" />
+      <Setter Property="Padding" Value="16,7" />
       <Setter Property="FontSize" Value="15" />
       <Setter Property="FontWeight" Value="SemiBold" />
       <Setter Property="Margin" Value="0,0,12,0" />
-      <Setter Property="Background" Value="#B74322" />
-      <Setter Property="Foreground" Value="White" />
-      <Setter Property="BorderBrush" Value="#B74322" />
+      <Setter Property="Background" Value="#1A222B" />
+      <Setter Property="Foreground" Value="#F3F7FA" />
+      <Setter Property="BorderBrush" Value="#33404B" />
       <Setter Property="BorderThickness" Value="1" />
     </Style>
     <Style TargetType="Button" x:Key="SecondaryActionButton">
-      <Setter Property="Padding" Value="14,9" />
+      <Setter Property="Padding" Value="16,7" />
       <Setter Property="FontSize" Value="14" />
       <Setter Property="FontWeight" Value="SemiBold" />
       <Setter Property="Margin" Value="0,0,12,0" />
-      <Setter Property="Background" Value="#F8F3EA" />
-      <Setter Property="Foreground" Value="#42392F" />
-      <Setter Property="BorderBrush" Value="#C7BCAE" />
+      <Setter Property="Background" Value="{StaticResource ButtonSurfaceBrush}" />
+      <Setter Property="Foreground" Value="#EEF3F7" />
+      <Setter Property="BorderBrush" Value="#2F3C47" />
       <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <Border x:Name="SecondaryButtonBorder"
+                    Background="{TemplateBinding Background}"
+                    BorderBrush="{TemplateBinding BorderBrush}"
+                    BorderThickness="{TemplateBinding BorderThickness}"
+                    CornerRadius="12"
+                    Padding="{TemplateBinding Padding}"
+                    SnapsToDevicePixels="True">
+              <ContentPresenter HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                TextElement.Foreground="{TemplateBinding Foreground}" />
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="SecondaryButtonBorder" Property="Background" Value="{StaticResource ButtonHoverBrush}" />
+                <Setter TargetName="SecondaryButtonBorder" Property="BorderBrush" Value="#41505C" />
+              </Trigger>
+              <Trigger Property="IsPressed" Value="True">
+                <Setter TargetName="SecondaryButtonBorder" Property="Background" Value="#141C23" />
+                <Setter TargetName="SecondaryButtonBorder" Property="BorderBrush" Value="#2C3944" />
+              </Trigger>
+              <Trigger Property="IsEnabled" Value="False">
+                <Setter TargetName="SecondaryButtonBorder" Property="Opacity" Value="0.5" />
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
     </Style>
     <Style TargetType="Button" x:Key="TextLinkButton">
       <Setter Property="Padding" Value="0" />
       <Setter Property="Margin" Value="0" />
       <Setter Property="Background" Value="Transparent" />
       <Setter Property="BorderThickness" Value="0" />
-      <Setter Property="Foreground" Value="#1C4A49" />
+      <Setter Property="Foreground" Value="{StaticResource AccentTealBrush}" />
       <Setter Property="FontSize" Value="14" />
       <Setter Property="FontWeight" Value="SemiBold" />
       <Setter Property="Cursor" Value="Hand" />
@@ -57,7 +179,7 @@
             <ContentPresenter TextElement.Foreground="{TemplateBinding Foreground}" />
             <ControlTemplate.Triggers>
               <Trigger Property="IsMouseOver" Value="True">
-                <Setter Property="Foreground" Value="#B74322" />
+                <Setter Property="Foreground" Value="#6BE6FF" />
               </Trigger>
               <Trigger Property="IsEnabled" Value="False">
                 <Setter Property="Opacity" Value="0.45" />
@@ -68,11 +190,11 @@
       </Setter>
     </Style>
     <Style TargetType="Button" x:Key="ActionCardButton">
-      <Setter Property="Background" Value="#FFFDFC" />
-      <Setter Property="BorderBrush" Value="#E5DAC8" />
+      <Setter Property="Background" Value="#171E25" />
+      <Setter Property="BorderBrush" Value="#2A343F" />
       <Setter Property="BorderThickness" Value="1" />
-      <Setter Property="Foreground" Value="#1E1C18" />
-      <Setter Property="Padding" Value="14,12" />
+      <Setter Property="Foreground" Value="#F3F7FA" />
+      <Setter Property="Padding" Value="14,9" />
       <Setter Property="HorizontalContentAlignment" Value="Stretch" />
       <Setter Property="VerticalContentAlignment" Value="Center" />
       <Setter Property="Cursor" Value="Hand" />
@@ -84,18 +206,18 @@
                     Background="{TemplateBinding Background}"
                     BorderBrush="{TemplateBinding BorderBrush}"
                     BorderThickness="{TemplateBinding BorderThickness}"
-                    CornerRadius="14"
+                    CornerRadius="12"
                     Padding="{TemplateBinding Padding}"
                     SnapsToDevicePixels="True">
               <ContentPresenter HorizontalAlignment="Stretch" VerticalAlignment="Center" />
             </Border>
             <ControlTemplate.Triggers>
               <Trigger Property="IsMouseOver" Value="True">
-                <Setter TargetName="Card" Property="Background" Value="#F8F3EA" />
-                <Setter TargetName="Card" Property="BorderBrush" Value="#B74322" />
+                <Setter TargetName="Card" Property="Background" Value="#1D2630" />
+                <Setter TargetName="Card" Property="BorderBrush" Value="#4FD37E" />
               </Trigger>
               <Trigger Property="IsPressed" Value="True">
-                <Setter TargetName="Card" Property="Background" Value="#EFE7D6" />
+                <Setter TargetName="Card" Property="Background" Value="#11181F" />
               </Trigger>
               <Trigger Property="IsEnabled" Value="False">
                 <Setter TargetName="Card" Property="Opacity" Value="0.5" />
@@ -106,23 +228,296 @@
       </Setter>
     </Style>
 	    <Style TargetType="TextBlock" x:Key="MutedText">
-	      <Setter Property="Foreground" Value="#6B6259" />
+	      <Setter Property="Foreground" Value="{StaticResource MutedTextBrush}" />
 	    </Style>
 	    <Style TargetType="Button" x:Key="SidebarInfoButton">
 	      <Setter Property="HorizontalAlignment" Value="Stretch" />
-	      <Setter Property="Padding" Value="10,8" />
+	      <Setter Property="Padding" Value="12,7" />
 	      <Setter Property="Margin" Value="0,0,0,8" />
-	      <Setter Property="Background" Value="#F8F3EA" />
-	      <Setter Property="BorderBrush" Value="#C7BCAE" />
-	      <Setter Property="Foreground" Value="#42392F" />
-	      <Setter Property="FontSize" Value="12" />
+	      <Setter Property="Background" Value="{StaticResource ButtonSurfaceBrush}" />
+	      <Setter Property="BorderBrush" Value="#2F3C48" />
+	      <Setter Property="Foreground" Value="#EAF1F5" />
+	      <Setter Property="FontSize" Value="12.5" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="Template">
+          <Setter.Value>
+            <ControlTemplate TargetType="Button">
+              <Border x:Name="SidebarButtonBorder"
+                      Background="{TemplateBinding Background}"
+                      BorderBrush="{TemplateBinding BorderBrush}"
+                      BorderThickness="{TemplateBinding BorderThickness}"
+                      CornerRadius="12"
+                      Padding="{TemplateBinding Padding}"
+                      SnapsToDevicePixels="True">
+                <ContentPresenter HorizontalAlignment="Left"
+                                  VerticalAlignment="Center"
+                                  TextElement.Foreground="{TemplateBinding Foreground}" />
+              </Border>
+              <ControlTemplate.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                  <Setter TargetName="SidebarButtonBorder" Property="Background" Value="{StaticResource ButtonHoverBrush}" />
+                  <Setter TargetName="SidebarButtonBorder" Property="BorderBrush" Value="#425260" />
+                </Trigger>
+                <Trigger Property="IsPressed" Value="True">
+                  <Setter TargetName="SidebarButtonBorder" Property="Background" Value="#141C23" />
+                </Trigger>
+                <Trigger Property="IsEnabled" Value="False">
+                  <Setter TargetName="SidebarButtonBorder" Property="Opacity" Value="0.45" />
+                </Trigger>
+              </ControlTemplate.Triggers>
+            </ControlTemplate>
+          </Setter.Value>
+        </Setter>
 	    </Style>
+      <Style TargetType="TextBox">
+      <Setter Property="Background" Value="#1A222B" />
+      <Setter Property="Foreground" Value="{StaticResource HeadingTextBrush}" />
+      <Setter Property="BorderBrush" Value="#33404B" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="Padding" Value="12,8" />
+        <Setter Property="CaretBrush" Value="#F3F7FA" />
+        <Setter Property="Template">
+          <Setter.Value>
+            <ControlTemplate TargetType="TextBox">
+              <Border x:Name="TextBoxBorder"
+                      Background="{TemplateBinding Background}"
+                      BorderBrush="{TemplateBinding BorderBrush}"
+                      BorderThickness="{TemplateBinding BorderThickness}"
+                      CornerRadius="10"
+                      SnapsToDevicePixels="True">
+                <ScrollViewer x:Name="PART_ContentHost"
+                              Margin="{TemplateBinding Padding}" />
+              </Border>
+              <ControlTemplate.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                  <Setter TargetName="TextBoxBorder" Property="BorderBrush" Value="#41505C" />
+                </Trigger>
+                <Trigger Property="IsKeyboardFocused" Value="True">
+                  <Setter TargetName="TextBoxBorder" Property="BorderBrush" Value="{StaticResource AccentTealBrush}" />
+                </Trigger>
+                <Trigger Property="IsEnabled" Value="False">
+                  <Setter TargetName="TextBoxBorder" Property="Opacity" Value="0.5" />
+                </Trigger>
+              </ControlTemplate.Triggers>
+            </ControlTemplate>
+          </Setter.Value>
+        </Setter>
+      </Style>
+      <Style TargetType="PasswordBox">
+        <Setter Property="Background" Value="#1A222B" />
+        <Setter Property="Foreground" Value="{StaticResource HeadingTextBrush}" />
+        <Setter Property="BorderBrush" Value="#33404B" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="Padding" Value="12,8" />
+        <Setter Property="Template">
+          <Setter.Value>
+            <ControlTemplate TargetType="PasswordBox">
+              <Border x:Name="PasswordBorder"
+                      Background="{TemplateBinding Background}"
+                      BorderBrush="{TemplateBinding BorderBrush}"
+                      BorderThickness="{TemplateBinding BorderThickness}"
+                      CornerRadius="10"
+                      SnapsToDevicePixels="True">
+                <ScrollViewer x:Name="PART_ContentHost"
+                              Margin="{TemplateBinding Padding}" />
+              </Border>
+              <ControlTemplate.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                  <Setter TargetName="PasswordBorder" Property="BorderBrush" Value="#41505C" />
+                </Trigger>
+                <Trigger Property="IsKeyboardFocused" Value="True">
+                  <Setter TargetName="PasswordBorder" Property="BorderBrush" Value="{StaticResource AccentTealBrush}" />
+                </Trigger>
+                <Trigger Property="IsEnabled" Value="False">
+                  <Setter TargetName="PasswordBorder" Property="Opacity" Value="0.5" />
+                </Trigger>
+              </ControlTemplate.Triggers>
+            </ControlTemplate>
+          </Setter.Value>
+        </Setter>
+      </Style>
+      <Style TargetType="ComboBox">
+        <Setter Property="Background" Value="#192722" />
+        <Setter Property="Foreground" Value="{StaticResource HeadingTextBrush}" />
+        <Setter Property="BorderBrush" Value="#315045" />
+        <Setter Property="Padding" Value="8,0" />
+        <Setter Property="Height" Value="26" />
+        <Setter Property="MinHeight" Value="26" />
+        <Setter Property="MaxHeight" Value="26" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="Template">
+          <Setter.Value>
+            <ControlTemplate TargetType="ComboBox">
+              <Grid>
+                <Border x:Name="ComboBorder"
+                        Background="{TemplateBinding Background}"
+                        BorderBrush="{TemplateBinding BorderBrush}"
+                        BorderThickness="1"
+                        CornerRadius="8">
+                  <Grid>
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="*" />
+                      <ColumnDefinition Width="18" />
+                    </Grid.ColumnDefinitions>
+                    <ContentPresenter x:Name="SelectionContent"
+                                      Grid.Column="0"
+                                      Margin="10,0,2,0"
+                                      VerticalAlignment="Center"
+                                      HorizontalAlignment="Left"
+                                      RecognizesAccessKey="True"
+                                      Content="{TemplateBinding SelectionBoxItem}"
+                                      ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
+                                      ContentStringFormat="{TemplateBinding SelectionBoxItemStringFormat}" />
+                    <TextBox x:Name="PART_EditableTextBox"
+                             Grid.Column="0"
+                             Margin="8,0,2,0"
+                             VerticalContentAlignment="Center"
+                             HorizontalContentAlignment="Left"
+                             Background="Transparent"
+                             BorderThickness="0"
+                             Text="{Binding Text, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                             Foreground="{TemplateBinding Foreground}"
+                             FontSize="{TemplateBinding FontSize}"
+                             CaretBrush="{TemplateBinding Foreground}"
+                             Visibility="Hidden" />
+                    <ToggleButton x:Name="DropDownToggle"
+                                  Grid.Column="1"
+                                  Background="Transparent"
+                                  BorderThickness="0"
+                                  OverridesDefaultStyle="True"
+                                  Focusable="False"
+                                  ClickMode="Press"
+                                  IsChecked="{Binding IsDropDownOpen, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}">
+                      <ToggleButton.Template>
+                        <ControlTemplate TargetType="ToggleButton">
+                          <Border x:Name="ArrowBorder"
+                                  Background="#1D2D28"
+                                  BorderBrush="#315045"
+                                  BorderThickness="1,0,0,0"
+                                   CornerRadius="0,6,6,0">
+                            <TextBlock Text="▾"
+                                       FontSize="8"
+                                       Foreground="{StaticResource BodyTextBrush}"
+                                       HorizontalAlignment="Center"
+                                       VerticalAlignment="Center" />
+                          </Border>
+                          <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                              <Setter TargetName="ArrowBorder" Property="Background" Value="#22352E" />
+                              <Setter TargetName="ArrowBorder" Property="BorderBrush" Value="#3E6458" />
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                              <Setter TargetName="ArrowBorder" Property="Background" Value="#223730" />
+                              <Setter TargetName="ArrowBorder" Property="BorderBrush" Value="{StaticResource AccentTealBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                              <Setter TargetName="ArrowBorder" Property="Opacity" Value="0.5" />
+                            </Trigger>
+                          </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                      </ToggleButton.Template>
+                    </ToggleButton>
+                  </Grid>
+                </Border>
+                <Popup x:Name="Popup"
+                       Placement="Bottom"
+                       IsOpen="{TemplateBinding IsDropDownOpen}"
+                       AllowsTransparency="True"
+                       Focusable="False"
+                       PopupAnimation="Slide">
+                  <Border Margin="0,4,0,0"
+                          MinWidth="{Binding ActualWidth, RelativeSource={RelativeSource TemplatedParent}}"
+                          MaxHeight="{TemplateBinding MaxDropDownHeight}"
+                          Background="#182520"
+                          BorderBrush="#315045"
+                          BorderThickness="1"
+                          CornerRadius="12">
+                    <ScrollViewer Margin="4"
+                                  SnapsToDevicePixels="True">
+                      <ItemsPresenter KeyboardNavigation.DirectionalNavigation="Contained" />
+                    </ScrollViewer>
+                  </Border>
+                </Popup>
+              </Grid>
+              <ControlTemplate.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                  <Setter TargetName="ComboBorder" Property="BorderBrush" Value="#3E6458" />
+                </Trigger>
+                <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                  <Setter TargetName="ComboBorder" Property="BorderBrush" Value="{StaticResource AccentTealBrush}" />
+                </Trigger>
+                <Trigger Property="IsEditable" Value="True">
+                  <Setter TargetName="PART_EditableTextBox" Property="Visibility" Value="Visible" />
+                  <Setter TargetName="SelectionContent" Property="Visibility" Value="Hidden" />
+                </Trigger>
+                <Trigger Property="IsEnabled" Value="False">
+                  <Setter TargetName="ComboBorder" Property="Opacity" Value="0.5" />
+                </Trigger>
+              </ControlTemplate.Triggers>
+            </ControlTemplate>
+          </Setter.Value>
+        </Setter>
+      </Style>
+      <Style TargetType="ComboBoxItem">
+        <Setter Property="Foreground" Value="{StaticResource BodyTextBrush}" />
+        <Setter Property="Background" Value="#182520" />
+        <Setter Property="Padding" Value="10,2" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="HorizontalContentAlignment" Value="Left" />
+        <Setter Property="Template">
+          <Setter.Value>
+            <ControlTemplate TargetType="ComboBoxItem">
+              <Border x:Name="ItemBorder"
+                      Background="{TemplateBinding Background}"
+                      CornerRadius="8"
+                      Padding="{TemplateBinding Padding}">
+                <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                  VerticalAlignment="Center" />
+              </Border>
+              <ControlTemplate.Triggers>
+                <Trigger Property="IsHighlighted" Value="True">
+                  <Setter TargetName="ItemBorder" Property="Background" Value="#22352E" />
+                </Trigger>
+                <Trigger Property="IsSelected" Value="True">
+                  <Setter TargetName="ItemBorder" Property="Background" Value="#163F39" />
+                  <Setter Property="Foreground" Value="{StaticResource HeadingTextBrush}" />
+                </Trigger>
+                <Trigger Property="IsEnabled" Value="False">
+                  <Setter TargetName="ItemBorder" Property="Opacity" Value="0.45" />
+                </Trigger>
+              </ControlTemplate.Triggers>
+            </ControlTemplate>
+          </Setter.Value>
+        </Setter>
+      </Style>
+      <Style TargetType="CheckBox">
+        <Setter Property="Foreground" Value="#EAF1F5" />
+      </Style>
+      <Style TargetType="Separator">
+        <Setter Property="Background" Value="#25313B" />
+      </Style>
+      <Style TargetType="ProgressBar">
+        <Setter Property="Foreground" Value="#52E887" />
+        <Setter Property="Background" Value="#1D2521" />
+      </Style>
+      <Style TargetType="Button" x:Key="PositiveActionButton" BasedOn="{StaticResource SecondaryActionButton}">
+        <Setter Property="Background" Value="{StaticResource PrimaryButtonBrush}" />
+        <Setter Property="Foreground" Value="#F7FFFB" />
+        <Setter Property="BorderBrush" Value="#42BC93" />
+      </Style>
+      <Style TargetType="Button" x:Key="DangerActionButton" BasedOn="{StaticResource SecondaryActionButton}">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Foreground" Value="#CC6B72" />
+        <Setter Property="BorderBrush" Value="#5E3940" />
+      </Style>
 	  </Window.Resources>
 
-  <Grid Margin="20">
-    <Grid.LayoutTransform>
-      <ScaleTransform ScaleX="0.85" ScaleY="0.85" />
-    </Grid.LayoutTransform>
+  <Grid Margin="20"
+        Background="{StaticResource OuterShellBrush}">
+      <Grid.LayoutTransform>
+        <ScaleTransform ScaleX="0.85" ScaleY="0.85" />
+      </Grid.LayoutTransform>
     <Grid.ColumnDefinitions>
       <ColumnDefinition Width="280" />
       <ColumnDefinition Width="24" />
@@ -130,9 +525,9 @@
     </Grid.ColumnDefinitions>
 
     <Border Grid.Column="0"
-            Background="#153B3A"
+            Background="{StaticResource SidebarShellBrush}"
             CornerRadius="24"
-            Padding="24">
+            Padding="24,12,24,24">
         <Grid>
           <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
@@ -166,20 +561,21 @@
                  IsHitTestVisible="False"
                  Visibility="{Binding ShowBrainSidebarArt, Converter={StaticResource BoolToVisibilityConverter}}" />
 
-        <Image Panel.ZIndex="1"
+        <Image Grid.Row="0"
+               Panel.ZIndex="1"
                Source="/AppAssets/NymphsCoreLogo.png"
                Height="56"
-               Margin="0,0,0,2"
+               Margin="0,-2,0,0"
                HorizontalAlignment="Left"
                VerticalAlignment="Top"
                Stretch="Uniform" />
 
         <TextBlock Grid.Row="1"
                    Panel.ZIndex="1"
-                   Margin="0,8,0,0"
+                   Margin="0,4,0,0"
                    Text="{Binding StepCounterText}"
                    FontSize="16"
-                   Foreground="#C1D7D1" />
+                   Foreground="{StaticResource MutedTextBrush}" />
 
         <Grid Grid.Row="2" Panel.ZIndex="1" Margin="0,32,0,0">
           <Grid.RowDefinitions>
@@ -195,17 +591,17 @@
                   Padding="16"
                   MinHeight="164">
             <StackPanel>
-              <TextBlock Text="Current Step" Foreground="#C1D7D1" FontSize="13" />
+              <TextBlock Text="Current Step" Foreground="{StaticResource AccentTealBrush}" FontSize="13" />
               <TextBlock Text="{Binding CurrentStepTitle}"
                          Margin="0,6,0,0"
                          FontSize="22"
                          FontWeight="SemiBold"
-                         Foreground="#FFFFFF"
+                         Foreground="{StaticResource HeadingTextBrush}"
                          TextWrapping="Wrap" />
               <TextBlock Text="{Binding CurrentStepSubtitle}"
                          Margin="0,10,0,0"
                          TextWrapping="Wrap"
-                         Foreground="#F1ECE5" />
+                         Foreground="{StaticResource BodyTextBrush}" />
             </StackPanel>
           </Border>
 
@@ -217,24 +613,68 @@
               <TextBlock Text="More Info"
                          FontSize="14"
                          FontWeight="SemiBold"
-                         Foreground="#FFFFFF" />
+                         Foreground="{StaticResource HeadingTextBrush}" />
 
 	              <StackPanel Margin="0,20,0,0">
 	                <Button Style="{StaticResource SidebarInfoButton}"
-	                        Command="{Binding OpenReadmeCommand}"
-	                        Content="README" />
-	                <Button Style="{StaticResource SidebarInfoButton}"
-	                        Command="{Binding OpenFootprintDocCommand}"
-	                        Content="Footprint" />
-                  <Button Style="{StaticResource SidebarInfoButton}"
-                          Command="{Binding OpenAddonGuideCommand}"
-                          Content="Addon Guide" />
-	                <Button Style="{StaticResource SidebarInfoButton}"
-	                        Command="{Binding OpenRuntimeToolsCommand}"
-	                        Content="Runtime Tools" />
-	                <Button Style="{StaticResource SidebarInfoButton}"
-	                        Command="{Binding OpenBrainToolsCommand}"
-	                        Content="Brain" />
+	                        Command="{Binding OpenGuideCommand}"
+	                        Content="Guide" />
+	                <Button Command="{Binding OpenManageInstallCommand}"
+	                        Content="Manage Install">
+                    <Button.Style>
+                      <Style TargetType="Button" BasedOn="{StaticResource SidebarInfoButton}">
+                        <Style.Triggers>
+                          <DataTrigger Binding="{Binding IsManageInstallStep}" Value="True">
+                            <Setter Property="Background" Value="#1D2630" />
+                            <Setter Property="BorderBrush" Value="#53D27F" />
+                            <Setter Property="Foreground" Value="#F6FBF8" />
+                          </DataTrigger>
+                        </Style.Triggers>
+                      </Style>
+                    </Button.Style>
+                  </Button>
+	                <Button Command="{Binding OpenRuntimeToolsCommand}"
+	                        Content="Runtime Tools">
+                    <Button.Style>
+                      <Style TargetType="Button" BasedOn="{StaticResource SidebarInfoButton}">
+                        <Style.Triggers>
+                          <DataTrigger Binding="{Binding IsRuntimeToolsStep}" Value="True">
+                            <Setter Property="Background" Value="#1D2630" />
+                            <Setter Property="BorderBrush" Value="#53D27F" />
+                            <Setter Property="Foreground" Value="#F6FBF8" />
+                          </DataTrigger>
+                        </Style.Triggers>
+                      </Style>
+                    </Button.Style>
+                  </Button>
+	                <Button Command="{Binding OpenZImageTrainerCommand}"
+	                        Content="Z-Image Trainer">
+                    <Button.Style>
+                      <Style TargetType="Button" BasedOn="{StaticResource SidebarInfoButton}">
+                        <Style.Triggers>
+                          <DataTrigger Binding="{Binding IsZImageTrainerStep}" Value="True">
+                            <Setter Property="Background" Value="#1D2630" />
+                            <Setter Property="BorderBrush" Value="#53D27F" />
+                            <Setter Property="Foreground" Value="#F6FBF8" />
+                          </DataTrigger>
+                        </Style.Triggers>
+                      </Style>
+                    </Button.Style>
+                  </Button>
+	                <Button Command="{Binding OpenBrainToolsCommand}"
+	                        Content="Brain">
+                    <Button.Style>
+                      <Style TargetType="Button" BasedOn="{StaticResource SidebarInfoButton}">
+                        <Style.Triggers>
+                          <DataTrigger Binding="{Binding IsBrainToolsStep}" Value="True">
+                            <Setter Property="Background" Value="#1D2630" />
+                            <Setter Property="BorderBrush" Value="#53D27F" />
+                            <Setter Property="Foreground" Value="#F6FBF8" />
+                          </DataTrigger>
+                        </Style.Triggers>
+                      </Style>
+                    </Button.Style>
+                  </Button>
 	                <Button Style="{StaticResource SidebarInfoButton}"
 	                        Margin="0,0,0,0"
 	                        Command="{Binding OpenLogFolderCommand}"
@@ -247,7 +687,9 @@
         <TextBlock Grid.Row="4"
                    Text="Magic takes time, let the Nymphs work"
                    TextWrapping="Wrap"
-                   Foreground="#C1D7D1" />
+                   Foreground="{StaticResource AccentTealBrush}"
+                   HorizontalAlignment="Center"
+                   TextAlignment="Center" />
       </Grid>
     </Border>
 
@@ -265,54 +707,59 @@
             <TextBlock Text="{Binding WelcomeHeadline}"
                        FontSize="28"
                        FontWeight="Bold"
-                       Foreground="#1E1C18"
+                       Foreground="#F3F7FA"
                        TextWrapping="Wrap" />
             <TextBlock Margin="0,18,0,0"
                        Text="{Binding WelcomeLead}"
                        TextWrapping="Wrap"
                        FontSize="16"
-                       Foreground="#3E3A34" />
+                       Foreground="#EAF1F5" />
             <Border Margin="0,18,0,0"
                     Padding="16"
-                    Background="#F8F3EA"
-                    BorderBrush="#E7DDCF"
+                    Background="{StaticResource SubCardBackgroundBrush}"
+                    BorderBrush="{StaticResource SubCardBackgroundBrush}"
                     BorderThickness="1"
                     CornerRadius="14">
               <StackPanel>
                 <TextBlock Text="What This App Does"
                            FontWeight="SemiBold"
-                           FontSize="16" />
+                           FontSize="16"
+                           Foreground="#F3F7FA" />
                 <TextBlock Margin="0,10,0,0"
                            Text="Installs a dedicated NymphsCore runtime distro on a drive you choose."
                            TextWrapping="Wrap"
                            FontSize="15"
-                           Foreground="#3E3A34" />
+                           Foreground="#EAF1F5" />
                 <TextBlock Margin="0,10,0,0"
                            Text="Uses a dedicated NymphsCore install instead of mixing files into an existing setup."
                            TextWrapping="Wrap"
                            FontSize="15"
-                           Foreground="#3E3A34" />
+                           Foreground="#EAF1F5" />
                 <TextBlock Margin="0,10,0,0"
                            Text="Uses the small base distro first, then adds runtime pieces afterward."
                            TextWrapping="Wrap"
                            FontSize="15"
-                           Foreground="#3E3A34" />
+                           Foreground="#EAF1F5" />
               </StackPanel>
             </Border>
             <TextBlock Margin="0,18,0,0"
                        Text="What happens next:"
                        FontWeight="SemiBold"
-                       FontSize="16" />
+                       FontSize="16"
+                       Foreground="#F3F7FA" />
             <TextBlock Margin="0,12,0,0"
                        Text="- The app checks WSL, NVIDIA visibility, and the base distro package."
                        TextWrapping="Wrap"
-                       FontSize="15" />
+                       FontSize="15"
+                       Foreground="#EAF1F5" />
             <TextBlock Text="- You choose which Windows drive should hold the NymphsCore distro."
                        TextWrapping="Wrap"
-                       FontSize="15" />
+                       FontSize="15"
+                       Foreground="#EAF1F5" />
             <TextBlock Text="- The app imports the small base distro and runs the setup level you choose."
                        TextWrapping="Wrap"
-                       FontSize="15" />
+                       FontSize="15"
+                       Foreground="#EAF1F5" />
             <TextBlock Margin="0,18,0,0"
                        Text="NymphsCore is the simplest, most fully configured, and most advanced AI-powered game asset pipeline available directly inside Blender. While other solutions require you to learn complex node-based workflows, juggle multiple applications, and manually configure servers, NymphsCore delivers professional-grade AI image-to-3D generation with a single click from the Blender sidebar you already know."
                        TextWrapping="Wrap"
@@ -322,7 +769,8 @@
                        Text="Stop switching between apps. Stop configuring servers. Stop memorizing node graphs. Just create."
                        TextWrapping="Wrap"
                        FontSize="14"
-                       FontWeight="SemiBold" />
+                       FontWeight="SemiBold"
+                       Foreground="{StaticResource HeadingTextBrush}" />
           </StackPanel>
         </Border>
 
@@ -338,8 +786,8 @@
 
             <Border Margin="0,18,0,0"
                     Padding="16"
-                    Background="#F8F3EA"
-                    BorderBrush="#E7DDCF"
+                    Background="{StaticResource SubCardBackgroundBrush}"
+                        BorderBrush="{StaticResource SubCardBackgroundBrush}"
                     BorderThickness="1"
                     CornerRadius="12"
                     Visibility="{Binding ShowExistingInstallActions, Converter={StaticResource BoolToVisibilityConverter}}">
@@ -374,7 +822,7 @@
                       <TextBlock DockPanel.Dock="Left" Text="🧩" FontSize="22" Margin="0,0,10,0" VerticalAlignment="Center" />
                       <StackPanel VerticalAlignment="Center">
                         <TextBlock Text="Add Modules" FontSize="15" FontWeight="SemiBold" TextWrapping="Wrap" />
-                        <TextBlock Text="Extras like Nymphs-Brain." FontSize="12" Foreground="#6B6259" TextWrapping="Wrap" Margin="0,2,0,0" />
+                        <TextBlock Text="Extras like Nymphs-Brain." FontSize="12" Foreground="{StaticResource MutedTextBrush}" TextWrapping="Wrap" Margin="0,2,0,0" />
                       </StackPanel>
                     </DockPanel>
                   </Button>
@@ -387,7 +835,7 @@
                       <TextBlock DockPanel.Dock="Left" Text="🔄" FontSize="22" Margin="0,0,10,0" VerticalAlignment="Center" />
                       <StackPanel VerticalAlignment="Center">
                         <TextBlock Text="Check Runtime Code" FontSize="15" FontWeight="SemiBold" TextWrapping="Wrap" />
-                        <TextBlock Text="Z-Image, TRELLIS, Nunchaku." FontSize="12" Foreground="#6B6259" TextWrapping="Wrap" Margin="0,2,0,0" />
+                        <TextBlock Text="Z-Image, TRELLIS, Nunchaku." FontSize="12" Foreground="{StaticResource MutedTextBrush}" TextWrapping="Wrap" Margin="0,2,0,0" />
                       </StackPanel>
                     </DockPanel>
                   </Button>
@@ -400,7 +848,7 @@
                       <TextBlock DockPanel.Dock="Left" Text="🛠" FontSize="22" Margin="0,0,10,0" VerticalAlignment="Center" />
                       <StackPanel VerticalAlignment="Center">
                         <TextBlock Text="Repair Runtime" FontSize="15" FontWeight="SemiBold" TextWrapping="Wrap" />
-                        <TextBlock Text="Full rebuild · 10–30 min." FontSize="12" Foreground="#6B6259" TextWrapping="Wrap" Margin="0,2,0,0" />
+                        <TextBlock Text="Full rebuild · 10–30 min." FontSize="12" Foreground="{StaticResource MutedTextBrush}" TextWrapping="Wrap" Margin="0,2,0,0" />
                       </StackPanel>
                     </DockPanel>
                   </Button>
@@ -414,7 +862,7 @@
                       <TextBlock DockPanel.Dock="Left" Text="⬇" FontSize="22" Margin="0,0,10,0" VerticalAlignment="Center" />
                       <StackPanel VerticalAlignment="Center">
                         <TextBlock Text="Fetch Models" FontSize="15" FontWeight="SemiBold" TextWrapping="Wrap" />
-                        <TextBlock Text="Download missing models." FontSize="12" Foreground="#6B6259" TextWrapping="Wrap" Margin="0,2,0,0" />
+                        <TextBlock Text="Download missing models." FontSize="12" Foreground="{StaticResource MutedTextBrush}" TextWrapping="Wrap" Margin="0,2,0,0" />
                       </StackPanel>
                     </DockPanel>
                   </Button>
@@ -427,7 +875,7 @@
                       <TextBlock DockPanel.Dock="Left" Text="⚙" FontSize="22" Margin="0,0,10,0" VerticalAlignment="Center" />
                       <StackPanel VerticalAlignment="Center">
                         <TextBlock Text="Runtime Tools" FontSize="15" FontWeight="SemiBold" TextWrapping="Wrap" />
-                        <TextBlock Text="Status &amp; smoke tests." FontSize="12" Foreground="#6B6259" TextWrapping="Wrap" Margin="0,2,0,0" />
+                        <TextBlock Text="Status &amp; smoke tests." FontSize="12" Foreground="{StaticResource MutedTextBrush}" TextWrapping="Wrap" Margin="0,2,0,0" />
                       </StackPanel>
                     </DockPanel>
                   </Button>
@@ -440,35 +888,35 @@
                       <TextBlock DockPanel.Dock="Left" Text="📄" FontSize="22" Margin="0,0,10,0" VerticalAlignment="Center" />
                       <StackPanel VerticalAlignment="Center">
                         <TextBlock Text="Open Logs" FontSize="15" FontWeight="SemiBold" TextWrapping="Wrap" />
-                        <TextBlock Text="For troubleshooting." FontSize="12" Foreground="#6B6259" TextWrapping="Wrap" Margin="0,2,0,0" />
+                        <TextBlock Text="For troubleshooting." FontSize="12" Foreground="{StaticResource MutedTextBrush}" TextWrapping="Wrap" Margin="0,2,0,0" />
                       </StackPanel>
                     </DockPanel>
                   </Button>
                 </Grid>
                 <Border Margin="0,14,0,0"
                         Padding="12"
-                        Background="#FFFDFC"
-                        BorderBrush="#E7DDCF"
+                        Background="{StaticResource SubCardBackgroundBrush}"
+                        BorderBrush="{StaticResource SubCardBackgroundBrush}"
                         BorderThickness="1"
                         CornerRadius="10"
                         Visibility="{Binding HasUpdateCheckSummary, Converter={StaticResource BoolToVisibilityConverter}}">
                   <TextBlock Text="{Binding UpdateCheckSummary}"
                              FontSize="14"
-                             Foreground="#3E3A34"
+                             Foreground="{StaticResource AccentTealBrush}"
                              LineHeight="22"
                              LineStackingStrategy="BlockLineHeight"
                              TextWrapping="Wrap" />
                 </Border>
                 <Border Margin="0,14,0,0"
                         Padding="12"
-                        Background="#FFFDFC"
-                        BorderBrush="#E7DDCF"
+                        Background="{StaticResource SubCardBackgroundBrush}"
+                        BorderBrush="{StaticResource SubCardBackgroundBrush}"
                         BorderThickness="1"
                         CornerRadius="10"
                         Visibility="{Binding HasPostInstallActionSummary, Converter={StaticResource BoolToVisibilityConverter}}">
                   <TextBlock Text="{Binding PostInstallActionSummary}"
                              FontSize="14"
-                             Foreground="#3E3A34"
+                             Foreground="{StaticResource BodyTextBrush}"
                              TextWrapping="Wrap" />
                 </Border>
               </StackPanel>
@@ -482,8 +930,8 @@
                 <DataTemplate>
                   <Border Margin="0,0,0,4"
                           Padding="10,6"
-                          Background="#F8F3EA"
-                          BorderBrush="#E7DDCF"
+                          Background="{StaticResource SubCardBackgroundBrush}"
+                          BorderBrush="{StaticResource SubCardBackgroundBrush}"
                           BorderThickness="1"
                           CornerRadius="10">
                     <Grid>
@@ -505,7 +953,8 @@
                         <TextBlock Text="{Binding Title}"
                                    FontWeight="SemiBold"
                                    FontSize="14"
-                                   VerticalAlignment="Center" />
+                                   VerticalAlignment="Center"
+                                   Foreground="{StaticResource HeadingTextBrush}" />
                       </DockPanel>
                       <TextBlock Grid.Column="1"
                                  Margin="14,0,0,0"
@@ -513,7 +962,7 @@
                                  TextWrapping="Wrap"
                                  FontSize="13"
                                  VerticalAlignment="Center"
-                                 Foreground="#3E3A34" />
+                                 Foreground="{StaticResource BodyTextBrush}" />
                     </Grid>
                   </Border>
                 </DataTemplate>
@@ -539,14 +988,15 @@
                       Padding="10" />
 
             <TextBlock Margin="0,22,0,6" Text="Planned install path" FontWeight="SemiBold" />
-            <Border Background="#F8F3EA"
-                    BorderBrush="#E7DDCF"
+            <Border Background="{StaticResource SubCardBackgroundBrush}"
+                    BorderBrush="{StaticResource SubCardBackgroundBrush}"
                     BorderThickness="1"
                     CornerRadius="12"
                     Padding="14">
               <TextBlock Text="{Binding SelectedInstallPath}"
                          FontFamily="Consolas"
                          FontSize="15"
+                         Foreground="#EAF1F5"
                          TextWrapping="Wrap" />
             </Border>
 
@@ -568,14 +1018,15 @@
 
             <Border Margin="0,22,0,0"
                     Padding="16"
-                    Background="#F8F3EA"
-                    BorderBrush="#E7DDCF"
+                    Background="{StaticResource SubCardBackgroundBrush}"
+                    BorderBrush="{StaticResource SubCardBackgroundBrush}"
                     BorderThickness="1"
                     CornerRadius="12">
               <StackPanel>
                 <TextBlock Text="WSL resource settings"
                            FontWeight="SemiBold"
-                           FontSize="16" />
+                           FontSize="16"
+                           Foreground="#F3F7FA" />
                 <TextBlock Margin="0,10,0,0"
                            Text="These values control how much RAM, CPU, and swap WSL can use. For the backend on 4080/5090-class machines, stronger WSL memory settings usually make long installs and backend startup much smoother."
                            TextWrapping="Wrap"
@@ -592,14 +1043,15 @@
                            Style="{StaticResource MutedText}" />
                 <Border Margin="0,14,0,0"
                         Padding="12"
-                        Background="#FFFDFC"
-                        BorderBrush="#E7DDCF"
+                        Background="{StaticResource SubCardBackgroundBrush}"
+                        BorderBrush="{StaticResource SubCardBackgroundBrush}"
                         BorderThickness="1"
                         CornerRadius="10">
                   <StackPanel>
                     <TextBlock Text="Recommended values"
                                FontWeight="SemiBold"
-                               FontSize="15" />
+                               FontSize="15"
+                               Foreground="#F3F7FA" />
                     <TextBlock Margin="0,8,0,0"
                                Text="{Binding RecommendedWslConfigSummary}"
                                TextWrapping="Wrap"
@@ -614,20 +1066,22 @@
                     <TextBlock Margin="0,12,0,0"
                                Text="{Binding WslConfigChoiceSummary}"
                                TextWrapping="Wrap"
-                               FontSize="13" />
+                               FontSize="13"
+                               Foreground="#EAF1F5" />
                   </StackPanel>
                 </Border>
                 <Border Margin="0,14,0,0"
                         Padding="12"
-                        Background="#FFFDFC"
-                        BorderBrush="#E7DDCF"
+                        Background="{StaticResource SubCardBackgroundBrush}"
+                        BorderBrush="{StaticResource SubCardBackgroundBrush}"
                         BorderThickness="1"
                         CornerRadius="10"
                         Visibility="{Binding IsCustomWslConfigMode, Converter={StaticResource BoolToVisibilityConverter}}">
                   <StackPanel>
                     <TextBlock Text="Custom values"
                                FontWeight="SemiBold"
-                               FontSize="15" />
+                               FontSize="15"
+                               Foreground="#F3F7FA" />
                     <Grid Margin="0,12,0,0">
                       <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
@@ -637,21 +1091,21 @@
                         <ColumnDefinition Width="*" />
                       </Grid.ColumnDefinitions>
                       <StackPanel Grid.Column="0">
-                        <TextBlock Text="Memory (GB)" FontWeight="SemiBold" />
+                        <TextBlock Text="Memory (GB)" FontWeight="SemiBold" Foreground="#EAF1F5" />
                         <TextBox Margin="0,8,0,0"
                                  Padding="10"
                                  FontSize="14"
                                  Text="{Binding WslCustomMemoryGb, UpdateSourceTrigger=PropertyChanged}" />
                       </StackPanel>
                       <StackPanel Grid.Column="2">
-                        <TextBlock Text="Processors" FontWeight="SemiBold" />
+                        <TextBlock Text="Processors" FontWeight="SemiBold" Foreground="#EAF1F5" />
                         <TextBox Margin="0,8,0,0"
                                  Padding="10"
                                  FontSize="14"
                                  Text="{Binding WslCustomProcessors, UpdateSourceTrigger=PropertyChanged}" />
                       </StackPanel>
                       <StackPanel Grid.Column="4">
-                        <TextBlock Text="Swap (GB)" FontWeight="SemiBold" />
+                        <TextBlock Text="Swap (GB)" FontWeight="SemiBold" Foreground="#EAF1F5" />
                         <TextBox Margin="0,8,0,0"
                                  Padding="10"
                                  FontSize="14"
@@ -670,14 +1124,15 @@
 
             <Border Margin="0,22,0,0"
                     Padding="16"
-                    Background="#F8F3EA"
-                    BorderBrush="#E7DDCF"
+                    Background="{StaticResource SubCardBackgroundBrush}"
+                    BorderBrush="{StaticResource SubCardBackgroundBrush}"
                     BorderThickness="1"
                     CornerRadius="12">
               <StackPanel>
                 <TextBlock Text="TRELLIS.2 GGUF download"
                            FontWeight="SemiBold"
-                           FontSize="16" />
+                           FontSize="16"
+                           Foreground="#F3F7FA" />
                 <TextBlock Margin="0,10,0,0"
                            Text="Choose which TRELLIS GGUF quantized weights to prefetch. The full cache is bigger, but lets Blender switch GGUF quantization later without a second download."
                            TextWrapping="Wrap"
@@ -706,14 +1161,15 @@
 
             <Border Margin="0,18,0,0"
                     Padding="16"
-                    Background="#F8F3EA"
-                    BorderBrush="#E7DDCF"
+                    Background="{StaticResource SubCardBackgroundBrush}"
+                    BorderBrush="{StaticResource SubCardBackgroundBrush}"
                     BorderThickness="1"
                     CornerRadius="12">
               <StackPanel>
                 <TextBlock Text="Experimental local LLM stack"
                            FontWeight="SemiBold"
-                           FontSize="16" />
+                           FontSize="16"
+                           Foreground="#F3F7FA" />
                 <TextBlock Margin="0,10,0,0"
                            Text="Optional self-contained Nymphs-Brain module. This is not required for the current Blender/backend workflow and can be skipped safely while the Blender MCP work is still experimental."
                            TextWrapping="Wrap"
@@ -725,15 +1181,16 @@
                           Content="Install experimental Nymphs-Brain to /home/nymph/Nymphs-Brain" />
                 <Border Margin="28,14,0,0"
                         Padding="12"
-                        Background="#FFFDF8"
-                        BorderBrush="#E7DDCF"
+                        Background="{StaticResource SubCardBackgroundBrush}"
+                        BorderBrush="{StaticResource SubCardBackgroundBrush}"
                         BorderThickness="1"
                         CornerRadius="10"
                         IsEnabled="{Binding BrainOptionsEnabled}">
                   <StackPanel>
                     <TextBlock Text="Brain models are managed after install"
                                FontWeight="SemiBold"
-                               FontSize="14" />
+                               FontSize="14"
+                               Foreground="#F3F7FA" />
                     <TextBlock Margin="0,8,0,0"
                                Text="Setup installs the Brain tools, llama-server backend, LM Studio model manager, MCP gateway, WebUI wrappers, and bundled llm-wrapper runtime only. After install, open the Brain page and use Manage Models to download or switch the local model and choose the remote llm-wrapper model."
                                TextWrapping="Wrap"
@@ -751,14 +1208,43 @@
 
             <Border Margin="0,18,0,0"
                     Padding="16"
-                    Background="#F8F3EA"
-                    BorderBrush="#E7DDCF"
+                    Background="{StaticResource SubCardBackgroundBrush}"
+                    BorderBrush="{StaticResource SubCardBackgroundBrush}"
+                    BorderThickness="1"
+                    CornerRadius="12">
+              <StackPanel>
+                <TextBlock Text="Z-Image training sidecar"
+                           FontWeight="SemiBold"
+                           FontSize="16"
+                           Foreground="#F3F7FA" />
+                <TextBlock Margin="0,10,0,0"
+                           Text="Optional isolated AI Toolkit trainer for Z-Image Turbo LoRA training. This does not modify the current Nunchaku inference runtime."
+                           TextWrapping="Wrap"
+                           Style="{StaticResource MutedText}" />
+                <CheckBox Margin="0,14,0,0"
+                          IsChecked="{Binding InstallZImageTrainer}"
+                          FontSize="16"
+                          FontWeight="SemiBold"
+                          Content="Install Z-Image Trainer to /home/nymph/ZImage-Trainer" />
+                <TextBlock Margin="28,10,0,0"
+                           Text="{Binding ZImageTrainerInstallSummary}"
+                           TextWrapping="Wrap"
+                           FontSize="13"
+                           Style="{StaticResource MutedText}" />
+              </StackPanel>
+            </Border>
+
+            <Border Margin="0,18,0,0"
+                    Padding="16"
+                    Background="{StaticResource SubCardBackgroundBrush}"
+                    BorderBrush="{StaticResource SubCardBackgroundBrush}"
                     BorderThickness="1"
                     CornerRadius="12">
               <StackPanel>
                 <TextBlock Text="Optional Hugging Face token"
                            FontWeight="SemiBold"
-                           FontSize="16" />
+                           FontSize="16"
+                           Foreground="#F3F7FA" />
                 <TextBlock Margin="0,10,0,0"
                            Text="If you already have a Hugging Face access token, you can enter it here so model downloads use authenticated access. The token is saved on this Windows user account and reused by the Manager and addon-launched local runtimes."
                            TextWrapping="Wrap"
@@ -778,51 +1264,62 @@
 
             <Border Margin="0,18,0,0"
                     Padding="16"
-                    Background="#FFF7EC"
-                    BorderBrush="#E7D1A8"
+                    Background="{StaticResource SubCardBackgroundBrush}"
+                    BorderBrush="{StaticResource SubCardBackgroundBrush}"
                     BorderThickness="1"
                     CornerRadius="12">
               <StackPanel>
                 <TextBlock Text="{Binding ModelDownloadDecisionTitle}"
                            FontWeight="SemiBold"
-                           FontSize="16" />
+                           FontSize="16"
+                           Foreground="#35D5F6" />
                 <TextBlock Margin="0,10,0,0"
                            Text="{Binding ModelDownloadDecisionSummary}"
                            TextWrapping="Wrap"
-                           FontSize="14" />
+                           FontSize="14"
+                           Foreground="#EAF1F5" />
                 <TextBlock Margin="0,10,0,0"
                            Text="{Binding ModelDownloadDecisionDetails}"
                            TextWrapping="Wrap"
-                           FontSize="14" />
+                           FontSize="14"
+                           Foreground="#EAF1F5" />
                 <TextBlock Margin="0,14,0,0"
                            Text="Expected size and time"
                            FontWeight="SemiBold"
-                           FontSize="16" />
+                           FontSize="16"
+                           Foreground="#F3F7FA" />
                 <TextBlock Margin="0,10,0,0"
                            Text="- Ready-to-run footprint: depends on Z-Image, TRELLIS.2, CUDA, and whether models are prefetched now"
                            TextWrapping="Wrap"
-                           FontSize="14" />
+                           FontSize="14"
+                           Foreground="#EAF1F5" />
                 <TextBlock Text="- Leave substantial free space for multi-GB model downloads, CUDA packages, and WSL filesystem growth"
                            TextWrapping="Wrap"
-                           FontSize="14" />
+                           FontSize="14"
+                           Foreground="#EAF1F5" />
                 <TextBlock Text="- More headroom is still better, especially if you plan to keep generated outputs and logs in the same install"
                            TextWrapping="Wrap"
-                           FontSize="14" />
+                           FontSize="14"
+                           Foreground="#EAF1F5" />
                 <TextBlock Text="- On a typical home connection, this model download stage can take 1 to 2 hours or more"
                            TextWrapping="Wrap"
-                           FontSize="14" />
+                           FontSize="14"
+                           Foreground="#EAF1F5" />
                 <TextBlock Margin="0,14,0,0"
                            Text="Runtime pieces still installed either way"
                            FontWeight="SemiBold"
-                           FontSize="16" />
+                           FontSize="16"
+                           Foreground="#F3F7FA" />
                 <TextBlock Margin="0,10,0,0"
                            Text="{Binding RuntimeDownloadSummary}"
                            TextWrapping="Wrap"
-                           FontSize="14" />
+                           FontSize="14"
+                           Foreground="#EAF1F5" />
                 <TextBlock Margin="0,10,0,0"
                            Text="{Binding RuntimeDownloadDetailsText}"
                            TextWrapping="Wrap"
-                           FontSize="14" />
+                           FontSize="14"
+                           Foreground="#EAF1F5" />
               </StackPanel>
             </Border>
 
@@ -862,7 +1359,7 @@
                          FontSize="16"
                          LineHeight="22"
                          LineStackingStrategy="BlockLineHeight"
-                         Foreground="#3E3A34"
+                         Foreground="#EAF1F5"
                          VerticalAlignment="Top" />
             </Border>
 
@@ -871,7 +1368,7 @@
                        Text="This step can stay on one log line for a long time while Ubuntu packages, CUDA pieces, Python environments, or Flash Attention builds finish. On some PCs the Flash Attention part can take hours. Keep the window open and watch the live log below."
                        TextWrapping="Wrap"
                        FontSize="13"
-                       Foreground="#6B6259" />
+                       Foreground="#A9B6C2" />
 
             <ProgressBar Grid.Row="3"
                          Margin="0,8,0,0"
@@ -885,7 +1382,7 @@
                          Text="Live log"
                          FontWeight="SemiBold"
                          FontSize="16" />
-              <Border Background="#121212"
+              <Border Background="{StaticResource SubCardBackgroundBrush}"
                       CornerRadius="14"
                       Padding="10">
                 <ListBox x:Name="LogListBox"
@@ -909,37 +1406,39 @@
                        Text="{Binding FinishSummary}"
                        TextWrapping="Wrap"
                        FontSize="16"
-                       Foreground="#3E3A34" />
+                       Foreground="#EAF1F5" />
 
             <Border Margin="0,22,0,0"
-                    Background="#F8F3EA"
-                    BorderBrush="#E7DDCF"
+                    Background="{StaticResource SubCardBackgroundBrush}"
+                    BorderBrush="{StaticResource SubCardBackgroundBrush}"
                     BorderThickness="1"
                     CornerRadius="12"
                     Padding="14">
               <StackPanel>
-                <TextBlock Text="Log folder" FontWeight="SemiBold" />
+                <TextBlock Text="Log folder" FontWeight="SemiBold" Foreground="#F3F7FA" />
                 <TextBlock Margin="0,8,0,0"
                            Text="{Binding LogFolderPath}"
                            FontFamily="Consolas"
+                           Foreground="#EAF1F5"
                            TextWrapping="Wrap" />
-                <TextBlock Margin="0,14,0,0" Text="Current run log" FontWeight="SemiBold" />
+                <TextBlock Margin="0,14,0,0" Text="Current run log" FontWeight="SemiBold" Foreground="#F3F7FA" />
                 <TextBlock Margin="0,8,0,0"
                            Text="{Binding InstallSessionLogPath}"
                            FontFamily="Consolas"
+                           Foreground="#EAF1F5"
                            TextWrapping="Wrap" />
               </StackPanel>
             </Border>
 
             <Border Margin="0,22,0,0"
-                    Background="#F8F3EA"
-                    BorderBrush="#E7DDCF"
+                    Background="{StaticResource SubCardBackgroundBrush}"
+                    BorderBrush="{StaticResource SubCardBackgroundBrush}"
                     BorderThickness="1"
                     CornerRadius="12"
                     Padding="14"
                     Visibility="{Binding InstallSucceeded, Converter={StaticResource BoolToVisibilityConverter}}">
               <StackPanel>
-                <TextBlock Text="Next Step" FontWeight="SemiBold" FontSize="16" />
+                <TextBlock Text="Next Step" FontWeight="SemiBold" FontSize="16" Foreground="#F3F7FA" />
                 <TextBlock Margin="0,8,0,0"
                            Text="Open Runtime Tools to fetch missing models, check backend readiness, and run smoke tests."
                            TextWrapping="Wrap"
@@ -999,8 +1498,8 @@
                  password field | status next to it. -->
             <Border Margin="0,10,0,0"
                     Padding="12,8"
-                    Background="#F8F3EA"
-                    BorderBrush="#E7DDCF"
+                    Background="{StaticResource SubCardBackgroundBrush}"
+                    BorderBrush="{StaticResource SubCardBackgroundBrush}"
                     BorderThickness="1"
                     CornerRadius="10">
               <Grid>
@@ -1015,7 +1514,8 @@
                            Text="🤗  Hugging Face token"
                            FontWeight="SemiBold"
                            FontSize="13"
-                           VerticalAlignment="Center" />
+                           VerticalAlignment="Center"
+                           Foreground="#EAF1F5" />
                 <PasswordBox x:Name="RuntimeHuggingFaceTokenBox"
                              Grid.Column="2"
                              Padding="7"
@@ -1033,8 +1533,8 @@
 
             <Border Margin="0,10,0,0"
                     Padding="12,8"
-                    Background="#F8F3EA"
-                    BorderBrush="#E7DDCF"
+                    Background="{StaticResource SubCardBackgroundBrush}"
+                    BorderBrush="{StaticResource SubCardBackgroundBrush}"
                     BorderThickness="1"
                     CornerRadius="10">
               <Grid>
@@ -1049,7 +1549,8 @@
                            Text="TRELLIS.2 GGUF download"
                            FontWeight="SemiBold"
                            FontSize="13"
-                           VerticalAlignment="Center" />
+                           VerticalAlignment="Center"
+                           Foreground="#EAF1F5" />
                 <ComboBox Grid.Column="2"
                           ItemsSource="{Binding TrellisGgufQuantOptions}"
                           SelectedItem="{Binding SelectedTrellisGgufQuantOption}"
@@ -1068,8 +1569,8 @@
 
             <Border Margin="0,10,0,0"
                     Padding="12,8"
-                    Background="#F8F3EA"
-                    BorderBrush="#E7DDCF"
+                    Background="{StaticResource SubCardBackgroundBrush}"
+                    BorderBrush="{StaticResource SubCardBackgroundBrush}"
                     BorderThickness="1"
                     CornerRadius="10">
               <Grid>
@@ -1088,7 +1589,8 @@
                            Text="Runtime code"
                            FontWeight="SemiBold"
                            FontSize="13"
-                           VerticalAlignment="Center" />
+                           VerticalAlignment="Center"
+                           Foreground="#EAF1F5" />
                 <Button Grid.Column="2"
                         Width="112"
                         Padding="8,6"
@@ -1104,7 +1606,7 @@
                         Command="{Binding TestLatestRuntimeDependenciesCommand}"
                         Content="Latest upstream" />
                 <TextBlock Grid.Column="8"
-                           Text="Switches source/package code only. Use Fetch for model files, then Test each backend."
+                           Text="{Binding RuntimeCodeModeSummary}"
                            TextWrapping="Wrap"
                            FontSize="11"
                            VerticalAlignment="Center"
@@ -1121,8 +1623,8 @@
               </Grid.ColumnDefinitions>
 
               <Border Grid.Column="0"
-                      Background="#FFFDFC"
-                      BorderBrush="#E5DAC8"
+                      Background="{StaticResource SubCardBackgroundBrush}"
+                      BorderBrush="{StaticResource SubCardBackgroundBrush}"
                       BorderThickness="1"
                       CornerRadius="14"
                       Padding="12"
@@ -1130,7 +1632,7 @@
                 <StackPanel>
                   <DockPanel LastChildFill="True">
                     <Border DockPanel.Dock="Right"
-                            Background="#1C4A49"
+                            Background="#1B6A43"
                             CornerRadius="10"
                             Padding="8,2"
                             VerticalAlignment="Center">
@@ -1161,8 +1663,8 @@
               </Border>
 
               <Border Grid.Column="2"
-                      Background="#FFFDFC"
-                      BorderBrush="#E5DAC8"
+                      Background="{StaticResource SubCardBackgroundBrush}"
+                      BorderBrush="{StaticResource SubCardBackgroundBrush}"
                       BorderThickness="1"
                       CornerRadius="14"
                       Padding="12"
@@ -1170,7 +1672,7 @@
                 <StackPanel>
                   <DockPanel LastChildFill="True">
                     <Border DockPanel.Dock="Right"
-                            Background="#1C4A49"
+                            Background="#1B6A43"
                             CornerRadius="10"
                             Padding="8,2"
                             VerticalAlignment="Center">
@@ -1203,17 +1705,17 @@
 
             <Border Margin="0,10,0,0"
                     Padding="12"
-                    Background="#FFFDFC"
-                    BorderBrush="#E7DDCF"
+                    Background="{StaticResource SubCardBackgroundBrush}"
+                    BorderBrush="{StaticResource SubCardBackgroundBrush}"
                     BorderThickness="1"
                     CornerRadius="10"
                     Visibility="{Binding HasPostInstallActionSummary, Converter={StaticResource BoolToVisibilityConverter}}">
               <TextBlock Text="{Binding PostInstallActionSummary}"
-                         FontSize="14" Foreground="#3E3A34" TextWrapping="Wrap" />
+                         FontSize="14" Foreground="#EAF1F5" TextWrapping="Wrap" />
             </Border>
 
             <Border Margin="0,10,0,0"
-                    Background="#121212"
+                    Background="{StaticResource SubCardBackgroundBrush}"
                     CornerRadius="12"
                     Padding="8">
               <StackPanel>
@@ -1237,14 +1739,469 @@
 
         <Border Style="{StaticResource CardStyle}"
                 Padding="18"
+                Visibility="{Binding IsZImageTrainerStep, Converter={StaticResource BoolToVisibilityConverter}}">
+          <StackPanel>
+            <Border Padding="0"
+                    Background="Transparent"
+                    BorderBrush="Transparent"
+                    BorderThickness="0"
+                    CornerRadius="0">
+              <StackPanel>
+                <DockPanel LastChildFill="True">
+                  <Border DockPanel.Dock="Right"
+                          Background="{Binding ZImageTrainerStatus.BadgeBackground}"
+                          CornerRadius="10"
+                          Padding="8,2"
+                          VerticalAlignment="Center">
+                    <TextBlock Text="{Binding ZImageTrainerStatus.ReadinessLabel}"
+                               Foreground="White"
+                               FontSize="11"
+                               FontWeight="SemiBold" />
+                  </Border>
+                  <TextBlock Text="Z-Image Trainer"
+                             FontWeight="SemiBold"
+                             FontSize="21"
+                             Foreground="#F3F7FA" />
+                </DockPanel>
+
+                <Grid Margin="0,6,0,0">
+                  <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="6" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="8" />
+                    <RowDefinition Height="Auto" />
+                  </Grid.RowDefinitions>
+
+                  <StackPanel Grid.Row="0">
+                    <TextBlock VerticalAlignment="Center"
+                               FontSize="13"
+                               Style="{StaticResource MutedText}">
+                      <Run Text="LoRAs: " />
+                      <Run Text="{Binding ZImageTrainerStatus.LoraCount}" />
+                      <Run Text="  •  Datasets: " />
+                      <Run Text="{Binding ZImageTrainerStatus.DatasetCount}" />
+                    </TextBlock>
+
+                    <WrapPanel Margin="0,8,0,0">
+                      <Button Style="{StaticResource SecondaryActionButton}"
+                              Margin="0,0,8,8"
+                              Padding="9,5"
+                              FontSize="12"
+                              Command="{Binding LaunchZImageTrainerGradioUiCommand}"
+                              Content="Gradio UI" />
+                      <Button Style="{StaticResource SecondaryActionButton}"
+                              Margin="0,0,8,8"
+                              Padding="9,5"
+                              FontSize="12"
+                              Command="{Binding LaunchZImageTrainerOfficialUiCommand}"
+                              Content="AI Toolkit" />
+                      <Button Style="{StaticResource SecondaryActionButton}"
+                              Margin="0,0,8,8"
+                              Padding="9,5"
+                              FontSize="12"
+                              Command="{Binding KillZImageTrainerOfficialUiCommand}"
+                              Content="Kill AI Toolkit" />
+                      <Button Style="{StaticResource SecondaryActionButton}"
+                              Margin="0,0,8,8"
+                              Padding="9,5"
+                              FontSize="12"
+                              Command="{Binding InstallZImageTrainerCommand}"
+                              Content="{Binding ZImageTrainerPrimaryButtonText}" />
+                      <Button Style="{StaticResource SecondaryActionButton}"
+                              Margin="0,0,0,8"
+                              Padding="9,5"
+                              FontSize="12"
+                              Command="{Binding RefreshZImageTrainerStatusCommand}"
+                              Content="Refresh" />
+                    </WrapPanel>
+                  </StackPanel>
+
+                  <Grid Grid.Row="2">
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="*" />
+                      <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0"
+                               Text="{Binding ZImageTrainerActivitySummary}"
+                               TextWrapping="Wrap"
+                               FontSize="12"
+                               Style="{StaticResource MutedText}" />
+                    <TextBlock Grid.Column="1"
+                               Margin="16,0,0,0"
+                               VerticalAlignment="Center"
+                               Text="{Binding ZImageTrainerPendingChangesSummary}"
+                               TextWrapping="NoWrap"
+                               FontSize="12"
+                               FontWeight="SemiBold"
+                               Foreground="#E6C36A"
+                               Visibility="{Binding HasZImageTrainerPendingChanges, Converter={StaticResource BoolToVisibilityConverter}}" />
+                  </Grid>
+
+                  <Border Grid.Row="3"
+                          Background="{StaticResource SubCardBackgroundBrush}"
+                          BorderBrush="{StaticResource SubCardBackgroundBrush}"
+                          BorderThickness="1"
+                          CornerRadius="14"
+                          Padding="10"
+                          TextElement.Foreground="#EDF3F8">
+                    <StackPanel>
+                      <Grid Margin="0,2,0,0">
+                        <Grid.ColumnDefinitions>
+                          <ColumnDefinition Width="120" />
+                          <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0"
+                                   VerticalAlignment="Center"
+                                   FontSize="13"
+                                   Text="LoRA name" />
+                        <WrapPanel Grid.Column="1"
+                                   VerticalAlignment="Center">
+                          <Grid Width="300"
+                                HorizontalAlignment="Left"
+                                x:Name="ZImageTrainerDatasetPickerHost">
+                            <Grid.ColumnDefinitions>
+                              <ColumnDefinition Width="*" />
+                              <ColumnDefinition Width="26" />
+                            </Grid.ColumnDefinitions>
+                            <TextBox Grid.Column="0"
+                                     Text="{Binding ZImageTrainerLoraName, UpdateSourceTrigger=PropertyChanged}"
+                                     FontSize="13"
+                                     Padding="7,5"
+                                     Foreground="#F3F7FA"
+                                     Background="{StaticResource SubCardBackgroundBrush}"
+                                     BorderThickness="1,1,0,1" />
+                            <ToggleButton x:Name="ZImageTrainerDatasetPickerToggle"
+                                          Grid.Column="1"
+                                          Background="#1D2D28"
+                                          BorderBrush="#315045"
+                                          BorderThickness="1"
+                                          Foreground="#95A4B2"
+                                          FontSize="8"
+                                          Content="▾"
+                                          Focusable="False"
+                                          IsChecked="{Binding IsOpen, ElementName=ZImageTrainerDatasetPickerPopup, Mode=TwoWay}">
+                              <ToggleButton.Template>
+                                <ControlTemplate TargetType="ToggleButton">
+                                  <Border Background="{TemplateBinding Background}"
+                                          BorderBrush="{TemplateBinding BorderBrush}"
+                                          BorderThickness="{TemplateBinding BorderThickness}"
+                                          CornerRadius="0,8,8,0">
+                                    <ContentPresenter HorizontalAlignment="Center"
+                                                      VerticalAlignment="Center" />
+                                  </Border>
+                                </ControlTemplate>
+                              </ToggleButton.Template>
+                            </ToggleButton>
+                            <Popup x:Name="ZImageTrainerDatasetPickerPopup"
+                                   PlacementTarget="{Binding ElementName=ZImageTrainerDatasetPickerHost}"
+                                   Placement="Bottom"
+                                   AllowsTransparency="True"
+                                   StaysOpen="False"
+                                   PopupAnimation="Slide">
+                              <Border Margin="0,4,0,0"
+                                      Width="300"
+                                      MaxHeight="240"
+                                      Background="#182520"
+                                      BorderBrush="#315045"
+                                      BorderThickness="1"
+                                      CornerRadius="12">
+                                <ListBox x:Name="ZImageTrainerDatasetPickerListBox"
+                                         ItemsSource="{Binding ExistingZImageTrainerDatasets}"
+                                         Background="Transparent"
+                                         BorderThickness="0"
+                                         Foreground="#F3F7FA"
+                                         FontSize="13"
+                                         SelectionChanged="OnZImageTrainerDatasetPicked" />
+                              </Border>
+                            </Popup>
+                          </Grid>
+                          <Button Margin="12,0,0,0"
+                                  Style="{StaticResource SecondaryActionButton}"
+                                  Padding="9,5"
+                                  FontSize="12"
+                                  Command="{Binding OpenZImageTrainerPicturesCommand}"
+                                  Content="Open Pictures Folder" />
+                          <Button Margin="8,0,0,0"
+                                  Style="{StaticResource SecondaryActionButton}"
+                                  Padding="9,5"
+                                  FontSize="12"
+                                  Command="{Binding OpenZImageTrainerLorasCommand}"
+                                  Content="Open LoRAs" />
+                        </WrapPanel>
+                      </Grid>
+
+                      <Separator Margin="0,8,0,8"
+                                 Background="{StaticResource SubCardBackgroundBrush}" />
+
+                      <Grid Margin="0,6,0,0">
+                        <Grid.ColumnDefinitions>
+                          <ColumnDefinition Width="0" />
+                          <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <WrapPanel Grid.Column="1"
+                                   VerticalAlignment="Center">
+                          <Button Margin="0,0,0,0"
+                                  Style="{StaticResource SecondaryActionButton}"
+                                  Padding="9,5"
+                                  FontSize="12"
+                                  Command="{Binding DraftZImageTrainerCaptionsCommand}"
+                                  Content="Caption with Brain" />
+                          <TextBlock Margin="18,0,8,0"
+                                     VerticalAlignment="Center"
+                                     FontSize="13"
+                                     Text="Caption fill" />
+                          <ComboBox Width="152"
+                                    SelectedValue="{Binding ZImageTrainerCaptionMode}"
+                                    SelectedValuePath="Tag"
+                                    FontSize="12"
+                                    Padding="7,5">
+                            <ComboBoxItem Content="Fill Blank Only" Tag="fill_blanks" IsSelected="True" />
+                            <ComboBoxItem Content="Overwrite All Drafts" Tag="overwrite_all" />
+                          </ComboBox>
+                          <Button Margin="12,0,0,0"
+                                  Style="{StaticResource SecondaryActionButton}"
+                                  Padding="9,5"
+                                  FontSize="12"
+                                  Command="{Binding OpenZImageTrainerCaptionsCommand}"
+                                  ToolTip="Opens metadata.csv, which is the editable draft caption sheet. After editing it, click Add Job to mirror those captions into the per-image .txt files AI Toolkit actually trains from."
+                                  Content="Open Draft CSV" />
+                        </WrapPanel>
+                      </Grid>
+
+                      <Separator Margin="0,6,0,6"
+                                 Background="{StaticResource SubCardBackgroundBrush}" />
+
+                      <Grid Margin="0,4,0,0">
+                        <Grid.ColumnDefinitions>
+                          <ColumnDefinition Width="0" />
+                          <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <WrapPanel Grid.Column="1"
+                                   VerticalAlignment="Center">
+                          <ComboBox Width="220"
+                                    HorizontalAlignment="Left"
+                                    SelectedValue="{Binding ZImageTrainerPreset}"
+                                    SelectedValuePath="Tag"
+                                    FontSize="13"
+                                    Padding="7,5">
+                            <ComboBoxItem Content="Fast Test" Tag="fast_test" />
+                            <ComboBoxItem Content="Baseline" Tag="baseline" IsSelected="True" />
+                            <ComboBoxItem Content="Style" Tag="style" />
+                            <ComboBoxItem Content="Strong Style" Tag="strong_style" />
+                          </ComboBox>
+                          <TextBlock Margin="18,0,8,0"
+                                     VerticalAlignment="Center"
+                                     FontSize="13"
+                                     Text="Training adapter" />
+                          <ComboBox Width="164"
+                                    SelectedValue="{Binding ZImageTrainerAdapterVersion}"
+                                    SelectedValuePath="Tag"
+                                    FontSize="12"
+                                    Padding="7,5">
+                            <ComboBoxItem Content="v1 (Recommended)" Tag="v1" IsSelected="True" />
+                            <ComboBoxItem Content="v2 (Experimental)" Tag="v2" />
+                          </ComboBox>
+                        </WrapPanel>
+                      </Grid>
+
+                      <Grid Margin="0,8,0,0">
+                        <Grid.ColumnDefinitions>
+                          <ColumnDefinition Width="120" />
+                          <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0"
+                                   VerticalAlignment="Center"
+                                   FontSize="13"
+                                   Text="Sample prompt" />
+                        <TextBox Grid.Column="1"
+                                 Text="{Binding ZImageTrainerSamplePrompt, UpdateSourceTrigger=PropertyChanged}"
+                                 FontSize="12"
+                                 Padding="7,5"
+                                 ToolTip="This is the preview/sample prompt AI Toolkit uses during training. Edit it here so style samples actually match what you are trying to teach." />
+                      </Grid>
+
+                      <WrapPanel Margin="0,6,0,0">
+                        <StackPanel Width="250">
+                          <TextBlock Text="Steps"
+                                     FontSize="13" />
+                          <DockPanel Margin="0,6,0,0">
+                            <Slider Width="128"
+                                    Minimum="250"
+                                    Maximum="5000"
+                                    TickFrequency="250"
+                                    IsSnapToTickEnabled="True"
+                                    SmallChange="250"
+                                    LargeChange="500"
+                                    Value="{Binding ZImageTrainerSteps, Mode=TwoWay}" />
+                            <TextBox Width="56"
+                                     Margin="8,0,0,0"
+                                     VerticalContentAlignment="Center"
+                                     Text="{Binding ZImageTrainerSteps, UpdateSourceTrigger=PropertyChanged}"
+                                     FontSize="12"
+                                     Padding="6,3" />
+                          </DockPanel>
+                        </StackPanel>
+
+                        <StackPanel Width="126"
+                                    Margin="14,0,0,0">
+                          <TextBlock Text="Checkpoints"
+                                     FontSize="13" />
+                          <ComboBox Margin="0,6,0,0"
+                                    Width="98"
+                                    HorizontalAlignment="Left"
+                                    SelectedValue="{Binding ZImageTrainerCheckpointCount}"
+                                    SelectedValuePath="Tag"
+                                    FontSize="12"
+                                    Padding="7,5">
+                            <ComboBoxItem Content="Off" Tag="0" />
+                            <ComboBoxItem Content="2" Tag="2" />
+                            <ComboBoxItem Content="4" Tag="4" IsSelected="True" />
+                            <ComboBoxItem Content="8" Tag="8" />
+                          </ComboBox>
+                          <TextBlock Text="{Binding ZImageTrainerCheckpointSummary}"
+                                     FontSize="11"
+                                     Foreground="#95A4B2"
+                                     TextWrapping="NoWrap" />
+                        </StackPanel>
+
+                        <StackPanel Width="128"
+                                    Margin="14,0,0,0">
+                          <TextBlock Text="Learning rate"
+                                     FontSize="13"
+                                     ToolTip="How strongly each training step updates the LoRA. Lower rates learn more gently and can be safer; higher rates learn faster but can overshoot or destabilize. Fast Test uses 1e-4 on purpose so you get a quick signal in only 500 steps. The other presets also currently default to 1e-4 because that is the most consistently recommended Z-Image Turbo setting from the transcript research so far." />
+                          <ComboBox Margin="0,6,0,0"
+                                    Width="98"
+                                    HorizontalAlignment="Left"
+                                    SelectedValue="{Binding ZImageTrainerLearningRate}"
+                                    SelectedValuePath="Tag"
+                                    FontSize="12"
+                                    Padding="7,5"
+                                    ToolTip="Lower = gentler/slower learning. Higher = stronger/faster learning. Current presets all use 1e-4 by default.">
+                            <ComboBoxItem Content="5e-5" Tag="5e-5" />
+                            <ComboBoxItem Content="8e-5" Tag="8e-5" />
+                            <ComboBoxItem Content="1e-4" Tag="1e-4" IsSelected="True" />
+                          </ComboBox>
+                        </StackPanel>
+
+                        <StackPanel Width="110"
+                                    Margin="14,0,0,0">
+                          <TextBlock Text="LoRA rank"
+                                     FontSize="13" />
+                          <ComboBox Margin="0,6,0,0"
+                                    Width="86"
+                                    HorizontalAlignment="Left"
+                                    SelectedValue="{Binding ZImageTrainerRank}"
+                                    SelectedValuePath="Tag"
+                                    FontSize="12"
+                                    Padding="7,5">
+                            <ComboBoxItem Content="4" Tag="4" />
+                            <ComboBoxItem Content="8" Tag="8" />
+                            <ComboBoxItem Content="16" Tag="16" IsSelected="True" />
+                            <ComboBoxItem Content="32" Tag="32" />
+                          </ComboBox>
+                        </StackPanel>
+                      </WrapPanel>
+
+                      <CheckBox Margin="120,6,0,0"
+                                HorizontalAlignment="Left"
+                                IsChecked="{Binding ZImageTrainerLowVram}"
+                                Content="Low VRAM mode" />
+
+                      <WrapPanel Margin="0,10,0,0">
+                        <Button Width="128"
+                                Style="{StaticResource SecondaryActionButton}"
+                                Margin="0,0,8,0"
+                                Padding="10,6"
+                                FontSize="13"
+                                HorizontalAlignment="Left"
+                                IsEnabled="{Binding CanStartZImageTrainingUi}"
+                                Command="{Binding CreateZImageTrainerJobCommand}"
+                                Content="Add Job" />
+                        <Button Width="128"
+                                Style="{StaticResource PositiveActionButton}"
+                                Margin="0,0,8,0"
+                                Padding="10,6"
+                                FontSize="13"
+                                HorizontalAlignment="Left"
+                                IsEnabled="{Binding CanStartZImageTrainingUi}"
+                                Command="{Binding StartZImageTrainingCommand}"
+                                Content="Start Job" />
+                        <Button Width="128"
+                                Style="{StaticResource SecondaryActionButton}"
+                                Margin="0,0,8,0"
+                                Padding="10,6"
+                                FontSize="13"
+                                HorizontalAlignment="Left"
+                                IsEnabled="{Binding CanStopZImageTrainingUi}"
+                                Click="OnStopZImageTrainingClick"
+                                Content="Stop Job" />
+                        <Button Width="128"
+                                Style="{StaticResource DangerActionButton}"
+                                Padding="10,6"
+                                FontSize="13"
+                                HorizontalAlignment="Left"
+                                IsEnabled="{Binding CanManageZImageTrainerQueueUi}"
+                                Command="{Binding DeleteZImageTrainerJobCommand}"
+                                Content="Delete Job" />
+                      </WrapPanel>
+                    </StackPanel>
+                  </Border>
+
+                <Border Grid.Row="5"
+                        Margin="0,8,0,0"
+                        Background="{StaticResource SubCardBackgroundBrush}"
+                        BorderBrush="{StaticResource SubCardBackgroundBrush}"
+                        BorderThickness="1"
+                        CornerRadius="10"
+                        Padding="7">
+                  <StackPanel>
+                    <StackPanel Margin="0,0,0,6"
+                                Visibility="{Binding ZImageTrainerProgressVisible, Converter={StaticResource BoolToVisibilityConverter}}">
+                      <TextBlock Text="{Binding ZImageTrainerProgressText}"
+                                 FontWeight="SemiBold"
+                                 FontSize="12"
+                                 Foreground="#E8E8E8"
+                                 VerticalAlignment="Center" />
+                      <ProgressBar Height="12"
+                                   Margin="0,6,0,0"
+                                   Minimum="0"
+                                   Maximum="100"
+                                   Value="{Binding ZImageTrainerProgressPercent, Mode=OneWay}" />
+                    </StackPanel>
+                    <TextBlock Text="Live log"
+                               FontWeight="SemiBold"
+                               FontSize="13"
+                               Foreground="#E8E8E8"
+                               VerticalAlignment="Center" />
+                    <ListBox x:Name="ZImageTrainerLogListBox"
+                             ItemsSource="{Binding LogLines}"
+                             Height="96"
+                             Margin="0,3,0,0"
+                             FontFamily="Consolas"
+                             FontSize="11"
+                             Background="Transparent"
+                             BorderThickness="0"
+                             Foreground="#E8E8E8" />
+                  </StackPanel>
+                </Border>
+              </Grid>
+              </StackPanel>
+            </Border>
+          </StackPanel>
+        </Border>
+
+        <Border Style="{StaticResource CardStyle}"
+                Padding="18"
                 Visibility="{Binding IsBrainToolsStep, Converter={StaticResource BoolToVisibilityConverter}}">
           <StackPanel>
             <Border
-                    Padding="14"
-                    Background="#F7F0E1"
-                    BorderBrush="#D8C9B4"
-                    BorderThickness="1"
-                    CornerRadius="12">
+                    Padding="0"
+                    Background="Transparent"
+                    BorderBrush="Transparent"
+                    BorderThickness="0"
+                    CornerRadius="0">
               <StackPanel>
                 <Grid>
                   <Grid.ColumnDefinitions>
@@ -1257,7 +2214,7 @@
                     <TextBlock Text="Nymphs-Brain"
                                FontWeight="SemiBold"
                                FontSize="19"
-                               Foreground="#1E1C18" />
+                               Foreground="#F3F7FA" />
 
                     <Grid Margin="0,10,0,0">
                       <Grid.RowDefinitions>
@@ -1273,31 +2230,31 @@
                         <ColumnDefinition Width="*" />
                       </Grid.ColumnDefinitions>
 
-                      <TextBlock Grid.Row="0" Grid.Column="0" Text="LLM:" FontSize="13" FontWeight="SemiBold" Foreground="#3F382F" />
-                      <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding BrainLlmStatusLabel}" FontSize="13" Foreground="#3F382F" />
+                      <TextBlock Grid.Row="0" Grid.Column="0" Text="LLM:" FontSize="13" FontWeight="SemiBold" Foreground="#DCE6ED" />
+                      <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding BrainLlmStatusLabel}" FontSize="13" Foreground="#DCE6ED" />
 
-                      <TextBlock Grid.Row="1" Grid.Column="0" Text="MCP:" FontSize="13" FontWeight="SemiBold" Foreground="#3F382F" />
-                      <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding BrainMcpStatusLabel}" FontSize="13" Foreground="#3F382F" />
+                      <TextBlock Grid.Row="1" Grid.Column="0" Text="MCP:" FontSize="13" FontWeight="SemiBold" Foreground="#DCE6ED" />
+                      <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding BrainMcpStatusLabel}" FontSize="13" Foreground="#DCE6ED" />
 
-                      <TextBlock Grid.Row="2" Grid.Column="0" Text="WebUI:" FontSize="13" FontWeight="SemiBold" Foreground="#3F382F" />
-                      <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding BrainWebUiStatusLabel}" FontSize="13" Foreground="#3F382F" />
+                      <TextBlock Grid.Row="2" Grid.Column="0" Text="WebUI:" FontSize="13" FontWeight="SemiBold" Foreground="#DCE6ED" />
+                      <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding BrainWebUiStatusLabel}" FontSize="13" Foreground="#DCE6ED" />
 
-                      <TextBlock Grid.Row="3" Grid.Column="0" Text="Local model:" FontSize="13" FontWeight="SemiBold" Foreground="#3F382F" />
-                      <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding BrainLocalModelText}" FontSize="13" Foreground="#3F382F" TextTrimming="CharacterEllipsis" />
+                      <TextBlock Grid.Row="3" Grid.Column="0" Text="Local model:" FontSize="13" FontWeight="SemiBold" Foreground="#DCE6ED" />
+                      <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding BrainLocalModelText}" FontSize="13" Foreground="#DCE6ED" TextTrimming="CharacterEllipsis" />
 
-                      <TextBlock Grid.Row="4" Grid.Column="0" Text="Remote model:" FontSize="13" FontWeight="SemiBold" Foreground="#3F382F" />
-                      <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding BrainRemoteModelText}" FontSize="13" Foreground="#3F382F" TextTrimming="CharacterEllipsis" />
+                      <TextBlock Grid.Row="4" Grid.Column="0" Text="Remote model:" FontSize="13" FontWeight="SemiBold" Foreground="#DCE6ED" />
+                      <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding BrainRemoteModelText}" FontSize="13" Foreground="#DCE6ED" TextTrimming="CharacterEllipsis" />
 
-                      <TextBlock Grid.Row="5" Grid.Column="0" Text="OpenRouter key:" FontSize="13" FontWeight="SemiBold" Foreground="#3F382F" />
-                      <TextBlock Grid.Row="5" Grid.Column="1" Text="{Binding BrainOpenRouterKeySimpleStatus}" FontSize="13" Foreground="#3F382F" />
+                      <TextBlock Grid.Row="5" Grid.Column="0" Text="OpenRouter key:" FontSize="13" FontWeight="SemiBold" Foreground="#DCE6ED" />
+                      <TextBlock Grid.Row="5" Grid.Column="1" Text="{Binding BrainOpenRouterKeySimpleStatus}" FontSize="13" Foreground="#DCE6ED" />
                     </Grid>
                   </StackPanel>
 
                   <Border Grid.Column="2"
                           Height="177"
                           VerticalAlignment="Top"
-                          Background="#050505"
-                          BorderBrush="#3D3D3D"
+                          Background="{StaticResource SubCardBackgroundBrush}"
+                          BorderBrush="{StaticResource SubCardBackgroundBrush}"
                           BorderThickness="1"
                           CornerRadius="8"
                           Padding="12,10">
@@ -1314,11 +2271,12 @@
                                 Height="24"
                                 Padding="0"
                                 Margin="8,0,0,0"
-                                Background="#121212"
-                                BorderBrush="#D8D8D8"
-                                Foreground="White"
+                                Style="{StaticResource SecondaryActionButton}"
+                                Background="{StaticResource SubCardBackgroundBrush}"
+                                BorderBrush="{StaticResource SubCardBackgroundBrush}"
+                                Foreground="#F3F7FA"
                                 FontSize="12"
-                                FontWeight="Normal"
+                                FontWeight="SemiBold"
                                 Command="{Binding RefreshBrainStatusCommand}"
                                 Content="Refresh" />
                         <StackPanel Orientation="Horizontal">
@@ -1349,15 +2307,15 @@
                           <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
 
-                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Model:" Foreground="White" FontSize="12" />
+                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Model:" Foreground="{StaticResource HeadingTextBrush}" FontSize="12" />
                         <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding BrainMonitorModelText}" Foreground="#00BCD4" FontSize="12" FontWeight="Bold" TextTrimming="CharacterEllipsis" />
-                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Context:" Foreground="White" FontSize="12" />
+                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Context:" Foreground="{StaticResource HeadingTextBrush}" FontSize="12" />
                         <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding BrainMonitorContextText}" Foreground="#8BC34A" FontSize="12" FontWeight="Bold" />
-                        <TextBlock Grid.Row="2" Grid.Column="0" Text="GPU VRAM:" Foreground="White" FontSize="12" />
+                        <TextBlock Grid.Row="2" Grid.Column="0" Text="GPU VRAM:" Foreground="{StaticResource HeadingTextBrush}" FontSize="12" />
                         <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding BrainMonitorGpuVramText}" Foreground="#FF9800" FontSize="12" FontWeight="Bold" />
-                        <TextBlock Grid.Row="3" Grid.Column="0" Text="GPU Temp:" Foreground="White" FontSize="12" />
+                        <TextBlock Grid.Row="3" Grid.Column="0" Text="GPU Temp:" Foreground="{StaticResource HeadingTextBrush}" FontSize="12" />
                         <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding BrainMonitorGpuTempText}" Foreground="#FF5252" FontSize="12" FontWeight="Bold" />
-                        <TextBlock Grid.Row="4" Grid.Column="0" Text="Tokens/sec:" Foreground="White" FontSize="12" />
+                        <TextBlock Grid.Row="4" Grid.Column="0" Text="Tokens/sec:" Foreground="{StaticResource HeadingTextBrush}" FontSize="12" />
                         <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding BrainMonitorTokensPerSecondText}" Foreground="#FFEB3B" FontSize="12" FontWeight="Bold" />
                       </Grid>
                     </Grid>
@@ -1380,6 +2338,7 @@
                           Padding="8,4"
                           Margin="0"
                           HorizontalAlignment="Stretch"
+                          Style="{StaticResource PositiveActionButton}"
                           Command="{Binding StartBrainLlmCommand}"
                           Content="{Binding BrainPrimaryActionText}" />
                   <Button Grid.Column="2"
@@ -1422,7 +2381,7 @@
                              Text="OpenRouter key"
                              FontWeight="SemiBold"
                              FontSize="13"
-                             Foreground="#3F382F"
+                             Foreground="#DCE6ED"
                              ToolTip="Optional. Enables the Brain llm-wrapper tool when a valid OpenRouter key is present." />
 
                   <PasswordBox x:Name="BrainOpenRouterApiKeyBox"
@@ -1446,7 +2405,7 @@
             </Border>
 
             <Border Margin="0,8,0,0"
-                    Background="#121212"
+                    Background="{StaticResource SubCardBackgroundBrush}"
                     CornerRadius="10"
                     Padding="10,8">
               <StackPanel>
@@ -1469,10 +2428,9 @@
 
       <DockPanel Grid.Row="1" Margin="0,12,0,0">
         <Button DockPanel.Dock="Left"
+                Style="{StaticResource SecondaryActionButton}"
                 Width="120"
-                Background="#F8F3EA"
-                BorderBrush="#C7BCAE"
-                Foreground="#42392F"
+                Visibility="{Binding ShowBackButton, Converter={StaticResource BoolToVisibilityConverter}}"
                 Command="{Binding BackCommand}"
                 Content="Back" />
 

@@ -1,7 +1,12 @@
 using System.IO;
+using System.Globalization;
+using System.Net.Http;
+using System.Net.Sockets;
 using System.Runtime.InteropServices;
 using System.Security.Principal;
 using System.Text;
+using System.Text.Json;
+using System.Text.RegularExpressions;
 using NymphsCoreManager.Models;
 
 namespace NymphsCoreManager.Services;
@@ -12,11 +17,26 @@ public sealed class InstallerWorkflowService
     public const string ManagedLinuxUser = "nymph";
     public const string WslAvailabilityCheckKey = "wsl_availability";
     public const string ExistingWslDistrosCheckKey = "existing_wsl_distros";
+    public const string GuideUrl = "https://nymphnerds.github.io/NymphsCore/home/guides.html";
     public const string ReadmeUrl = "https://github.com/nymphnerds/NymphsCore/blob/main/Manager/README.md";
     public const string FootprintDocUrl = "https://github.com/nymphnerds/NymphsCore/blob/main/docs/FOOTPRINT.md";
     public const string AddonGuideUrl = "https://github.com/nymphnerds/NymphsCore/blob/main/docs/BLENDER_ADDON_USER_GUIDE.md";
 
     private readonly ProcessRunner _processRunner = new();
+    private readonly HttpClient _aiToolkitHttpClient = new()
+    {
+        BaseAddress = new Uri("http://127.0.0.1:8675"),
+    };
+    private static readonly Regex TrainerYamlPresetIdRegex = new(@"^\s*#\s*nymphs_preset_id:\s*(?<value>[^\r\n#]+)", RegexOptions.Compiled | RegexOptions.Multiline);
+    private static readonly Regex TrainerYamlStepsRegex = new(@"^\s*steps:\s*(?<value>\d+)\s*$", RegexOptions.Compiled | RegexOptions.Multiline);
+    private static readonly Regex TrainerYamlLearningRateRegex = new(@"^\s*lr:\s*(?<value>[^\s#]+)\s*$", RegexOptions.Compiled | RegexOptions.Multiline);
+    private static readonly Regex TrainerYamlRankRegex = new(@"^\s*linear:\s*(?<value>\d+)\s*$", RegexOptions.Compiled | RegexOptions.Multiline);
+    private static readonly Regex TrainerYamlContentStyleRegex = new(@"^\s*content_or_style:\s*[""']?(?<value>[^""'\r\n#]+)", RegexOptions.Compiled | RegexOptions.Multiline);
+    private static readonly Regex TrainerYamlLowVramRegex = new(@"^\s*low_vram:\s*(?<value>true|false)\s*$", RegexOptions.Compiled | RegexOptions.Multiline | RegexOptions.IgnoreCase);
+    private static readonly Regex TrainerYamlSaveEveryRegex = new(@"^\s*save_every:\s*(?<value>\d+)\s*$", RegexOptions.Compiled | RegexOptions.Multiline);
+    private static readonly Regex TrainerYamlMaxSavesRegex = new(@"^\s*max_step_saves_to_keep:\s*(?<value>\d+)\s*$", RegexOptions.Compiled | RegexOptions.Multiline);
+    private static readonly Regex TrainerYamlAdapterPathRegex = new(@"^\s*assistant_lora_path:\s*[""']?(?<value>[^""'\r\n#]+)", RegexOptions.Compiled | RegexOptions.Multiline);
+    private static readonly Regex TrainerYamlSamplePromptRegex = new(@"^\s*-\s*prompt:\s*(?<value>.+?)\s*$", RegexOptions.Compiled | RegexOptions.Multiline);
 
     public InstallerWorkflowService()
     {
@@ -413,6 +433,1001 @@ public sealed class InstallerWorkflowService
         }
     }
 
+    public async Task RunZImageTrainerInstallAsync(
+        InstallSettings settings,
+        IProgress<string> progress,
+        CancellationToken cancellationToken)
+    {
+        var trainerScript = RequireScript("install_zimage_trainer_aitk.sh");
+        var wslTrainerScriptPath = ConvertWindowsPathToWsl(trainerScript)
+            ?? throw new InvalidOperationException($"Could not convert script path for WSL: {trainerScript}");
+
+        var bashCommand =
+            "set -euo pipefail; " +
+            $"export HOME={ToBashSingleQuoted($"/home/{settings.LinuxUser}")}; " +
+            $"export USER={ToBashSingleQuoted(settings.LinuxUser)}; " +
+            $"export LOGNAME={ToBashSingleQuoted(settings.LinuxUser)}; " +
+            "export ZIMAGE_TRAINER_ROOT=\"$HOME/ZImage-Trainer\"; " +
+            "export ZIMAGE_DATASET_ROOT=\"$HOME/ZImage-Trainer/datasets\"; " +
+            "export ZIMAGE_LORA_ROOT=\"$HOME/ZImage-Trainer/loras\"; " +
+            $"bash {ToBashSingleQuoted(wslTrainerScriptPath)}";
+
+        progress.Report("Z-Image Trainer: installing AI Toolkit sidecar in an isolated venv.");
+        progress.Report("Z-Image Trainer: default method is Z-Image Turbo LoRA training with the Turbo training adapter.");
+
+        var result = await RunWslBashAsync(settings, bashCommand, progress, cancellationToken).ConfigureAwait(false);
+        if (result.ExitCode != 0)
+        {
+            throw new InvalidOperationException("Z-Image Trainer install failed.");
+        }
+
+        await SyncZImageTrainerSupportFilesAsync(settings, progress, cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task<ZImageTrainerStatus> GetZImageTrainerStatusAsync(
+        InstallSettings settings,
+        IProgress<string>? progress,
+        CancellationToken cancellationToken,
+        string? selectedJobRef = null)
+    {
+        var statusScript = RequireScript("zimage_trainer_status.sh");
+        var wslStatusScriptPath = ConvertWindowsPathToWsl(statusScript)
+            ?? throw new InvalidOperationException($"Could not convert script path for WSL: {statusScript}");
+
+        var bashCommand =
+            "set -euo pipefail; " +
+            $"export HOME={ToBashSingleQuoted($"/home/{settings.LinuxUser}")}; " +
+            $"export USER={ToBashSingleQuoted(settings.LinuxUser)}; " +
+            $"export LOGNAME={ToBashSingleQuoted(settings.LinuxUser)}; " +
+            "export ZIMAGE_TRAINER_ROOT=\"$HOME/ZImage-Trainer\"; " +
+            "export ZIMAGE_DATASET_ROOT=\"$HOME/ZImage-Trainer/datasets\"; " +
+            "export ZIMAGE_LORA_ROOT=\"$HOME/ZImage-Trainer/loras\"; " +
+            $"bash {ToBashSingleQuoted(wslStatusScriptPath)}";
+
+        var result = await RunWslBashAsync(settings, bashCommand, progress: null, cancellationToken).ConfigureAwait(false);
+        if (result.ExitCode != 0)
+        {
+            throw new InvalidOperationException("Z-Image Trainer status check failed.");
+        }
+
+        var status = ParseZImageTrainerStatus(result.CombinedOutput);
+        return await EnrichZImageTrainerStatusFromAiToolkitAsync(
+            settings,
+            status,
+            selectedJobRef,
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    public Task<IReadOnlyList<string>> GetZImageTrainerDatasetNamesAsync(
+        InstallSettings settings,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var datasetsWindowsPath = ToWindowsWslPath(settings, $"/home/{settings.LinuxUser}/ZImage-Trainer/datasets");
+        if (string.IsNullOrWhiteSpace(datasetsWindowsPath) || !Directory.Exists(datasetsWindowsPath))
+        {
+            return Task.FromResult<IReadOnlyList<string>>(Array.Empty<string>());
+        }
+
+        var datasetNames = Directory.GetDirectories(datasetsWindowsPath)
+            .Select(Path.GetFileName)
+            .Where(name => !string.IsNullOrWhiteSpace(name))
+            .Select(name => name!.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        return Task.FromResult<IReadOnlyList<string>>(datasetNames);
+    }
+
+    public async Task<ZImageTrainerJobSettings?> GetZImageTrainerJobSettingsAsync(
+        InstallSettings settings,
+        string loraName,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var normalizedLora = NormalizeTrainerName(loraName, "LoRA");
+        var officialUiJobConfig = await TryGetOfficialUiJobConfigJsonAsync(
+            settings,
+            normalizedLora,
+            cancellationToken).ConfigureAwait(false);
+        var officialUiSettings = ParseZImageTrainerJobSettingsFromOfficialUiJobConfig(normalizedLora, officialUiJobConfig);
+        if (officialUiSettings is not null)
+        {
+            return officialUiSettings;
+        }
+
+        return TryReadZImageTrainerJobSettingsFromYaml(settings, normalizedLora);
+    }
+
+    private static ZImageTrainerJobSettings? TryReadZImageTrainerJobSettingsFromYaml(
+        InstallSettings settings,
+        string normalizedLora)
+    {
+        var jobWindowsPath = ToWindowsWslPath(settings, $"/home/{settings.LinuxUser}/ZImage-Trainer/jobs/{normalizedLora}.yaml");
+        if (string.IsNullOrWhiteSpace(jobWindowsPath) || !File.Exists(jobWindowsPath))
+        {
+            return null;
+        }
+
+        var yaml = File.ReadAllText(jobWindowsPath);
+        var steps = ParseMatchInt(TrainerYamlStepsRegex, yaml);
+        var learningRate = ParseMatchString(TrainerYamlLearningRateRegex, yaml) ?? "1e-4";
+        var rank = ParseMatchInt(TrainerYamlRankRegex, yaml);
+        var contentOrStyle = ParseMatchString(TrainerYamlContentStyleRegex, yaml) ?? "content";
+        var lowVram = ParseMatchBool(TrainerYamlLowVramRegex, yaml);
+        var saveEvery = ParseMatchInt(TrainerYamlSaveEveryRegex, yaml);
+        var maxSaves = ParseMatchInt(TrainerYamlMaxSavesRegex, yaml);
+        var adapterPath = ParseMatchString(TrainerYamlAdapterPathRegex, yaml) ?? string.Empty;
+        var samplePrompt = NormalizeTrainerSamplePrompt(ParseMatchString(TrainerYamlSamplePromptRegex, yaml));
+        var adapterVersion = adapterPath.Contains("_v2", StringComparison.OrdinalIgnoreCase) ? "v2" : "v1";
+        var presetId = ParseMatchString(TrainerYamlPresetIdRegex, yaml);
+        if (string.IsNullOrWhiteSpace(presetId))
+        {
+            presetId = InferTrainerPresetId(contentOrStyle);
+        }
+
+        return new ZImageTrainerJobSettings(
+            normalizedLora,
+            presetId,
+            steps > 0 ? steps : 3000,
+            string.IsNullOrWhiteSpace(learningRate) ? "1e-4" : learningRate,
+            rank > 0 ? rank : 16,
+            ComputeCheckpointCount(steps > 0 ? steps : 3000, saveEvery, maxSaves),
+            lowVram,
+            adapterVersion,
+            contentOrStyle,
+            samplePrompt);
+    }
+
+    private async Task<string?> TryGetOfficialUiJobConfigJsonAsync(
+        InstallSettings settings,
+        string loraName,
+        CancellationToken cancellationToken)
+    {
+        var uiDbPath = $"/home/{settings.LinuxUser}/ZImage-Trainer/ai-toolkit/aitk_db.db";
+        var bashCommand =
+            "set -euo pipefail; " +
+            $"UI_DB_PATH={ToBashSingleQuoted(uiDbPath)} " +
+            $"JOB_NAME={ToBashSingleQuoted(loraName)} " +
+            "python3 - <<'PYEOF'\n" +
+            "import base64\n" +
+            "import os\n" +
+            "import sqlite3\n" +
+            "db_path = os.environ['UI_DB_PATH']\n" +
+            "job_name = os.environ['JOB_NAME']\n" +
+            "con = sqlite3.connect(db_path, timeout=5.0)\n" +
+            "try:\n" +
+            "    cur = con.cursor()\n" +
+            "    cur.execute(\"SELECT job_config FROM Job WHERE name = ? AND job_type = 'train' ORDER BY updated_at DESC LIMIT 1\", (job_name,))\n" +
+            "    row = cur.fetchone()\n" +
+            "    if row and row[0]:\n" +
+            "        print(base64.b64encode(str(row[0]).encode('utf-8')).decode('ascii'), end='')\n" +
+            "finally:\n" +
+            "    con.close()\n" +
+            "PYEOF";
+
+        var result = await RunWslBashAsync(settings, bashCommand, progress: null, cancellationToken).ConfigureAwait(false);
+        if (result.ExitCode != 0)
+        {
+            return null;
+        }
+
+        var encodedConfig = result.CombinedOutput
+            .Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .LastOrDefault();
+
+        if (string.IsNullOrWhiteSpace(encodedConfig))
+        {
+            return null;
+        }
+
+        try
+        {
+            var jsonBytes = Convert.FromBase64String(encodedConfig);
+            return Encoding.UTF8.GetString(jsonBytes);
+        }
+        catch (FormatException)
+        {
+            return null;
+        }
+    }
+
+    private static ZImageTrainerJobSettings? ParseZImageTrainerJobSettingsFromOfficialUiJobConfig(
+        string normalizedLora,
+        string? jobConfigJson)
+    {
+        if (string.IsNullOrWhiteSpace(jobConfigJson))
+        {
+            return null;
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(jobConfigJson);
+            var root = document.RootElement;
+            if (!root.TryGetProperty("config", out var config))
+            {
+                return null;
+            }
+
+            if (!config.TryGetProperty("process", out var processes) ||
+                processes.ValueKind != JsonValueKind.Array ||
+                processes.GetArrayLength() == 0)
+            {
+                return null;
+            }
+
+            var process = processes[0];
+            var train = TryGetObjectProperty(process, "train");
+            var network = TryGetObjectProperty(process, "network");
+            var model = TryGetObjectProperty(process, "model");
+            var meta = TryGetObjectProperty(root, "meta");
+            var nymphs = TryGetObjectProperty(meta, "nymphs");
+
+            var contentOrStyle = GetStringProperty(train, "content_or_style") ?? "content";
+            var presetId = GetStringProperty(nymphs, "preset_id");
+            if (string.IsNullOrWhiteSpace(presetId))
+            {
+                presetId = InferTrainerPresetId(contentOrStyle);
+            }
+
+            var learningRate = GetStringProperty(train, "lr") ?? "1e-4";
+            var rank = GetIntProperty(network, "linear");
+            var lowVram = GetBoolProperty(model, "low_vram");
+            var save = TryGetObjectProperty(process, "save");
+            var sample = TryGetObjectProperty(process, "sample");
+            var saveEvery = GetIntProperty(save, "save_every");
+            var maxSaves = GetIntProperty(save, "max_step_saves_to_keep");
+            var adapterPath = GetStringProperty(model, "assistant_lora_path") ?? string.Empty;
+            var adapterVersion = adapterPath.Contains("_v2", StringComparison.OrdinalIgnoreCase) ? "v2" : "v1";
+            var steps = GetIntProperty(train, "steps") > 0 ? GetIntProperty(train, "steps") : 3000;
+            var samplePrompt = ResolveTrainerSamplePromptFromJson(sample);
+
+            return new ZImageTrainerJobSettings(
+                normalizedLora,
+                presetId,
+                steps,
+                string.IsNullOrWhiteSpace(learningRate) ? "1e-4" : learningRate,
+                rank > 0 ? rank : 16,
+                ComputeCheckpointCount(steps, saveEvery, maxSaves),
+                lowVram,
+                adapterVersion,
+                contentOrStyle,
+                samplePrompt);
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+
+    public async Task StartZImageTrainerOfficialUiAsync(
+        InstallSettings settings,
+        IProgress<string>? progress,
+        CancellationToken cancellationToken)
+    {
+        await EnsureAiToolkitApiReadyAsync(
+            settings,
+            progress,
+            cancellationToken,
+            allowLaunchIfClosed: true).ConfigureAwait(false);
+    }
+
+    public async Task StartZImageTrainerGradioUiAsync(
+        InstallSettings settings,
+        IProgress<string>? progress,
+        CancellationToken cancellationToken)
+    {
+        await StopZImageTrainerUiScriptAsync(
+            settings,
+            "ztrain-stop-gradio-ui",
+            "Stopping stale Gradio UI process...",
+            progress,
+            cancellationToken).ConfigureAwait(false);
+        await RunZImageTrainerUiScriptAsync(
+            settings,
+            "ztrain-start-gradio-ui",
+            "Starting simple AI Toolkit Gradio UI...",
+            progress,
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task StopZImageTrainerOfficialUiAsync(
+        InstallSettings settings,
+        IProgress<string>? progress,
+        CancellationToken cancellationToken)
+    {
+        await StopZImageTrainerUiScriptAsync(
+            settings,
+            "ztrain-stop-official-ui",
+            "Stopping AI Toolkit process...",
+            progress,
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task KillZImageTrainerOfficialUiAsync(
+        InstallSettings settings,
+        IProgress<string>? progress,
+        CancellationToken cancellationToken)
+    {
+        progress?.Report("Killing AI Toolkit process...");
+        var bashCommand =
+            "set +e; " +
+            $"export HOME={ToBashSingleQuoted($"/home/{settings.LinuxUser}")}; " +
+            $"export USER={ToBashSingleQuoted(settings.LinuxUser)}; " +
+            $"export LOGNAME={ToBashSingleQuoted(settings.LinuxUser)}; " +
+            "UI_PORT=8675; " +
+            "is_alive() { " +
+            "  if ss -ltn 2>/dev/null | grep -q ':8675 '; then return 0; fi; " +
+            "  if pgrep -u \"$(id -u)\" -f '[n]ext-server' >/dev/null 2>&1; then return 0; fi; " +
+            "  if pgrep -u \"$(id -u)\" -f '[n]ext start --port 8675' >/dev/null 2>&1; then return 0; fi; " +
+            "  if pgrep -u \"$(id -u)\" -f 'dist/cron/[w]orker.js' >/dev/null 2>&1; then return 0; fi; " +
+            "  if pgrep -u \"$(id -u)\" -f 'node_modules/.bin/[c]oncurrently' >/dev/null 2>&1; then return 0; fi; " +
+            "  return 1; " +
+            "}; " +
+            "pkill -9 -u \"$(id -u)\" -f 'node_modules/.bin/[c]oncurrently' >/dev/null 2>&1 || true; " +
+            "pkill -9 -u \"$(id -u)\" -f 'dist/cron/[w]orker.js' >/dev/null 2>&1 || true; " +
+            "pkill -9 -u \"$(id -u)\" -f '[n]ext start --port 8675' >/dev/null 2>&1 || true; " +
+            "pkill -9 -u \"$(id -u)\" -f '[n]ext-server' >/dev/null 2>&1 || true; " +
+            "for _ in {1..16}; do " +
+            "  if ! is_alive; then " +
+            "    echo 'AI Toolkit server stopped.'; exit 0; " +
+            "  fi; " +
+            "  pkill -9 -u \"$(id -u)\" -f 'node_modules/.bin/[c]oncurrently' >/dev/null 2>&1 || true; " +
+            "  pkill -9 -u \"$(id -u)\" -f 'dist/cron/[w]orker.js' >/dev/null 2>&1 || true; " +
+            "  pkill -9 -u \"$(id -u)\" -f '[n]ext start --port 8675' >/dev/null 2>&1 || true; " +
+            "  pkill -9 -u \"$(id -u)\" -f '[n]ext-server' >/dev/null 2>&1 || true; " +
+            "  sleep 0.25; " +
+            "done; " +
+            "exit 1";
+
+        var result = await RunWslBashAsync(settings, bashCommand, progress, cancellationToken).ConfigureAwait(false);
+        if (!await WaitForAiToolkitUiToStopAsync(settings, cancellationToken).ConfigureAwait(false))
+        {
+            if (result.ExitCode != 0)
+            {
+                throw new InvalidOperationException("Killing AI Toolkit failed.");
+            }
+        }
+        else
+        {
+            progress?.Report("AI Toolkit server stopped.");
+            return;
+        }
+    }
+
+    public async Task StopZImageTrainerGradioUiAsync(
+        InstallSettings settings,
+        IProgress<string>? progress,
+        CancellationToken cancellationToken)
+    {
+        await StopZImageTrainerUiScriptAsync(
+            settings,
+            "ztrain-stop-gradio-ui",
+            "Stopping Gradio UI process...",
+            progress,
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task RunZImageTrainerUiScriptAsync(
+        InstallSettings settings,
+        string scriptName,
+        string activityLabel,
+        IProgress<string>? progress,
+        CancellationToken cancellationToken)
+    {
+        var scriptPath = $"/home/{settings.LinuxUser}/ZImage-Trainer/bin/{scriptName}";
+        var bashCommand =
+            "set -euo pipefail; " +
+            $"export HOME={ToBashSingleQuoted($"/home/{settings.LinuxUser}")}; " +
+            $"export USER={ToBashSingleQuoted(settings.LinuxUser)}; " +
+            $"export LOGNAME={ToBashSingleQuoted(settings.LinuxUser)}; " +
+            $"if [[ ! -x {ToBashSingleQuoted(scriptPath)} ]]; then echo 'Trainer UI launcher missing. Repair Trainer first.'; exit 1; fi; " +
+            $"{ToBashSingleQuoted(scriptPath)}";
+
+        progress?.Report(activityLabel);
+        var result = await RunWslBashAsync(settings, bashCommand, progress, cancellationToken).ConfigureAwait(false);
+        if (result.ExitCode != 0)
+        {
+            throw new InvalidOperationException($"{activityLabel.TrimEnd('.')} failed.");
+        }
+    }
+
+    private async Task StopZImageTrainerUiScriptAsync(
+        InstallSettings settings,
+        string scriptName,
+        string activityLabel,
+        IProgress<string>? progress,
+        CancellationToken cancellationToken)
+    {
+        var scriptPath = $"/home/{settings.LinuxUser}/ZImage-Trainer/bin/{scriptName}";
+        var bashCommand =
+            "set -euo pipefail; " +
+            $"export HOME={ToBashSingleQuoted($"/home/{settings.LinuxUser}")}; " +
+            $"export USER={ToBashSingleQuoted(settings.LinuxUser)}; " +
+            $"export LOGNAME={ToBashSingleQuoted(settings.LinuxUser)}; " +
+            $"if [[ ! -x {ToBashSingleQuoted(scriptPath)} ]]; then exit 0; fi; " +
+            $"{ToBashSingleQuoted(scriptPath)}";
+
+        progress?.Report(activityLabel);
+        var result = await RunWslBashAsync(settings, bashCommand, progress, cancellationToken).ConfigureAwait(false);
+        if (result.ExitCode != 0)
+        {
+            throw new InvalidOperationException($"{activityLabel.TrimEnd('.')} failed.");
+        }
+    }
+
+    public async Task CreateZImageTrainerJobAsync(
+        InstallSettings settings,
+        string datasetName,
+        string loraName,
+        string presetId,
+        string adapterVersion,
+        IProgress<string> progress,
+        CancellationToken cancellationToken)
+    {
+        await CreateZImageTrainerJobAsync(
+            settings,
+            datasetName,
+            loraName,
+            presetId,
+            adapterVersion,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            progress,
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task CreateZImageTrainerJobAsync(
+        InstallSettings settings,
+        string datasetName,
+        string loraName,
+        string presetId,
+        string adapterVersion,
+        int? stepsOverride,
+        string? learningRateOverride,
+        int? rankOverride,
+        bool? lowVramOverride,
+        string? samplePromptOverride,
+        int? checkpointCountOverride,
+        IProgress<string> progress,
+        CancellationToken cancellationToken)
+    {
+        var normalizedDataset = NormalizeTrainerName(datasetName, "dataset");
+        var normalizedLora = NormalizeTrainerName(loraName, "LoRA");
+        var datasetPath = $"/home/{settings.LinuxUser}/ZImage-Trainer/datasets/{normalizedDataset}";
+        var jobPath = $"/home/{settings.LinuxUser}/ZImage-Trainer/jobs/{normalizedLora}.yaml";
+        var loraOutputPath = $"/home/{settings.LinuxUser}/ZImage-Trainer/loras/{normalizedLora}";
+        var loraMetadataPath = $"{loraOutputPath}/nymphs_lora.json";
+        var metadataPath = $"{datasetPath}/metadata.csv";
+        await SyncZImageTrainerSupportFilesAsync(settings, progress, cancellationToken).ConfigureAwait(false);
+        var normalizedAdapterVersion = NormalizeZImageTrainerAdapterVersion(adapterVersion);
+        var adapterPath = await EnsureZImageTrainerTrainingAdapterAsync(settings, normalizedAdapterVersion, progress, cancellationToken).ConfigureAwait(false);
+        var metadataStatus = await PrepareZImageTrainerMetadataAsync(
+            settings,
+            normalizedDataset,
+            progress,
+            cancellationToken).ConfigureAwait(false);
+        SyncTrainerCaptionTextFiles(
+            ToWindowsWslPath(settings, datasetPath),
+            ToWindowsWslPath(settings, metadataPath));
+
+        var jobPreset = ApplyZImageTrainerOverrides(
+            ResolveZImageTrainerPreset(presetId),
+            stepsOverride,
+            learningRateOverride,
+            rankOverride,
+            lowVramOverride,
+            samplePromptOverride,
+            checkpointCountOverride);
+        var loraMetadataJson = BuildZImageLoraMetadataJson(loraName, normalizedLora, jobPreset);
+        var jobScript = BuildZImageTrainerConfig(settings.LinuxUser, normalizedDataset, normalizedLora, adapterPath, jobPreset);
+        var jobConfigJson = BuildZImageTrainerConfigJson(settings.LinuxUser, normalizedDataset, normalizedLora, adapterPath, jobPreset);
+        const string jobHeredocMarker = "__NYMPHS_ZIMAGE_CONFIG__";
+        const string loraMetadataHeredocMarker = "__NYMPHS_ZIMAGE_LORA_METADATA__";
+
+        var bashCommand =
+            "set -euo pipefail; " +
+            $"mkdir -p {ToBashSingleQuoted(datasetPath)} {ToBashSingleQuoted($"/home/{settings.LinuxUser}/ZImage-Trainer/jobs")} {ToBashSingleQuoted($"/home/{settings.LinuxUser}/ZImage-Trainer/loras")} {ToBashSingleQuoted(loraOutputPath)}; " +
+            $"cat > {ToBashSingleQuoted(jobPath)} <<'{jobHeredocMarker}'\n" +
+            $"{jobScript}\n" +
+            $"{jobHeredocMarker}\n" +
+            $"cat > {ToBashSingleQuoted(loraMetadataPath)} <<'{loraMetadataHeredocMarker}'\n" +
+            $"{loraMetadataJson}\n" +
+            $"{loraMetadataHeredocMarker}\n" +
+            $"echo 'Created training config: {jobPath}'; " +
+            $"echo 'Dataset folder: {datasetPath}'; " +
+            $"echo 'Metadata file: {metadataPath}'; " +
+            $"echo 'LoRA metadata: {loraMetadataPath}'; " +
+            $"echo 'Images found: {metadataStatus.ImageCount}'; " +
+            $"echo 'Captions still blank: {metadataStatus.MissingCaptionCount}'; " +
+            $"echo 'Caption text files mirrored beside the images for AI Toolkit.'; " +
+            $"echo 'Training adapter: {normalizedAdapterVersion}'; " +
+            $"echo 'Adapter path: {adapterPath}'";
+
+        progress.Report(
+            $"Creating Z-Image Trainer config '{normalizedLora}' for dataset '{normalizedDataset}' using preset {jobPreset.Label} and adapter {normalizedAdapterVersion}.");
+        var result = await RunWslBashAsync(settings, bashCommand, progress, cancellationToken).ConfigureAwait(false);
+        if (result.ExitCode != 0)
+        {
+            throw new InvalidOperationException("Z-Image Trainer config creation failed.");
+        }
+
+        await TryRegisterZImageTrainerJobInOfficialUiAsync(
+            settings,
+            normalizedLora,
+            jobConfigJson,
+            progress,
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task RunZImageTrainerJobAsync(
+        InstallSettings settings,
+        string loraName,
+        IProgress<string> progress,
+        CancellationToken cancellationToken)
+    {
+        var normalizedLora = NormalizeTrainerName(loraName, "LoRA");
+        await EnsureAiToolkitApiReadyAsync(settings, progress, cancellationToken).ConfigureAwait(false);
+
+        var officialUiJobId = await FindOfficialUiJobIdAsync(
+            settings,
+            normalizedLora,
+            progress,
+            cancellationToken).ConfigureAwait(false);
+        if (string.IsNullOrWhiteSpace(officialUiJobId))
+        {
+            throw new InvalidOperationException(
+                "Could not link the training run to an AI Toolkit job. Recreate the job or repair Trainer before starting training.");
+        }
+
+        await QueueOfficialUiJobAsync(
+            settings,
+            officialUiJobId,
+            normalizedLora,
+            progress,
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task StartZImageTrainerQueueAsync(
+        InstallSettings settings,
+        string loraName,
+        IProgress<string>? progress,
+        CancellationToken cancellationToken)
+    {
+        await EnsureAiToolkitApiReadyAsync(settings, progress, cancellationToken, allowLaunchIfClosed: false).ConfigureAwait(false);
+
+        var normalizedLora = NormalizeTrainerName(loraName, "LoRA");
+        var jobId = await FindOfficialUiJobIdAsync(settings, normalizedLora, progress, cancellationToken).ConfigureAwait(false);
+        if (string.IsNullOrWhiteSpace(jobId))
+        {
+            throw new InvalidOperationException("No AI Toolkit job was found for the selected LoRA.");
+        }
+
+        var job = await GetAiToolkitJobByIdAsync(jobId, cancellationToken).ConfigureAwait(false);
+        var gpuIds = job is null ? null : GetStringProperty(job.RootElement, "gpu_ids");
+        if (string.IsNullOrWhiteSpace(gpuIds))
+        {
+            throw new InvalidOperationException("AI Toolkit job does not have a valid queue assignment.");
+        }
+
+        await SendAiToolkitApiRequestAsync(
+            HttpMethod.Get,
+            $"/api/queue/{Uri.EscapeDataString(gpuIds)}/start",
+            null,
+            cancellationToken).ConfigureAwait(false);
+        progress?.Report($"Started AI Toolkit queue {gpuIds}.");
+    }
+
+    public async Task StopZImageTrainerQueueAsync(
+        InstallSettings settings,
+        string loraName,
+        IProgress<string>? progress,
+        CancellationToken cancellationToken)
+    {
+        await EnsureAiToolkitApiReadyAsync(settings, progress, cancellationToken, allowLaunchIfClosed: false).ConfigureAwait(false);
+
+        var normalizedLora = NormalizeTrainerName(loraName, "LoRA");
+        var jobId = await FindOfficialUiJobIdAsync(settings, normalizedLora, progress, cancellationToken).ConfigureAwait(false);
+        if (string.IsNullOrWhiteSpace(jobId))
+        {
+            throw new InvalidOperationException("No AI Toolkit job was found for the selected LoRA.");
+        }
+
+        var job = await GetAiToolkitJobByIdAsync(jobId, cancellationToken).ConfigureAwait(false);
+        var gpuIds = job is null ? null : GetStringProperty(job.RootElement, "gpu_ids");
+        if (string.IsNullOrWhiteSpace(gpuIds))
+        {
+            throw new InvalidOperationException("AI Toolkit job does not have a valid queue assignment.");
+        }
+
+        await SendAiToolkitApiRequestAsync(
+            HttpMethod.Get,
+            $"/api/queue/{Uri.EscapeDataString(gpuIds)}/stop",
+            null,
+            cancellationToken).ConfigureAwait(false);
+        progress?.Report($"Stopped AI Toolkit queue {gpuIds}.");
+    }
+
+    public async Task DeleteZImageTrainerJobAsync(
+        InstallSettings settings,
+        string loraName,
+        IProgress<string>? progress,
+        CancellationToken cancellationToken)
+    {
+        await EnsureAiToolkitApiReadyAsync(settings, progress, cancellationToken, allowLaunchIfClosed: false).ConfigureAwait(false);
+
+        var normalizedLora = NormalizeTrainerName(loraName, "LoRA");
+        var jobId = await FindOfficialUiJobIdAsync(settings, normalizedLora, progress, cancellationToken).ConfigureAwait(false);
+        if (string.IsNullOrWhiteSpace(jobId))
+        {
+            throw new InvalidOperationException("No AI Toolkit job was found for the selected LoRA.");
+        }
+
+        await SendAiToolkitApiRequestAsync(
+            HttpMethod.Get,
+            $"/api/jobs/{Uri.EscapeDataString(jobId)}/delete",
+            null,
+            cancellationToken).ConfigureAwait(false);
+        progress?.Report($"Deleted AI Toolkit job '{normalizedLora}'.");
+    }
+
+    public async Task<string?> GetZImageTrainerJobIdAsync(
+        InstallSettings settings,
+        string loraName,
+        IProgress<string>? progress,
+        CancellationToken cancellationToken)
+    {
+        await EnsureAiToolkitApiReadyAsync(settings, progress, cancellationToken, allowLaunchIfClosed: false).ConfigureAwait(false);
+        return await FindOfficialUiJobIdAsync(
+            settings,
+            NormalizeTrainerName(loraName, "LoRA"),
+            progress,
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task<string?> TryGetZImageTrainerJobLogAsync(
+        InstallSettings settings,
+        string loraName,
+        CancellationToken cancellationToken)
+    {
+        var normalizedLora = NormalizeTrainerName(loraName, "LoRA");
+
+        try
+        {
+            if (!await IsAiToolkitApiHealthyAsync(cancellationToken).ConfigureAwait(false))
+            {
+                return null;
+            }
+
+            using var job = await TryGetAiToolkitJobByRefAsync(normalizedLora, cancellationToken).ConfigureAwait(false);
+            var jobId = job is null ? null : GetStringProperty(job.RootElement, "id");
+            if (string.IsNullOrWhiteSpace(jobId))
+            {
+                return null;
+            }
+
+            var responseJson = await SendAiToolkitApiRequestAsync(
+                HttpMethod.Get,
+                $"/api/jobs/{Uri.EscapeDataString(jobId)}/log",
+                null,
+                cancellationToken).ConfigureAwait(false);
+
+            using var response = JsonDocument.Parse(responseJson);
+            return GetStringProperty(response.RootElement, "log");
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    public bool DoesZImageTrainerFinalCheckpointExist(
+        InstallSettings settings,
+        string loraName)
+    {
+        var normalizedLora = NormalizeTrainerName(loraName, "LoRA");
+        var finalCheckpointLinuxPath = $"/home/{settings.LinuxUser}/ZImage-Trainer/loras/{normalizedLora}/{normalizedLora}.safetensors";
+        var finalCheckpointWindowsPath = ToWindowsWslPath(settings, finalCheckpointLinuxPath);
+        return File.Exists(finalCheckpointWindowsPath);
+    }
+
+    public async Task<bool> StopZImageTrainerJobAsync(
+        InstallSettings settings,
+        IProgress<string>? progress,
+        CancellationToken cancellationToken)
+    {
+        await EnsureAiToolkitApiReadyAsync(
+            settings,
+            progress,
+            cancellationToken,
+            allowLaunchIfClosed: false).ConfigureAwait(false);
+
+        var activeJob = await GetAiToolkitActiveTrainJobAsync(cancellationToken).ConfigureAwait(false);
+        if (activeJob is null)
+        {
+            progress?.Report("No active Z-Image Trainer job was found.");
+            return false;
+        }
+
+        var jobId = GetStringProperty(activeJob.RootElement, "id");
+        var status = GetStringProperty(activeJob.RootElement, "status") ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(jobId))
+        {
+            progress?.Report("No active Z-Image Trainer job was found.");
+            return false;
+        }
+
+        progress?.Report("Requesting stop for the active AI Toolkit job...");
+        if (string.Equals(status, "queued", StringComparison.OrdinalIgnoreCase))
+        {
+            await SendAiToolkitApiRequestAsync(HttpMethod.Get, $"/api/jobs/{Uri.EscapeDataString(jobId)}/mark_stopped", null, cancellationToken).ConfigureAwait(false);
+        }
+        else
+        {
+            await SendAiToolkitApiRequestAsync(HttpMethod.Get, $"/api/jobs/{Uri.EscapeDataString(jobId)}/stop", null, cancellationToken).ConfigureAwait(false);
+        }
+
+        progress?.Report("Stop requested for the active AI Toolkit job.");
+        return true;
+    }
+
+    public async Task EnsureZImageTrainerPicturesFolderAsync(
+        InstallSettings settings,
+        string loraName,
+        IProgress<string>? progress,
+        CancellationToken cancellationToken)
+    {
+        var normalizedLora = NormalizeTrainerName(loraName, "LoRA");
+        var datasetPath = $"/home/{settings.LinuxUser}/ZImage-Trainer/datasets/{normalizedLora}";
+        var bashCommand =
+            "set -euo pipefail; " +
+            $"mkdir -p {ToBashSingleQuoted(datasetPath)}; " +
+            $"echo 'Pictures folder ready: {datasetPath}'";
+
+        var result = await RunWslBashAsync(settings, bashCommand, progress, cancellationToken).ConfigureAwait(false);
+        if (result.ExitCode != 0)
+        {
+            throw new InvalidOperationException("Could not create Z-Image Trainer pictures folder.");
+        }
+    }
+
+    public async Task<ZImageTrainerMetadataStatus> PrepareZImageTrainerMetadataAsync(
+        InstallSettings settings,
+        string datasetName,
+        IProgress<string>? progress,
+        CancellationToken cancellationToken)
+    {
+        var normalizedDataset = NormalizeTrainerName(datasetName, "dataset");
+        var datasetPath = $"/home/{settings.LinuxUser}/ZImage-Trainer/datasets/{normalizedDataset}";
+        var metadataPath = $"{datasetPath}/metadata.csv";
+        var bootstrapCommand =
+            "set -euo pipefail; " +
+            $"mkdir -p {ToBashSingleQuoted(datasetPath)}; " +
+            $"touch {ToBashSingleQuoted(metadataPath)}";
+
+        var bootstrapResult = await RunWslBashAsync(settings, bootstrapCommand, progress: null, cancellationToken).ConfigureAwait(false);
+        if (bootstrapResult.ExitCode != 0)
+        {
+            throw new InvalidOperationException("Could not prepare the captions file.");
+        }
+
+        var datasetWindowsPath = ToWindowsWslPath(settings, datasetPath);
+        var metadataWindowsPath = ToWindowsWslPath(settings, metadataPath);
+        Directory.CreateDirectory(datasetWindowsPath);
+
+        var existingCaptions = ReadTrainerMetadata(metadataWindowsPath);
+        var rows = Directory.EnumerateFiles(datasetWindowsPath, "*", SearchOption.TopDirectoryOnly)
+            .Where(static path => IsSupportedTrainerImageFile(Path.GetExtension(path)))
+            .Select(Path.GetFileName)
+            .Where(static fileName => !string.IsNullOrWhiteSpace(fileName))
+            .OrderBy(static fileName => fileName, StringComparer.OrdinalIgnoreCase)
+            .Select(fileName =>
+            {
+                existingCaptions.TryGetValue(fileName!, out var caption);
+                return new KeyValuePair<string, string>(fileName!, caption ?? string.Empty);
+            })
+            .ToList();
+
+        WriteTrainerMetadata(metadataWindowsPath, rows);
+
+        var missingCaptionCount = rows.Count(row => string.IsNullOrWhiteSpace(row.Value));
+        progress?.Report(
+            $"Captions file ready: {metadataPath} ({rows.Count} image(s), {missingCaptionCount} caption(s) still blank).");
+
+        return new ZImageTrainerMetadataStatus(rows.Count, missingCaptionCount, datasetPath, metadataPath);
+    }
+
+
+    private async Task<string> EnsureZImageTrainerTrainingAdapterAsync(
+        InstallSettings settings,
+        string adapterVersion,
+        IProgress<string>? progress,
+        CancellationToken cancellationToken)
+    {
+        var normalizedAdapterVersion = NormalizeZImageTrainerAdapterVersion(adapterVersion);
+        var adapterRepoDir = $"/home/{settings.LinuxUser}/ZImage-Trainer/adapters/zimage_turbo_training_adapter";
+        var adapterPathFile = $"{adapterRepoDir}/selected_adapter_path_{normalizedAdapterVersion}.txt";
+        var trainerPython = $"/home/{settings.LinuxUser}/ZImage-Trainer/ai-toolkit/venv/bin/python";
+        var bashCommand =
+            "set -euo pipefail; " +
+            $"mkdir -p {ToBashSingleQuoted(adapterRepoDir)}; " +
+            $"if [[ ! -x {ToBashSingleQuoted(trainerPython)} ]]; then echo 'Trainer Python missing: {trainerPython}. Repair Trainer first.' >&2; exit 1; fi; " +
+            $"if [[ -f {ToBashSingleQuoted(adapterPathFile)} ]]; then " +
+            $"  IFS= read -r SELECTED_ADAPTER < {ToBashSingleQuoted(adapterPathFile)} || true; " +
+            "  SELECTED_ADAPTER=\"${SELECTED_ADAPTER%$'\\r'}\"; " +
+            "  if [[ -n \"$SELECTED_ADAPTER\" && -f \"$SELECTED_ADAPTER\" ]]; then " +
+            $"    echo \"Turbo training adapter {normalizedAdapterVersion} ready: $SELECTED_ADAPTER\"; " +
+            "    exit 0; " +
+            "  fi; " +
+            "fi; " +
+            $"ADAPTER_REPO_DIR={ToBashSingleQuoted(adapterRepoDir)} ADAPTER_PATH_FILE={ToBashSingleQuoted(adapterPathFile)} ADAPTER_VERSION={ToBashSingleQuoted(normalizedAdapterVersion)} {ToBashSingleQuoted(trainerPython)} - <<'PYEOF'\n" +
+            "import os\n" +
+            "from pathlib import Path\n" +
+            "from huggingface_hub import snapshot_download\n" +
+            "adapter_dir = Path(os.environ['ADAPTER_REPO_DIR'])\n" +
+            "path_file = Path(os.environ['ADAPTER_PATH_FILE'])\n" +
+            "adapter_version = os.environ.get('ADAPTER_VERSION', 'v1').strip().lower()\n" +
+            "adapter_dir.mkdir(parents=True, exist_ok=True)\n" +
+            "snapshot_download(\n" +
+            "    repo_id='ostris/zimage_turbo_training_adapter',\n" +
+            "    local_dir=str(adapter_dir),\n" +
+            "    allow_patterns=['*.safetensors', '*.bin', '*.pt', '*.pth', '*.ckpt'],\n" +
+            ")\n" +
+            "version_marker = f'_{adapter_version}'\n" +
+            "matching_candidates = [\n" +
+            "        path for path in adapter_dir.rglob('*')\n" +
+            "        if path.is_file() and path.suffix.lower() in {'.safetensors', '.bin', '.pt', '.pth', '.ckpt'}\n" +
+            "]\n" +
+            "matching_candidates = [path for path in matching_candidates if version_marker in path.name.lower()]\n" +
+            "candidates = sorted(\n" +
+            "    matching_candidates,\n" +
+            "    key=lambda path: (\n" +
+            "        0 if path.suffix.lower() == '.safetensors' else 1,\n" +
+            "        0 if path.parent == adapter_dir else 1,\n" +
+            "        len(path.name),\n" +
+            "        str(path).lower(),\n" +
+            "    ),\n" +
+            ")\n" +
+            "if not candidates:\n" +
+            "    raise SystemExit(f'No adapter weight file matching {adapter_version} was downloaded for ostris/zimage_turbo_training_adapter')\n" +
+            "selected = candidates[0].resolve()\n" +
+            "path_file.write_text(str(selected) + '\\n', encoding='utf-8')\n" +
+            "print(f'Turbo training adapter {adapter_version} ready: {selected}', flush=True)\n" +
+            "PYEOF";
+
+        progress?.Report($"Ensuring Turbo training adapter {normalizedAdapterVersion} is ready for the trainer.");
+        var result = await RunWslBashAsync(settings, bashCommand, progress, cancellationToken).ConfigureAwait(false);
+        if (result.ExitCode != 0)
+        {
+            throw new InvalidOperationException("Could not prepare the Turbo training adapter.");
+        }
+
+        var selectedLine = result.CombinedOutput
+            .Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .LastOrDefault(line => line.StartsWith($"Turbo training adapter {normalizedAdapterVersion}", StringComparison.OrdinalIgnoreCase));
+
+        if (!string.IsNullOrWhiteSpace(selectedLine))
+        {
+            var separatorIndex = selectedLine.IndexOf(':');
+            if (separatorIndex >= 0)
+            {
+                var selectedPath = selectedLine[(separatorIndex + 1)..].Trim();
+                if (!string.IsNullOrWhiteSpace(selectedPath))
+                {
+                    return selectedPath;
+                }
+            }
+        }
+
+        return $"{adapterRepoDir}/zimage_turbo_training_adapter_{normalizedAdapterVersion}.safetensors";
+    }
+
+    private static string NormalizeZImageTrainerAdapterVersion(string? adapterVersion)
+    {
+        return string.Equals(adapterVersion, "v2", StringComparison.OrdinalIgnoreCase)
+            ? "v2"
+            : "v1";
+    }
+
+    public async Task<ZImageTrainerMetadataStatus> DraftZImageTrainerCaptionsAsync(
+        InstallSettings settings,
+        string datasetName,
+        string trainingType,
+        string captionMode,
+        IProgress<string> progress,
+        CancellationToken cancellationToken)
+    {
+        var normalizedDataset = NormalizeTrainerName(datasetName, "dataset");
+        var normalizedTrainingType = string.Equals(trainingType, "style", StringComparison.OrdinalIgnoreCase)
+            ? "style"
+            : "character";
+        var normalizedCaptionMode = string.Equals(captionMode, "overwrite_all", StringComparison.OrdinalIgnoreCase)
+            ? "overwrite_all"
+            : "fill_blanks";
+
+        await SyncZImageTrainerSupportFilesAsync(settings, progress, cancellationToken).ConfigureAwait(false);
+
+        var metadataStatus = await PrepareZImageTrainerMetadataAsync(
+            settings,
+            normalizedDataset,
+            progress,
+            cancellationToken).ConfigureAwait(false);
+
+        if (metadataStatus.ImageCount == 0)
+        {
+            throw new InvalidOperationException("Add training pictures first.");
+        }
+
+        var captionScriptPath = $"/home/{settings.LinuxUser}/ZImage-Trainer/bin/zimage-caption-brain.sh";
+        var bashCommand =
+            "set -euo pipefail; " +
+            $"export HOME={ToBashSingleQuoted($"/home/{settings.LinuxUser}")}; " +
+            $"export USER={ToBashSingleQuoted(settings.LinuxUser)}; " +
+            $"export LOGNAME={ToBashSingleQuoted(settings.LinuxUser)}; " +
+            $"export BRAIN_INSTALL_ROOT={ToBashSingleQuoted(settings.BrainInstallRoot)}; " +
+            $"export ZIMAGE_DATASET_DIR={ToBashSingleQuoted(metadataStatus.DatasetPath)}; " +
+            $"export ZIMAGE_METADATA_PATH={ToBashSingleQuoted(metadataStatus.MetadataPath)}; " +
+            $"export ZIMAGE_CAPTION_MODE={ToBashSingleQuoted(normalizedCaptionMode)}; " +
+            $"export ZIMAGE_TRAINING_FOCUS={ToBashSingleQuoted(normalizedTrainingType)}; " +
+            $"bash {ToBashSingleQuoted(captionScriptPath)}";
+
+        progress.Report(
+            $"Caption Brain: drafting captions for {metadataStatus.ImageCount} image(s) using {normalizedTrainingType} guidance.");
+
+        var result = await RunWslBashAsync(settings, bashCommand, progress, cancellationToken).ConfigureAwait(false);
+        if (result.ExitCode != 0)
+        {
+            throw new InvalidOperationException("Caption Brain drafting failed.");
+        }
+
+        return await PrepareZImageTrainerMetadataAsync(
+            settings,
+            normalizedDataset,
+            progress,
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task SyncZImageTrainerSupportFilesAsync(
+        InstallSettings settings,
+        IProgress<string>? progress,
+        CancellationToken cancellationToken)
+    {
+        var captionBrainScript = RequireScript("zimage_caption_brain.sh");
+        var wslCaptionBrainScriptPath = ConvertWindowsPathToWsl(captionBrainScript)
+            ?? throw new InvalidOperationException($"Could not convert script path for WSL: {captionBrainScript}");
+        var captionBrainPythonScript = RequireScript("zimage_caption_brain.py");
+        var wslCaptionBrainPythonScriptPath = ConvertWindowsPathToWsl(captionBrainPythonScript)
+            ?? throw new InvalidOperationException($"Could not convert script path for WSL: {captionBrainPythonScript}");
+        var captionShellTargetPath = $"/home/{settings.LinuxUser}/ZImage-Trainer/bin/zimage-caption-brain.sh";
+        var captionPythonTargetPath = $"/home/{settings.LinuxUser}/ZImage-Trainer/bin/zimage-caption-brain.py";
+        var trainerPythonPath = $"/home/{settings.LinuxUser}/ZImage-Trainer/ai-toolkit/venv/bin/python";
+        var bashCommand =
+            "set -euo pipefail; " +
+            $"mkdir -p {ToBashSingleQuoted($"/home/{settings.LinuxUser}/ZImage-Trainer/bin")}; " +
+            $"install -m 755 {ToBashSingleQuoted(wslCaptionBrainScriptPath)} {ToBashSingleQuoted(captionShellTargetPath)}; " +
+            $"install -m 755 {ToBashSingleQuoted(wslCaptionBrainPythonScriptPath)} {ToBashSingleQuoted(captionPythonTargetPath)}; " +
+            $"if ! {ToBashSingleQuoted(trainerPythonPath)} -c {ToBashSingleQuoted("import PIL")} >/dev/null 2>&1; then " +
+            $"  {ToBashSingleQuoted(trainerPythonPath)} -m pip install Pillow; " +
+            "fi; " +
+            $"echo 'Caption Brain helper synced: {captionShellTargetPath}'; " +
+            $"echo 'Caption Brain client synced: {captionPythonTargetPath}'; " +
+            "echo 'Caption Brain image dependency ready: Pillow'";
+
+        var result = await RunWslBashAsync(settings, bashCommand, progress, cancellationToken).ConfigureAwait(false);
+        if (result.ExitCode != 0)
+        {
+            throw new InvalidOperationException("Could not sync managed Z-Image trainer support files.");
+        }
+    }
+
     public async Task<string> GetNymphsBrainStatusAsync(
         InstallSettings settings,
         CancellationToken cancellationToken)
@@ -740,6 +1755,1380 @@ public sealed class InstallerWorkflowService
             isRunning && tps == "-" ? "Waiting" : tps);
     }
 
+    private static ZImageTrainerStatus ParseZImageTrainerStatus(string output)
+    {
+        var values = output
+            .Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(line => line.Split('=', 2))
+            .Where(parts => parts.Length == 2)
+            .ToDictionary(parts => parts[0], parts => parts[1], StringComparer.OrdinalIgnoreCase);
+
+        var installState = ValueOrDash(values.GetValueOrDefault("ZIMAGE_TRAINER_INSTALLED"));
+        var repoExists = IsYes(values.GetValueOrDefault("ZIMAGE_TRAINER_REPO"));
+        var venvExists = IsYes(values.GetValueOrDefault("ZIMAGE_TRAINER_VENV"));
+        var datasetRootExists = IsYes(values.GetValueOrDefault("ZIMAGE_TRAINER_DATASET_ROOT"));
+        var outputRootExists = IsYes(values.GetValueOrDefault("ZIMAGE_TRAINER_OUTPUT_ROOT"));
+        var running = IsYes(values.GetValueOrDefault("ZIMAGE_TRAINER_RUNNING"));
+        var activeState = ValueOrDash(values.GetValueOrDefault("ZIMAGE_TRAINER_ACTIVE_STATE")).ToLowerInvariant();
+        var loraCount = ParseNonNegativeInt(values.GetValueOrDefault("ZIMAGE_TRAINER_LORAS_FOUND"));
+        var datasetCount = ParseNonNegativeInt(values.GetValueOrDefault("ZIMAGE_TRAINER_DATASETS_FOUND"));
+        var uiNodeExists = IsYes(values.GetValueOrDefault("ZIMAGE_TRAINER_UI_NODE"));
+        var uiBuildExists = IsYes(values.GetValueOrDefault("ZIMAGE_TRAINER_UI_BUILD"));
+        var uiDbExists = IsYes(values.GetValueOrDefault("ZIMAGE_TRAINER_UI_DB"));
+        var uiRunning = IsYes(values.GetValueOrDefault("ZIMAGE_TRAINER_UI_RUNNING"));
+        var queueWorkerRunning = IsYes(values.GetValueOrDefault("ZIMAGE_TRAINER_QUEUE_WORKER_RUNNING"));
+        var queueRunning = IsYes(values.GetValueOrDefault("ZIMAGE_TRAINER_QUEUE_RUNNING"));
+        var gradioRunning = IsYes(values.GetValueOrDefault("ZIMAGE_TRAINER_GRADIO_RUNNING"));
+        var activeInfo = ValueOrDash(values.GetValueOrDefault("ZIMAGE_TRAINER_ACTIVE_INFO"));
+
+        var detail = installState switch
+        {
+            "installed" => $"Installed. {loraCount} LoRA file(s), {datasetCount} dataset folder(s).",
+            "partial" => "Partial install. Repair needed.",
+            _ => "Not installed.",
+        };
+
+        if (running)
+        {
+            detail += activeState switch
+            {
+                "queued" when queueRunning => " Training queued.",
+                "queued" => " Training queued, but the AI Toolkit queue is stopped.",
+                "running" when !string.IsNullOrWhiteSpace(activeInfo) && !string.Equals(activeInfo, "-", StringComparison.Ordinal) => $" {activeInfo}.",
+                "running" => " Training running.",
+                _ => " Trainer activity detected.",
+            };
+        }
+
+        if (uiRunning)
+        {
+            detail += " AI Toolkit running.";
+        }
+        else if (uiNodeExists && uiBuildExists && uiDbExists && installState == "installed")
+        {
+            detail += " AI Toolkit ready.";
+        }
+
+        if (gradioRunning)
+        {
+            detail += " Gradio running.";
+        }
+        else if (installState == "installed")
+        {
+            detail += " Gradio ready.";
+        }
+
+        if (installState == "installed" && !queueWorkerRunning)
+        {
+            detail += " Queue worker not running.";
+        }
+
+        return new ZImageTrainerStatus(
+            installState,
+            repoExists,
+            venvExists,
+            datasetRootExists,
+            outputRootExists,
+            running,
+            loraCount,
+            datasetCount,
+            uiRunning,
+            queueWorkerRunning,
+            queueRunning,
+            gradioRunning,
+            activeState,
+            activeInfo,
+            detail);
+    }
+
+    private static bool IsYes(string? value) =>
+        string.Equals(value?.Trim(), "yes", StringComparison.OrdinalIgnoreCase);
+
+    private static int ParseNonNegativeInt(string? value) =>
+        int.TryParse(value, out var parsed) && parsed > 0 ? parsed : 0;
+
+    private static int ParseMatchInt(Regex regex, string input)
+    {
+        var match = regex.Match(input);
+        return match.Success && int.TryParse(match.Groups["value"].Value, out var parsed) ? parsed : 0;
+    }
+
+    private static bool ParseMatchBool(Regex regex, string input)
+    {
+        var match = regex.Match(input);
+        return match.Success && bool.TryParse(match.Groups["value"].Value, out var parsed) && parsed;
+    }
+
+    private static string? ParseMatchString(Regex regex, string input)
+    {
+        var match = regex.Match(input);
+        return match.Success ? match.Groups["value"].Value.Trim() : null;
+    }
+
+    private static JsonElement? TryGetObjectProperty(JsonElement element, string propertyName)
+    {
+        return element.ValueKind == JsonValueKind.Object && element.TryGetProperty(propertyName, out var value)
+            ? value
+            : null;
+    }
+
+    private static JsonElement? TryGetObjectProperty(JsonElement? element, string propertyName)
+    {
+        return element.HasValue && element.Value.ValueKind == JsonValueKind.Object && element.Value.TryGetProperty(propertyName, out var value)
+            ? value
+            : null;
+    }
+
+    private static string? GetStringProperty(JsonElement? element, string propertyName)
+    {
+        if (!element.HasValue ||
+            element.Value.ValueKind != JsonValueKind.Object ||
+            !element.Value.TryGetProperty(propertyName, out var value))
+        {
+            return null;
+        }
+
+        return value.ValueKind switch
+        {
+            JsonValueKind.String => value.GetString(),
+            JsonValueKind.Number => value.GetRawText(),
+            JsonValueKind.True => bool.TrueString.ToLowerInvariant(),
+            JsonValueKind.False => bool.FalseString.ToLowerInvariant(),
+            _ => null,
+        };
+    }
+
+    private static int GetIntProperty(JsonElement? element, string propertyName)
+    {
+        if (!element.HasValue ||
+            element.Value.ValueKind != JsonValueKind.Object ||
+            !element.Value.TryGetProperty(propertyName, out var value))
+        {
+            return 0;
+        }
+
+        return value.ValueKind switch
+        {
+            JsonValueKind.Number when value.TryGetInt32(out var parsed) => parsed,
+            JsonValueKind.String when int.TryParse(value.GetString(), out var parsed) => parsed,
+            _ => 0,
+        };
+    }
+
+    private static bool GetBoolProperty(JsonElement? element, string propertyName)
+    {
+        if (!element.HasValue ||
+            element.Value.ValueKind != JsonValueKind.Object ||
+            !element.Value.TryGetProperty(propertyName, out var value))
+        {
+            return false;
+        }
+
+        return value.ValueKind switch
+        {
+            JsonValueKind.True => true,
+            JsonValueKind.False => false,
+            JsonValueKind.String when bool.TryParse(value.GetString(), out var parsed) => parsed,
+            _ => false,
+        };
+    }
+
+    private static string InferTrainerPresetId(string? contentOrStyle)
+    {
+        return (contentOrStyle ?? string.Empty).Trim().ToLowerInvariant() switch
+        {
+            "content" => "strong_style",
+            "style" => "style",
+            "balanced" => "baseline",
+            _ => "baseline",
+        };
+    }
+
+    private static string NormalizeTrainerName(string value, string label)
+    {
+        var trimmed = value.Trim();
+        if (string.IsNullOrWhiteSpace(trimmed))
+        {
+            throw new ArgumentException($"Enter a {label} name.");
+        }
+
+        var builder = new StringBuilder(trimmed.Length);
+        foreach (var ch in trimmed)
+        {
+            if (char.IsLetterOrDigit(ch) || ch is '_' or '-')
+            {
+                builder.Append(ch);
+            }
+            else if (char.IsWhiteSpace(ch))
+            {
+                builder.Append('_');
+            }
+        }
+
+        var normalized = builder.ToString().Trim('_', '-');
+        if (string.IsNullOrWhiteSpace(normalized))
+        {
+            throw new ArgumentException($"Enter a {label} name using letters, numbers, spaces, dashes, or underscores.");
+        }
+
+        return normalized;
+    }
+
+    public sealed record ZImageTrainerMetadataStatus(
+        int ImageCount,
+        int MissingCaptionCount,
+        string DatasetPath,
+        string MetadataPath);
+
+    public sealed record ZImageTrainerJobSettings(
+        string LoraName,
+        string PresetId,
+        int Steps,
+        string LearningRate,
+        int Rank,
+        int CheckpointCount,
+        bool LowVram,
+        string AdapterVersion,
+        string ContentOrStyle,
+        string SamplePrompt);
+
+    private sealed record ZImageTrainerPreset(
+        string Id,
+        string Label,
+        string TypeLabel,
+        string AmountLabel,
+        int Steps,
+        int SaveEvery,
+        int MaxStepSavesToKeep,
+        int SampleEvery,
+        bool DisableSampling,
+        bool CacheTextEmbeddings,
+        string LearningRate,
+        int Rank,
+        int Resolution,
+        string ContentOrStyle,
+        bool LowVram,
+        int GuidanceScale,
+        int SampleSteps,
+        string SamplePrompt);
+
+    private static ZImageTrainerPreset ResolveZImageTrainerPreset(string presetId)
+    {
+        var normalizedPreset = (presetId ?? string.Empty).Trim().ToLowerInvariant();
+
+        return normalizedPreset switch
+        {
+            "fast_test" => new ZImageTrainerPreset(
+                "fast_test",
+                "Fast Test",
+                "Turbo",
+                "Quick Check",
+                500,
+                0,
+                0,
+                0,
+                true,
+                true,
+                "1e-4",
+                8,
+                512,
+                "balanced",
+                false,
+                1,
+                8,
+                string.Empty),
+            "strong_style" or "style_high_noise" => new ZImageTrainerPreset(
+                "strong_style",
+                "Strong Style",
+                "Style",
+                "High Noise",
+                5000,
+                1250,
+                4,
+                250,
+                false,
+                true,
+                "1e-4",
+                16,
+                1024,
+                "content",
+                false,
+                1,
+                8,
+                string.Empty),
+            "style" or "style_balanced" or "style_light" => new ZImageTrainerPreset(
+                "style",
+                "Style",
+                "Style",
+                "Balanced",
+                3000,
+                750,
+                4,
+                250,
+                false,
+                true,
+                "1e-4",
+                16,
+                1024,
+                "balanced",
+                false,
+                1,
+                8,
+                string.Empty),
+            "basic_turbo" or "baseline" or _ => new ZImageTrainerPreset(
+                "baseline",
+                "Baseline",
+                "Turbo",
+                "Baseline",
+                3000,
+                750,
+                4,
+                250,
+                false,
+                true,
+                "1e-4",
+                16,
+                1024,
+                "balanced",
+                false,
+                1,
+                8,
+                string.Empty),
+        };
+    }
+
+    private static ZImageTrainerPreset ApplyZImageTrainerOverrides(
+        ZImageTrainerPreset preset,
+        int? stepsOverride,
+        string? learningRateOverride,
+        int? rankOverride,
+        bool? lowVramOverride,
+        string? samplePromptOverride,
+        int? checkpointCountOverride)
+    {
+        var resolvedSteps = stepsOverride is > 0 ? stepsOverride.Value : preset.Steps;
+        var resolvedRank = rankOverride is > 0 ? rankOverride.Value : preset.Rank;
+        var resolvedLearningRate = string.IsNullOrWhiteSpace(learningRateOverride)
+            ? preset.LearningRate
+            : learningRateOverride.Trim();
+        var resolvedLowVram = lowVramOverride ?? preset.LowVram;
+        var resolvedSamplePrompt = string.IsNullOrWhiteSpace(samplePromptOverride)
+            ? preset.SamplePrompt
+            : samplePromptOverride.Trim();
+        var resolvedCheckpointCount = checkpointCountOverride is >= 0
+            ? checkpointCountOverride.Value
+            : preset.MaxStepSavesToKeep;
+        var resolvedSaveEvery = ComputeSaveEvery(resolvedSteps, resolvedCheckpointCount);
+
+        return preset with
+        {
+            Steps = resolvedSteps,
+            LearningRate = resolvedLearningRate,
+            Rank = resolvedRank,
+            LowVram = resolvedLowVram,
+            SamplePrompt = resolvedSamplePrompt,
+            SaveEvery = resolvedSaveEvery,
+            MaxStepSavesToKeep = resolvedCheckpointCount,
+        };
+    }
+
+    private static int ComputeSaveEvery(int steps, int checkpointCount)
+    {
+        if (steps <= 0 || checkpointCount <= 0)
+        {
+            return 0;
+        }
+
+        return Math.Max(1, steps / checkpointCount);
+    }
+
+    private static int ComputeCheckpointCount(int steps, int saveEvery, int maxSaves)
+    {
+        if (steps <= 0 || saveEvery <= 0 || maxSaves <= 0)
+        {
+            return 0;
+        }
+
+        var derivedCount = Math.Max(1, (int)Math.Round(steps / (double)saveEvery, MidpointRounding.AwayFromZero));
+        return Math.Max(1, Math.Min(maxSaves, derivedCount));
+    }
+
+    private static string NormalizeTrainerSamplePrompt(string? prompt)
+    {
+        if (string.IsNullOrWhiteSpace(prompt))
+        {
+            return string.Empty;
+        }
+
+        var trimmed = prompt.Trim();
+        if ((trimmed.StartsWith("'") && trimmed.EndsWith("'")) ||
+            (trimmed.StartsWith("\"") && trimmed.EndsWith("\"")))
+        {
+            trimmed = trimmed[1..^1];
+        }
+
+        return trimmed.Replace("''", "'").Trim();
+    }
+
+    private static string ResolveTrainerSamplePromptFromJson(JsonElement? sample)
+    {
+        if (!sample.HasValue || sample.Value.ValueKind != JsonValueKind.Object)
+        {
+            return string.Empty;
+        }
+
+        if (!sample.Value.TryGetProperty("samples", out var samples) ||
+            samples.ValueKind != JsonValueKind.Array ||
+            samples.GetArrayLength() == 0)
+        {
+            return string.Empty;
+        }
+
+        var firstSample = samples[0];
+        return GetStringProperty(firstSample, "prompt") ?? string.Empty;
+    }
+
+    private static string BuildZImageTrainerConfig(string linuxUser, string datasetName, string loraName, string adapterPath, ZImageTrainerPreset preset)
+    {
+        return $$"""
+---
+# nymphs_preset_id: {{preset.Id}}
+job: extension
+config:
+  name: '{{EscapeYamlSingleQuoted(loraName)}}'
+  process:
+    - type: 'sd_trainer'
+      training_folder: '/home/{{linuxUser}}/ZImage-Trainer/loras'
+      sqlite_db_path: '/home/{{linuxUser}}/ZImage-Trainer/ai-toolkit/aitk_db.db'
+      device: cuda:0
+      network:
+        type: "lora"
+        linear: {{preset.Rank}}
+        linear_alpha: {{preset.Rank}}
+      save:
+        dtype: "bf16"
+        save_every: {{preset.SaveEvery}}
+        max_step_saves_to_keep: {{preset.MaxStepSavesToKeep}}
+      logging:
+        log_every: 1
+        use_ui_logger: true
+      datasets:
+        - folder_path: '/home/{{linuxUser}}/ZImage-Trainer/datasets/{{EscapeYamlSingleQuoted(datasetName)}}'
+          caption_ext: "txt"
+          caption_dropout_rate: 0.05
+          cache_latents_to_disk: false
+          resolution: [ {{preset.Resolution}} ]
+      train:
+        batch_size: 1
+        steps: {{preset.Steps}}
+        gradient_accumulation: 1
+        train_unet: true
+        train_text_encoder: false
+        gradient_checkpointing: true
+        noise_scheduler: "flowmatch"
+        timestep_type: "weighted"
+        content_or_style: "{{preset.ContentOrStyle}}"
+        optimizer: "adamw8bit"
+        optimizer_params:
+          weight_decay: 0.0001
+        unload_text_encoder: false
+        cache_text_embeddings: {{preset.CacheTextEmbeddings.ToString().ToLowerInvariant()}}
+        lr: {{preset.LearningRate}}
+        ema_config:
+          use_ema: false
+          ema_decay: 0.99
+        skip_first_sample: true
+        force_first_sample: false
+        disable_sampling: {{preset.DisableSampling.ToString().ToLowerInvariant()}}
+        dtype: "bf16"
+        diff_output_preservation: false
+        diff_output_preservation_multiplier: 1
+        diff_output_preservation_class: "person"
+        switch_boundary_every: 1
+        loss_type: "mse"
+      model:
+        name_or_path: '/home/{{linuxUser}}/ZImage-Trainer/models/Tongyi-MAI/Z-Image-Turbo'
+        quantize: false
+        qtype: "qfloat8"
+        quantize_te: false
+        qtype_te: "qfloat8"
+        arch: "zimage:turbo"
+        low_vram: {{preset.LowVram.ToString().ToLowerInvariant()}}
+        model_kwargs: {}
+        layer_offloading: false
+        layer_offloading_text_encoder_percent: 1
+        layer_offloading_transformer_percent: 1
+        assistant_lora_path: '{{EscapeYamlSingleQuoted(adapterPath)}}'
+      sample:
+        sampler: "flowmatch"
+        sample_every: {{preset.SampleEvery}}
+        width: {{preset.Resolution}}
+        height: {{preset.Resolution}}
+        samples:
+          - prompt: '{{EscapeYamlSingleQuoted(preset.SamplePrompt)}}'
+        neg: ""
+        seed: 42
+        walk_seed: true
+        guidance_scale: {{preset.GuidanceScale}}
+        sample_steps: {{preset.SampleSteps}}
+        num_frames: 1
+        fps: 1
+meta:
+  name: "[name]"
+  version: '1.0'
+  nymphs:
+    preset_id: '{{EscapeYamlSingleQuoted(preset.Id)}}'
+""";
+    }
+
+    private static string BuildZImageTrainerConfigJson(string linuxUser, string datasetName, string loraName, string adapterPath, ZImageTrainerPreset preset)
+    {
+        var learningRateValue = ParseLearningRateValue(preset.LearningRate);
+        var jobConfig = new
+        {
+            job = "extension",
+            config = new
+            {
+                name = loraName,
+                process = new object[]
+                {
+                    new
+                    {
+                        type = "sd_trainer",
+                        training_folder = $"/home/{linuxUser}/ZImage-Trainer/loras",
+                        sqlite_db_path = $"/home/{linuxUser}/ZImage-Trainer/ai-toolkit/aitk_db.db",
+                        device = "cuda:0",
+                        network = new
+                        {
+                            type = "lora",
+                            linear = preset.Rank,
+                            linear_alpha = preset.Rank,
+                        },
+                        save = new
+                        {
+                            dtype = "bf16",
+                            save_every = preset.SaveEvery,
+                            max_step_saves_to_keep = preset.MaxStepSavesToKeep,
+                        },
+                        logging = new
+                        {
+                            log_every = 1,
+                            use_ui_logger = true,
+                        },
+                        datasets = new object[]
+                        {
+                            new
+                            {
+                                folder_path = $"/home/{linuxUser}/ZImage-Trainer/datasets/{datasetName}",
+                                caption_ext = "txt",
+                                caption_dropout_rate = 0.05,
+                                cache_latents_to_disk = false,
+                                resolution = new[] { preset.Resolution },
+                            },
+                        },
+                        train = new
+                        {
+                            batch_size = 1,
+                            steps = preset.Steps,
+                            gradient_accumulation = 1,
+                            train_unet = true,
+                            train_text_encoder = false,
+                            gradient_checkpointing = true,
+                            noise_scheduler = "flowmatch",
+                            timestep_type = "weighted",
+                            content_or_style = preset.ContentOrStyle,
+                            optimizer = "adamw8bit",
+                            optimizer_params = new
+                            {
+                                weight_decay = 0.0001,
+                            },
+                            unload_text_encoder = false,
+                            cache_text_embeddings = preset.CacheTextEmbeddings,
+                            lr = learningRateValue,
+                            ema_config = new
+                            {
+                                use_ema = false,
+                                ema_decay = 0.99,
+                            },
+                            skip_first_sample = true,
+                            force_first_sample = false,
+                            disable_sampling = preset.DisableSampling,
+                            dtype = "bf16",
+                            diff_output_preservation = false,
+                            diff_output_preservation_multiplier = 1,
+                            diff_output_preservation_class = "person",
+                            switch_boundary_every = 1,
+                            loss_type = "mse",
+                        },
+                        model = new
+                        {
+                            name_or_path = $"/home/{linuxUser}/ZImage-Trainer/models/Tongyi-MAI/Z-Image-Turbo",
+                            quantize = false,
+                            qtype = "qfloat8",
+                            quantize_te = false,
+                            qtype_te = "qfloat8",
+                            arch = "zimage:turbo",
+                            low_vram = preset.LowVram,
+                            model_kwargs = new { },
+                            layer_offloading = false,
+                            layer_offloading_text_encoder_percent = 1,
+                            layer_offloading_transformer_percent = 1,
+                            assistant_lora_path = adapterPath,
+                        },
+                        sample = new
+                        {
+                            sampler = "flowmatch",
+                            sample_every = preset.SampleEvery,
+                            width = preset.Resolution,
+                            height = preset.Resolution,
+                            samples = new object[]
+                            {
+                                new
+                                {
+                                    prompt = preset.SamplePrompt,
+                                },
+                            },
+                            neg = string.Empty,
+                            seed = 42,
+                            walk_seed = true,
+                            guidance_scale = preset.GuidanceScale,
+                            sample_steps = preset.SampleSteps,
+                            num_frames = 1,
+                            fps = 1,
+                        },
+                    },
+                },
+            },
+            meta = new
+            {
+                name = "[name]",
+                version = "1.0",
+                nymphs = new
+                {
+                    preset_id = preset.Id,
+                },
+            },
+        };
+
+        return JsonSerializer.Serialize(jobConfig);
+    }
+
+    private static string BuildZImageLoraMetadataJson(string rawLoraName, string normalizedLoraName, ZImageTrainerPreset preset)
+    {
+        var displayName = string.IsNullOrWhiteSpace(rawLoraName) ? normalizedLoraName : rawLoraName.Trim();
+        var activationText = BuildDefaultZImageLoraActivationText(displayName, preset);
+        var metadata = new
+        {
+            schema_version = 1,
+            source = "nymphs_manager",
+            display_name = displayName,
+            activation_text = activationText,
+            auto_use_trigger = !string.IsNullOrWhiteSpace(activationText),
+            lora_type = string.Equals(preset.ContentOrStyle, "style", StringComparison.OrdinalIgnoreCase) ? "style" : "character",
+            notes = "Manager default: use the LoRA name itself as activation text.",
+        };
+
+        return JsonSerializer.Serialize(metadata, new JsonSerializerOptions
+        {
+            WriteIndented = true,
+        });
+    }
+
+    private static string BuildDefaultZImageLoraActivationText(string displayName, ZImageTrainerPreset preset)
+    {
+        var trimmed = (displayName ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(trimmed))
+        {
+            return string.Empty;
+        }
+
+        return trimmed;
+    }
+
+    private static double ParseLearningRateValue(string? learningRate)
+    {
+        if (!string.IsNullOrWhiteSpace(learningRate) &&
+            double.TryParse(learningRate.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed) &&
+            parsed > 0)
+        {
+            return parsed;
+        }
+
+        return 1e-4;
+    }
+
+    private async Task TryRegisterZImageTrainerJobInOfficialUiAsync(
+        InstallSettings settings,
+        string loraName,
+        string jobConfigJson,
+        IProgress<string>? progress,
+        CancellationToken cancellationToken)
+    {
+        await EnsureAiToolkitApiReadyAsync(settings, progress, cancellationToken).ConfigureAwait(false);
+        await UpsertAiToolkitJobViaApiAsync(loraName, jobConfigJson, progress, cancellationToken).ConfigureAwait(false);
+        progress?.Report($"Registered '{loraName}' in the AI Toolkit jobs list.");
+    }
+
+    private async Task<string?> FindOfficialUiJobIdAsync(
+        InstallSettings settings,
+        string loraName,
+        IProgress<string>? progress,
+        CancellationToken cancellationToken)
+    {
+        var job = await TryGetAiToolkitJobByRefAsync(loraName, cancellationToken).ConfigureAwait(false);
+        var jobId = job is null ? null : GetStringProperty(job.RootElement, "id");
+
+        if (string.IsNullOrWhiteSpace(jobId))
+        {
+            progress?.Report($"Warning: could not look up the AI Toolkit job for '{loraName}'.");
+            return null;
+        }
+
+        if (!string.IsNullOrWhiteSpace(jobId))
+        {
+            progress?.Report($"Linked trainer run '{loraName}' to AI Toolkit job {jobId}.");
+        }
+        else
+        {
+            progress?.Report($"Warning: no AI Toolkit job ID was found for '{loraName}'.");
+        }
+
+        return string.IsNullOrWhiteSpace(jobId) ? null : jobId;
+    }
+
+    private async Task QueueOfficialUiJobAsync(
+        InstallSettings settings,
+        string jobId,
+        string loraName,
+        IProgress<string>? progress,
+        CancellationToken cancellationToken)
+    {
+        var jobBeforeQueue = await GetAiToolkitJobByIdAsync(jobId, cancellationToken).ConfigureAwait(false);
+        var gpuIds = jobBeforeQueue is null ? null : GetStringProperty(jobBeforeQueue.RootElement, "gpu_ids");
+        if (string.IsNullOrWhiteSpace(gpuIds))
+        {
+            throw new InvalidOperationException("AI Toolkit job does not have a valid GPU/queue assignment.");
+        }
+
+        await SendAiToolkitApiRequestAsync(HttpMethod.Get, $"/api/jobs/{Uri.EscapeDataString(jobId)}/start", null, cancellationToken).ConfigureAwait(false);
+
+        var queuedJob = await WaitForAiToolkitJobLiveStateAsync(jobId, cancellationToken).ConfigureAwait(false);
+        var status = queuedJob is null ? null : GetStringProperty(queuedJob.RootElement, "status");
+        if (queuedJob is null ||
+            (!string.Equals(status, "queued", StringComparison.OrdinalIgnoreCase) &&
+             !string.Equals(status, "running", StringComparison.OrdinalIgnoreCase)))
+        {
+            throw new InvalidOperationException("AI Toolkit did not keep the job in a queued or running state.");
+        }
+
+        progress?.Report($"Queued '{loraName}' in the AI Toolkit queue on GPU target {gpuIds}.");
+    }
+
+    private async Task EnsureAiToolkitApiReadyAsync(
+        InstallSettings settings,
+        IProgress<string>? progress,
+        CancellationToken cancellationToken,
+        bool allowLaunchIfClosed = true)
+    {
+        if (await IsAiToolkitApiHealthyAsync(cancellationToken).ConfigureAwait(false))
+        {
+            await EnsureAiToolkitSettingsConfiguredAsync(settings, cancellationToken).ConfigureAwait(false);
+            progress?.Report("AI Toolkit is already running.");
+            return;
+        }
+
+        if (await IsAiToolkitUiRespondingAsync(cancellationToken).ConfigureAwait(false))
+        {
+            throw new InvalidOperationException(
+                "AI Toolkit is already open but not healthy. Use Kill AI Toolkit, then open it again.");
+        }
+
+        if (!allowLaunchIfClosed)
+        {
+            throw new InvalidOperationException(
+                "AI Toolkit is not running. Open AI Toolkit first, then try again.");
+        }
+
+        await RunZImageTrainerUiScriptAsync(
+            settings,
+            "ztrain-start-official-ui",
+            "Starting AI Toolkit...",
+            progress,
+            cancellationToken).ConfigureAwait(false);
+
+        await WaitForAiToolkitApiHealthyAsync(cancellationToken).ConfigureAwait(false);
+        await EnsureAiToolkitSettingsConfiguredAsync(settings, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task EnsureAiToolkitSettingsConfiguredAsync(
+        InstallSettings settings,
+        CancellationToken cancellationToken)
+    {
+        var desiredTrainingFolder = $"/home/{settings.LinuxUser}/ZImage-Trainer/loras";
+        var desiredDatasetsFolder = $"/home/{settings.LinuxUser}/ZImage-Trainer/datasets";
+
+        var settingsJson = await SendAiToolkitApiRequestAsync(HttpMethod.Get, "/api/settings", null, cancellationToken).ConfigureAwait(false);
+        using var response = JsonDocument.Parse(settingsJson);
+        var currentTrainingFolder = GetStringProperty(response.RootElement, "TRAINING_FOLDER") ?? string.Empty;
+        var currentDatasetsFolder = GetStringProperty(response.RootElement, "DATASETS_FOLDER") ?? string.Empty;
+        var currentToken = GetStringProperty(response.RootElement, "HF_TOKEN") ?? string.Empty;
+
+        if (string.Equals(currentTrainingFolder, desiredTrainingFolder, StringComparison.Ordinal) &&
+            string.Equals(currentDatasetsFolder, desiredDatasetsFolder, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        var payloadJson = JsonSerializer.Serialize(new
+        {
+            HF_TOKEN = currentToken,
+            TRAINING_FOLDER = desiredTrainingFolder,
+            DATASETS_FOLDER = desiredDatasetsFolder,
+        });
+
+        await SendAiToolkitApiRequestAsync(HttpMethod.Post, "/api/settings", payloadJson, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task WaitForAiToolkitApiHealthyAsync(CancellationToken cancellationToken)
+    {
+        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(20);
+        while (DateTime.UtcNow < deadline)
+        {
+            if (await IsAiToolkitApiHealthyAsync(cancellationToken).ConfigureAwait(false))
+            {
+                return;
+            }
+
+            await Task.Delay(500, cancellationToken).ConfigureAwait(false);
+        }
+
+        throw new InvalidOperationException("AI Toolkit API did not become reachable on localhost:8675.");
+    }
+
+    private async Task<bool> IsAiToolkitApiHealthyAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            using var queueResponse = await _aiToolkitHttpClient.GetAsync("/api/queue", cancellationToken).ConfigureAwait(false);
+            if (!queueResponse.IsSuccessStatusCode)
+            {
+                return false;
+            }
+
+            using var jobsResponse = await _aiToolkitHttpClient.GetAsync("/api/jobs?job_type=train", cancellationToken).ConfigureAwait(false);
+            return jobsResponse.IsSuccessStatusCode;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private async Task<ZImageTrainerStatus> EnrichZImageTrainerStatusFromAiToolkitAsync(
+        InstallSettings settings,
+        ZImageTrainerStatus status,
+        string? selectedJobRef,
+        CancellationToken cancellationToken)
+    {
+        var normalizedRef = string.IsNullOrWhiteSpace(selectedJobRef)
+            ? string.Empty
+            : NormalizeTrainerName(selectedJobRef, "LoRA");
+
+        if (string.IsNullOrWhiteSpace(normalizedRef))
+        {
+            return status;
+        }
+
+        if (!status.OfficialUiRunning || !await IsAiToolkitApiHealthyAsync(cancellationToken).ConfigureAwait(false))
+        {
+            return status;
+        }
+
+        try
+        {
+            await EnsureAiToolkitSettingsConfiguredAsync(settings, cancellationToken).ConfigureAwait(false);
+
+            using var jobDoc = await TryGetAiToolkitJobByRefAsync(normalizedRef, cancellationToken).ConfigureAwait(false);
+            var selectedJobExists = jobDoc is not null;
+            var selectedJobName = selectedJobExists ? (GetStringProperty(jobDoc!.RootElement, "name") ?? normalizedRef) : normalizedRef;
+            var selectedJobState = selectedJobExists ? (GetStringProperty(jobDoc!.RootElement, "status") ?? string.Empty) : string.Empty;
+            var selectedJobInfo = selectedJobExists ? (GetStringProperty(jobDoc!.RootElement, "info") ?? string.Empty) : string.Empty;
+
+            var selectedDatasetName = normalizedRef;
+            if (selectedJobExists)
+            {
+                var jobConfigJson = GetStringProperty(jobDoc!.RootElement, "job_config");
+                var datasetFromConfig = TryGetDatasetNameFromJobConfig(jobConfigJson);
+                if (!string.IsNullOrWhiteSpace(datasetFromConfig))
+                {
+                    selectedDatasetName = datasetFromConfig;
+                }
+            }
+
+            var (datasetVisible, datasetImageCount) = await TryGetAiToolkitDatasetVisibilityAsync(
+                selectedDatasetName,
+                cancellationToken).ConfigureAwait(false);
+
+            return status with
+            {
+                SelectedJobExists = selectedJobExists,
+                SelectedJobName = selectedJobName,
+                SelectedJobState = selectedJobState,
+                SelectedJobInfo = selectedJobInfo,
+                SelectedDatasetName = selectedDatasetName,
+                SelectedDatasetVisible = datasetVisible,
+                SelectedDatasetImageCount = datasetImageCount,
+            };
+        }
+        catch
+        {
+            return status;
+        }
+    }
+
+    private async Task<(bool Visible, int ImageCount)> TryGetAiToolkitDatasetVisibilityAsync(
+        string datasetName,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(datasetName))
+        {
+            return (false, 0);
+        }
+
+        try
+        {
+            var listJson = await SendAiToolkitApiRequestAsync(HttpMethod.Get, "/api/datasets/list", null, cancellationToken).ConfigureAwait(false);
+            using var listDoc = JsonDocument.Parse(listJson);
+            if (listDoc.RootElement.ValueKind != JsonValueKind.Array)
+            {
+                return (false, 0);
+            }
+
+            var visible = listDoc.RootElement
+                .EnumerateArray()
+                .Any(element => string.Equals(element.GetString(), datasetName, StringComparison.OrdinalIgnoreCase));
+
+            if (!visible)
+            {
+                return (false, 0);
+            }
+
+            var payloadJson = JsonSerializer.Serialize(new { datasetName });
+            var imagesJson = await SendAiToolkitApiRequestAsync(HttpMethod.Post, "/api/datasets/listImages", payloadJson, cancellationToken).ConfigureAwait(false);
+            using var imagesDoc = JsonDocument.Parse(imagesJson);
+            var images = TryGetObjectProperty(imagesDoc.RootElement, "images");
+            var count = images.HasValue && images.Value.ValueKind == JsonValueKind.Array
+                ? images.Value.GetArrayLength()
+                : 0;
+
+            return (true, count);
+        }
+        catch
+        {
+            return (false, 0);
+        }
+    }
+
+    private static string? TryGetDatasetNameFromJobConfig(string? jobConfigJson)
+    {
+        if (string.IsNullOrWhiteSpace(jobConfigJson))
+        {
+            return null;
+        }
+
+        try
+        {
+            using var doc = JsonDocument.Parse(jobConfigJson);
+            var config = TryGetObjectProperty(doc.RootElement, "config");
+            var process = TryGetObjectProperty(config, "process");
+            if (!process.HasValue || process.Value.ValueKind != JsonValueKind.Array || process.Value.GetArrayLength() == 0)
+            {
+                return null;
+            }
+
+            var process0 = process.Value[0];
+            var datasets = TryGetObjectProperty(process0, "datasets");
+            if (!datasets.HasValue || datasets.Value.ValueKind != JsonValueKind.Array || datasets.Value.GetArrayLength() == 0)
+            {
+                return null;
+            }
+
+            var folderPath = GetStringProperty(datasets.Value[0], "folder_path");
+            return string.IsNullOrWhiteSpace(folderPath)
+                ? null
+                : Path.GetFileName(folderPath.TrimEnd('/', '\\'));
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private async Task<bool> IsAiToolkitUiRespondingAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            using var client = new TcpClient();
+            await client.ConnectAsync("127.0.0.1", 8675, cancellationToken).ConfigureAwait(false);
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private async Task<bool> WaitForAiToolkitUiToStopAsync(
+        InstallSettings settings,
+        CancellationToken cancellationToken)
+    {
+        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(4);
+        while (DateTime.UtcNow < deadline)
+        {
+            if (!await IsAiToolkitUiAliveInWslAsync(settings, cancellationToken).ConfigureAwait(false))
+            {
+                return true;
+            }
+
+            await Task.Delay(250, cancellationToken).ConfigureAwait(false);
+        }
+
+        return !await IsAiToolkitUiAliveInWslAsync(settings, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task<bool> IsAiToolkitUiAliveInWslAsync(
+        InstallSettings settings,
+        CancellationToken cancellationToken)
+    {
+        var bashCommand =
+            "set +e; " +
+            "if ss -ltn 2>/dev/null | grep -q ':8675 '; then echo alive; exit 0; fi; " +
+            "if ps -eo pid=,ppid=,args= | " +
+            "awk -v self=\"$$\" -v parent=\"$PPID\" ' " +
+            "  $1 != self && $1 != parent && $2 != self && $2 != parent && " +
+            "  ($0 ~ /[n]ext-server/ || " +
+            "   $0 ~ /[n]ext start --port 8675/ || " +
+            "   $0 ~ /dist\\/cron\\/worker\\.js/ || " +
+            "   $0 ~ /node_modules\\/\\.bin\\/concurrently/ || " +
+            "   $0 ~ /WORKER,UI/) { found=1 } END { exit(found ? 0 : 1) }'; " +
+            "then echo alive; exit 0; fi; " +
+            "echo stopped";
+
+        var result = await RunWslBashAsync(settings, bashCommand, progress: null, cancellationToken).ConfigureAwait(false);
+        return result.CombinedOutput.Contains("alive", StringComparison.OrdinalIgnoreCase);
+    }
+
+
+    private async Task<string> UpsertAiToolkitJobViaApiAsync(
+        string loraName,
+        string jobConfigJson,
+        IProgress<string>? progress,
+        CancellationToken cancellationToken)
+    {
+        using var existingJob = await TryGetAiToolkitJobByRefAsync(loraName, cancellationToken).ConfigureAwait(false);
+        var existingId = existingJob is null ? null : GetStringProperty(existingJob.RootElement, "id");
+
+        using var jobConfig = JsonDocument.Parse(jobConfigJson);
+        using var payloadStream = new MemoryStream();
+        using (var writer = new Utf8JsonWriter(payloadStream))
+        {
+            writer.WriteStartObject();
+            if (!string.IsNullOrWhiteSpace(existingId))
+            {
+                writer.WriteString("id", existingId);
+            }
+
+            writer.WriteString("name", loraName);
+            writer.WriteString("gpu_ids", "0");
+            writer.WriteString("job_type", "train");
+            writer.WriteString("job_ref", loraName);
+            writer.WritePropertyName("job_config");
+            jobConfig.RootElement.WriteTo(writer);
+            writer.WriteEndObject();
+        }
+
+        var payloadJson = Encoding.UTF8.GetString(payloadStream.ToArray());
+        var responseJson = await SendAiToolkitApiRequestAsync(HttpMethod.Post, "/api/jobs", payloadJson, cancellationToken).ConfigureAwait(false);
+        using var response = JsonDocument.Parse(responseJson);
+        var jobId = GetStringProperty(response.RootElement, "id");
+        if (string.IsNullOrWhiteSpace(jobId))
+        {
+            throw new InvalidOperationException("AI Toolkit did not return a job ID after saving the job.");
+        }
+
+        progress?.Report($"Linked trainer run '{loraName}' to AI Toolkit job {jobId}.");
+        return jobId;
+    }
+
+    private async Task<JsonDocument?> TryGetAiToolkitJobByRefAsync(string jobRef, CancellationToken cancellationToken)
+    {
+        var responseJson = await SendAiToolkitApiRequestAsync(
+            HttpMethod.Get,
+            $"/api/jobs?job_ref={Uri.EscapeDataString(jobRef)}",
+            null,
+            cancellationToken).ConfigureAwait(false);
+
+        if (string.IsNullOrWhiteSpace(responseJson) || string.Equals(responseJson.Trim(), "null", StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        return JsonDocument.Parse(responseJson);
+    }
+
+    private async Task<JsonDocument?> GetAiToolkitJobByIdAsync(string jobId, CancellationToken cancellationToken)
+    {
+        var responseJson = await SendAiToolkitApiRequestAsync(
+            HttpMethod.Get,
+            $"/api/jobs?id={Uri.EscapeDataString(jobId)}",
+            null,
+            cancellationToken).ConfigureAwait(false);
+
+        if (string.IsNullOrWhiteSpace(responseJson) || string.Equals(responseJson.Trim(), "null", StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        return JsonDocument.Parse(responseJson);
+    }
+
+    private async Task<JsonDocument?> GetAiToolkitActiveTrainJobAsync(CancellationToken cancellationToken)
+    {
+        var responseJson = await SendAiToolkitApiRequestAsync(
+            HttpMethod.Get,
+            "/api/jobs?job_type=train",
+            null,
+            cancellationToken).ConfigureAwait(false);
+
+        using var response = JsonDocument.Parse(responseJson);
+        if (!response.RootElement.TryGetProperty("jobs", out var jobs) || jobs.ValueKind != JsonValueKind.Array)
+        {
+            return null;
+        }
+
+        JsonElement? runningJob = null;
+        JsonElement? queuedJob = null;
+        foreach (var job in jobs.EnumerateArray())
+        {
+            var status = GetStringProperty(job, "status");
+            if (runningJob is null && string.Equals(status, "running", StringComparison.OrdinalIgnoreCase))
+            {
+                runningJob = job.Clone();
+                continue;
+            }
+
+            if (queuedJob is null && string.Equals(status, "queued", StringComparison.OrdinalIgnoreCase))
+            {
+                queuedJob = job.Clone();
+            }
+        }
+
+        if (runningJob is null && queuedJob is null)
+        {
+            return null;
+        }
+
+        var selectedJob = runningJob ?? queuedJob;
+        using var stream = new MemoryStream();
+        using (var writer = new Utf8JsonWriter(stream))
+        {
+            selectedJob!.Value.WriteTo(writer);
+        }
+
+        return JsonDocument.Parse(Encoding.UTF8.GetString(stream.ToArray()));
+    }
+
+    private async Task<JsonDocument?> WaitForAiToolkitJobLiveStateAsync(
+        string jobId,
+        CancellationToken cancellationToken)
+    {
+        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(10);
+        JsonDocument? lastSeenJob = null;
+
+        while (DateTime.UtcNow < deadline)
+        {
+            lastSeenJob?.Dispose();
+            lastSeenJob = await GetAiToolkitJobByIdAsync(jobId, cancellationToken).ConfigureAwait(false);
+            if (lastSeenJob is null)
+            {
+                await Task.Delay(500, cancellationToken).ConfigureAwait(false);
+                continue;
+            }
+
+            var status = GetStringProperty(lastSeenJob.RootElement, "status") ?? string.Empty;
+            if (string.Equals(status, "queued", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(status, "running", StringComparison.OrdinalIgnoreCase))
+            {
+                return lastSeenJob;
+            }
+
+            if (string.Equals(status, "error", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(status, "failed", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(status, "stopped", StringComparison.OrdinalIgnoreCase))
+            {
+                var info = GetStringProperty(lastSeenJob.RootElement, "info") ?? "Unknown AI Toolkit job failure.";
+                lastSeenJob.Dispose();
+                throw new InvalidOperationException($"AI Toolkit reported job state '{status}': {info}");
+            }
+
+            await Task.Delay(500, cancellationToken).ConfigureAwait(false);
+        }
+
+        return lastSeenJob;
+    }
+
+    private async Task<string> SendAiToolkitApiRequestAsync(
+        HttpMethod method,
+        string requestPath,
+        string? requestBodyJson,
+        CancellationToken cancellationToken)
+    {
+        using var request = new HttpRequestMessage(method, requestPath);
+        if (!string.IsNullOrWhiteSpace(requestBodyJson))
+        {
+            request.Content = new StringContent(requestBodyJson, Encoding.UTF8, "application/json");
+        }
+
+        using var response = await _aiToolkitHttpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
+        var responseBody = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new InvalidOperationException(
+                $"AI Toolkit API request to '{requestPath}' failed with {(int)response.StatusCode}: {responseBody}");
+        }
+
+        return responseBody;
+    }
+
+    private static string ToWindowsWslPath(InstallSettings settings, string linuxPath)
+    {
+        var normalizedLinuxPath = linuxPath.Replace('\\', '/');
+        if (!normalizedLinuxPath.StartsWith("/", StringComparison.Ordinal))
+        {
+            normalizedLinuxPath = "/" + normalizedLinuxPath;
+        }
+
+        return $@"\\wsl.localhost\{settings.DistroName}{normalizedLinuxPath.Replace('/', '\\')}";
+    }
+
+    private static Dictionary<string, string> ReadTrainerMetadata(string metadataWindowsPath)
+    {
+        var captions = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        if (!File.Exists(metadataWindowsPath))
+        {
+            return captions;
+        }
+
+        foreach (var line in File.ReadLines(metadataWindowsPath))
+        {
+            if (string.IsNullOrWhiteSpace(line)
+                || line.StartsWith("file_name,", StringComparison.OrdinalIgnoreCase)
+                || line.StartsWith("image,", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            var columns = ParseCsvLine(line);
+            if (columns.Count == 0 || string.IsNullOrWhiteSpace(columns[0]))
+            {
+                continue;
+            }
+
+            captions[columns[0].Trim()] = columns.Count > 1 ? columns[1] : string.Empty;
+        }
+
+        return captions;
+    }
+
+    private static void WriteTrainerMetadata(string metadataWindowsPath, IEnumerable<KeyValuePair<string, string>> rows)
+    {
+        using var writer = new StreamWriter(metadataWindowsPath, false, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+        writer.WriteLine("image,prompt");
+        foreach (var row in rows)
+        {
+            writer.Write(EscapeCsvValue(row.Key));
+            writer.Write(',');
+            writer.WriteLine(EscapeCsvValue(row.Value));
+        }
+    }
+
+    private static void SyncTrainerCaptionTextFiles(string datasetWindowsPath, string metadataWindowsPath)
+    {
+        var rows = ReadTrainerMetadata(metadataWindowsPath);
+        foreach (var row in rows)
+        {
+            var imagePath = Path.Combine(datasetWindowsPath, row.Key);
+            if (!File.Exists(imagePath))
+            {
+                continue;
+            }
+
+            var captionPath = Path.ChangeExtension(imagePath, ".txt");
+            File.WriteAllText(
+                captionPath,
+                row.Value.Replace("\r", " ").Replace("\n", " ").Trim(),
+                new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+        }
+    }
+
+    private static List<string> ParseCsvLine(string line)
+    {
+        var values = new List<string>();
+        var current = new StringBuilder();
+        var insideQuotes = false;
+
+        for (var index = 0; index < line.Length; index++)
+        {
+            var ch = line[index];
+            if (ch == '"')
+            {
+                if (insideQuotes && index + 1 < line.Length && line[index + 1] == '"')
+                {
+                    current.Append('"');
+                    index++;
+                }
+                else
+                {
+                    insideQuotes = !insideQuotes;
+                }
+
+                continue;
+            }
+
+            if (ch == ',' && !insideQuotes)
+            {
+                values.Add(current.ToString());
+                current.Clear();
+                continue;
+            }
+
+            current.Append(ch);
+        }
+
+        values.Add(current.ToString());
+        return values;
+    }
+
+    private static string EscapeCsvValue(string value)
+    {
+        var normalized = value.Replace("\r", " ").Replace("\n", " ");
+        return "\"" + normalized.Replace("\"", "\"\"") + "\"";
+    }
+
+    private static string EscapeYamlSingleQuoted(string value)
+    {
+        return value.Replace("\r", " ").Replace("\n", " ").Replace("'", "''");
+    }
+
+    private static bool IsSupportedTrainerImageFile(string extension)
+    {
+        return extension.Equals(".png", StringComparison.OrdinalIgnoreCase)
+            || extension.Equals(".jpg", StringComparison.OrdinalIgnoreCase)
+            || extension.Equals(".jpeg", StringComparison.OrdinalIgnoreCase)
+            || extension.Equals(".webp", StringComparison.OrdinalIgnoreCase)
+            || extension.Equals(".bmp", StringComparison.OrdinalIgnoreCase);
+    }
+
     private Task<CommandResult> RunWslBashAsync(
         InstallSettings settings,
         string bashCommand,
@@ -841,11 +3230,80 @@ public sealed class InstallerWorkflowService
         }
     }
 
+    public void OpenZImageTrainerDatasetsFolder(InstallSettings settings)
+    {
+        OpenWslFolder(settings, $"/home/{settings.LinuxUser}/ZImage-Trainer/datasets");
+    }
+
+    public void OpenZImageTrainerPicturesFolder(InstallSettings settings, string loraName)
+    {
+        var normalizedLora = NormalizeTrainerName(loraName, "LoRA");
+        OpenWslFolder(settings, $"/home/{settings.LinuxUser}/ZImage-Trainer/datasets/{normalizedLora}");
+    }
+
+    public void OpenZImageTrainerMetadataFile(InstallSettings settings, string datasetName)
+    {
+        var normalizedDataset = NormalizeTrainerName(datasetName, "dataset");
+        OpenWslPath(settings, $"/home/{settings.LinuxUser}/ZImage-Trainer/datasets/{normalizedDataset}/metadata.csv");
+    }
+
+    public void OpenZImageTrainerJobsFolder(InstallSettings settings)
+    {
+        OpenWslFolder(settings, "/home/nymph/ZImage-Trainer/jobs");
+    }
+
+    public void OpenZImageTrainerLorasFolder(InstallSettings settings)
+    {
+        OpenWslFolder(settings, $"/home/{settings.LinuxUser}/ZImage-Trainer/loras");
+    }
+
+    private static void OpenWslFolder(InstallSettings settings, string linuxPath)
+    {
+        OpenWslPath(settings, linuxPath);
+    }
+
+    private static void OpenWslPath(InstallSettings settings, string linuxPath)
+    {
+        var explorerPath = ToWindowsWslPath(settings, linuxPath);
+        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+        {
+            FileName = explorerPath,
+            UseShellExecute = true,
+        });
+    }
+
     public void OpenNymphsBrainWebUi()
     {
         System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
         {
             FileName = "http://localhost:8081",
+            UseShellExecute = true,
+        });
+    }
+
+    public void OpenZImageTrainerOfficialUi()
+    {
+        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+        {
+            FileName = "http://localhost:8675/jobs",
+            UseShellExecute = true,
+        });
+    }
+
+    public void OpenZImageTrainerOfficialUiJob(string jobId)
+    {
+        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+        {
+            FileName = $"http://localhost:8675/jobs/{jobId}",
+            UseShellExecute = true,
+        });
+    }
+
+    public void OpenZImageTrainerGradioUi()
+    {
+        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+        {
+            FileName = "http://localhost:7861",
             UseShellExecute = true,
         });
     }
@@ -1186,6 +3644,95 @@ public sealed class InstallerWorkflowService
                 : "Runtime dependency updates are available. Test them before changing release pins.");
     }
 
+    public async Task CheckInstalledRuntimeStateAsync(
+        InstallSettings settings,
+        IProgress<string> progress,
+        CancellationToken cancellationToken)
+    {
+        var checkerScript = RequireScript("check_installed_runtime_state.py");
+        var wslCheckerScriptPath = ConvertWindowsPathToWsl(checkerScript)
+            ?? throw new InvalidOperationException($"Could not convert script path for WSL: {checkerScript}");
+
+        var bashCommand =
+            "set -euo pipefail; " +
+            $"export HOME={ToBashSingleQuoted($"/home/{settings.LinuxUser}")}; " +
+            $"export USER={ToBashSingleQuoted(settings.LinuxUser)}; " +
+            $"export LOGNAME={ToBashSingleQuoted(settings.LinuxUser)}; " +
+            $"python3 {ToBashSingleQuoted(wslCheckerScriptPath)}";
+
+        var arguments = new List<string>
+        {
+            "-d", settings.DistroName,
+            "--user", settings.LinuxUser,
+            "--",
+            "/bin/bash", "-lc", bashCommand,
+        };
+
+        progress.Report("Checking installed runtime against the current Manager pins...");
+
+        var result = await _processRunner.RunAsync(
+            fileName: "wsl.exe",
+            arguments,
+            workingDirectory: Environment.SystemDirectory,
+            progress,
+            environmentVariables: null,
+            cancellationToken).ConfigureAwait(false);
+
+        if (result.ExitCode > 1)
+        {
+            throw new InvalidOperationException("Installed runtime state check failed.");
+        }
+
+        progress.Report(
+            result.ExitCode == 0
+                ? "Installed runtime matches the current Manager pins."
+                : "Installed runtime differs from the current Manager pins.");
+    }
+
+    public async Task<string> GetRuntimeDependencyModeAsync(
+        InstallSettings settings,
+        CancellationToken cancellationToken)
+    {
+        var commonPathsScript = RequireScript("common_paths.sh");
+        var wslCommonPathsPath = ConvertWindowsPathToWsl(commonPathsScript)
+            ?? throw new InvalidOperationException($"Could not convert script path for WSL: {commonPathsScript}");
+
+        var bashCommand =
+            "set -euo pipefail; " +
+            $"export HOME={ToBashSingleQuoted($"/home/{settings.LinuxUser}")}; " +
+            $"export USER={ToBashSingleQuoted(settings.LinuxUser)}; " +
+            $"export LOGNAME={ToBashSingleQuoted(settings.LinuxUser)}; " +
+            $"source {ToBashSingleQuoted(wslCommonPathsPath)}; " +
+            "if [[ -f \"${NYMPHS3D_RUNTIME_CODE_MODE_FILE}\" ]]; then " +
+            "  tr -d '\\r\\n' < \"${NYMPHS3D_RUNTIME_CODE_MODE_FILE}\"; " +
+            "else " +
+            "  printf 'pinned'; " +
+            "fi";
+
+        var arguments = new List<string>
+        {
+            "-d", settings.DistroName,
+            "--user", settings.LinuxUser,
+            "--",
+            "/bin/bash", "-lc", bashCommand,
+        };
+
+        var result = await _processRunner.RunAsync(
+            fileName: "wsl.exe",
+            arguments,
+            workingDirectory: Environment.SystemDirectory,
+            progress: null,
+            environmentVariables: null,
+            cancellationToken).ConfigureAwait(false);
+
+        if (result.ExitCode != 0)
+        {
+            throw new InvalidOperationException("Runtime dependency mode check failed.");
+        }
+
+        return (result.CombinedOutput ?? string.Empty).Trim();
+    }
+
     public async Task ApplyRuntimeDependencyModeAsync(
         InstallSettings settings,
         string mode,
@@ -1308,6 +3855,15 @@ public sealed class InstallerWorkflowService
         System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
         {
             FileName = ReadmeUrl,
+            UseShellExecute = true,
+        });
+    }
+
+    public void OpenGuide()
+    {
+        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+        {
+            FileName = GuideUrl,
             UseShellExecute = true,
         });
     }

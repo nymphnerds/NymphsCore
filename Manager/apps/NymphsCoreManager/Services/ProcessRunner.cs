@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.IO;
 using System.Text;
 using System.Text.RegularExpressions;
 
@@ -19,6 +20,11 @@ public sealed class ProcessRunner
         if (sanitized.StartsWith("ERROR: pip's dependency resolver", StringComparison.Ordinal))
         {
             return $"[stderr warning] {sanitized}";
+        }
+
+        if (sanitized.Contains("screen size is bogus. expect trouble", StringComparison.OrdinalIgnoreCase))
+        {
+            return string.Empty;
         }
 
         return $"[stderr] {sanitized}";
@@ -64,42 +70,14 @@ public sealed class ProcessRunner
 
         using var process = new Process { StartInfo = startInfo, EnableRaisingEvents = true };
         var outputBuilder = new StringBuilder();
-        var stdoutClosed = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-        var stderrClosed = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-
-        process.OutputDataReceived += (_, e) =>
-        {
-            if (e.Data is null)
-            {
-                stdoutClosed.TrySetResult(true);
-                return;
-            }
-
-            var formatted = FormatOutput(e.Data, isErrorStream: false);
-            outputBuilder.AppendLine(formatted);
-            progress?.Report(formatted);
-        };
-
-        process.ErrorDataReceived += (_, e) =>
-        {
-            if (e.Data is null)
-            {
-                stderrClosed.TrySetResult(true);
-                return;
-            }
-
-            var formatted = FormatOutput(e.Data, isErrorStream: true);
-            outputBuilder.AppendLine(formatted);
-            progress?.Report(formatted);
-        };
 
         if (!process.Start())
         {
             throw new InvalidOperationException($"Failed to start process: {fileName}");
         }
 
-        process.BeginOutputReadLine();
-        process.BeginErrorReadLine();
+        var stdoutTask = ReadStreamAsync(process.StandardOutput, isErrorStream: false, outputBuilder, progress, cancellationToken);
+        var stderrTask = ReadStreamAsync(process.StandardError, isErrorStream: true, outputBuilder, progress, cancellationToken);
 
         try
         {
@@ -112,8 +90,73 @@ public sealed class ProcessRunner
             throw;
         }
 
-        await Task.WhenAll(stdoutClosed.Task, stderrClosed.Task).ConfigureAwait(false);
+        await Task.WhenAll(stdoutTask, stderrTask).ConfigureAwait(false);
 
         return new CommandResult(process.ExitCode, outputBuilder.ToString());
+    }
+
+    private static async Task ReadStreamAsync(
+        StreamReader reader,
+        bool isErrorStream,
+        StringBuilder outputBuilder,
+        IProgress<string>? progress,
+        CancellationToken cancellationToken)
+    {
+        var buffer = new char[1024];
+        var pending = new StringBuilder();
+        var lastDelimiterWasCarriageReturn = false;
+
+        while (true)
+        {
+            var read = await reader.ReadAsync(buffer.AsMemory(0, buffer.Length), cancellationToken).ConfigureAwait(false);
+            if (read == 0)
+            {
+                break;
+            }
+
+            for (var i = 0; i < read; i++)
+            {
+                var current = buffer[i];
+                if (current is '\r' or '\n')
+                {
+                    if (current == '\n' && lastDelimiterWasCarriageReturn)
+                    {
+                        lastDelimiterWasCarriageReturn = false;
+                        continue;
+                    }
+
+                    FlushPending(pending, isErrorStream, outputBuilder, progress);
+                    lastDelimiterWasCarriageReturn = current == '\r';
+                    continue;
+                }
+
+                lastDelimiterWasCarriageReturn = false;
+                pending.Append(current);
+            }
+        }
+
+        FlushPending(pending, isErrorStream, outputBuilder, progress);
+    }
+
+    private static void FlushPending(
+        StringBuilder pending,
+        bool isErrorStream,
+        StringBuilder outputBuilder,
+        IProgress<string>? progress)
+    {
+        if (pending.Length == 0)
+        {
+            return;
+        }
+
+        var formatted = FormatOutput(pending.ToString(), isErrorStream);
+        pending.Clear();
+        if (string.IsNullOrWhiteSpace(formatted))
+        {
+            return;
+        }
+
+        outputBuilder.AppendLine(formatted);
+        progress?.Report(formatted);
     }
 }
