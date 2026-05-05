@@ -8,6 +8,8 @@ Install WORBI on Linux with a single command — no technical knowledge required
 
 WORBI is a web application that runs locally on your machine. It has a frontend (what you see in your browser) and a backend (the server that powers it). This installer handles everything for you.
 
+**WORBI is installed to:** `~/worbi/` (e.g., `/home/yourname/worbi/`)
+
 ---
 
 ## Requirements
@@ -17,6 +19,7 @@ WORBI is a web application that runs locally on your machine. It has a frontend 
 | **Operating System** | Linux (x86_64 or ARM64) |
 | **Internet Connection** | Needed during installation to download files |
 | **Disk Space** | About 2 GB free |
+| **git** | Comes pre-installed on most Linux systems |
 | **curl** | Comes pre-installed on most Linux systems |
 
 **Note:** Node.js is **not** required beforehand — the installer will install it automatically if it's missing, and it does so without needing `sudo` (administrator password).
@@ -28,17 +31,18 @@ WORBI is a web application that runs locally on your machine. It has a frontend 
 Open your terminal and run the following command:
 
 ```bash
-mkdir -p ~/WORBI-installer && curl -fsSL "https://github.com/nymphnerds/NymphsCore/archive/refs/heads/rauty.tar.gz" | tar -xzf - --strip-components=1 --wildcards 'NymphsCore-rauty/WORBI-installer/*' -C ~/WORBI-installer && chmod +x ~/WORBI-installer/install.sh && ~/WORBI-installer/install.sh
+if [ -d ~/NymphsCore ]; then cd ~/NymphsCore && git checkout rauty && git pull; else cd ~ && git clone --branch rauty --depth 1 --sparse https://github.com/nymphnerds/NymphsCore.git && cd NymphsCore && git sparse-checkout set WORBI-installer; fi && chmod +x WORBI-installer/install.sh && ./WORBI-installer/install.sh
 ```
 
 ### What does this command do?
 
 | Step | Action |
 |------|--------|
-| 1 | Creates a folder called `WORBI-installer` in your home directory |
-| 2 | Downloads the installer files from GitHub |
+| 1 | Checks if `~/NymphsCore` folder already exists |
+| 2a | **If it exists:** Switches to the `rauty` branch and updates it |
+| 2b | **If it doesn't exist:** Downloads only the `WORBI-installer` folder from GitHub |
 | 3 | Makes the install script runnable |
-| 4 | Runs the installer |
+| 4 | Runs the installer — WORBI is installed to `~/worbi/` |
 
 The installer will then:
 - Install **Node.js** if it's not already on your system (no `sudo` needed)
@@ -56,31 +60,68 @@ If you prefer to do things one step at a time, follow these instructions:
 
 Press `Ctrl + Alt + T` on most Linux systems, or search for "Terminal" in your applications menu.
 
-### Step 2 — Download the Installer
+### Step 2 — Check if NymphsCore Already Exists
 
-Run this command to create a folder and download the installer into it:
+Run this command to see if you already have the NymphsCore folder:
 
 ```bash
-mkdir -p ~/WORBI-installer
+ls ~/NymphsCore
+```
+
+- **If you see a list of files:** The folder already exists — go to **Step 3A**
+- **If you see an error like "No such file or directory":** The folder doesn't exist — go to **Step 3B**
+
+### Step 3A — You Already Have NymphsCore
+
+Switch to the `rauty` branch and update it:
+
+```bash
+cd ~/NymphsCore
 ```
 
 ```bash
-curl -fsSL "https://github.com/nymphnerds/NymphsCore/archive/refs/heads/rauty.tar.gz" | tar -xzf - --strip-components=1 --wildcards 'NymphsCore-rauty/WORBI-installer/*' -C ~/WORBI-installer
+git checkout rauty
 ```
 
-### Step 3 — Run the Installer
+```bash
+git pull
+```
+
+Then jump to **Step 4**.
+
+### Step 3B — Download the Installer (First Time)
+
+This downloads only the `WORBI-installer` folder (not the entire repository):
+
+```bash
+cd ~
+```
+
+```bash
+git clone --branch rauty --depth 1 --sparse https://github.com/nymphnerds/NymphsCore.git
+```
+
+```bash
+cd NymphsCore
+```
+
+```bash
+git sparse-checkout set WORBI-installer
+```
+
+### Step 4 — Run the Installer
 
 Make the installer script executable, then run it:
 
 ```bash
-chmod +x ~/WORBI-installer/install.sh
+chmod +x WORBI-installer/install.sh
 ```
 
 ```bash
-~/WORBI-installer/install.sh
+./WORBI-installer/install.sh
 ```
 
-Sit back and let it run. You'll see progress messages as it works.
+Sit back and let it run. You'll see progress messages as it works. WORBI will be installed to `~/worbi/`.
 
 ---
 
@@ -92,6 +133,9 @@ The installer places commands in `~/.local/bin/`. To make them work from any ter
 
 ```bash
 echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
+```
+
+```bash
 source ~/.bashrc
 ```
 
@@ -151,6 +195,9 @@ The commands are installed in `~/.local/bin/` but your shell doesn't know to loo
 
 ```bash
 echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
+```
+
+```bash
 source ~/.bashrc
 ```
 
@@ -161,10 +208,14 @@ Then try again.
 The installer script needs to be marked as executable. Run:
 
 ```bash
-chmod +x ~/WORBI-installer/install.sh
+chmod +x ~/NymphsCore/WORBI-installer/install.sh
 ```
 
-Then try running it again.
+Then try running it again:
+
+```bash
+~/NymphsCore/WORBI-installer/install.sh
+```
 
 ### Installer fails or gets stuck
 
