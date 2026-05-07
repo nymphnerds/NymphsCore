@@ -92,6 +92,12 @@ echo "module=${MODULE_ID}"
 echo "install_root=${INSTALL_ROOT}"
 echo "purge=${PURGE}"
 
+if [[ "${PURGE}" -eq 1 && "${MODULE_ID}" != "worbi" ]]; then
+  echo "ERROR: destructive purge is temporarily disabled for ${MODULE_ID} while module routing is being audited." >&2
+  echo "No files were deleted."
+  exit 4
+fi
+
 run_module_owned_uninstall_if_available() {
   local repo_root="${WORK_ROOT}/repos/${MODULE_ID}"
   local manifest_file="${repo_root}/nymph.json"
