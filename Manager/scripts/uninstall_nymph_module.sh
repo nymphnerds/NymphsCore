@@ -57,6 +57,7 @@ fi
 MODULE_ID="$(printf '%s' "${MODULE_ID}" | tr '[:upper:]' '[:lower:]')"
 INSTALL_ROOT=""
 PRESERVE_NAMES=()
+WORK_ROOT="${NYMPHS_MODULE_WORK_ROOT:-${HOME}/.cache/nymphs-modules}"
 
 case "${MODULE_ID}" in
   brain)
@@ -91,6 +92,56 @@ echo "module=${MODULE_ID}"
 echo "install_root=${INSTALL_ROOT}"
 echo "purge=${PURGE}"
 
+run_module_owned_uninstall_if_available() {
+  local repo_root="${WORK_ROOT}/repos/${MODULE_ID}"
+  local manifest_file="${repo_root}/nymph.json"
+
+  [[ -f "${manifest_file}" ]] || return 1
+  command -v python3 >/dev/null 2>&1 || return 1
+
+  local uninstall_entrypoint
+  uninstall_entrypoint="$(
+    python3 - "${manifest_file}" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], "r", encoding="utf-8") as handle:
+    manifest = json.load(handle)
+
+entrypoint = str(manifest.get("entrypoints", {}).get("uninstall", "")).strip()
+if not entrypoint:
+    raise SystemExit(1)
+if entrypoint.startswith("/") or ".." in entrypoint.split("/"):
+    raise SystemExit("module uninstall entrypoint is not a safe relative path")
+print(entrypoint)
+PY
+  )" || return 1
+
+  local uninstall_script="${repo_root}/${uninstall_entrypoint}"
+  [[ -f "${uninstall_script}" ]] || return 1
+
+  chmod +x "${uninstall_script}"
+  echo "module_uninstall_entrypoint=${uninstall_entrypoint}"
+  if [[ "${DRY_RUN}" -eq 1 ]]; then
+    if [[ "${PURGE}" -eq 1 ]]; then
+      "${uninstall_script}" --dry-run --purge
+    else
+      "${uninstall_script}" --dry-run
+    fi
+  elif [[ "${PURGE}" -eq 1 ]]; then
+    "${uninstall_script}" --yes --purge
+  else
+    "${uninstall_script}" --yes
+  fi
+
+  return 0
+}
+
+if run_module_owned_uninstall_if_available; then
+  echo "Uninstall handled by ${MODULE_ID} module contract."
+  exit 0
+fi
+
 if [[ ! -e "${INSTALL_ROOT}" ]]; then
   echo "Module install root is already absent."
   exit 0
@@ -123,6 +174,11 @@ stop_known_processes() {
       pkill -f "${INSTALL_ROOT}/ai-toolkit" >/dev/null 2>&1 || true
       ;;
     worbi)
+      if [[ -x "${INSTALL_ROOT}/bin/worbi-stop" ]]; then
+        "${INSTALL_ROOT}/bin/worbi-stop" || true
+      elif [[ -x "${HOME}/.local/bin/worbi-stop" ]]; then
+        "${HOME}/.local/bin/worbi-stop" || true
+      fi
       pkill -f "${INSTALL_ROOT}" >/dev/null 2>&1 || true
       ;;
   esac
