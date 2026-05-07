@@ -187,9 +187,14 @@ stop_known_processes() {
 stop_known_processes
 
 if [[ "${PURGE}" -eq 1 ]]; then
-  rm -rf -- "${INSTALL_ROOT}"
-  echo "Deleted ${INSTALL_ROOT}."
-  exit 0
+  rm -rf -- "${INSTALL_ROOT}" || true
+  if [[ ! -e "${INSTALL_ROOT}" ]]; then
+    echo "Deleted ${INSTALL_ROOT}."
+    exit 0
+  fi
+
+  echo "ERROR: Failed to delete ${INSTALL_ROOT}." >&2
+  exit 1
 fi
 
 TIMESTAMP="$(date +%Y%m%d-%H%M%S)"
@@ -203,7 +208,7 @@ for name in "${PRESERVE_NAMES[@]}"; do
   fi
 done
 
-rm -rf -- "${INSTALL_ROOT}"
+rm -rf -- "${INSTALL_ROOT}" || true
 
 if [[ -z "$(find "${BACKUP_ROOT}" -mindepth 1 -maxdepth 1 -print -quit)" ]]; then
   rmdir -- "${BACKUP_ROOT}"
@@ -213,3 +218,9 @@ else
 fi
 
 echo "Uninstalled ${MODULE_ID}."
+if [[ ! -e "${INSTALL_ROOT}" ]]; then
+  exit 0
+fi
+
+echo "ERROR: Failed to remove ${INSTALL_ROOT}." >&2
+exit 1
