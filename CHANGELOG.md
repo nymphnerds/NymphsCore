@@ -8,6 +8,100 @@ This file focuses on user-facing and system-level changes rather than package-by
 
 Newest entries first.
 
+### 2026-05-07 Registry install false-failure hardening
+Source: live WORBI install testing where the module installer printed success, but the Manager still showed `WORBI install needs attention`.
+
+Fixed/recorded:
+
+- hardened `install_nymph_module_from_registry.sh` so it captures the module install entrypoint exit code directly
+- the helper now only prints `Installed <module>.` after the module entrypoint exits `0`
+- the helper explicitly exits `0` after success, preventing a later wrapper cleanup/status quirk from turning a successful install into a Manager failure
+- if the module entrypoint fails, the helper now prints a clear `ERROR: install entrypoint failed...` line and exits with that code
+
+Why it matters:
+
+- community modules must have a reliable install/update contract
+- success output should not be followed by a scary false failure state
+- future module install scripts should print a final version marker such as `installed_module_version=...` only after all wrapper/script setup has completed
+
+### 2026-05-07 WORBI 6.2.54 update-loop and stop fallback fix
+Source: live Manager testing where WORBI updated successfully but the module page still showed `Update available`.
+
+Documented fixes:
+
+- pushed WORBI module commit `0f809fb Fix WORBI update stamp and stop fallback`
+- bumped WORBI's module manifest version to `6.2.54`
+- kept the app archive at `packages/worbi-6.2.51.tar.gz` because this was still a wrapper/module-contract release
+- made WORBI install output print `installed_module_version=...` after writing `~/worbi/.nymph-module-version`
+- fixed Manager update checks to read the installed `.nymph-module-version` marker before cached module manifests
+- fixed the module page update loop by treating `installed_module_version=...` from successful install output as authoritative and clearing stale `HasUpdate` state immediately
+- hardened WORBI stop/status process detection:
+  - scan Node processes more broadly under the WORBI install root
+  - include command-line and working-directory checks
+  - use port-based fallbacks when WORBI responds but PID ownership was not tracked
+  - report the unmanaged/responding case as a fallback state instead of implying the user did something wrong
+
+Why it matters:
+
+- a successful module update must clear the Update button instead of trapping the user in an update loop
+- module wrapper-only releases can fix lifecycle behavior without rebuilding the bundled WORBI archive
+- stop/start wrappers need to handle real-world process ownership, not only the clean PID-file path
+
+### 2026-05-07 WORBI 6.2.52 update loop: module-owned wrapper fix and Manager script-launch hardening
+Source: live WORBI update testing through the Rauty module page after WORBI was bumped in `nymphnerds/worbi`.
+
+Documented changes and discoveries:
+
+- pushed WORBI module commit `f493d8f Fix WORBI manager lifecycle wrappers`
+- bumped WORBI's module manifest version to `6.2.52`
+- kept the app archive at `packages/worbi-6.2.51.tar.gz` because this was a wrapper-only module release
+- added WORBI installer behavior that writes `~/worbi/.nymph-module-version`
+- confirmed the Manager can pull a module-owned lifecycle fix without changing the module package archive
+- confirmed the update flow can install WORBI successfully through the Manager:
+
+```text
+Node.js found: v18.20.8
+Archive: /tmp/.../worbi-6.2.51.tar.gz
+Install: /home/nymph/worbi
+Existing installation found. Preserving user data...
+Installing server dependencies...
+WORBI installed successfully.
+App: http://localhost:8082
+Logs: /home/nymph/worbi/logs/
+Installed worbi.
+```
+
+Manager-side launcher fixes learned from the test:
+
+- do not inject complex shell scripts with nested heredocs into `wsl.exe ... bash -lc`
+- nested heredocs broke the registry installer around its Python heredocs
+- base64 staging was better but still too fragile in the live WSL command path
+- the current Rauty fix fetches the Manager helper script from the branch raw URL into `/tmp` inside the managed distro, then executes it there
+- critical temp paths are now literal paths like `/tmp/nymphs-manager-install-worbi.sh`, rather than relying on fragile shell variable expansion inside the command string
+- install/update success must be treated separately from follow-up refresh/check warnings
+- fixed a Home-page catch-22 discovered after uninstall/reinstall testing:
+  - WORBI could be installed in the managed `NymphsCore` distro while the Home card still showed it under `Available Modules`
+  - that blocked opening the module page because available cards ask to install instead of opening installed controls
+  - WORBI state detection now prefers the module's own `status` contract over Windows-side UNC folder probing
+  - install/update/uninstall success now flips the card state immediately, then runs a quieter verification refresh afterward
+- intentionally avoided a background auto-refresh loop for module cards for now; module state refresh is event-based around install/update/uninstall actions
+
+Current important caveat:
+
+- the Rauty build currently fetches Manager helper scripts from the `rauty` branch raw URL
+- before merging Rauty to `main`, that script source should become release-aware, configurable, or switched to the release branch
+
+Why it matters:
+
+- this proved the intended community-module loop:
+
+```text
+module repo changes -> nymph.json version bump -> Manager Check for Updates -> Update Module -> managed distro pulls new module scripts
+```
+
+- future module wrapper fixes should usually land in the individual module repo, not in core Manager code
+- Manager only needs changes when the generic module contract or script-launch plumbing itself is wrong
+
 ### 2026-05-07 Rauty modular Manager lifecycle shell: Nymph cards, registry installs, and module pages
 Source: `rauty` branch module-skeleton work, especially commit `361e242` plus the follow-up live Manager/WORBI testing that happened before this changelog was updated.
 

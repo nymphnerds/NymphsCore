@@ -1,9 +1,214 @@
 # Rauty Module Lifecycle Handoff
 
 Date: 2026-05-07
-Updated: 2026-05-07 15:35 BST
+Updated: 2026-05-07 18:40 BST
 
 Branch: `rauty`
+
+## Critical 2026-05-07 Install Success Reporting Fix
+
+WORBI exposed a bad success boundary in the registry install path.
+
+Observed user-facing failure:
+
+```text
+Installed worbi.
+WORBI install warning: Module registry install failed for 'worbi' with exit code 1.
+```
+
+The module install had completed and printed:
+
+```text
+WORBI installed successfully.
+installed_module_version=6.2.55
+Installed worbi.
+```
+
+but the Manager still surfaced the action as failed.
+
+The `rauty` helper:
+
+```text
+Manager/scripts/install_nymph_module_from_registry.sh
+```
+
+must be treated as the contract boundary. It now:
+
+- runs the module manifest `install` entrypoint with `set +e`
+- captures the entrypoint exit code immediately
+- prints `ERROR: install entrypoint failed...` and exits nonzero only when that entrypoint fails
+- prints `Installed <module>.` only after a clean entrypoint exit
+- explicitly `exit 0` after success
+
+This helper must be pushed before testing from the Manager UI, because the current Manager build downloads the helper from:
+
+```text
+https://raw.githubusercontent.com/nymphnerds/NymphsCore/rauty/Manager/scripts/install_nymph_module_from_registry.sh
+```
+
+Future module repos should also print their final success/version marker only after all wrapper scripts and runtime files are installed.
+
+## Critical 2026-05-07 Incident: TRELLIS Was Deleted By Module Purge Routing
+
+Do not skip this in the next session.
+
+During WORBI lifecycle testing, the managed `NymphsCore` distro lost:
+
+```text
+/home/nymph/TRELLIS.2
+```
+
+The user did **not** intend to delete TRELLIS. They were working on WORBI.
+
+The confirmed destructive path was:
+
+```text
+Manager UI -> Delete Module + Data -> uninstall_nymph_module.sh --module trellis --yes --purge
+```
+
+The generic helper then mapped:
+
+```text
+trellis -> /home/nymph/TRELLIS.2
+```
+
+and removed the folder.
+
+The likely UI culprit is that the module page/right-rail actions were bound to the mutable live `SelectedModule`. Refresh/rebuild operations can replace that module reference while a module page is open or while state is being rebuilt. That makes it possible for a destructive right-side action to target a different module than the user believes they are operating on.
+
+### Emergency Guards Added In Source
+
+The Manager source now has a safer module-page target:
+
+```text
+Manager/apps/NymphsCoreManager/ViewModels/ManagerShellViewModel.cs
+```
+
+Key changes:
+
+- added stable `DisplayedModule`
+- module pages set `DisplayedModule` when opened
+- manager contract actions use `DisplayedModule`, not live `SelectedModule`
+- right rail action buttons bind to `DisplayedModule`
+- `Delete Module + Data` is hidden unless the displayed module is `worbi`
+- purge is blocked in ViewModel for all non-WORBI modules
+- destructive actions now append an audit line with requested/displayed/selected module IDs
+
+The XAML page now binds module-page content and action command parameters to:
+
+```text
+DisplayedModule
+```
+
+instead of:
+
+```text
+SelectedModule
+```
+
+Important: these source edits need a fresh Manager rebuild before the running app is trusted.
+
+### Emergency Guard Added In Remote Helper
+
+`Manager/scripts/uninstall_nymph_module.sh` on `rauty` now blocks destructive purge for non-WORBI modules:
+
+```bash
+if [[ "${PURGE}" -eq 1 && "${MODULE_ID}" != "worbi" ]]; then
+  echo "ERROR: destructive purge is temporarily disabled for ${MODULE_ID} while module routing is being audited." >&2
+  echo "No files were deleted."
+  exit 4
+fi
+```
+
+This has already been pushed to `origin/rauty`, so even older Manager builds that fetch the current remote helper should not be able to purge `trellis`, `zimage`, `lora`, or `brain`.
+
+### Current Safety Rule
+
+Until the rebuilt Manager is verified:
+
+- do **not** use `Delete Module + Data` on anything except WORBI
+- avoid destructive lifecycle testing late in a session
+- prefer module-owned uninstall scripts where available
+- use `Uninstall Module` only when the module has a confirmed backup/preserve path
+- verify the target module ID in logs before accepting any destructive action
+
+## TRELLIS Recovery Status After Incident
+
+TRELLIS was copied back into the real managed distro from the dev WSL copy.
+
+Source/dev copy:
+
+```text
+\\wsl.localhost\NymphsCore_Lite\home\nymph\TRELLIS.2
+```
+
+Managed/runtime target:
+
+```text
+\\wsl.localhost\NymphsCore\home\nymph\TRELLIS.2
+```
+
+Robocopy transferred roughly:
+
+```text
+8.004 GB
+7506 dirs copied
+64467 files copied
+4 files failed
+```
+
+The copy damaged the venv Python symlinks by turning them into empty 0-byte files:
+
+```text
+/home/nymph/TRELLIS.2/.venv/bin/python
+/home/nymph/TRELLIS.2/.venv/bin/python3
+/home/nymph/TRELLIS.2/.venv/bin/python3.10
+```
+
+These were repaired in the managed distro with:
+
+```powershell
+wsl.exe -d NymphsCore --user nymph -- bash -lc 'cd /home/nymph/TRELLIS.2/.venv/bin && rm -f python python3 python3.10 && ln -s /usr/bin/python3.10 python && ln -s /usr/bin/python3.10 python3 && ln -s /usr/bin/python3.10 python3.10 && ./python -V'
+```
+
+Verified result:
+
+```text
+Python 3.10.20
+```
+
+Core TRELLIS imports were verified inside the real managed `NymphsCore` distro:
+
+```text
+trellis2_gguf ok
+gguf ok
+rembg ok
+open3d ok
+pymeshlab ok
+meshlib ok
+```
+
+Next session should still verify adapter files:
+
+```powershell
+wsl.exe -d NymphsCore --user nymph -- bash -lc 'test -f /home/nymph/TRELLIS.2/scripts/api_server_trellis_gguf.py && test -f /home/nymph/TRELLIS.2/scripts/trellis_gguf_common.py && echo trellis_adapter_ok'
+```
+
+If that prints `trellis_adapter_ok`, TRELLIS is likely restored enough for runtime testing.
+
+Do not reinstall TRELLIS from scratch unless adapter/runtime verification fails; the copied venv imports are currently alive.
+
+## Immediate Next Session Checklist
+
+1. Do not click destructive Manager buttons in the old running app.
+2. Verify TRELLIS adapter files in `NymphsCore`.
+3. Rebuild Manager from the `rauty` source after the `DisplayedModule` safety patch.
+4. Launch the rebuilt Manager from the publish folder.
+5. Confirm `Delete Module + Data` is hidden for TRELLIS, Z-Image, LoRA, and Brain.
+6. Confirm `Delete Module + Data` is visible only for WORBI.
+7. Confirm the Manager contract actions operate on the page's displayed module.
+8. Use WORBI only for delete/uninstall/install lifecycle testing until another module has its own safe contract.
+9. Update this handoff before any further destructive lifecycle work.
 
 ## Critical WSL Distinction
 
@@ -53,6 +258,58 @@ wsl.exe -d NymphsCore --user nymph -- bash -lc '/home/nymph/.local/bin/worbi-sta
 ```
 
 The recent WORBI confusion happened because WORBI was manually updated first in the dev WSL context, while the Manager was still correctly reading the older install inside the real `NymphsCore` distro.
+
+## 2026-05-07 Late Fix: Update Loops And Stop Fallbacks
+
+The WORBI update flow exposed two important generic module rules:
+
+1. The installed version must come from the real installed module marker first.
+2. Stop/status scripts must tolerate unmanaged or previously-started processes.
+
+For WORBI, the marker is:
+
+```text
+/home/nymph/worbi/.nymph-module-version
+```
+
+Manager update checks now read that marker before cached manifests such as:
+
+```text
+/home/nymph/.cache/nymphs-modules/worbi.nymph.json
+/home/nymph/.cache/nymphs-modules/repos/worbi/nymph.json
+```
+
+This matters because a successful install can still look stale if the UI compares against the wrong cached file. The user-facing symptom was:
+
+```text
+WORBI installed successfully.
+Installed worbi.
+```
+
+while the page still showed:
+
+```text
+Installed: 6.2.52
+Remote: 6.2.53
+Update available
+```
+
+WORBI `6.2.54` also makes the module installer print:
+
+```text
+installed_module_version=6.2.54
+```
+
+Future module installers should do the same kind of explicit version-stamp output.
+
+For stop scripts, do not rely only on PID files. The script should also:
+
+- inspect process working directories under the install root
+- inspect command lines for module-specific server commands
+- inspect the module port when the app is responding
+- use a bounded port/process fallback before reporting failure
+
+This is especially important after dev testing, Manager restarts, manual terminal launches, or updates from older wrappers.
 
 ## What This Handoff Covers
 
@@ -145,7 +402,7 @@ WORBI has been tested in that distro at:
 /home/nymph/worbi
 ```
 
-Current verified managed-distro version:
+Current verified managed-distro version before the successful 6.2.52 update:
 
 ```text
 WORBI 6.2.51
@@ -220,6 +477,28 @@ Expected Manager flow after this push:
 Check for Updates -> WORBI 6.2.51 installed / 6.2.52 remote -> Update Module -> rerun WORBI install script -> wrapper scripts refreshed -> installed module marker becomes 6.2.52
 ```
 
+This flow has now been exercised through the Manager UI. The installer completed successfully and printed:
+
+```text
+Node.js found: v18.20.8
+Archive: /tmp/.../worbi-6.2.51.tar.gz
+Install: /home/nymph/worbi
+Existing installation found. Preserving user data...
+Installing server dependencies...
+WORBI installed successfully.
+App: http://localhost:8082
+Logs: /home/nymph/worbi/logs/
+Installed worbi.
+```
+
+The page still showed `WORBI: update needs attention` after that successful output because the Manager bundled the install step and follow-up refresh/check step into one `try` block. That has been patched so installer success displays as:
+
+```text
+WORBI: update finished
+```
+
+Any later refresh/update-check error should now appear as a smaller state refresh warning instead of making the whole update look failed.
+
 If testing outside the UI, run the update inside the actual managed distro, not the dev distro:
 
 ```bash
@@ -265,6 +544,59 @@ WORBI installed successfully.
 
 This is the command pattern to use when validating a module in the actual Manager target distro.
 
+## Manager Script Launcher Lessons From WORBI Update
+
+The WORBI update exposed an important Manager-side contract issue.
+
+Bad pattern:
+
+```text
+wsl.exe -d NymphsCore -- bash -lc "<large generated shell command containing nested heredocs>"
+```
+
+Why it failed:
+
+- `install_nymph_module_from_registry.sh` contains Python heredocs.
+- Injecting that whole script into another heredoc corrupted the shell text.
+- The visible failures were misleading, for example:
+
+```text
+read_manifest_url: command not found
+SyntaxError: unexpected character after line continuation character
+/bin/bash: line 1: : No such file or directory
+```
+
+Better Rauty pattern:
+
+```text
+wsl.exe -d NymphsCore --user nymph -- /bin/bash -lc "
+  curl -fsSL <manager-helper-script-url> -o /tmp/nymphs-manager-install-worbi.sh
+  chmod +x /tmp/nymphs-manager-install-worbi.sh
+  /bin/bash /tmp/nymphs-manager-install-worbi.sh --module worbi
+"
+```
+
+Implementation notes:
+
+- keep the `wsl.exe ... bash -lc` command small
+- stage helper scripts inside the managed distro
+- use literal temp paths for critical script staging
+- print `fetching_install_script=...`, `staged_install_script=...`, and `staged_install_bytes=...` before running the helper
+- treat module install/update success separately from follow-up refresh/check warnings
+
+Current Rauty caveat:
+
+```text
+RautyManagerScriptsBaseUrl = https://raw.githubusercontent.com/nymphnerds/NymphsCore/rauty/Manager/scripts
+```
+
+Before merging Rauty to `main`, decide whether this should:
+
+- switch to `main`
+- follow the Manager app's release channel
+- become configurable in settings
+- copy scripts into the managed distro during Manager setup and run those local copies
+
 ## Last Verified Manager Build
 
 Last known debug build from an earlier point passed:
@@ -301,10 +633,10 @@ First verify version:
 wsl.exe -d NymphsCore --user nymph -- bash -lc '/home/nymph/.local/bin/worbi-status'
 ```
 
-Expected version:
+Expected version after the successful 6.2.52 update:
 
 ```text
-version=6.2.51
+version=6.2.52
 ```
 
 Then test Manager page:
@@ -321,7 +653,7 @@ Expected eventual healthy status:
 
 ```text
 installed=true
-version=6.2.51
+version=6.2.52
 running=true
 health=ok
 url=http://localhost:8082
@@ -359,9 +691,9 @@ Do not migrate rich custom module pages yet unless the lifecycle loop stays soli
 
 Recommended order:
 
-1. Fix WORBI start wrapper detach behavior in the WORBI module repo.
-2. Rebuild Manager from the `rauty` source checkout.
-3. Repeat uninstall/reinstall/update for one more simple module.
+1. Rebuild Manager from the `rauty` source checkout after the success-label/script-launcher patches.
+2. Repeat uninstall/reinstall/update for one more simple module.
+3. Decide how Manager helper scripts should be sourced after Rauty merges to `main`.
 4. Then migrate custom pages one at a time from `main`.
 
 The custom pages should remain module-specific. The generic module page is only a fallback.

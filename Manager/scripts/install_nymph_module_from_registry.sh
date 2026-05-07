@@ -156,5 +156,13 @@ fi
 chmod +x "${INSTALL_SCRIPT}"
 echo "install_entrypoint=${INSTALL_ENTRYPOINT}"
 echo "Installing ${MODULE_ID}..."
+set +e
 "${INSTALL_SCRIPT}"
+INSTALL_STATUS=$?
+set -e
+if [[ "${INSTALL_STATUS}" -ne 0 ]]; then
+  echo "ERROR: install entrypoint failed for ${MODULE_ID} with exit code ${INSTALL_STATUS}." >&2
+  exit "${INSTALL_STATUS}"
+fi
 echo "Installed ${MODULE_ID}."
+exit 0
