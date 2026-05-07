@@ -1,9 +1,41 @@
 # Rauty Module Lifecycle Handoff
 
 Date: 2026-05-07
-Updated: 2026-05-07 18:40 BST
+Updated: 2026-05-07 18:55 BST
 
 Branch: `rauty`
+
+## Critical 2026-05-07 Follow-Up: Keep Lifecycle Launching Simple
+
+The Manager must not build large generated `bash -lc` lifecycle strings for install/uninstall/delete.
+
+The bad pattern caused user-facing errors such as:
+
+```text
+/bin/bash: -c: line 1: conditional binary operator expected
+/bin/bash: -c: line 1: syntax error near `0'
+```
+
+This happened before the module helper could run correctly.
+
+Source has been simplified so install/uninstall helpers are launched as separate WSL processes:
+
+```text
+rm -f /tmp/nymphs-manager-<action>-<module>.sh
+curl -fsSL <helper-url> -o /tmp/nymphs-manager-<action>-<module>.sh
+chmod +x /tmp/nymphs-manager-<action>-<module>.sh
+/bin/bash /tmp/nymphs-manager-<action>-<module>.sh --module <module> ...
+rm -f /tmp/nymphs-manager-<action>-<module>.sh
+```
+
+No `awk`, no inline `$?`, no conditional cleanup logic in one giant shell string.
+
+Next session:
+
+- rebuild Manager before testing this fix
+- retest WORBI install/uninstall/delete only
+- do not test destructive lifecycle actions on TRELLIS, Z-Image, LoRA, or Brain
+- if a helper succeeds but UI state lags, fix state refresh separately; do not add shell complexity back into the launcher
 
 ## Critical 2026-05-07 Install Success Reporting Fix
 

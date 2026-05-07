@@ -8,6 +8,26 @@ This file focuses on user-facing and system-level changes rather than package-by
 
 Newest entries first.
 
+### 2026-05-07 Simple WSL lifecycle launcher
+Source: live WORBI delete/install testing where generated `bash -lc` strings produced shell syntax errors before the helper script could run.
+
+Fixed in source:
+
+- replaced the install/uninstall launcher path that built one large shell command
+- Manager now stages remote helper scripts through direct WSL process calls:
+  - remove old temp script
+  - `curl -fsSL <helper-url> -o /tmp/...`
+  - `chmod +x /tmp/...`
+  - `/bin/bash /tmp/... --module <id> ...`
+  - remove temp script
+- removed the fragile lifecycle-launcher use of `awk`, inline `$?`, and shell conditionals from the Manager command string
+
+Why it matters:
+
+- lifecycle actions should fail only because the module helper failed, not because the Manager mangled shell quoting
+- this is the simpler long-term path for community modules
+- install/uninstall/delete must be boring and predictable before more module repos are migrated
+
 ### 2026-05-07 Registry install false-failure hardening
 Source: live WORBI install testing where the module installer printed success, but the Manager still showed `WORBI install needs attention`.
 

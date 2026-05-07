@@ -21,12 +21,14 @@ public sealed class InstallerWorkflowService
     public const string ReadmeUrl = "https://github.com/nymphnerds/NymphsCore/blob/main/Manager/README.md";
     public const string FootprintDocUrl = "https://github.com/nymphnerds/NymphsCore/blob/main/docs/FOOTPRINT.md";
     public const string AddonGuideUrl = "https://github.com/nymphnerds/NymphsCore/blob/main/docs/BLENDER_ADDON_USER_GUIDE.md";
+    private const string RautyManagerScriptsBaseUrl = "https://raw.githubusercontent.com/nymphnerds/NymphsCore/rauty/Manager/scripts";
 
     private readonly ProcessRunner _processRunner = new();
     private readonly HttpClient _aiToolkitHttpClient = new()
     {
         BaseAddress = new Uri("http://127.0.0.1:8675"),
     };
+    private readonly HttpClient _moduleRegistryHttpClient = new();
     private static readonly Regex TrainerYamlPresetIdRegex = new(@"^\s*#\s*nymphs_preset_id:\s*(?<value>[^\r\n#]+)", RegexOptions.Compiled | RegexOptions.Multiline);
     private static readonly Regex TrainerYamlStepsRegex = new(@"^\s*steps:\s*(?<value>\d+)\s*$", RegexOptions.Compiled | RegexOptions.Multiline);
     private static readonly Regex TrainerYamlLearningRateRegex = new(@"^\s*lr:\s*(?<value>[^\s#]+)\s*$", RegexOptions.Compiled | RegexOptions.Multiline);
@@ -3918,7 +3920,60 @@ meta:
         }
     }
 
-    public async Task RunNymphModuleUninstallAsync(
+    public async Task<IReadOnlyList<NymphModuleUpdateInfo>> CheckNymphModuleRegistryUpdatesAsync(
+        InstallSettings settings,
+        IEnumerable<string> installedModuleIds,
+        IProgress<string> progress,
+        CancellationToken cancellationToken)
+    {
+        const string registryUrl = "https://raw.githubusercontent.com/nymphnerds/nymphs-registry/main/nymphs.json";
+        var installedIds = installedModuleIds
+            .Where(id => !string.IsNullOrWhiteSpace(id))
+            .Select(id => id.Trim().ToLowerInvariant())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        progress.Report("Checking Nymphs registry for module updates...");
+
+        using var registryDocument = await FetchJsonDocumentAsync(registryUrl, cancellationToken).ConfigureAwait(false);
+        var results = new List<NymphModuleUpdateInfo>();
+
+        foreach (var moduleElement in registryDocument.RootElement.GetProperty("modules").EnumerateArray())
+        {
+            var moduleId = GetJsonString(moduleElement, "id")?.Trim().ToLowerInvariant();
+            if (string.IsNullOrWhiteSpace(moduleId) || !installedIds.Contains(moduleId))
+            {
+                continue;
+            }
+
+            var manifestUrl = GetJsonString(moduleElement, "manifest_url")?.Trim();
+            if (string.IsNullOrWhiteSpace(manifestUrl))
+            {
+                results.Add(new NymphModuleUpdateInfo(moduleId, null, null, false, "Registry entry has no manifest URL."));
+                continue;
+            }
+
+            using var remoteManifest = await FetchJsonDocumentAsync(manifestUrl, cancellationToken).ConfigureAwait(false);
+            var remoteVersion = GetJsonString(remoteManifest.RootElement, "version");
+            var installedVersion = ReadInstalledModuleVersion(settings, moduleId);
+            var hasUpdate = IsRemoteVersionNewer(installedVersion, remoteVersion);
+            var detail = hasUpdate
+                ? $"{moduleId}: update available {installedVersion ?? "unknown"} -> {remoteVersion ?? "unknown"}"
+                : $"{moduleId}: current ({installedVersion ?? "unknown installed"}, remote {remoteVersion ?? "unknown"})";
+
+            progress.Report(detail);
+            results.Add(new NymphModuleUpdateInfo(moduleId, installedVersion, remoteVersion, hasUpdate, detail));
+        }
+
+        return results;
+    }
+
+    public string? GetInstalledNymphModuleVersion(InstallSettings settings, string moduleId)
+    {
+        return ReadInstalledModuleVersion(settings, moduleId);
+    }
+
+    public async Task<string> RunNymphModuleUninstallAsync(
         InstallSettings settings,
         string moduleId,
         bool purge,
@@ -3930,13 +3985,15 @@ meta:
             throw new ArgumentException("Module id is required.", nameof(moduleId));
         }
 
-        var uninstallScript = RequireScript("uninstall_nymph_module.sh");
-        var uninstallScriptContent = File.ReadAllText(uninstallScript).Replace("\r\n", "\n", StringComparison.Ordinal);
+        var normalizedModuleId = moduleId.Trim().ToLowerInvariant();
+        var stagedUninstallScriptPath = $"/tmp/nymphs-manager-uninstall-{normalizedModuleId}.sh";
+        var remoteUninstallScriptUrl = $"{RautyManagerScriptsBaseUrl}/uninstall_nymph_module.sh";
+        var installRoot = GetNymphModuleInstallRoot(settings, normalizedModuleId);
 
         var scriptArguments = new List<string>
         {
             "--module",
-            moduleId.Trim(),
+            normalizedModuleId,
             "--yes",
         };
 
@@ -3945,33 +4002,62 @@ meta:
             scriptArguments.Add("--purge");
         }
 
-        var bashCommand =
-            "set -euo pipefail; " +
-            $"export HOME={ToBashSingleQuoted($"/home/{settings.LinuxUser}")}; " +
-            $"export USER={ToBashSingleQuoted(settings.LinuxUser)}; " +
-            $"export LOGNAME={ToBashSingleQuoted(settings.LinuxUser)}; " +
-            "tmp_nymph_uninstall_script=\"$(mktemp)\"; " +
-            "cat > \"${tmp_nymph_uninstall_script}\" <<'NYMPHS_UNINSTALL_SCRIPT'\n" +
-            uninstallScriptContent +
-            "\nNYMPHS_UNINSTALL_SCRIPT\n" +
-            "chmod +x \"${tmp_nymph_uninstall_script}\"; " +
-            "set +e; " +
-            "bash \"${tmp_nymph_uninstall_script}\" " +
-            string.Join(" ", scriptArguments.Select(ToBashSingleQuoted)) +
-            "; uninstall_status=$?; " +
-            "set -e; " +
-            "rm -f \"${tmp_nymph_uninstall_script}\"; " +
-            "exit ${uninstall_status}";
-
         progress.Report(purge
             ? $"Deleting module '{moduleId}' from the managed distro..."
             : $"Uninstalling module '{moduleId}' from the managed distro...");
 
-        var result = await RunWslBashAsync(settings, bashCommand, progress, cancellationToken).ConfigureAwait(false);
+        var result = await RunRemoteManagerScriptAsync(
+            settings,
+            remoteUninstallScriptUrl,
+            stagedUninstallScriptPath,
+            scriptArguments,
+            "uninstall",
+            progress,
+            cancellationToken).ConfigureAwait(false);
+
+        if (result.ExitCode != 0 && !await WslPathExistsAsync(settings, installRoot, cancellationToken).ConfigureAwait(false))
+        {
+            progress.Report($"uninstall_exit_was_nonzero_but_install_root_is_absent={installRoot}");
+            return result.CombinedOutput;
+        }
+
         if (result.ExitCode != 0)
         {
-            throw new InvalidOperationException($"Module uninstall failed for '{moduleId}'.");
+            var detail = string.IsNullOrWhiteSpace(result.CombinedOutput)
+                ? $"Module uninstall failed for '{moduleId}' with exit code {result.ExitCode}."
+                : $"Module uninstall failed for '{moduleId}' with exit code {result.ExitCode}.\n\n{result.CombinedOutput.Trim()}";
+            throw new InvalidOperationException(detail);
         }
+
+        return result.CombinedOutput;
+    }
+
+    private static string GetNymphModuleInstallRoot(InstallSettings settings, string normalizedModuleId)
+    {
+        var homePath = $"/home/{settings.LinuxUser}";
+        return normalizedModuleId switch
+        {
+            "brain" => $"{homePath}/Nymphs-Brain",
+            "zimage" => $"{homePath}/Z-Image",
+            "trellis" => $"{homePath}/TRELLIS.2",
+            "lora" or "ai-toolkit" => $"{homePath}/ZImage-Trainer",
+            "worbi" => $"{homePath}/worbi",
+            _ => $"{homePath}/{normalizedModuleId}",
+        };
+    }
+
+    private async Task<bool> WslPathExistsAsync(
+        InstallSettings settings,
+        string linuxPath,
+        CancellationToken cancellationToken)
+    {
+        var result = await RunWslCommandAsync(
+            settings,
+            ["test", "-e", linuxPath],
+            progress: null,
+            cancellationToken).ConfigureAwait(false);
+
+        return result.ExitCode == 0;
     }
 
     public async Task RunNymphModuleInstallFromRegistryAsync(
@@ -3985,39 +4071,160 @@ meta:
             throw new ArgumentException("Module id is required.", nameof(moduleId));
         }
 
-        var installScript = RequireScript("install_nymph_module_from_registry.sh");
-        var installScriptContent = File.ReadAllText(installScript).Replace("\r\n", "\n", StringComparison.Ordinal);
+        var normalizedModuleId = moduleId.Trim().ToLowerInvariant();
+        var stagedInstallScriptPath = $"/tmp/nymphs-manager-install-{normalizedModuleId}.sh";
+        var remoteInstallScriptUrl = $"{RautyManagerScriptsBaseUrl}/install_nymph_module_from_registry.sh";
         var scriptArguments = new List<string>
         {
             "--module",
-            moduleId.Trim(),
+            normalizedModuleId,
         };
 
+        progress.Report($"Installing module '{moduleId}' from the Nymphs registry...");
+
+        var result = await RunRemoteManagerScriptAsync(
+            settings,
+            remoteInstallScriptUrl,
+            stagedInstallScriptPath,
+            scriptArguments,
+            "install",
+            progress,
+            cancellationToken).ConfigureAwait(false);
+
+        if (result.ExitCode != 0)
+        {
+            var detail = string.IsNullOrWhiteSpace(result.CombinedOutput)
+                ? $"Module registry install failed for '{moduleId}' with exit code {result.ExitCode}."
+                : $"Module registry install failed for '{moduleId}' with exit code {result.ExitCode}.\n\n{result.CombinedOutput.Trim()}";
+            throw new InvalidOperationException(detail);
+        }
+    }
+
+    private async Task<CommandResult> RunRemoteManagerScriptAsync(
+        InstallSettings settings,
+        string scriptUrl,
+        string stagedScriptPath,
+        IReadOnlyList<string> scriptArguments,
+        string label,
+        IProgress<string> progress,
+        CancellationToken cancellationToken)
+    {
+        progress.Report($"fetching_{label}_script={scriptUrl}");
+
+        await RunWslCommandAsync(
+            settings,
+            ["rm", "-f", stagedScriptPath],
+            progress: null,
+            cancellationToken).ConfigureAwait(false);
+
+        var fetchResult = await RunWslCommandAsync(
+            settings,
+            ["curl", "-fsSL", scriptUrl, "-o", stagedScriptPath],
+            progress,
+            cancellationToken).ConfigureAwait(false);
+
+        if (fetchResult.ExitCode != 0)
+        {
+            return fetchResult;
+        }
+
+        var chmodResult = await RunWslCommandAsync(
+            settings,
+            ["chmod", "+x", stagedScriptPath],
+            progress,
+            cancellationToken).ConfigureAwait(false);
+
+        if (chmodResult.ExitCode != 0)
+        {
+            return chmodResult;
+        }
+
+        progress.Report($"staged_{label}_script={stagedScriptPath}");
+
+        var runArguments = new List<string> { stagedScriptPath };
+        runArguments.AddRange(scriptArguments);
+
+        try
+        {
+            var commandArguments = new List<string> { "/bin/bash" };
+            commandArguments.AddRange(runArguments);
+
+            return await RunWslCommandAsync(
+                settings,
+                commandArguments,
+                progress,
+                cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            await RunWslCommandAsync(
+                settings,
+                ["rm", "-f", stagedScriptPath],
+                progress: null,
+                cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    public async Task<string> RunNymphModuleActionAsync(
+        InstallSettings settings,
+        string moduleId,
+        string action,
+        IProgress<string> progress,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(moduleId))
+        {
+            throw new ArgumentException("Module id is required.", nameof(moduleId));
+        }
+
+        var normalizedAction = action.Trim().ToLowerInvariant();
+        if (!Regex.IsMatch(normalizedAction, "^[a-z0-9][a-z0-9_-]{0,39}$", RegexOptions.CultureInvariant))
+        {
+            throw new ArgumentException($"Unsupported module action: {action}", nameof(action));
+        }
+
+        var normalizedModuleId = moduleId.Trim().ToLowerInvariant();
+        var homePath = $"/home/{settings.LinuxUser}";
+        var cacheRepo = $"{homePath}/.cache/nymphs-modules/repos/{normalizedModuleId}";
+        var manifestPath = $"{cacheRepo}/nymph.json";
+        var localBinEntrypoint = $"{homePath}/.local/bin/{normalizedModuleId}-{normalizedAction}";
+        var entrypointReader =
+            "import json, os, sys\n" +
+            "with open(sys.argv[1], 'r', encoding='utf-8') as handle:\n" +
+            "    manifest = json.load(handle)\n" +
+            "entrypoint = str(manifest.get('entrypoints', {}).get(os.environ['MODULE_ACTION'], '')).strip()\n" +
+            "if entrypoint and (entrypoint.startswith('/') or '..' in entrypoint.split('/')):\n" +
+            "    raise SystemExit('unsafe module entrypoint')\n" +
+            "print(entrypoint)\n";
         var bashCommand =
             "set -euo pipefail; " +
-            $"export HOME={ToBashSingleQuoted($"/home/{settings.LinuxUser}")}; " +
+            $"export HOME={ToBashSingleQuoted(homePath)}; " +
             $"export USER={ToBashSingleQuoted(settings.LinuxUser)}; " +
             $"export LOGNAME={ToBashSingleQuoted(settings.LinuxUser)}; " +
-            "tmp_nymph_install_script=\"$(mktemp)\"; " +
-            "cat > \"${tmp_nymph_install_script}\" <<'NYMPHS_INSTALL_SCRIPT'\n" +
-            installScriptContent +
-            "\nNYMPHS_INSTALL_SCRIPT\n" +
-            "chmod +x \"${tmp_nymph_install_script}\"; " +
-            "set +e; " +
-            "bash \"${tmp_nymph_install_script}\" " +
-            string.Join(" ", scriptArguments.Select(ToBashSingleQuoted)) +
-            "; install_status=$?; " +
-            "set -e; " +
-            "rm -f \"${tmp_nymph_install_script}\"; " +
-            "exit ${install_status}";
+            "ENTRYPOINT=\"\"; " +
+            $"if [[ -f {ToBashSingleQuoted(manifestPath)} ]]; then " +
+            $"ENTRYPOINT=$(MODULE_ACTION={ToBashSingleQuoted(normalizedAction)} python3 -c {ToBashSingleQuoted(entrypointReader)} {ToBashSingleQuoted(manifestPath)}); " +
+            "fi; " +
+            $"if [[ -n \"$ENTRYPOINT\" && -f {ToBashSingleQuoted(cacheRepo)}/\"$ENTRYPOINT\" ]]; then " +
+            $"  bash {ToBashSingleQuoted(cacheRepo)}/\"$ENTRYPOINT\"; " +
+            $"elif [[ -x {ToBashSingleQuoted(localBinEntrypoint)} ]]; then " +
+            $"  {ToBashSingleQuoted(localBinEntrypoint)}; " +
+            "else " +
+            $"  echo {ToBashSingleQuoted($"Module action is not available: {normalizedModuleId}/{normalizedAction}")} >&2; exit 5; " +
+            "fi";
 
-        progress.Report($"Installing module '{moduleId}' from the Nymphs registry...");
+        progress.Report($"Running module action '{normalizedAction}' for '{normalizedModuleId}'...");
 
         var result = await RunWslBashAsync(settings, bashCommand, progress, cancellationToken).ConfigureAwait(false);
         if (result.ExitCode != 0)
         {
-            throw new InvalidOperationException($"Module registry install failed for '{moduleId}'.");
+            var detail = string.IsNullOrWhiteSpace(result.CombinedOutput)
+                ? $"Module action '{normalizedAction}' failed for '{normalizedModuleId}' with exit code {result.ExitCode}."
+                : $"Module action '{normalizedAction}' failed for '{normalizedModuleId}' with exit code {result.ExitCode}.\n\n{result.CombinedOutput.Trim()}";
+            throw new InvalidOperationException(detail);
         }
+
+        return result.CombinedOutput.Trim();
     }
 
     public async Task<IReadOnlyDictionary<string, RuntimeBackendStatus>> GetRuntimeBackendStatusesAsync(
@@ -4876,6 +5083,113 @@ meta:
             .Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .Where(name => !string.IsNullOrWhiteSpace(name))
             .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    private async Task<JsonDocument> FetchJsonDocumentAsync(string url, CancellationToken cancellationToken)
+    {
+        using var response = await _moduleRegistryHttpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
+        response.EnsureSuccessStatusCode();
+        var body = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+        return JsonDocument.Parse(body);
+    }
+
+    private static string? GetJsonString(JsonElement element, string propertyName)
+    {
+        return element.TryGetProperty(propertyName, out var property) && property.ValueKind == JsonValueKind.String
+            ? property.GetString()
+            : null;
+    }
+
+    private static string? ReadInstalledModuleVersion(InstallSettings settings, string moduleId)
+    {
+        var markerCandidates = new[]
+        {
+            ToWindowsWslPath(settings, $"/home/{settings.LinuxUser}/{moduleId}/.nymph-module-version"),
+        };
+
+        foreach (var markerPath in markerCandidates)
+        {
+            try
+            {
+                if (!File.Exists(markerPath))
+                {
+                    continue;
+                }
+
+                var markerVersion = File.ReadLines(markerPath).FirstOrDefault()?.Trim();
+                if (!string.IsNullOrWhiteSpace(markerVersion))
+                {
+                    return markerVersion;
+                }
+            }
+            catch
+            {
+                // Try the next candidate. A missing or unreadable marker should not break update checks.
+            }
+        }
+
+        var manifestCandidates = new[]
+        {
+            ToWindowsWslPath(settings, $"/home/{settings.LinuxUser}/.cache/nymphs-modules/{moduleId}.nymph.json"),
+            ToWindowsWslPath(settings, $"/home/{settings.LinuxUser}/.cache/nymphs-modules/repos/{moduleId}/nymph.json"),
+            ToWindowsWslPath(settings, $"/home/{settings.LinuxUser}/{moduleId}/nymph.json"),
+        };
+
+        foreach (var manifestPath in manifestCandidates)
+        {
+            try
+            {
+                if (!File.Exists(manifestPath))
+                {
+                    continue;
+                }
+
+                using var document = JsonDocument.Parse(File.ReadAllText(manifestPath));
+                return GetJsonString(document.RootElement, "version");
+            }
+            catch
+            {
+                // Try the next candidate. A malformed local manifest should not break the whole update check.
+            }
+        }
+
+        return null;
+    }
+
+    private static bool IsRemoteVersionNewer(string? installedVersion, string? remoteVersion)
+    {
+        if (string.IsNullOrWhiteSpace(installedVersion) || string.IsNullOrWhiteSpace(remoteVersion))
+        {
+            return false;
+        }
+
+        var installedParts = ParseVersionParts(installedVersion);
+        var remoteParts = ParseVersionParts(remoteVersion);
+        var partCount = Math.Max(installedParts.Count, remoteParts.Count);
+
+        for (var index = 0; index < partCount; index++)
+        {
+            var installedPart = index < installedParts.Count ? installedParts[index] : 0;
+            var remotePart = index < remoteParts.Count ? remoteParts[index] : 0;
+            if (remotePart > installedPart)
+            {
+                return true;
+            }
+
+            if (remotePart < installedPart)
+            {
+                return false;
+            }
+        }
+
+        return false;
+    }
+
+    private static IReadOnlyList<int> ParseVersionParts(string version)
+    {
+        return Regex.Matches(version, @"\d+")
+            .Select(match => int.TryParse(match.Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var value) ? value : 0)
             .ToList();
     }
 
