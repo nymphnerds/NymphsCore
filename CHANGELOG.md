@@ -8,6 +8,225 @@ This file focuses on user-facing and system-level changes rather than package-by
 
 Newest entries first.
 
+### 2026-05-07 Rauty modular Manager lifecycle shell: Nymph cards, registry installs, and module pages
+Source: `rauty` branch module-skeleton work, especially commit `361e242` plus the follow-up live Manager/WORBI testing that happened before this changelog was updated.
+
+Documented changes:
+
+- added the first real modular Manager shell for the Rauty direction:
+  - Home page with system overview
+  - installed module cards
+  - available module cards
+  - module detail pages
+  - logs page
+  - guide page
+  - shared top-bar update/settings controls
+- added a dedicated module model for the new shell so modules can be represented as installed or available Nymphs instead of permanent hardcoded Manager sections
+- added first-pass module roster entries for:
+  - `brain`
+  - `zimage`
+  - `lora`
+  - `trellis`
+  - `worbi`
+- renamed the AI Toolkit module surface to `LoRA` / `lora` in the new modular shell, because its user-facing purpose is local Z-Image Turbo LoRA training
+- added module navigation entries only for installed modules
+- added responsive module card layout work:
+  - cards can wrap from one column to two, three, and wider layouts
+  - the Manager window can now shrink to a one-card-width layout
+  - home card spacing and section spacing were repeatedly tuned from screenshots
+- added module page `// MANAGER CONTRACT` links for module-specific commands:
+  - `status`
+  - `start`
+  - `stop`
+  - `open`
+  - `logs`
+  - `configure` where applicable
+- kept universal module page actions in the right rail:
+  - Open Install Folder
+  - Update Module when an update is available
+  - Uninstall Module
+  - Delete Module + Data
+  - Back To Home
+- moved `// LIVE DETAIL` to the wide main module page surface, because command output and failures need room
+- moved `// MODULE FACTS` into a smaller right-rail card under the universal actions
+- added module-specific logs handling:
+  - `// logs` opens module log output on the module page
+  - global Manager logs remain separate in the left sidebar Logs page
+- added a gear-menu Dev Mode scaffold:
+  - Dev Mode toggle
+  - bottom status strip
+  - future `// DEV CONTRACT` section for maintainer workflows
+- added handoff docs for the modular shell and manifest direction, including:
+  - `MANAGER_UI_DIRECTION_HANDOFF.md`
+  - `MANAGER_UI_DESIGN_STAGE_HANDOFF.md`
+  - `MANAGER_UI_CONTINUATION_HANDOFF.md`
+  - `MODULAR_NYMPHSCORE_PLAN.md`
+  - `NYMPH_MANIFEST_DRAFT.md`
+  - `NYMPH_CORE_OBJECT_MODEL.md`
+  - `NYMPH_UI_SHELL_BRIEF.md`
+  - `CURRENT_NYMPH_MODULE_REPO_DEEP_DIVE.md`
+  - `RAUTY_MODULE_LIFECYCLE_HANDOFF.md`
+
+New scripts added for the module lifecycle:
+
+- `Manager/scripts/install_nymph_module_from_registry.sh`
+- `Manager/scripts/uninstall_nymph_module.sh`
+
+Important behavior:
+
+- registry install flow is now intended to be generic:
+
+```text
+nymphs-registry -> module nymph.json -> module repo -> install entrypoint
+```
+
+- uninstall supports preserving known user data by default
+- destructive delete/purge remains explicit
+- future Nymphs should not require rewriting core Manager installer scripts for every new backend
+
+Why it matters:
+
+- this is the point where Rauty starts becoming a real modular platform shell instead of a Manager with several permanent backend pages
+- it establishes the basic contract that NymphsCore owns discovery/lifecycle/UI orchestration while each module repo owns its own package, scripts, wrappers, logs, and runtime details
+
+Known remaining work:
+
+- custom module pages from `main` are intentionally parked until the lifecycle loop is reliable
+- one more simple module should be used to validate uninstall/reinstall/update after WORBI
+- source edits after `361e242` still need a normal Windows rebuild before the running app reflects all current UI/lifecycle fixes
+
+### 2026-05-07 WORBI registry/update test: 6.2.51, stale wrapper discovery, and WSL target confusion
+Source: live WORBI update/start testing through the new module page, plus direct WSL verification after the Manager UI showed stale data and a failed start.
+
+Documented changes and discoveries:
+
+- connected WORBI to the registry/module lifecycle as the first real external test module
+- confirmed WORBI can be represented as an installed Nymph with:
+  - package kind `archive`
+  - module id `worbi`
+  - install root `~/worbi`
+  - default URL `http://localhost:8082`
+- added/used registry update comparison:
+  - local cached installed manifest version
+  - remote module manifest version
+  - visible `Update available` state on cards/pages
+- added an `Update Module` action that reruns the registry install/update flow for the selected module
+- changed install/update UI feedback so `// LIVE DETAIL` streams installer progress instead of only showing a generic failure
+- changed registry install failures so they include exit code and captured output
+- changed module facts so installed version should be read from cached module manifests instead of showing `Manifest not wired yet`
+- confirmed the old Manager UI attempt at updating WORBI failed, but the real reason the update state later disappeared was that WORBI had been manually updated successfully afterwards
+
+Critical WSL lesson:
+
+```text
+NymphsCore_Lite = development/source checkout used by Codex and the IDE
+NymphsCore      = actual managed runtime distro used by NymphsCore Manager
+```
+
+The source tree being edited lives under:
+
+```text
+\\wsl.localhost\NymphsCore_Lite\home\nymph\NymphsCore
+```
+
+The running Manager targets:
+
+```text
+\\wsl.localhost\NymphsCore\home\nymph\...
+```
+
+or:
+
+```text
+wsl.exe -d NymphsCore --user nymph -- ...
+```
+
+This mattered because WORBI was first updated manually in the dev WSL context, while the Manager was correctly still seeing the older WORBI install inside the real managed `NymphsCore` distro.
+
+Managed distro state after correction:
+
+```text
+WORBI version: 6.2.51
+Installed manifest: /home/nymph/.cache/nymphs-modules/worbi.nymph.json
+Install root: /home/nymph/worbi
+```
+
+Direct managed-distro update command used:
+
+```bash
+wsl.exe -d NymphsCore --user nymph -- bash -lc 'set -euo pipefail; git -C /home/nymph/.cache/nymphs-modules/repos/worbi pull --ff-only; cp /home/nymph/.cache/nymphs-modules/repos/worbi/nymph.json /home/nymph/.cache/nymphs-modules/worbi.nymph.json; bash /home/nymph/.cache/nymphs-modules/repos/worbi/scripts/install_worbi.sh; grep "\"version\"" /home/nymph/.cache/nymphs-modules/worbi.nymph.json'
+```
+
+Confirmed output included:
+
+```text
+Archive: .../worbi-6.2.51.tar.gz
+Existing installation found. Preserving user data...
+WORBI installed successfully.
+"version": "6.2.51"
+```
+
+Stale wrapper bug found and corrected in the real managed distro:
+
+- old wrapper tried:
+
+```text
+/home/nymph/worbi/src/index.js
+```
+
+- current wrapper starts from:
+
+```text
+/home/nymph/worbi/server/src/index.js
+```
+
+Remaining WORBI-side issue discovered:
+
+- `worbi-start` can report started and print the app URL, then the process exits after the WSL command returns
+- manual `setsid -f` testing kept the Node server alive and made `/api/health` respond
+- the likely next WORBI repo fix is to make `scripts/worbi_start.sh` detach with a strategy that survives `wsl.exe` returning and writes the correct server PID
+
+Why it matters:
+
+- this test proved the registry model is viable, but also proved the Manager must make target distro and module state painfully explicit
+- future agents must not infer runtime state from `NymphsCore_Lite` files
+- all module lifecycle smoke tests must target `NymphsCore`
+
+### 2026-05-05 WORBI installer bootstrap and early module-repo direction
+Source: `rauty` branch commits `505d6b2`, `c378208`, `e426b74`, `320e4b2`, and `116a6c4`, before WORBI moved into the cleaner external module-repo/registry plan.
+
+Documented changes:
+
+- added a temporary `WORBI-installer/` folder to the main repo with:
+  - `README.md`
+  - `install.sh`
+  - packaged `worbi-6.2.18.tar.gz`
+- rewrote the WORBI installer README multiple times to make it more beginner-friendly
+- clarified WSL usage and install steps
+- simplified the early install shape:
+  - `curl | tar` style install
+  - can run from any directory
+  - no hard dependency on being inside a `NymphsCore` checkout
+  - installs to `~/worbi`
+- handled the case where a user already had a `NymphsCore` folder
+- removed unused Rauty home asset images after the branch merge cleanup
+
+Why it matters:
+
+- this was the bridge between "WORBI as a bundled folder" and "WORBI as a proper Nymph module"
+- the later direction superseded this by moving WORBI to:
+
+```text
+github.com/nymphnerds/worbi
+github.com/nymphnerds/nymphs-registry
+```
+
+- the temporary in-repo installer helped clarify what a module repo needs:
+  - a manifest
+  - install/start/stop/status/open/logs scripts
+  - safe upgrade behavior
+  - user-data preservation
+
 ### 2026-05-04 Z-Image LoRA usability pass: activation cleanup, runtime recovery, and follow-up performance concern
 Source: live Blender -> Manager -> Z-Image -> Nunchaku LoRA testing, using both downloaded public control LoRAs and the user's own `yamamoto` LoRA, plus multiple addon / runtime correction passes after regressions were introduced mid-session.
 
