@@ -5,6 +5,118 @@ Updated: 2026-05-07 19:05 BST
 
 Branch: `rauty`
 
+## Module Repo Rules Going Forward
+
+These rules are intended to make future Nymph/module builds faster and safer.
+
+1. Every module gets its own repo under:
+
+```text
+github.com/nymphnerds/<module>
+```
+
+2. Every module repo must include:
+
+```text
+nymph.json
+```
+
+at repo root.
+
+3. `nymph.json` is the Manager contract. It should define:
+
+- `id`
+- `name`
+- `version`
+- `description`
+- `category`
+- `kind`
+- `source`
+- `entrypoints`
+- runtime URLs/paths where relevant
+- uninstall/purge support where relevant
+
+4. The Manager should not need editing for normal module updates.
+
+Normal module update flow:
+
+```text
+edit module repo -> bump nymph.json version -> push -> Manager Check for Updates -> Update Module
+```
+
+5. Module cards open information first.
+
+Correct UX:
+
+```text
+Available card click -> module detail page -> manifest-backed info -> Install Module button
+```
+
+Install should be deliberate, not triggered by clicking the card.
+
+6. Install scripts must preserve user data by default.
+
+7. Delete/purge must be opt-in, confirmed, and only available when the module manifest explicitly supports it.
+
+8. Install scripts should print a final marker only after success:
+
+```text
+installed_module_version=x.y.z
+```
+
+This marker should appear after all files, wrappers, and runtime scripts have been installed.
+
+9. Lifecycle scripts should stay boring and explicit:
+
+```text
+install
+status
+start
+stop
+open
+logs
+uninstall
+```
+
+10. Manager should run scripts directly through WSL process arguments, not through giant generated shell strings.
+
+11. Installed version should come from the installed module marker first:
+
+```text
+<install_root>/.nymph-module-version
+```
+
+Cached manifests are fallback info only.
+
+12. Keep app/package version separate from module wrapper version when needed.
+
+Wrapper-only fixes can bump `nymph.json` without rebuilding the bundled app archive.
+
+13. Never test destructive actions on heavy modules first.
+
+Use WORBI or a tiny dummy module for lifecycle testing before touching:
+
+- TRELLIS.2
+- Z-Image Turbo
+- LoRA / AI Toolkit
+- Brain
+
+14. Always distinguish the two WSL roles:
+
+```text
+NymphsCore_Lite = dev/source WSL
+NymphsCore      = real managed runtime WSL
+```
+
+15. Handoffs and test commands must state which WSL distro they target.
+
+Core principle:
+
+```text
+Module repos own module behavior.
+Manager owns only the generic contract and UI shell.
+```
+
 ## UX Decision: Available Cards Open Info First
 
 Available module cards should not immediately ask to install.
