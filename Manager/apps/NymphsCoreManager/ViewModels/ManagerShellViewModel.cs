@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Threading;
 using NymphsCoreManager.Models;
@@ -23,11 +24,16 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
     private readonly AsyncRelayCommand _checkForUpdatesCommand;
     private readonly RelayCommand<NymphModuleViewModel> _openModuleCommand;
     private readonly RelayCommand<NymphModuleViewModel> _installModuleCommand;
+    private readonly RelayCommand<NymphModuleViewModel> _updateModuleCommand;
     private readonly RelayCommand<NymphModuleViewModel> _openModuleInstallPathCommand;
+    private readonly RelayCommand<string> _runModuleActionCommand;
+    private readonly RelayCommand<string> _runModuleDevActionCommand;
+    private readonly RelayCommand _toggleDeveloperModeCommand;
     private readonly RelayCommand<NymphModuleViewModel> _uninstallModuleCommand;
     private readonly RelayCommand<NymphModuleViewModel> _deleteModuleCommand;
     private ShellNavigationItemViewModel? _selectedNavigationItem;
     private NymphModuleViewModel? _selectedModule;
+    private NymphModuleViewModel? _displayedModule;
     private ManagerPageKind _currentPageKind = ManagerPageKind.Home;
     private string _currentPageTitle = "Home";
     private string _currentPageSubtitle = "Overview of your system and modules";
@@ -51,10 +57,16 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
     private string _systemChecksSummary = "System checks have not run yet.";
     private string _installedModulesSummary = "Scanning installed Nymphs...";
     private string _availableModulesSummary = "Manifest-aware shell is loading the known module roster.";
+    private string _moduleActionFeedbackTitle = "No module command has run yet.";
+    private string _moduleActionFeedbackDetail = "Use the manager contract buttons below to run this module's live commands.";
+    private string _moduleLogsTitle = "No module logs loaded.";
+    private string _moduleLogsDetail = string.Empty;
     private string _currentSidebarArtPath = string.Empty;
     private bool _isBusy;
     private bool _hasLoadedModuleState;
     private bool _isRefreshingRuntimeMonitorLive;
+    private bool _showModuleLogs;
+    private bool _isDeveloperMode;
     private int _sidebarArtIndex = -1;
 
     public ManagerShellViewModel(InstallerWorkflowService workflowService)
@@ -87,7 +99,8 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                 "Local coding and orchestration stack managed as an optional Nymph.",
                 BuildManagedDistroPath("home", _settings.LinuxUser, "Nymphs-Brain"),
                 "#97DF48",
-                ["install", "status", "start", "stop", "open", "logs", "uninstall"]),
+                ["status", "start", "stop", "open", "logs"],
+                ["check-upstream", "test-upstream", "package"]),
             new NymphModuleViewModel(
                 "zimage",
                 "Z-Image Turbo",
@@ -97,7 +110,8 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                 "Z-Image Turbo image generation runtime managed as an optional Nymph.",
                 BuildManagedDistroPath("home", _settings.LinuxUser, "Z-Image"),
                 "#22DDF0",
-                ["install", "status", "configure", "open", "logs", "uninstall"]),
+                ["status", "configure", "open", "logs"],
+                ["check-upstream", "test-upstream", "package"]),
             new NymphModuleViewModel(
                 "lora",
                 "LoRA",
@@ -107,7 +121,8 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                 "AI Toolkit powered LoRA training sidecar for Z-Image Turbo.",
                 BuildManagedDistroPath("home", _settings.LinuxUser, "ZImage-Trainer"),
                 "#39C7FF",
-                ["install", "status", "configure", "open", "logs", "uninstall"]),
+                ["status", "configure", "open", "logs"],
+                ["check-upstream", "test-upstream", "package"]),
             new NymphModuleViewModel(
                 "trellis",
                 "TRELLIS.2",
@@ -117,7 +132,8 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                 "3D structure generation runtime handled as an installable module rather than a permanent core section.",
                 BuildManagedDistroPath("home", _settings.LinuxUser, "TRELLIS.2"),
                 "#C8EE47",
-                ["install", "status", "configure", "open", "logs", "uninstall"]),
+                ["status", "configure", "open", "logs"],
+                ["check-upstream", "test-upstream", "package"]),
             new NymphModuleViewModel(
                 "worbi",
                 "WORBI",
@@ -127,14 +143,19 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                 "Local worldbuilding application packaged as an optional self-contained Nymph.",
                 BuildManagedDistroPath("home", _settings.LinuxUser, "worbi"),
                 "#A9E347",
-                ["install", "status", "start", "stop", "open", "logs", "uninstall"]),
+                ["status", "start", "stop", "open", "logs"],
+                ["check-upstream", "test-upstream", "package"]),
         ];
 
         _refreshCommand = new AsyncRelayCommand(RefreshAsync, () => !IsBusy);
         _checkForUpdatesCommand = new AsyncRelayCommand(CheckForUpdatesAsync, () => !IsBusy);
-        _openModuleCommand = new RelayCommand<NymphModuleViewModel>(OpenModule, module => module?.IsInstalled == true);
+        _openModuleCommand = new RelayCommand<NymphModuleViewModel>(OpenModule, module => module is not null);
         _installModuleCommand = new RelayCommand<NymphModuleViewModel>(InstallModule, module => module?.IsInstalled == false && !IsBusy);
+        _updateModuleCommand = new RelayCommand<NymphModuleViewModel>(UpdateModule, module => module is { IsInstalled: true, HasUpdate: true } && !IsBusy);
         _openModuleInstallPathCommand = new RelayCommand<NymphModuleViewModel>(OpenModuleInstallPath, module => module?.CanOpenInstallPath == true);
+        _runModuleActionCommand = new RelayCommand<string>(RunSelectedModuleAction, CanRunSelectedModuleAction);
+        _runModuleDevActionCommand = new RelayCommand<string>(RunSelectedModuleDevAction, CanRunSelectedModuleDevAction);
+        _toggleDeveloperModeCommand = new RelayCommand(ToggleDeveloperMode);
         _uninstallModuleCommand = new RelayCommand<NymphModuleViewModel>(UninstallModule, module => module?.IsInstalled == true && !IsBusy);
         _deleteModuleCommand = new RelayCommand<NymphModuleViewModel>(DeleteModule, module => module?.IsInstalled == true && !IsBusy);
 
@@ -184,7 +205,15 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
     public RelayCommand<NymphModuleViewModel> InstallModuleCommand => _installModuleCommand;
 
+    public RelayCommand<NymphModuleViewModel> UpdateModuleCommand => _updateModuleCommand;
+
     public RelayCommand<NymphModuleViewModel> OpenModuleInstallPathCommand => _openModuleInstallPathCommand;
+
+    public RelayCommand<string> RunModuleActionCommand => _runModuleActionCommand;
+
+    public RelayCommand<string> RunModuleDevActionCommand => _runModuleDevActionCommand;
+
+    public RelayCommand ToggleDeveloperModeCommand => _toggleDeveloperModeCommand;
 
     public RelayCommand<NymphModuleViewModel> UninstallModuleCommand => _uninstallModuleCommand;
 
@@ -210,6 +239,68 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
     public RelayCommand ShowGuideCommand => new(() => SelectPrimaryPage(ManagerPageKind.Guide));
 
+    public string ModuleActionFeedbackTitle
+    {
+        get => _moduleActionFeedbackTitle;
+        private set => SetProperty(ref _moduleActionFeedbackTitle, value);
+    }
+
+    public string ModuleActionFeedbackDetail
+    {
+        get => _moduleActionFeedbackDetail;
+        private set => SetProperty(ref _moduleActionFeedbackDetail, value);
+    }
+
+    public bool ShowModuleLogs
+    {
+        get => _showModuleLogs;
+        private set => SetProperty(ref _showModuleLogs, value);
+    }
+
+    public string ModuleLogsTitle
+    {
+        get => _moduleLogsTitle;
+        private set => SetProperty(ref _moduleLogsTitle, value);
+    }
+
+    public string ModuleLogsDetail
+    {
+        get => _moduleLogsDetail;
+        private set => SetProperty(ref _moduleLogsDetail, value);
+    }
+
+    public bool IsDeveloperMode
+    {
+        get => _isDeveloperMode;
+        set
+        {
+            if (SetProperty(ref _isDeveloperMode, value))
+            {
+                OnPropertyChanged(nameof(DeveloperModeLabel));
+                OnPropertyChanged(nameof(DeveloperModeBrush));
+                OnPropertyChanged(nameof(BottomStatusText));
+                OnPropertyChanged(nameof(ShowDevContract));
+                _runModuleDevActionCommand.RaiseCanExecuteChanged();
+                StatusMessage = _isDeveloperMode ? "Developer mode enabled." : "Developer mode disabled.";
+                AppendActivity(StatusMessage);
+            }
+        }
+    }
+
+    public bool ShowDevContract => IsDeveloperMode && DisplayedModule?.DevCapabilities.Count > 0;
+
+    public bool ShowDeleteModuleData => string.Equals(DisplayedModule?.Id, "worbi", StringComparison.OrdinalIgnoreCase);
+
+    public bool ShowInstallModuleAction => DisplayedModule?.CanInstall == true;
+
+    public bool ShowInstalledModuleActions => DisplayedModule?.IsInstalled == true;
+
+    public string DeveloperModeLabel => IsDeveloperMode ? "Dev Mode On" : "Dev Mode Off";
+
+    public string DeveloperModeBrush => IsDeveloperMode ? "#97DF48" : "#445A5C";
+
+    public string BottomStatusText => $"{StatusMessage}  |  {DeveloperModeLabel}  |  {UpdateSummary}";
+
     public ShellNavigationItemViewModel? SelectedNavigationItem
     {
         get => _selectedNavigationItem;
@@ -222,24 +313,25 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
             CurrentPageKind = value.PageKind;
             SelectedModule = value.Module;
+            DisplayedModule = value.PageKind == ManagerPageKind.Module ? value.Module : null;
 
             switch (value.PageKind)
             {
                 case ManagerPageKind.Home:
                     CurrentPageTitle = "Home";
-                    CurrentPageSubtitle = "// Overview of your system and modules";
+                    CurrentPageSubtitle = "Overview of your system and modules";
                     break;
                 case ManagerPageKind.SystemChecks:
                     CurrentPageTitle = "System Checks";
-                    CurrentPageSubtitle = "// Live platform diagnostics and readiness checks";
+                    CurrentPageSubtitle = "Live platform diagnostics and readiness checks";
                     break;
                 case ManagerPageKind.Logs:
                     CurrentPageTitle = "Logs";
-                    CurrentPageSubtitle = "// Session activity, runtime checks, and shell feedback";
+                    CurrentPageSubtitle = "Session activity, runtime checks, and shell feedback";
                     break;
                 case ManagerPageKind.Guide:
                     CurrentPageTitle = "Guide";
-                    CurrentPageSubtitle = "// Core docs, onboarding, and next-step references";
+                    CurrentPageSubtitle = "Core docs, onboarding, and next-step references";
                     break;
                 case ManagerPageKind.Module when value.Module is not null:
                     CurrentPageTitle = value.Module.Name;
@@ -257,6 +349,31 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             if (SetProperty(ref _selectedModule, value))
             {
                 OnPropertyChanged(nameof(HasSelectedModule));
+                OnPropertyChanged(nameof(ShowDevContract));
+                _updateModuleCommand.RaiseCanExecuteChanged();
+                _runModuleActionCommand.RaiseCanExecuteChanged();
+                _runModuleDevActionCommand.RaiseCanExecuteChanged();
+            }
+        }
+    }
+
+    public NymphModuleViewModel? DisplayedModule
+    {
+        get => _displayedModule;
+        private set
+        {
+            if (SetProperty(ref _displayedModule, value))
+            {
+                OnPropertyChanged(nameof(HasSelectedModule));
+                OnPropertyChanged(nameof(ShowDevContract));
+                OnPropertyChanged(nameof(ShowDeleteModuleData));
+                OnPropertyChanged(nameof(ShowInstallModuleAction));
+                OnPropertyChanged(nameof(ShowInstalledModuleActions));
+                _updateModuleCommand.RaiseCanExecuteChanged();
+                _runModuleActionCommand.RaiseCanExecuteChanged();
+                _runModuleDevActionCommand.RaiseCanExecuteChanged();
+                _uninstallModuleCommand.RaiseCanExecuteChanged();
+                _deleteModuleCommand.RaiseCanExecuteChanged();
             }
         }
     }
@@ -276,13 +393,25 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
     public string StatusMessage
     {
         get => _statusMessage;
-        private set => SetProperty(ref _statusMessage, value);
+        private set
+        {
+            if (SetProperty(ref _statusMessage, value))
+            {
+                OnPropertyChanged(nameof(BottomStatusText));
+            }
+        }
     }
 
     public string UpdateSummary
     {
         get => _updateSummary;
-        private set => SetProperty(ref _updateSummary, value);
+        private set
+        {
+            if (SetProperty(ref _updateSummary, value))
+            {
+                OnPropertyChanged(nameof(BottomStatusText));
+            }
+        }
     }
 
     public string LastRefreshedText
@@ -413,7 +542,9 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             _checkForUpdatesCommand.RaiseCanExecuteChanged();
             _openModuleCommand.RaiseCanExecuteChanged();
             _installModuleCommand.RaiseCanExecuteChanged();
+            _updateModuleCommand.RaiseCanExecuteChanged();
             _openModuleInstallPathCommand.RaiseCanExecuteChanged();
+            _runModuleActionCommand.RaiseCanExecuteChanged();
             _uninstallModuleCommand.RaiseCanExecuteChanged();
             _deleteModuleCommand.RaiseCanExecuteChanged();
         }
@@ -453,7 +584,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
     public bool IsModulePage => CurrentPageKind == ManagerPageKind.Module;
 
-    public bool HasSelectedModule => SelectedModule is not null;
+    public bool HasSelectedModule => DisplayedModule is not null;
 
     public bool HasLoadedModuleState
     {
@@ -532,29 +663,56 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         }
 
         IsBusy = true;
-        UpdateSummary = "Checking managed repo state inside the shared distro...";
+        UpdateSummary = "Checking module registry...";
         AppendActivity("Checking for updates.");
 
         try
         {
-            await _workflowService.RunManagedRepoUpdateCheckAsync(
+            var updateResults = await _workflowService.CheckNymphModuleRegistryUpdatesAsync(
                 _settings,
+                _allModules.Where(module => module.IsInstalled).Select(module => module.Id),
                 new Progress<string>(AppendActivity),
                 CancellationToken.None).ConfigureAwait(true);
 
-            UpdateSummary = $"Last update check finished at {DateTime.Now:HH:mm:ss}.";
-            AppendActivity("Update check completed.");
-            await RefreshModuleStateAsync().ConfigureAwait(true);
+            ApplyModuleUpdateResults(updateResults);
+            var updateCount = updateResults.Count(result => result.IsUpdateAvailable);
+            UpdateSummary = updateCount > 0
+                ? $"{updateCount} module update(s) available."
+                : $"All installed modules current at {DateTime.Now:HH:mm:ss}.";
+            AppendActivity(UpdateSummary);
         }
         catch (Exception ex)
         {
-            UpdateSummary = "Update check needs attention.";
+            UpdateSummary = $"Update check needs attention: {ex.Message}";
             AppendActivity($"Update check warning: {ex.Message}");
         }
         finally
         {
             IsBusy = false;
         }
+    }
+
+    private void ApplyModuleUpdateResults(IReadOnlyList<NymphModuleUpdateInfo> updateResults)
+    {
+        foreach (var result in updateResults)
+        {
+            var module = _allModules.FirstOrDefault(module => string.Equals(module.Id, result.ModuleId, StringComparison.OrdinalIgnoreCase));
+            module?.ApplyUpdateState(result.InstalledVersion, result.RemoteVersion, result.IsUpdateAvailable, result.Detail);
+        }
+
+        if (DisplayedModule is not null)
+        {
+            SetModuleActionFeedback(
+                $"{DisplayedModule.Name}: {DisplayedModule.DisplayStateLabel}",
+                DisplayedModule.HasUpdate
+                    ? DisplayedModule.UpdateDetail
+                    : $"{DisplayedModule.Detail}\n\n{DisplayedModule.SecondaryDetail}");
+        }
+
+        RebuildModuleNavigation();
+        OnPropertyChanged(nameof(HomeInstalledModules));
+        OnPropertyChanged(nameof(HomeAvailableModules));
+        _updateModuleCommand.RaiseCanExecuteChanged();
     }
 
     private async Task RefreshSystemChecksAsync()
@@ -608,6 +766,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         RuntimeBackendStatus? zimageRuntime = null;
         RuntimeBackendStatus? trellisRuntime = null;
         string? brainStatusOutput = null;
+        string? worbiStatusOutput = null;
 
         try
         {
@@ -633,11 +792,25 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             AppendActivity($"Brain status warning: {ex.Message}");
         }
 
+        try
+        {
+            worbiStatusOutput = await _workflowService.RunNymphModuleActionAsync(
+                _settings,
+                "worbi",
+                "status",
+                new Progress<string>(_ => { }),
+                CancellationToken.None).ConfigureAwait(true);
+        }
+        catch (Exception ex)
+        {
+            AppendActivity($"WORBI status warning: {ex.Message}");
+        }
+
         ApplyBrainState(brainStatusOutput);
         ApplyRuntimeModuleState("zimage", zimageRuntime);
         ApplyRuntimeModuleState("trellis", trellisRuntime);
         ApplyLoraState();
-        ApplyWorbiState();
+        ApplyWorbiState(worbiStatusOutput);
 
         RebuildModuleCollections();
         RebuildModuleNavigation();
@@ -676,7 +849,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         module.ApplyState(
             installed,
             running,
-            "Manifest not wired yet",
+            GetInstalledModuleVersionLabel(module.Id, installed),
             stateLabel,
             running ? "#6FD96C" : installed ? "#4CD0C1" : "#6E745A",
             installed
@@ -707,7 +880,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         module.ApplyState(
             installed,
             runtimeStatus?.TestReady == true,
-            "Manifest not wired yet",
+            GetInstalledModuleVersionLabel(module.Id, installed),
             stateLabel,
             statusBrush,
             runtimeStatus?.CompactDetail
@@ -719,26 +892,39 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                 : "Install it only when you want this runtime in the shared platform.");
     }
 
-    private void ApplyWorbiState()
+    private void ApplyWorbiState(string? statusOutput)
     {
         var module = FindModule("worbi");
         var installPath = module.InstallPath;
-        var installed = SafeDirectoryExists(installPath);
+        var statusValues = ParseKeyValueLines(statusOutput);
+        var installed = TryParseStatusBool(statusValues, "installed") ?? SafeDirectoryExists(installPath);
         var serverPidPath = Path.Combine(installPath, "logs", "worbi-server.pid");
         var clientPidPath = Path.Combine(installPath, "logs", "worbi-client.pid");
-        var running = SafeFileExists(serverPidPath) || SafeFileExists(clientPidPath);
+        var backend = GetStatusValue(statusValues, "backend");
+        var health = GetStatusValue(statusValues, "health");
+        var running = TryParseStatusBool(statusValues, "running")
+            ?? (SafeFileExists(serverPidPath)
+                || SafeFileExists(clientPidPath)
+                || string.Equals(backend, "running", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(backend, "running-unmanaged", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(backend, "responding", StringComparison.OrdinalIgnoreCase));
+        var statusDetail = GetStatusValue(statusValues, "detail");
+        var statusUrl = GetStatusValue(statusValues, "url") ?? GetStatusValue(statusValues, "frontend_url") ?? "http://localhost:8082";
+        var statusVersion = GetStatusValue(statusValues, "version");
 
         module.ApplyState(
             installed,
             running,
-            "Manifest not wired yet",
+            installed && !string.IsNullOrWhiteSpace(statusVersion) && !string.Equals(statusVersion, "unknown", StringComparison.OrdinalIgnoreCase)
+                ? statusVersion
+                : GetInstalledModuleVersionLabel(module.Id, installed),
             running ? "Running" : installed ? "Installed" : "Available",
             running ? "#6FD96C" : installed ? "#4CD0C1" : "#6E745A",
             installed
-                ? "Local-first worldbuilding app under the managed distro. Default app endpoint is `:8082`."
+                ? statusDetail ?? $"Local-first worldbuilding app under the managed distro. Default app endpoint is `{statusUrl}`."
                 : "WORBI is available as an optional archive-based Nymph.",
             installed
-                ? "Manager-owned wrapper entrypoints can land here cleanly once the manifest registry is wired."
+                ? $"Health: {ValueOrFallback(health, "not checked")}. App: {statusUrl}"
                 : "The shell already understands WORBI as a module even before the full manifest layer is live.");
     }
 
@@ -759,7 +945,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         module.ApplyState(
             installed,
             false,
-            "Manifest not wired yet",
+            GetInstalledModuleVersionLabel(module.Id, installed),
             installed ? (isReady ? "Installed" : "Needs attention") : "Available",
             installed ? (isReady ? "#4CD0C1" : "#B7791F") : "#6E745A",
             installed
@@ -808,11 +994,30 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             module.ApplyState(
                 installed,
                 running,
-                "Manifest not wired yet",
+                GetInstalledModuleVersionLabel(module.Id, installed),
                 stateLabel,
                 statusBrush,
                 detail,
                 secondaryDetail);
+        }
+    }
+
+    private string GetInstalledModuleVersionLabel(string moduleId, bool isInstalled)
+    {
+        if (!isInstalled)
+        {
+            return "Not installed";
+        }
+
+        try
+        {
+            return _workflowService.GetInstalledNymphModuleVersion(_settings, moduleId)
+                ?? "Manifest not detected";
+        }
+        catch (Exception ex)
+        {
+            AppendActivity($"{moduleId} manifest version warning: {ex.Message}");
+            return "Manifest read failed";
         }
     }
 
@@ -847,7 +1052,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
     private void RebuildModuleNavigation()
     {
-        var selectedModuleId = SelectedModule?.Id;
+        var selectedModuleId = DisplayedModule?.Id ?? SelectedModule?.Id;
         ModuleNavigationItems.Clear();
 
         foreach (var module in InstalledModules)
@@ -999,7 +1204,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
     private void OpenModule(NymphModuleViewModel? module)
     {
-        if (module is null || !module.IsInstalled)
+        if (module is null)
         {
             return;
         }
@@ -1010,6 +1215,11 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
     private void InstallModule(NymphModuleViewModel? module)
     {
         _ = InstallModuleAsync(module);
+    }
+
+    private void UpdateModule(NymphModuleViewModel? module)
+    {
+        _ = UpdateModuleAsync(module);
     }
 
     private async Task InstallModuleAsync(NymphModuleViewModel? module)
@@ -1032,23 +1242,134 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
         IsBusy = true;
         StatusMessage = $"Installing {module.Name} from the Nymphs registry...";
+        ShowModuleLogs = false;
+        var installLines = new List<string>();
+        SetModuleActionFeedback(
+            $"{module.Name}: installing",
+            "Starting module registry install...");
 
         try
         {
             await _workflowService.RunNymphModuleInstallFromRegistryAsync(
                 _settings,
                 module.Id,
-                new Progress<string>(AppendActivity),
+                CreateModuleLiveProgress(module, "install", installLines),
                 CancellationToken.None).ConfigureAwait(true);
+            StatusMessage = $"{module.Name} installed.";
+            SetModuleActionFeedback(
+                $"{module.Name}: install finished",
+                BuildModuleActionFeedbackDetail(string.Join(Environment.NewLine, installLines)));
 
             AppendActivity($"{module.Name} install completed.");
-            await RefreshModuleStateAsync().ConfigureAwait(true);
-            StatusMessage = $"{module.Name} installed.";
+            var installedVersion = ExtractInstalledModuleVersion(installLines);
+            ApplyImmediateModuleInstallResult(module, isInstalled: true, "Install completed. Live status verification will refresh next.", installedVersion);
+            ClearModuleUpdateAfterSuccessfulInstall(module, installedVersion);
+            try
+            {
+                await RefreshModuleStateAsync().ConfigureAwait(true);
+                ClearModuleUpdateAfterSuccessfulInstall(module, installedVersion);
+            }
+            catch (Exception refreshException)
+            {
+                AppendActivity($"{module.Name} installed, but state refresh needs attention: {refreshException.Message}");
+                SetModuleActionFeedback(
+                    $"{module.Name}: install finished",
+                    $"{BuildModuleActionFeedbackDetail(string.Join(Environment.NewLine, installLines))}\n\nState refresh warning: {refreshException.Message}");
+            }
         }
         catch (Exception ex)
         {
             StatusMessage = $"{module.Name} install needs attention.";
             AppendActivity($"{module.Name} install warning: {ex.Message}");
+            SetModuleActionFeedback(
+                $"{module.Name}: install needs attention",
+                BuildModuleActionFeedbackDetail(string.Join(Environment.NewLine, installLines.Append(ex.Message))));
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    private async Task UpdateModuleAsync(NymphModuleViewModel? module)
+    {
+        if (module is null || !module.IsInstalled || !module.HasUpdate || IsBusy)
+        {
+            return;
+        }
+
+        var remoteVersion = string.IsNullOrWhiteSpace(module.RemoteVersionLabel)
+            ? "the latest registry version"
+            : module.RemoteVersionLabel;
+        var confirmation = MessageBox.Show(
+            $"Update {module.Name} to {remoteVersion} from the Nymphs registry?\n\nThe manager will fetch the module repo again and rerun its install/update script inside the managed WSL distro.",
+            "Update Module",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Question);
+        if (confirmation != MessageBoxResult.Yes)
+        {
+            AppendActivity($"{module.Name} update cancelled.");
+            return;
+        }
+
+        IsBusy = true;
+        StatusMessage = $"Updating {module.Name} from the Nymphs registry...";
+        ShowModuleLogs = false;
+        var updateLines = new List<string>();
+        SetModuleActionFeedback(
+            $"{module.Name}: updating",
+            "Fetching the module registry entry and rerunning the module install/update flow...");
+
+        try
+        {
+            await _workflowService.RunNymphModuleInstallFromRegistryAsync(
+                _settings,
+                module.Id,
+                CreateModuleLiveProgress(module, "update", updateLines),
+                CancellationToken.None).ConfigureAwait(true);
+            StatusMessage = $"{module.Name} updated.";
+            UpdateSummary = $"{module.Name} updated from the registry.";
+            SetModuleActionFeedback(
+                $"{module.Name}: update finished",
+                BuildModuleActionFeedbackDetail(string.Join(Environment.NewLine, updateLines)));
+
+            AppendActivity($"{module.Name} update completed.");
+            var installedVersion = ExtractInstalledModuleVersion(updateLines) ?? module.RemoteVersionLabel;
+            ApplyImmediateModuleInstallResult(module, isInstalled: true, "Update completed. Live status verification will refresh next.", installedVersion);
+            ClearModuleUpdateAfterSuccessfulInstall(module, installedVersion);
+
+            try
+            {
+                await RefreshModuleStateAsync().ConfigureAwait(true);
+                ClearModuleUpdateAfterSuccessfulInstall(module, installedVersion);
+
+                var updateResults = await _workflowService.CheckNymphModuleRegistryUpdatesAsync(
+                    _settings,
+                    _allModules.Where(candidate => candidate.IsInstalled).Select(candidate => candidate.Id),
+                    new Progress<string>(AppendActivity),
+                    CancellationToken.None).ConfigureAwait(true);
+
+                ApplyModuleUpdateResults(updateResults);
+                ClearModuleUpdateAfterSuccessfulInstall(module, installedVersion);
+                SetModuleActionFeedback(
+                    $"{module.Name}: update finished",
+                    $"{BuildModuleActionFeedbackDetail(string.Join(Environment.NewLine, updateLines))}\n\nModule files and manager wrappers were refreshed from the registry. Try // start again.");
+            }
+            catch (Exception refreshException)
+            {
+                AppendActivity($"{module.Name} updated, but follow-up state refresh needs attention: {refreshException.Message}");
+                SetModuleActionFeedback(
+                    $"{module.Name}: update finished",
+                    $"{BuildModuleActionFeedbackDetail(string.Join(Environment.NewLine, updateLines))}\n\nState refresh warning: {refreshException.Message}");
+            }
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"{module.Name} update needs attention.";
+            AppendActivity($"{module.Name} update warning: {ex.Message}");
+            SetModuleActionFeedback(
+                $"{module.Name}: update needs attention",
+                BuildModuleActionFeedbackDetail(string.Join(Environment.NewLine, updateLines.Append(ex.Message))));
         }
         finally
         {
@@ -1061,8 +1382,44 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         SelectedNavigationItem = null;
         CurrentPageKind = ManagerPageKind.Module;
         SelectedModule = module;
+        DisplayedModule = module;
         CurrentPageTitle = module.Name;
         CurrentPageSubtitle = module.Description;
+        ShowModuleLogs = false;
+        ModuleLogsTitle = $"{module.Name} module logs";
+        ModuleLogsDetail = "Click // logs to load this module's recent logs.";
+        SetModuleActionFeedback(
+            $"{module.Name}: {module.DisplayStateLabel}",
+            module.HasUpdate
+                ? module.UpdateDetail
+                : $"{module.Detail}\n\n{module.SecondaryDetail}");
+        _ = LoadModuleManifestInfoAsync(module);
+    }
+
+    private async Task LoadModuleManifestInfoAsync(NymphModuleViewModel module)
+    {
+        try
+        {
+            var manifest = await _workflowService.GetNymphModuleManifestInfoAsync(
+                module.Id,
+                CancellationToken.None).ConfigureAwait(true);
+            if (manifest is null || DisplayedModule?.Id != module.Id)
+            {
+                return;
+            }
+
+            module.ApplyManifestInfo(manifest);
+            CurrentPageSubtitle = module.Detail;
+            SetModuleActionFeedback(
+                $"{module.Name}: {module.DisplayStateLabel}",
+                module.HasUpdate
+                    ? module.UpdateDetail
+                    : $"{module.Detail}\n\n{module.SecondaryDetail}");
+        }
+        catch (Exception ex)
+        {
+            AppendActivity($"{module.Name} manifest info warning: {ex.Message}");
+        }
     }
 
     private void OpenModuleInstallPath(NymphModuleViewModel? module)
@@ -1088,6 +1445,265 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         }
     }
 
+    private bool CanRunSelectedModuleAction(string? action)
+    {
+        if (IsBusy || DisplayedModule is null || string.IsNullOrWhiteSpace(action))
+        {
+            return false;
+        }
+
+        var normalizedAction = action.Trim().ToLowerInvariant();
+        if (!DisplayedModule.Capabilities.Any(capability => string.Equals(capability, normalizedAction, StringComparison.OrdinalIgnoreCase)))
+        {
+            return false;
+        }
+
+        return normalizedAction switch
+        {
+            "install" => false,
+            "uninstall" => false,
+            _ => DisplayedModule.IsInstalled,
+        };
+    }
+
+    private void RunSelectedModuleAction(string? action)
+    {
+        _ = RunSelectedModuleActionAsync(action);
+    }
+
+    private bool CanRunSelectedModuleDevAction(string? action)
+    {
+        if (!IsDeveloperMode || IsBusy || DisplayedModule is null || string.IsNullOrWhiteSpace(action))
+        {
+            return false;
+        }
+
+        return DisplayedModule.DevCapabilities.Any(capability => string.Equals(capability, action.Trim(), StringComparison.OrdinalIgnoreCase));
+    }
+
+    private void RunSelectedModuleDevAction(string? action)
+    {
+        var module = DisplayedModule;
+        if (module is null || string.IsNullOrWhiteSpace(action) || !IsDeveloperMode)
+        {
+            return;
+        }
+
+        var normalizedAction = action.Trim().ToLowerInvariant();
+        AppendActivity($"{module.Name} dev action requested: {normalizedAction}.");
+        StatusMessage = $"{module.Name} dev action selected.";
+        ShowModuleLogs = false;
+        SetModuleActionFeedback(
+            $"{module.Name}: dev action selected",
+            $"Dev contract '{normalizedAction}' is reserved for this module repo to implement. When the module manifest exposes a dev entrypoint, this link can run it without changing the Manager page.");
+    }
+
+    private void ToggleDeveloperMode()
+    {
+        IsDeveloperMode = !IsDeveloperMode;
+    }
+
+    private async Task RunSelectedModuleActionAsync(string? action)
+    {
+        var module = DisplayedModule;
+        if (module is null || string.IsNullOrWhiteSpace(action) || IsBusy)
+        {
+            return;
+        }
+
+        var normalizedAction = action.Trim().ToLowerInvariant();
+
+        if (!module.IsInstalled)
+        {
+            return;
+        }
+
+        IsBusy = true;
+        StatusMessage = $"Running {module.Name} {normalizedAction}...";
+        if (!string.Equals(normalizedAction, "logs", StringComparison.OrdinalIgnoreCase))
+        {
+            ShowModuleLogs = false;
+        }
+
+        SetModuleActionFeedback(
+            $"{module.Name}: running {normalizedAction}",
+            $"Command sent to the managed WSL distro. Waiting for {normalizedAction} output...");
+
+        try
+        {
+            var output = await _workflowService.RunNymphModuleActionAsync(
+                _settings,
+                module.Id,
+                normalizedAction,
+                new Progress<string>(AppendActivity),
+                CancellationToken.None).ConfigureAwait(true);
+
+            AppendModuleActionOutput(module, normalizedAction, output);
+            SetModuleActionFeedback(
+                $"{module.Name}: {normalizedAction} finished",
+                BuildModuleActionFeedbackDetail(output));
+
+            if (string.Equals(normalizedAction, "logs", StringComparison.OrdinalIgnoreCase))
+            {
+                ShowModuleLogs = true;
+                ModuleLogsTitle = $"{module.Name} module logs";
+                ModuleLogsDetail = BuildModuleActionFeedbackDetail(output);
+                SetModuleActionFeedback(
+                    $"{module.Name}: logs loaded",
+                    "Module logs are shown below.");
+            }
+
+            if (string.Equals(normalizedAction, "open", StringComparison.OrdinalIgnoreCase))
+            {
+                OpenFirstUrlFromOutput(module, output);
+            }
+
+            if (string.Equals(normalizedAction, "start", StringComparison.OrdinalIgnoreCase) &&
+                !OpenFirstUrlFromOutput(module, output, quietWhenMissing: true) &&
+                module.Capabilities.Any(capability => string.Equals(capability, "open", StringComparison.OrdinalIgnoreCase)))
+            {
+                SetModuleActionFeedback(
+                    $"{module.Name}: start finished",
+                    $"{BuildModuleActionFeedbackDetail(output)}\n\nStart did not return a URL, so the manager is asking the module for its open target...");
+
+                var openOutput = await _workflowService.RunNymphModuleActionAsync(
+                    _settings,
+                    module.Id,
+                    "open",
+                    new Progress<string>(AppendActivity),
+                    CancellationToken.None).ConfigureAwait(true);
+
+                AppendModuleActionOutput(module, "open", openOutput);
+                SetModuleActionFeedback(
+                    $"{module.Name}: start finished, opening module",
+                    $"{BuildModuleActionFeedbackDetail(output)}\n\nOpen output:\n{BuildModuleActionFeedbackDetail(openOutput)}");
+                OpenFirstUrlFromOutput(module, openOutput);
+            }
+
+            if (normalizedAction is "start" or "stop" or "status")
+            {
+                await RefreshModuleStateAsync().ConfigureAwait(true);
+            }
+
+            StatusMessage = $"{module.Name} {normalizedAction} finished.";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"{module.Name} {normalizedAction} needs attention.";
+            AppendActivity($"{module.Name} {normalizedAction} warning: {ex.Message}");
+            SetModuleActionFeedback(
+                $"{module.Name}: {normalizedAction} needs attention",
+                BuildModuleActionFeedbackDetail(ex.Message));
+            if (string.Equals(normalizedAction, "logs", StringComparison.OrdinalIgnoreCase))
+            {
+                ShowModuleLogs = true;
+                ModuleLogsTitle = $"{module.Name} module logs";
+                ModuleLogsDetail = BuildModuleActionFeedbackDetail(ex.Message);
+            }
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    private void AppendModuleActionOutput(NymphModuleViewModel module, string action, string output)
+    {
+        AppendActivity($"{module.Name} {action} completed.");
+
+        foreach (var line in output
+            .Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .TakeLast(12))
+        {
+            AppendActivity($"{module.Id}/{action}: {line}");
+        }
+    }
+
+    private IProgress<string> CreateModuleLiveProgress(NymphModuleViewModel module, string action, List<string> liveLines)
+    {
+        return new Progress<string>(message =>
+        {
+            AppendActivity(message);
+            AppendModuleLiveLine(module, action, message, liveLines);
+        });
+    }
+
+    private void AppendModuleLiveLine(NymphModuleViewModel module, string action, string? message, List<string> liveLines)
+    {
+        if (string.IsNullOrWhiteSpace(message))
+        {
+            return;
+        }
+
+        liveLines.Add(message.Trim());
+        while (liveLines.Count > 40)
+        {
+            liveLines.RemoveAt(0);
+        }
+
+        SetModuleActionFeedback(
+            $"{module.Name}: {action} in progress",
+            BuildModuleActionFeedbackDetail(string.Join(Environment.NewLine, liveLines)));
+    }
+
+    private void SetModuleActionFeedback(string title, string detail)
+    {
+        ModuleActionFeedbackTitle = title;
+        ModuleActionFeedbackDetail = string.IsNullOrWhiteSpace(detail) ? "The command finished without output." : detail.Trim();
+    }
+
+    private static string BuildModuleActionFeedbackDetail(string output)
+    {
+        var lines = output
+            .Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .TakeLast(10)
+            .ToArray();
+
+        return lines.Length == 0
+            ? "The command finished without output."
+            : string.Join(Environment.NewLine, lines);
+    }
+
+    private bool OpenFirstUrlFromOutput(NymphModuleViewModel module, string output, bool quietWhenMissing = false)
+    {
+        var match = Regex.Match(output, @"https?://[^\s]+", RegexOptions.IgnoreCase);
+        if (!match.Success)
+        {
+            if (!quietWhenMissing)
+            {
+                AppendActivity($"{module.Name} open did not return a URL.");
+                SetModuleActionFeedback(
+                    $"{module.Name}: no browser URL returned",
+                    "The module command finished, but it did not print a URL for the manager to open.");
+            }
+
+            return false;
+        }
+
+        var url = match.Value.TrimEnd('.', ',', ';');
+        try
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = url,
+                UseShellExecute = true,
+            });
+            AppendActivity($"{module.Name} opened at {url}.");
+            SetModuleActionFeedback(
+                $"{module.Name}: opened in browser",
+                url);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            AppendActivity($"Could not open {module.Name} URL: {ex.Message}");
+            SetModuleActionFeedback(
+                $"{module.Name}: browser open failed",
+                ex.Message);
+            return false;
+        }
+    }
+
     private void UninstallModule(NymphModuleViewModel? module)
     {
         _ = RunModuleUninstallAsync(module, purge: false);
@@ -1105,36 +1721,75 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             return;
         }
 
+        var targetId = module.Id;
+        var targetName = module.Name;
+
+        if (purge && !string.Equals(targetId, "worbi", StringComparison.OrdinalIgnoreCase))
+        {
+            const string detail = "Delete Module + Data is temporarily disabled for repo/runtime modules while module routing is being audited. Use Uninstall Module only.";
+            StatusMessage = $"{targetName} delete blocked.";
+            AppendActivity($"Blocked destructive delete for {targetName} ({targetId}).");
+            SetModuleActionFeedback($"{targetName}: delete blocked", detail);
+            MessageBox.Show(detail, "Delete Disabled", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
         var prompt = purge
-            ? $"Delete {module.Name} completely?\n\nThis removes the module install folder and its module data from the managed WSL distro."
-            : $"Uninstall {module.Name}?\n\nThis removes the module install folder but saves known user data to ~/NymphsModuleBackups inside the managed WSL distro.";
+            ? $"Delete {targetName} completely?\n\nThis removes the module install folder and its module data from the managed WSL distro."
+            : $"Uninstall {targetName}?\n\nThis removes the module install folder but saves known user data to ~/NymphsModuleBackups inside the managed WSL distro.";
         var caption = purge ? "Delete Module + Data" : "Uninstall Module";
         var icon = purge ? MessageBoxImage.Warning : MessageBoxImage.Question;
         var confirmation = MessageBox.Show(prompt, caption, MessageBoxButton.YesNo, icon);
         if (confirmation != MessageBoxResult.Yes)
         {
-            AppendActivity($"{module.Name} uninstall cancelled.");
+            AppendActivity($"{targetName} uninstall cancelled.");
             return;
         }
 
         IsBusy = true;
         StatusMessage = purge
-            ? $"Deleting {module.Name} from the managed distro..."
-            : $"Uninstalling {module.Name} from the managed distro...";
+            ? $"Deleting {targetName} from the managed distro..."
+            : $"Uninstalling {targetName} from the managed distro...";
+        ShowModuleLogs = false;
+        var uninstallLines = new List<string>();
+        var actionLabel = purge ? "delete" : "uninstall";
+        SetModuleActionFeedback(
+            $"{targetName}: {actionLabel} in progress",
+            purge
+                ? "Deleting the module install folder and data from the managed WSL distro..."
+                : "Uninstalling the module while preserving known data when available...");
 
         try
         {
-            await _workflowService.RunNymphModuleUninstallAsync(
+            AppendActivity($"AUDIT module {actionLabel} requested: id={targetId}, name={targetName}, displayed={DisplayedModule?.Id ?? "-"}, selected={SelectedModule?.Id ?? "-"}.");
+            var uninstallOutput = await _workflowService.RunNymphModuleUninstallAsync(
                 _settings,
-                module.Id,
+                targetId,
                 purge,
-                new Progress<string>(AppendActivity),
+                CreateModuleLiveProgress(module, actionLabel, uninstallLines),
                 CancellationToken.None).ConfigureAwait(true);
 
             AppendActivity(purge
-                ? $"{module.Name} delete completed."
-                : $"{module.Name} uninstall completed.");
-            await RefreshModuleStateAsync().ConfigureAwait(true);
+                ? $"{targetName} delete completed."
+                : $"{targetName} uninstall completed.");
+            ApplyImmediateModuleInstallResult(
+                module,
+                isInstalled: false,
+                purge
+                    ? "Module and data were deleted. Registry install remains available."
+                    : "Module was uninstalled. Preserved data was moved to the module backup area when available.");
+            SetModuleActionFeedback(
+                $"{targetName}: {actionLabel} finished",
+                BuildModuleActionFeedbackDetail(string.Join(Environment.NewLine, uninstallLines.Append(uninstallOutput))));
+
+            try
+            {
+                await RefreshModuleStateAsync().ConfigureAwait(true);
+            }
+            catch (Exception refreshException)
+            {
+                AppendActivity($"{targetName} uninstall completed, but state refresh needs attention: {refreshException.Message}");
+            }
 
             if (!module.IsInstalled && CurrentPageKind == ManagerPageKind.Module)
             {
@@ -1142,18 +1797,98 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             }
 
             StatusMessage = purge
-                ? $"{module.Name} deleted."
-                : $"{module.Name} uninstalled.";
+                ? $"{targetName} deleted."
+                : $"{targetName} uninstalled.";
         }
         catch (Exception ex)
         {
-            StatusMessage = $"{module.Name} uninstall needs attention.";
-            AppendActivity($"{module.Name} uninstall warning: {ex.Message}");
+            StatusMessage = $"{targetName} uninstall needs attention.";
+            AppendActivity($"{targetName} uninstall warning: {ex.Message}");
+            SetModuleActionFeedback(
+                $"{targetName}: {actionLabel} needs attention",
+                BuildModuleActionFeedbackDetail(string.Join(Environment.NewLine, uninstallLines.Append(ex.Message))));
         }
         finally
         {
             IsBusy = false;
         }
+    }
+
+    private void ApplyImmediateModuleInstallResult(NymphModuleViewModel module, bool isInstalled, string detail, string? installedVersionOverride = null)
+    {
+        module.ApplyState(
+            isInstalled,
+            isRunning: false,
+            !string.IsNullOrWhiteSpace(installedVersionOverride)
+                ? installedVersionOverride
+                : GetInstalledModuleVersionLabel(module.Id, isInstalled),
+            isInstalled ? "Installed" : "Available",
+            isInstalled ? "#4CD0C1" : "#6E745A",
+            isInstalled
+                ? $"{module.Name} files were refreshed in the managed distro."
+                : $"{module.Name} is available as an optional Nymph.",
+            detail);
+        module.ClearUpdateState(isInstalled
+            ? $"{module.Name} was refreshed from the registry."
+            : $"{module.Name} is not installed.");
+
+        RebuildModuleCollections();
+        RebuildModuleNavigation();
+
+        if (DisplayedModule is not null && string.Equals(DisplayedModule.Id, module.Id, StringComparison.OrdinalIgnoreCase))
+        {
+            RefreshDisplayedModuleActionState();
+            SetModuleActionFeedback(
+                $"{module.Name}: {module.DisplayStateLabel}",
+                $"{module.Detail}\n\n{module.SecondaryDetail}");
+        }
+
+        _openModuleCommand.RaiseCanExecuteChanged();
+        _installModuleCommand.RaiseCanExecuteChanged();
+        _updateModuleCommand.RaiseCanExecuteChanged();
+        _uninstallModuleCommand.RaiseCanExecuteChanged();
+        _deleteModuleCommand.RaiseCanExecuteChanged();
+    }
+
+    private void RefreshDisplayedModuleActionState()
+    {
+        OnPropertyChanged(nameof(ShowInstallModuleAction));
+        OnPropertyChanged(nameof(ShowInstalledModuleActions));
+        OnPropertyChanged(nameof(ShowDeleteModuleData));
+    }
+
+    private static string? ExtractInstalledModuleVersion(IEnumerable<string> outputLines)
+    {
+        foreach (var line in outputLines)
+        {
+            var trimmed = line.Trim();
+            const string installedModuleVersionPrefix = "installed_module_version=";
+            if (trimmed.StartsWith(installedModuleVersionPrefix, StringComparison.OrdinalIgnoreCase))
+            {
+                var version = trimmed[installedModuleVersionPrefix.Length..].Trim();
+                return string.IsNullOrWhiteSpace(version) ? null : version;
+            }
+        }
+
+        return null;
+    }
+
+    private void ClearModuleUpdateAfterSuccessfulInstall(NymphModuleViewModel module, string? installedVersion)
+    {
+        var version = string.IsNullOrWhiteSpace(installedVersion)
+            ? module.VersionLabel
+            : installedVersion;
+
+        module.ApplyUpdateState(
+            version,
+            string.IsNullOrWhiteSpace(module.RemoteVersionLabel) ? version : module.RemoteVersionLabel,
+            hasUpdate: false,
+            $"{module.Name} is current after the registry install/update finished.");
+
+        RebuildModuleNavigation();
+        OnPropertyChanged(nameof(HomeInstalledModules));
+        OnPropertyChanged(nameof(HomeAvailableModules));
+        _updateModuleCommand.RaiseCanExecuteChanged();
     }
 
     private void OpenTerminal()
@@ -1198,24 +1933,25 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
         CurrentPageKind = pageKind;
         SelectedModule = null;
+        DisplayedModule = null;
 
         switch (pageKind)
         {
             case ManagerPageKind.SystemChecks:
                 CurrentPageTitle = "System Checks";
-                CurrentPageSubtitle = "// Live platform diagnostics and readiness checks";
+                CurrentPageSubtitle = "Live platform diagnostics and readiness checks";
                 break;
             case ManagerPageKind.Home:
                 CurrentPageTitle = "Home";
-                CurrentPageSubtitle = "// Overview of your system and modules";
+                CurrentPageSubtitle = "Overview of your system and modules";
                 break;
             case ManagerPageKind.Logs:
                 CurrentPageTitle = "Logs";
-                CurrentPageSubtitle = "// Session activity, runtime checks, and shell feedback";
+                CurrentPageSubtitle = "Session activity, runtime checks, and shell feedback";
                 break;
             case ManagerPageKind.Guide:
                 CurrentPageTitle = "Guide";
-                CurrentPageSubtitle = "// Core docs, onboarding, and next-step references";
+                CurrentPageSubtitle = "Core docs, onboarding, and next-step references";
                 break;
         }
     }
@@ -1301,6 +2037,47 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
     {
         var line = lines.FirstOrDefault(item => item.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
         return line is null ? null : line[prefix.Length..].Trim();
+    }
+
+    private static IReadOnlyDictionary<string, string> ParseKeyValueLines(string? output)
+    {
+        if (string.IsNullOrWhiteSpace(output))
+        {
+            return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        }
+
+        return output
+            .Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(line => line.Split('=', 2, StringSplitOptions.TrimEntries))
+            .Where(parts => parts.Length == 2 && !string.IsNullOrWhiteSpace(parts[0]))
+            .GroupBy(parts => parts[0], StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(group => group.Key, group => group.Last()[1], StringComparer.OrdinalIgnoreCase);
+    }
+
+    private static string? GetStatusValue(IReadOnlyDictionary<string, string> values, string key)
+    {
+        return values.TryGetValue(key, out var value) && !string.IsNullOrWhiteSpace(value)
+            ? value.Trim()
+            : null;
+    }
+
+    private static bool? TryParseStatusBool(IReadOnlyDictionary<string, string> values, string key)
+    {
+        var value = GetStatusValue(values, key);
+        if (value is null)
+        {
+            return null;
+        }
+
+        return value.Equals("true", StringComparison.OrdinalIgnoreCase)
+            || value.Equals("yes", StringComparison.OrdinalIgnoreCase)
+            || value.Equals("running", StringComparison.OrdinalIgnoreCase)
+            || value.Equals("ok", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string ValueOrFallback(string? value, string fallback)
+    {
+        return string.IsNullOrWhiteSpace(value) ? fallback : value.Trim();
     }
 
     private static bool SafeDirectoryExists(string path)

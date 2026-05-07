@@ -3973,6 +3973,53 @@ meta:
         return ReadInstalledModuleVersion(settings, moduleId);
     }
 
+    public async Task<NymphModuleManifestInfo?> GetNymphModuleManifestInfoAsync(
+        string moduleId,
+        CancellationToken cancellationToken)
+    {
+        const string registryUrl = "https://raw.githubusercontent.com/nymphnerds/nymphs-registry/main/nymphs.json";
+        var normalizedModuleId = moduleId.Trim().ToLowerInvariant();
+
+        using var registryDocument = await FetchJsonDocumentAsync(registryUrl, cancellationToken).ConfigureAwait(false);
+        foreach (var moduleElement in registryDocument.RootElement.GetProperty("modules").EnumerateArray())
+        {
+            var registryModuleId = GetJsonString(moduleElement, "id")?.Trim().ToLowerInvariant();
+            if (!string.Equals(registryModuleId, normalizedModuleId, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            var manifestUrl = GetJsonString(moduleElement, "manifest_url")?.Trim();
+            if (string.IsNullOrWhiteSpace(manifestUrl))
+            {
+                return null;
+            }
+
+            using var manifestDocument = await FetchJsonDocumentAsync(manifestUrl, cancellationToken).ConfigureAwait(false);
+            var root = manifestDocument.RootElement;
+            var sourceSummary = "";
+            if (root.TryGetProperty("source", out var sourceElement) && sourceElement.ValueKind == JsonValueKind.Object)
+            {
+                sourceSummary = GetJsonString(sourceElement, "archive")
+                    ?? GetJsonString(sourceElement, "repo")
+                    ?? GetJsonString(sourceElement, "url")
+                    ?? "";
+            }
+
+            return new NymphModuleManifestInfo(
+                Id: GetJsonString(root, "id") ?? normalizedModuleId,
+                Name: GetJsonString(root, "name") ?? moduleId,
+                Category: GetJsonString(root, "category") ?? "",
+                Kind: GetJsonString(root, "kind") ?? "",
+                Version: GetJsonString(root, "version") ?? "",
+                Description: GetJsonString(root, "description") ?? "",
+                ManifestUrl: manifestUrl,
+                SourceSummary: sourceSummary);
+        }
+
+        return null;
+    }
+
     public async Task<string> RunNymphModuleUninstallAsync(
         InstallSettings settings,
         string moduleId,

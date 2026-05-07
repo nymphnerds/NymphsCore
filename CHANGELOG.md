@@ -8,6 +8,22 @@ This file focuses on user-facing and system-level changes rather than package-by
 
 Newest entries first.
 
+### 2026-05-07 Available module cards open detail pages first
+Source: WORBI reinstall UX testing after uninstall/delete became reliable.
+
+Changed in source:
+
+- available module cards now open the module detail page instead of immediately showing an install confirmation dialog
+- available module pages show an `Install Module` action in the right rail
+- installed-only actions such as `Open Install Folder` and `Uninstall Module` stay hidden until the module is installed
+- opening a module page fetches the module's registry manifest and updates the live detail with manifest-backed description/version/source information
+
+Why it matters:
+
+- users should be able to inspect a Nymph before installing it
+- community modules need a clear pre-install information surface pulled from `nymph.json`
+- install should be a deliberate action from the page, not the card click itself
+
 ### 2026-05-07 Simple WSL lifecycle launcher
 Source: live WORBI delete/install testing where generated `bash -lc` strings produced shell syntax errors before the helper script could run.
 

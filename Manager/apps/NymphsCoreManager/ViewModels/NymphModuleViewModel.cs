@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Generic;
+using NymphsCoreManager.Models;
 
 namespace NymphsCoreManager.ViewModels;
 
@@ -11,6 +13,9 @@ public sealed class NymphModuleViewModel : ViewModelBase
     private string _statusBrush = "#6E745A";
     private string _detail = "Module not installed yet.";
     private string _secondaryDetail = "Install wrappers and live lifecycle hooks will land as this shell grows.";
+    private bool _hasUpdate;
+    private string _remoteVersionLabel = "Not checked";
+    private string _updateDetail = "No module update check has run yet.";
 
     public NymphModuleViewModel(
         string id,
@@ -21,7 +26,8 @@ public sealed class NymphModuleViewModel : ViewModelBase
         string description,
         string installPath,
         string accentBrush,
-        IReadOnlyList<string> capabilities)
+        IReadOnlyList<string> capabilities,
+        IReadOnlyList<string>? devCapabilities = null)
     {
         Id = id;
         Name = name;
@@ -32,6 +38,7 @@ public sealed class NymphModuleViewModel : ViewModelBase
         InstallPath = installPath;
         AccentBrush = accentBrush;
         Capabilities = capabilities;
+        DevCapabilities = devCapabilities ?? Array.Empty<string>();
     }
 
     public string Id { get; }
@@ -51,6 +58,8 @@ public sealed class NymphModuleViewModel : ViewModelBase
     public string AccentBrush { get; }
 
     public IReadOnlyList<string> Capabilities { get; }
+
+    public IReadOnlyList<string> DevCapabilities { get; }
 
     public bool IsInstalled
     {
@@ -94,13 +103,37 @@ public sealed class NymphModuleViewModel : ViewModelBase
         private set => SetProperty(ref _secondaryDetail, value);
     }
 
+    public bool HasUpdate
+    {
+        get => _hasUpdate;
+        private set => SetProperty(ref _hasUpdate, value);
+    }
+
+    public string RemoteVersionLabel
+    {
+        get => _remoteVersionLabel;
+        private set => SetProperty(ref _remoteVersionLabel, value);
+    }
+
+    public string UpdateDetail
+    {
+        get => _updateDetail;
+        private set => SetProperty(ref _updateDetail, value);
+    }
+
+    public string DisplayStateLabel => HasUpdate ? "Update available" : StateLabel;
+
+    public string DisplayStatusBrush => HasUpdate ? "#D49A2A" : StatusBrush;
+
     public string AvailabilityLabel => IsInstalled ? "Installed Nymph" : "Available Nymph";
 
-    public string NavigationSubtitle => IsInstalled ? StateLabel : "Available";
+    public string NavigationSubtitle => IsInstalled ? DisplayStateLabel : "Available";
 
     public string InstallPathLabel => IsInstalled ? InstallPath : "Not installed in managed distro";
 
     public bool CanOpenInstallPath => IsInstalled;
+
+    public bool CanInstall => !IsInstalled;
 
     public void ApplyState(
         bool isInstalled,
@@ -123,5 +156,48 @@ public sealed class NymphModuleViewModel : ViewModelBase
         OnPropertyChanged(nameof(NavigationSubtitle));
         OnPropertyChanged(nameof(InstallPathLabel));
         OnPropertyChanged(nameof(CanOpenInstallPath));
+        OnPropertyChanged(nameof(CanInstall));
+        OnPropertyChanged(nameof(DisplayStateLabel));
+        OnPropertyChanged(nameof(DisplayStatusBrush));
+    }
+
+    public void ApplyManifestInfo(NymphModuleManifestInfo manifest)
+    {
+        if (!string.IsNullOrWhiteSpace(manifest.Version))
+        {
+            RemoteVersionLabel = manifest.Version;
+        }
+
+        if (!string.IsNullOrWhiteSpace(manifest.Description))
+        {
+            Detail = manifest.Description;
+        }
+
+        var sourceLine = string.IsNullOrWhiteSpace(manifest.SourceSummary)
+            ? manifest.ManifestUrl
+            : manifest.SourceSummary;
+        SecondaryDetail = $"Registry manifest: {manifest.ManifestUrl}\nSource: {sourceLine}";
+    }
+
+    public void ApplyUpdateState(string? installedVersion, string? remoteVersion, bool hasUpdate, string detail)
+    {
+        VersionLabel = string.IsNullOrWhiteSpace(installedVersion) ? VersionLabel : installedVersion;
+        RemoteVersionLabel = string.IsNullOrWhiteSpace(remoteVersion) ? "Unknown" : remoteVersion;
+        HasUpdate = hasUpdate;
+        UpdateDetail = detail;
+
+        OnPropertyChanged(nameof(DisplayStateLabel));
+        OnPropertyChanged(nameof(DisplayStatusBrush));
+        OnPropertyChanged(nameof(NavigationSubtitle));
+    }
+
+    public void ClearUpdateState(string detail)
+    {
+        HasUpdate = false;
+        UpdateDetail = detail;
+
+        OnPropertyChanged(nameof(DisplayStateLabel));
+        OnPropertyChanged(nameof(DisplayStatusBrush));
+        OnPropertyChanged(nameof(NavigationSubtitle));
     }
 }

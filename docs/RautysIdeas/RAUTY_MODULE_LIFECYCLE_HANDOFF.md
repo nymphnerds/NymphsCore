@@ -1,9 +1,38 @@
 # Rauty Module Lifecycle Handoff
 
 Date: 2026-05-07
-Updated: 2026-05-07 18:55 BST
+Updated: 2026-05-07 19:05 BST
 
 Branch: `rauty`
+
+## UX Decision: Available Cards Open Info First
+
+Available module cards should not immediately ask to install.
+
+Correct flow:
+
+```text
+Available card click -> module detail page -> manifest-backed info -> Install Module button
+```
+
+The module detail page should pull public pre-install information from the registry manifest:
+
+```text
+nymphs-registry -> module manifest_url -> module repo nymph.json
+```
+
+Minimum useful pre-install info:
+
+- name
+- description
+- category
+- packaging kind
+- remote version
+- source/archive/repo summary
+- install path target where known
+- available manager contract actions
+
+This has been wired in source for the generic module page. Keep it simple: card opens the page; right rail owns install/update/uninstall/delete actions.
 
 ## Critical 2026-05-07 Follow-Up: Keep Lifecycle Launching Simple
 
