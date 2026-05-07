@@ -542,6 +542,63 @@ public sealed class InstallerWorkflowService
         return TryReadZImageTrainerJobSettingsFromYaml(settings, normalizedLora);
     }
 
+    public async Task<ShellRuntimeMonitorSnapshot> GetShellRuntimeMonitorAsync(
+        InstallSettings settings,
+        CancellationToken cancellationToken)
+    {
+        // Sidebar runtime monitor: leave this path stable unless there is a concrete bug to fix.
+        // It targets the managed NymphsCore distro on purpose, and GPU telemetry intentionally reuses
+        // the older monitor_query.sh flow that already proved reliable in the previous Brain-page monitor.
+        try
+        {
+            var osReleaseText = await TryRunWslTextAsync(settings, ["cat", "/etc/os-release"], cancellationToken).ConfigureAwait(false);
+            var kernelText = await TryRunWslTextAsync(settings, ["uname", "-r"], cancellationToken).ConfigureAwait(false);
+            var uptimeText = await TryRunWslTextAsync(settings, ["cat", "/proc/uptime"], cancellationToken).ConfigureAwait(false);
+            var cpuStat1Text = await TryRunWslTextAsync(settings, ["cat", "/proc/stat"], cancellationToken).ConfigureAwait(false);
+            await Task.Delay(200, cancellationToken).ConfigureAwait(false);
+            var cpuStat2Text = await TryRunWslTextAsync(settings, ["cat", "/proc/stat"], cancellationToken).ConfigureAwait(false);
+            var memInfoText = await TryRunWslTextAsync(settings, ["cat", "/proc/meminfo"], cancellationToken).ConfigureAwait(false);
+            var diskText = await TryRunWslTextAsync(settings, ["df", "-Pk", "/"], cancellationToken).ConfigureAwait(false);
+            var gpuTelemetry = await GetManagedRuntimeGpuTelemetryAsync(settings, cancellationToken).ConfigureAwait(false);
+
+            var prettyName = NormalizeRuntimeDistribution(ParsePrettyName(osReleaseText));
+            var kernel = string.IsNullOrWhiteSpace(kernelText) ? "-" : kernelText.Trim();
+            var uptime = FormatRuntimeUptime(uptimeText);
+
+            var (cpuTotal1, cpuIdle1) = ParseCpuStat(cpuStat1Text);
+            var (cpuTotal2, cpuIdle2) = ParseCpuStat(cpuStat2Text);
+            var cpuPercent = ComputeCpuPercent(cpuTotal1, cpuIdle1, cpuTotal2, cpuIdle2);
+
+            var (memoryUsedKb, memoryTotalKb, memoryPercent) = ParseMemoryInfo(memInfoText);
+            var (diskUsedKb, diskTotalKb, diskPercent) = ParseDiskUsage(diskText);
+            var windowsDiskUsageLabel = GetWindowsDiskUsageLabel(settings.InstallLocation);
+
+            var isAvailable = !string.Equals(kernel, "-", StringComparison.Ordinal);
+
+            return new ShellRuntimeMonitorSnapshot(
+                isAvailable,
+                $"WSL: {prettyName}",
+                $"Kernel: {kernel}",
+                $"Uptime: {uptime}",
+                cpuPercent,
+                memoryTotalKb > 0
+                    ? $"{FormatRuntimeGb(memoryUsedKb, decimals: 1)} / {FormatRuntimeGb(memoryTotalKb, decimals: 1)} GB"
+                    : "- / -",
+                memoryPercent,
+                diskTotalKb > 0
+                    ? $"{FormatRuntimeGb(diskUsedKb, decimals: 0)} / {FormatRuntimeGb(diskTotalKb, decimals: 0)} GB"
+                    : "- / -",
+                diskPercent,
+                windowsDiskUsageLabel,
+                gpuTelemetry.GpuVram,
+                gpuTelemetry.GpuTemp);
+        }
+        catch
+        {
+            return ShellRuntimeMonitorSnapshot.Offline;
+        }
+    }
+
     private static ZImageTrainerJobSettings? TryReadZImageTrainerJobSettingsFromYaml(
         InstallSettings settings,
         string normalizedLora)
@@ -1555,6 +1612,47 @@ public sealed class InstallerWorkflowService
             cancellationToken).ConfigureAwait(false);
 
         return result.ExitCode == 0 ? result.CombinedOutput.Trim() : string.Empty;
+    }
+
+    private async Task<(string GpuVram, string GpuTemp)> GetManagedRuntimeGpuTelemetryAsync(
+        InstallSettings settings,
+        CancellationToken cancellationToken)
+    {
+        var monitorScript = Path.Combine(ScriptsDirectory, "monitor_query.sh");
+        var wslMonitorScriptPath = File.Exists(monitorScript)
+            ? ConvertWindowsPathToWsl(monitorScript) ?? string.Empty
+            : string.Empty;
+        var installedMonitorScriptPath = $"{settings.BrainInstallRoot}/scripts/monitor_query.sh";
+
+        if (!string.IsNullOrWhiteSpace(wslMonitorScriptPath))
+        {
+            var installCommand = new StringBuilder()
+                .Append("mkdir -p ")
+                .Append(ToBashSingleQuoted($"{settings.BrainInstallRoot}/scripts"))
+                .Append("; install -m 755 ")
+                .Append(ToBashSingleQuoted(wslMonitorScriptPath))
+                .Append(' ')
+                .Append(ToBashSingleQuoted(installedMonitorScriptPath))
+                .ToString();
+
+            await RunWslBashAsync(settings, installCommand, progress: null, cancellationToken)
+                .ConfigureAwait(false);
+        }
+
+        var gpuVram = await QueryNymphsBrainMonitorValueAsync(settings, installedMonitorScriptPath, "gpu-vram", cancellationToken)
+            .ConfigureAwait(false);
+        var gpuTemp = await QueryNymphsBrainMonitorValueAsync(settings, installedMonitorScriptPath, "gpu-temp", cancellationToken)
+            .ConfigureAwait(false);
+
+        gpuVram = ValueOrDash(gpuVram);
+        gpuTemp = ValueOrDash(gpuTemp);
+
+        if (gpuVram != "-" && gpuTemp != "-")
+        {
+            return (gpuVram, gpuTemp);
+        }
+
+        return await GetWindowsGpuTelemetryAsync(cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<(string GpuVram, string GpuTemp)> GetWindowsGpuTelemetryAsync(CancellationToken cancellationToken)
@@ -3189,6 +3287,290 @@ meta:
         return normalized is "—" or "–" ? "-" : normalized;
     }
 
+    private static int ParseRuntimeInt(IReadOnlyDictionary<string, string> values, string key)
+    {
+        return values.TryGetValue(key, out var rawValue) && int.TryParse(rawValue, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed)
+            ? parsed
+            : 0;
+    }
+
+    private static long ParseRuntimeLong(IReadOnlyDictionary<string, string> values, string key)
+    {
+        return values.TryGetValue(key, out var rawValue) && long.TryParse(rawValue, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed)
+            ? parsed
+            : 0L;
+    }
+
+    private async Task<string> TryRunWslTextAsync(
+        InstallSettings settings,
+        IEnumerable<string> commandArguments,
+        CancellationToken cancellationToken)
+    {
+        var result = await RunWslCommandAsync(
+            settings,
+            commandArguments,
+            progress: null,
+            cancellationToken).ConfigureAwait(false);
+
+        return result.ExitCode == 0
+            ? result.CombinedOutput.Trim()
+            : string.Empty;
+    }
+
+    private static string ParsePrettyName(string? osReleaseText)
+    {
+        if (string.IsNullOrWhiteSpace(osReleaseText))
+        {
+            return "Linux";
+        }
+
+        foreach (var line in osReleaseText.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            if (!line.StartsWith("PRETTY_NAME=", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            var value = line["PRETTY_NAME=".Length..].Trim().Trim('"');
+            return string.IsNullOrWhiteSpace(value) ? "Linux" : value;
+        }
+
+        return "Linux";
+    }
+
+    private static string FormatRuntimeUptime(string? uptimeText)
+    {
+        if (string.IsNullOrWhiteSpace(uptimeText))
+        {
+            return "-";
+        }
+
+        var firstPart = uptimeText.Split('.', 2)[0].Trim();
+        if (!long.TryParse(firstPart, NumberStyles.Integer, CultureInfo.InvariantCulture, out var uptimeSeconds) || uptimeSeconds < 0)
+        {
+            return "-";
+        }
+
+        var days = uptimeSeconds / 86400;
+        var hours = (uptimeSeconds % 86400) / 3600;
+        var minutes = (uptimeSeconds % 3600) / 60;
+
+        if (days > 0)
+        {
+            return $"{days}d {hours}h {minutes}m";
+        }
+
+        if (hours > 0)
+        {
+            return $"{hours}h {minutes}m";
+        }
+
+        return $"{minutes}m";
+    }
+
+    private static (long Total, long Idle) ParseCpuStat(string? cpuStatText)
+    {
+        if (string.IsNullOrWhiteSpace(cpuStatText))
+        {
+            return (0L, 0L);
+        }
+
+        var line = cpuStatText
+            .Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .FirstOrDefault(item => item.StartsWith("cpu ", StringComparison.Ordinal));
+
+        if (string.IsNullOrWhiteSpace(line))
+        {
+            return (0L, 0L);
+        }
+
+        var parts = line.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length < 5)
+        {
+            return (0L, 0L);
+        }
+
+        var values = parts.Skip(1)
+            .Select(part => long.TryParse(part, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed) ? parsed : 0L)
+            .ToArray();
+
+        var total = values.Sum();
+        var idle = values.Length > 4 ? values[3] + values[4] : values[3];
+        return (total, idle);
+    }
+
+    private static int ComputeCpuPercent(long total1, long idle1, long total2, long idle2)
+    {
+        var totalDelta = total2 - total1;
+        var idleDelta = idle2 - idle1;
+
+        if (totalDelta <= 0)
+        {
+            return 0;
+        }
+
+        var busyDelta = Math.Max(0L, totalDelta - idleDelta);
+        return (int)Math.Clamp(
+            (int)Math.Round(100d * busyDelta / totalDelta, MidpointRounding.AwayFromZero),
+            0,
+            100);
+    }
+
+    private static (long UsedKb, long TotalKb, int Percent) ParseMemoryInfo(string? memInfoText)
+    {
+        if (string.IsNullOrWhiteSpace(memInfoText))
+        {
+            return (0L, 0L, 0);
+        }
+
+        long totalKb = 0;
+        long availableKb = 0;
+
+        foreach (var line in memInfoText.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            if (line.StartsWith("MemTotal:", StringComparison.OrdinalIgnoreCase))
+            {
+                totalKb = ParseFirstLongToken(line);
+            }
+            else if (line.StartsWith("MemAvailable:", StringComparison.OrdinalIgnoreCase))
+            {
+                availableKb = ParseFirstLongToken(line);
+            }
+        }
+
+        if (totalKb <= 0)
+        {
+            return (0L, 0L, 0);
+        }
+
+        var usedKb = Math.Max(0L, totalKb - availableKb);
+        var percent = (int)Math.Clamp(
+            (int)Math.Round(100d * usedKb / totalKb, MidpointRounding.AwayFromZero),
+            0,
+            100);
+
+        return (usedKb, totalKb, percent);
+    }
+
+    private static (long UsedKb, long TotalKb, int Percent) ParseDiskUsage(string? diskText)
+    {
+        if (string.IsNullOrWhiteSpace(diskText))
+        {
+            return (0L, 0L, 0);
+        }
+
+        var line = diskText
+            .Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Skip(1)
+            .FirstOrDefault();
+
+        if (string.IsNullOrWhiteSpace(line))
+        {
+            return (0L, 0L, 0);
+        }
+
+        var parts = line.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length < 3)
+        {
+            return (0L, 0L, 0);
+        }
+
+        if (!long.TryParse(parts[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out var totalKb) ||
+            !long.TryParse(parts[2], NumberStyles.Integer, CultureInfo.InvariantCulture, out var usedKb) ||
+            totalKb <= 0)
+        {
+            return (0L, 0L, 0);
+        }
+
+        var percent = (int)Math.Clamp(
+            (int)Math.Round(100d * usedKb / totalKb, MidpointRounding.AwayFromZero),
+            0,
+            100);
+
+        return (usedKb, totalKb, percent);
+    }
+
+    private static long ParseFirstLongToken(string line)
+    {
+        foreach (var token in line.Split(' ', StringSplitOptions.RemoveEmptyEntries))
+        {
+            if (long.TryParse(token, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed))
+            {
+                return parsed;
+            }
+        }
+
+        return 0L;
+    }
+
+    private static string NormalizeRuntimeDistribution(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return "Linux";
+        }
+
+        var match = Regex.Match(value, @"Ubuntu\s+\d+\.\d+", RegexOptions.IgnoreCase);
+        if (match.Success)
+        {
+            return match.Value;
+        }
+
+        return value.Replace(" GNU/Linux", string.Empty, StringComparison.OrdinalIgnoreCase).Trim();
+    }
+
+    private static string FormatRuntimeGb(long kilobytes, int decimals)
+    {
+        if (kilobytes <= 0)
+        {
+            return "0";
+        }
+
+        var gigabytes = kilobytes / 1024d / 1024d;
+        return gigabytes.ToString(decimals == 0 ? "0" : $"0.{new string('0', decimals)}", CultureInfo.InvariantCulture);
+    }
+
+    private static string GetWindowsDiskUsageLabel(string? installLocation)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(installLocation))
+            {
+                return "- / -";
+            }
+
+            var root = Path.GetPathRoot(installLocation);
+            if (string.IsNullOrWhiteSpace(root))
+            {
+                return "- / -";
+            }
+
+            var drive = new DriveInfo(root);
+            if (!drive.IsReady || drive.TotalSize <= 0)
+            {
+                return "- / -";
+            }
+
+            var usedBytes = Math.Max(0L, drive.TotalSize - drive.AvailableFreeSpace);
+            return $"{FormatBytesAsGb(usedBytes, decimals: 0)} / {FormatBytesAsGb(drive.TotalSize, decimals: 0)} GB";
+        }
+        catch
+        {
+            return "- / -";
+        }
+    }
+
+    private static string FormatBytesAsGb(long bytes, int decimals)
+    {
+        if (bytes <= 0)
+        {
+            return "0";
+        }
+
+        var gigabytes = bytes / 1024d / 1024d / 1024d;
+        return gigabytes.ToString(decimals == 0 ? "0" : $"0.{new string('0', decimals)}", CultureInfo.InvariantCulture);
+    }
+
     public void OpenNymphsBrainModelManager(InstallSettings settings)
     {
         var modelManagerPath = $"{settings.BrainInstallRoot}/bin/lms-model";
@@ -3533,6 +3915,108 @@ meta:
         if (result.ExitCode != 0)
         {
             throw new InvalidOperationException("Managed repo update check failed.");
+        }
+    }
+
+    public async Task RunNymphModuleUninstallAsync(
+        InstallSettings settings,
+        string moduleId,
+        bool purge,
+        IProgress<string> progress,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(moduleId))
+        {
+            throw new ArgumentException("Module id is required.", nameof(moduleId));
+        }
+
+        var uninstallScript = RequireScript("uninstall_nymph_module.sh");
+        var uninstallScriptContent = File.ReadAllText(uninstallScript).Replace("\r\n", "\n", StringComparison.Ordinal);
+
+        var scriptArguments = new List<string>
+        {
+            "--module",
+            moduleId.Trim(),
+            "--yes",
+        };
+
+        if (purge)
+        {
+            scriptArguments.Add("--purge");
+        }
+
+        var bashCommand =
+            "set -euo pipefail; " +
+            $"export HOME={ToBashSingleQuoted($"/home/{settings.LinuxUser}")}; " +
+            $"export USER={ToBashSingleQuoted(settings.LinuxUser)}; " +
+            $"export LOGNAME={ToBashSingleQuoted(settings.LinuxUser)}; " +
+            "tmp_nymph_uninstall_script=\"$(mktemp)\"; " +
+            "cat > \"${tmp_nymph_uninstall_script}\" <<'NYMPHS_UNINSTALL_SCRIPT'\n" +
+            uninstallScriptContent +
+            "\nNYMPHS_UNINSTALL_SCRIPT\n" +
+            "chmod +x \"${tmp_nymph_uninstall_script}\"; " +
+            "set +e; " +
+            "bash \"${tmp_nymph_uninstall_script}\" " +
+            string.Join(" ", scriptArguments.Select(ToBashSingleQuoted)) +
+            "; uninstall_status=$?; " +
+            "set -e; " +
+            "rm -f \"${tmp_nymph_uninstall_script}\"; " +
+            "exit ${uninstall_status}";
+
+        progress.Report(purge
+            ? $"Deleting module '{moduleId}' from the managed distro..."
+            : $"Uninstalling module '{moduleId}' from the managed distro...");
+
+        var result = await RunWslBashAsync(settings, bashCommand, progress, cancellationToken).ConfigureAwait(false);
+        if (result.ExitCode != 0)
+        {
+            throw new InvalidOperationException($"Module uninstall failed for '{moduleId}'.");
+        }
+    }
+
+    public async Task RunNymphModuleInstallFromRegistryAsync(
+        InstallSettings settings,
+        string moduleId,
+        IProgress<string> progress,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(moduleId))
+        {
+            throw new ArgumentException("Module id is required.", nameof(moduleId));
+        }
+
+        var installScript = RequireScript("install_nymph_module_from_registry.sh");
+        var installScriptContent = File.ReadAllText(installScript).Replace("\r\n", "\n", StringComparison.Ordinal);
+        var scriptArguments = new List<string>
+        {
+            "--module",
+            moduleId.Trim(),
+        };
+
+        var bashCommand =
+            "set -euo pipefail; " +
+            $"export HOME={ToBashSingleQuoted($"/home/{settings.LinuxUser}")}; " +
+            $"export USER={ToBashSingleQuoted(settings.LinuxUser)}; " +
+            $"export LOGNAME={ToBashSingleQuoted(settings.LinuxUser)}; " +
+            "tmp_nymph_install_script=\"$(mktemp)\"; " +
+            "cat > \"${tmp_nymph_install_script}\" <<'NYMPHS_INSTALL_SCRIPT'\n" +
+            installScriptContent +
+            "\nNYMPHS_INSTALL_SCRIPT\n" +
+            "chmod +x \"${tmp_nymph_install_script}\"; " +
+            "set +e; " +
+            "bash \"${tmp_nymph_install_script}\" " +
+            string.Join(" ", scriptArguments.Select(ToBashSingleQuoted)) +
+            "; install_status=$?; " +
+            "set -e; " +
+            "rm -f \"${tmp_nymph_install_script}\"; " +
+            "exit ${install_status}";
+
+        progress.Report($"Installing module '{moduleId}' from the Nymphs registry...");
+
+        var result = await RunWslBashAsync(settings, bashCommand, progress, cancellationToken).ConfigureAwait(false);
+        if (result.ExitCode != 0)
+        {
+            throw new InvalidOperationException($"Module registry install failed for '{moduleId}'.");
         }
     }
 

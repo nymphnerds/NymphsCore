@@ -17,27 +17,29 @@ public partial class MainWindow : Window
     private const int DwmwaBorderColor = 34;
     private const int DwmwaCaptionColor = 35;
     private const int DwmwaTextColor = 36;
-    private MainWindowViewModel? _viewModel;
+    private ManagerShellViewModel? _viewModel;
 
     public MainWindow()
     {
         InitializeComponent();
 
-        _viewModel = new MainWindowViewModel(new InstallerWorkflowService())
-        {
-            RequestClose = Close,
-        };
+        _viewModel = new ManagerShellViewModel(new InstallerWorkflowService());
 
         DataContext = _viewModel;
-        _viewModel.LogLines.CollectionChanged += OnLogLinesChanged;
         Loaded += OnLoaded;
+
+        if (_viewModel is not null)
+        {
+            _viewModel.UnifiedLogLines.CollectionChanged += OnUnifiedLogLinesChanged;
+        }
     }
 
     protected override void OnClosed(EventArgs e)
     {
         if (_viewModel is not null)
         {
-            _viewModel.LogLines.CollectionChanged -= OnLogLinesChanged;
+            _viewModel.UnifiedLogLines.CollectionChanged -= OnUnifiedLogLinesChanged;
+            _viewModel.Dispose();
         }
 
         Loaded -= OnLoaded;
@@ -54,7 +56,34 @@ public partial class MainWindow : Window
 
         ApplyDarkTitleBar();
         await _viewModel.InitializeAsync();
-        SyncPasswordBoxesFromViewModel();
+        _ = Dispatcher.BeginInvoke(ScrollMainContentToTop, DispatcherPriority.Loaded);
+        ScrollUnifiedLogToLatest();
+    }
+
+    private void OnUnifiedLogLinesChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        Dispatcher.BeginInvoke(ScrollUnifiedLogToLatest, DispatcherPriority.Background);
+    }
+
+    private void ScrollUnifiedLogToLatest()
+    {
+        if (UnifiedLogList.Items.Count == 0)
+        {
+            return;
+        }
+
+        var lastItem = UnifiedLogList.Items[UnifiedLogList.Items.Count - 1];
+        UnifiedLogList.ScrollIntoView(lastItem);
+
+        if (FindDescendant<ScrollViewer>(UnifiedLogList) is { } scrollViewer)
+        {
+            scrollViewer.ScrollToBottom();
+        }
+    }
+
+    private void ScrollMainContentToTop()
+    {
+        MainContentScrollViewer.ScrollToTop();
     }
 
     private void ApplyDarkTitleBar()
@@ -78,147 +107,25 @@ public partial class MainWindow : Window
         _ = DwmSetWindowAttribute(windowHandle, DwmwaBorderColor, ref borderColor, sizeof(int));
     }
 
-    private void OnLogLinesChanged(object? sender, NotifyCollectionChangedEventArgs e)
-    {
-        if (e.Action is not NotifyCollectionChangedAction.Add)
-        {
-            return;
-        }
-
-        Dispatcher.BeginInvoke(new Action(() =>
-        {
-            var activeLogListBox = GetActiveLogListBox();
-
-            if (activeLogListBox.Items.Count == 0)
-            {
-                return;
-            }
-
-            var lastItem = activeLogListBox.Items[^1];
-            activeLogListBox.UpdateLayout();
-            activeLogListBox.ScrollIntoView(lastItem);
-
-            var scrollViewer = FindDescendant<ScrollViewer>(activeLogListBox);
-            scrollViewer?.ScrollToEnd();
-        }), DispatcherPriority.Render);
-    }
-
-    private ListBox GetActiveLogListBox()
-    {
-        if (_viewModel?.IsBrainToolsStep == true)
-        {
-            return BrainLogListBox;
-        }
-
-        if (_viewModel?.IsRuntimeToolsStep == true)
-        {
-            return RuntimeLogListBox;
-        }
-
-        if (_viewModel?.IsZImageTrainerStep == true)
-        {
-            return ZImageTrainerLogListBox;
-        }
-
-        return LogListBox;
-    }
-
-    private void OnHuggingFaceTokenChanged(object sender, RoutedEventArgs e)
-    {
-        if (_viewModel is null || sender is not PasswordBox passwordBox)
-        {
-            return;
-        }
-
-        _viewModel.HuggingFaceToken = passwordBox.Password;
-        SyncHuggingFaceTokenBoxes(passwordBox.Password, passwordBox);
-    }
-
-    private void OnBrainOpenRouterApiKeyChanged(object sender, RoutedEventArgs e)
-    {
-        if (_viewModel is null || sender is not PasswordBox passwordBox)
-        {
-            return;
-        }
-
-        _viewModel.BrainOpenRouterApiKey = passwordBox.Password;
-    }
-
-    private void SyncPasswordBoxesFromViewModel()
-    {
-        if (_viewModel is null)
-        {
-            return;
-        }
-
-        SyncHuggingFaceTokenBoxes(_viewModel.HuggingFaceToken, null);
-        if (BrainOpenRouterApiKeyBox.Password != _viewModel.BrainOpenRouterApiKey)
-        {
-            BrainOpenRouterApiKeyBox.Password = _viewModel.BrainOpenRouterApiKey;
-        }
-    }
-
-    private void SyncHuggingFaceTokenBoxes(string value, PasswordBox? source)
-    {
-        if (!ReferenceEquals(source, HuggingFaceTokenBox) && HuggingFaceTokenBox.Password != value)
-        {
-            HuggingFaceTokenBox.Password = value;
-        }
-
-        if (!ReferenceEquals(source, RuntimeHuggingFaceTokenBox) && RuntimeHuggingFaceTokenBox.Password != value)
-        {
-            RuntimeHuggingFaceTokenBox.Password = value;
-        }
-    }
+    [DllImport("dwmapi.dll")]
+    private static extern int DwmSetWindowAttribute(IntPtr hwnd, int dwAttribute, ref int pvAttribute, int cbAttribute);
 
     private static T? FindDescendant<T>(DependencyObject root) where T : DependencyObject
     {
-        for (var i = 0; i < VisualTreeHelper.GetChildrenCount(root); i++)
+        for (var index = 0; index < VisualTreeHelper.GetChildrenCount(root); index++)
         {
-            var child = VisualTreeHelper.GetChild(root, i);
-
-            if (child is T match)
+            var child = VisualTreeHelper.GetChild(root, index);
+            if (child is T typedChild)
             {
-                return match;
+                return typedChild;
             }
 
-            var nestedMatch = FindDescendant<T>(child);
-            if (nestedMatch is not null)
+            if (FindDescendant<T>(child) is { } nestedChild)
             {
-                return nestedMatch;
+                return nestedChild;
             }
         }
 
         return null;
     }
-
-    private async void OnStopZImageTrainingClick(object sender, RoutedEventArgs e)
-    {
-        if (_viewModel is null)
-        {
-            return;
-        }
-
-        await _viewModel.StopZImageTrainingFromUiAsync();
-    }
-
-    private void OnZImageTrainerDatasetPicked(object sender, SelectionChangedEventArgs e)
-    {
-        if (_viewModel is null || sender is not ListBox listBox)
-        {
-            return;
-        }
-
-        if (listBox.SelectedItem is string datasetName && !string.IsNullOrWhiteSpace(datasetName))
-        {
-            _viewModel.ZImageTrainerLoraName = datasetName;
-        }
-
-        ZImageTrainerDatasetPickerPopup.IsOpen = false;
-        ZImageTrainerDatasetPickerToggle.IsChecked = false;
-        listBox.SelectedIndex = -1;
-    }
-
-    [DllImport("dwmapi.dll")]
-    private static extern int DwmSetWindowAttribute(IntPtr hwnd, int dwAttribute, ref int pvAttribute, int cbAttribute);
 }

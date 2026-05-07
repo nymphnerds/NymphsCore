@@ -25,6 +25,12 @@
     <Resource Include="AppAssets/nsw.ico" />
     <Resource Include="AppAssets/splash.png" />
     <Resource Include="AppAssets/NymphBrain.png" />
-    <Resource Include="AppAssets/NymphsCoreLogo.png" />
+    <Resource Include="AppAssets/NymphsCore_logo.png" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="AppAssets/SidebarPortraits/*.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
 </Project>
