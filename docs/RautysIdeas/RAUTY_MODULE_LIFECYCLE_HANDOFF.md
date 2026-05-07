@@ -1,7 +1,7 @@
 # Rauty Module Lifecycle Handoff
 
 Date: 2026-05-07
-Updated: 2026-05-07 14:57 BST
+Updated: 2026-05-07 15:35 BST
 
 Branch: `rauty`
 
@@ -184,49 +184,54 @@ cd /home/nymph/worbi/server
 node src/index.js
 ```
 
-## WORBI Current Remaining Issue
+## WORBI 6.2.52 Lifecycle Wrapper Fix
 
-The stale path bug is fixed, but one runtime issue remains under direct WSL testing:
+The stale path bug is fixed, and the next WORBI-side wrapper hardening has now been pushed to `nymphnerds/worbi`.
 
-```text
-worbi-start reports started, then worbi-status can immediately report stopped
-```
-
-Observed behavior:
+Pushed module commit:
 
 ```text
-WORBI started (PID: ...)
-App: http://localhost:8082
+f493d8f Fix WORBI manager lifecycle wrappers
 ```
 
-Then:
+This bumps the module manifest to:
 
 ```text
-running=false
-health=unknown
+6.2.52
 ```
 
-Manual test showed that launching the server with `setsid -f` keeps it alive after `wsl.exe` returns:
+What changed:
+
+- `worbi-start` now uses a detach strategy intended to survive `wsl.exe` returning.
+- `worbi-start` writes/repairs `~/worbi/logs/worbi-server.pid`.
+- `worbi-stop` now handles stale/missing PID files and looks for the matching WORBI server process before reporting stopped.
+- `worbi-status` reports `running-unmanaged` / `responding` instead of falsely reporting stopped when the health endpoint is alive.
+- `install_worbi.sh` writes `~/worbi/.nymph-module-version` so Manager update checks compare the Nymph module wrapper release, not only the bundled app package version.
+
+Important distinction:
+
+- WORBI app archive can remain `packages/worbi-6.2.51.tar.gz` for this wrapper-only release.
+- The Nymph module release is `6.2.52`.
+- Rebuild the tarball only when WORBI app files change.
+
+Expected Manager flow after this push:
+
+```text
+Check for Updates -> WORBI 6.2.51 installed / 6.2.52 remote -> Update Module -> rerun WORBI install script -> wrapper scripts refreshed -> installed module marker becomes 6.2.52
+```
+
+If testing outside the UI, run the update inside the actual managed distro, not the dev distro:
 
 ```bash
-cd /home/nymph/worbi/server
-setsid -f bash -lc "node src/index.js > /home/nymph/worbi/logs/worbi-server.log 2>&1"
-curl http://127.0.0.1:8082/api/health
+wsl.exe -d NymphsCore --user nymph -- bash -lc 'set -euo pipefail; git -C /home/nymph/.cache/nymphs-modules/repos/worbi pull --ff-only; cp /home/nymph/.cache/nymphs-modules/repos/worbi/nymph.json /home/nymph/.cache/nymphs-modules/worbi.nymph.json; bash /home/nymph/.cache/nymphs-modules/repos/worbi/scripts/install_worbi.sh; /home/nymph/.local/bin/worbi-status'
 ```
-
-This returned:
-
-```json
-{"status":"ok", ...}
-```
-
-Next WORBI-side fix should make `scripts/worbi_start.sh` use a detach strategy that survives `wsl.exe` returning, for example `setsid -f`, and should write the correct Node PID to `~/worbi/logs/worbi-server.pid`.
 
 ## WORBI Repo Fixes Pushed / Relevant
 
 Relevant WORBI commits include:
 
 ```text
+f493d8f Fix WORBI manager lifecycle wrappers
 8c6957f latest main at time of managed-distro pull
 d2751f1 Make WORBI manager wrappers authoritative
 6b20a2b Read package archive from manifest
@@ -239,6 +244,7 @@ Why they matter:
 - `6b20a2b` fixed the installer so it reads `source.archive` from `nymph.json` instead of hardcoding `worbi-6.2.49.tar.gz`.
 - `d2751f1` makes `worbi-start`, `worbi-stop`, `worbi-status`, `worbi-open`, and `worbi-logs` come from the module repo after install, so the Manager contract stays stable even if app package internals move.
 - Later WORBI main includes `6.2.51`, and that version has been installed into the real managed `NymphsCore` distro.
+- `f493d8f` is the first wrapper-only module update: it bumps `nymph.json.version` to `6.2.52` and lets Manager pull lifecycle-script fixes without a Manager rebuild.
 
 ## Managed Distro Update Command Used
 
