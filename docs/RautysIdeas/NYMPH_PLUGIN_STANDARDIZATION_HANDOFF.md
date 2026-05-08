@@ -938,6 +938,43 @@ After WORBI is boring:
 
 TRELLIS should be last because of the previous destructive incident and heavier recovery cost.
 
+### Phase 8: Bundle Manager Lifecycle Scripts
+
+Newly discovered coupling:
+
+```text
+Manager/apps/NymphsCoreManager/Services/InstallerWorkflowService.cs
+```
+
+currently hardcodes:
+
+```text
+https://raw.githubusercontent.com/nymphnerds/NymphsCore/rauty/Manager/scripts
+```
+
+and downloads these scripts at runtime:
+
+```text
+install_nymph_module_from_registry.sh
+uninstall_nymph_module.sh
+```
+
+That means a locally built Manager can still execute script behavior from the remote `rauty` branch. This is surprising during local testing because local edits under `Manager/scripts` are ignored unless they are pushed to remote `rauty`.
+
+Desired direction:
+
+- Bundle all Manager-owned lifecycle scripts with the Manager release.
+- Prefer local bundled scripts over raw GitHub URLs.
+- Keep raw GitHub fallback only if explicitly requested for recovery/debug use.
+- Make the script source visible in logs, for example `script_source=bundled` or `script_source=remote`.
+- Ensure install/uninstall/update tests verify the bundled script path, not only the remote branch path.
+
+Open question:
+
+```text
+Why does Manager currently need to pull these scripts from remote rauty instead of staging the bundled Manager/scripts copies?
+```
+
 ## Test Matrix
 
 WORBI required tests:
