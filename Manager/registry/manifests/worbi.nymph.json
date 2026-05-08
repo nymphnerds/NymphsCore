@@ -1,0 +1,68 @@
+{
+  "manifest_version": 1,
+  "id": "worbi",
+  "name": "WORBI",
+  "kind": "archive",
+  "category": "tool",
+  "version": "6.2.49",
+  "description": "Local worldbuilding app managed by NymphsCore.",
+  "source": {
+    "archive": "packages/worbi-6.2.49.tar.gz",
+    "format": "tar.gz"
+  },
+  "entrypoints": {
+    "install": "scripts/install_worbi.sh",
+    "status": "scripts/worbi_status.sh",
+    "start": "scripts/worbi_start.sh",
+    "stop": "scripts/worbi_stop.sh",
+    "open": "scripts/worbi_open.sh",
+    "logs": "scripts/worbi_logs.sh",
+    "update": "scripts/update_worbi.sh",
+    "uninstall": "scripts/worbi_uninstall.sh"
+  },
+  "capabilities": [
+    "install",
+    "status",
+    "start",
+    "stop",
+    "open",
+    "logs",
+    "update",
+    "uninstall"
+  ],
+  "uninstall": {
+    "supports_purge": true,
+    "requires_confirmation": true,
+    "dry_run_arg": "--dry-run",
+    "confirm_arg": "--yes",
+    "purge_arg": "--purge",
+    "preserve_by_default": [
+      "data",
+      "projects",
+      "config",
+      "logs"
+    ],
+    "removes_by_default": [
+      "app runtime files",
+      "generated launch scripts"
+    ]
+  },
+  "dependencies": [],
+  "ui": {
+    "show_tab_when_installed": true,
+    "tab_label": "WORBI",
+    "page_kind": "worbi",
+    "install_label": "Install WORBI",
+    "sort_order": 50
+  },
+  "runtime": {
+    "install_root": "~/worbi",
+    "logs_dir": "~/worbi/logs",
+    "frontend_url": "http://localhost:8082",
+    "backend_url": "http://localhost:8082",
+    "health_url": "http://localhost:8082/api/health"
+  },
+  "update_policy": {
+    "channel": "pinned"
+  }
+}

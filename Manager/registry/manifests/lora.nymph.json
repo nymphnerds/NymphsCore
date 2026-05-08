@@ -1,0 +1,48 @@
+{
+  "manifest_version": 1,
+  "id": "lora",
+  "name": "LoRA / AI Toolkit",
+  "kind": "hybrid",
+  "category": "trainer",
+  "version": "1.0.0",
+  "description": "LoRA training and fine-tuning toolkit for NymphsCore.",
+  "source": {
+    "repo": "git@github.com:nymphnerds/lora.git",
+    "ref": "main"
+  },
+  "entrypoints": {
+    "install": "scripts/install_lora.sh",
+    "status": "scripts/lora_status.sh",
+    "start": "scripts/lora_start.sh",
+    "stop": "scripts/lora_stop.sh",
+    "open": "scripts/lora_open.sh",
+    "logs": "scripts/lora_logs.sh",
+    "update": "scripts/update_lora.sh",
+    "uninstall": "scripts/lora_uninstall.sh"
+  },
+  "capabilities": [
+    "install",
+    "status",
+    "start",
+    "stop",
+    "open",
+    "logs",
+    "update",
+    "uninstall"
+  ],
+  "dependencies": [],
+  "ui": {
+    "show_tab_when_installed": true,
+    "tab_label": "LoRA",
+    "page_kind": "lora",
+    "install_label": "Install LoRA Toolkit",
+    "sort_order": 40
+  },
+  "runtime": {
+    "install_root": "~/ZImage-Trainer",
+    "logs_dir": "~/ZImage-Trainer/logs"
+  },
+  "update_policy": {
+    "channel": "experimental"
+  }
+}

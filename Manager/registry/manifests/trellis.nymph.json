@@ -1,0 +1,48 @@
+{
+  "manifest_version": 1,
+  "id": "trellis",
+  "name": "TRELLIS.2",
+  "kind": "repo",
+  "category": "runtime",
+  "version": "1.0.0",
+  "description": "3D generation runtime powered by TRELLIS.2.",
+  "source": {
+    "repo": "git@github.com:nymphnerds/trellis.git",
+    "ref": "main"
+  },
+  "entrypoints": {
+    "install": "scripts/install_trellis.sh",
+    "status": "scripts/trellis_status.sh",
+    "start": "scripts/trellis_start.sh",
+    "stop": "scripts/trellis_stop.sh",
+    "open": "scripts/trellis_open.sh",
+    "logs": "scripts/trellis_logs.sh",
+    "update": "scripts/update_trellis.sh",
+    "uninstall": "scripts/trellis_uninstall.sh"
+  },
+  "capabilities": [
+    "install",
+    "status",
+    "start",
+    "stop",
+    "open",
+    "logs",
+    "update",
+    "uninstall"
+  ],
+  "dependencies": [],
+  "ui": {
+    "show_tab_when_installed": true,
+    "tab_label": "TRELLIS",
+    "page_kind": "trellis",
+    "install_label": "Install TRELLIS.2",
+    "sort_order": 30
+  },
+  "runtime": {
+    "install_root": "~/TRELLIS.2",
+    "logs_dir": "~/TRELLIS.2/logs"
+  },
+  "update_policy": {
+    "channel": "stable"
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "registry_version": 1,
+  "modules": [
+    {
+      "id": "brain",
+      "name": "Brain",
+      "channel": "stable",
+      "manifest_path": "manifests/brain.nymph.json"
+    },
+    {
+      "id": "zimage",
+      "name": "Z-Image Turbo",
+      "channel": "stable",
+      "manifest_path": "manifests/zimage.nymph.json"
+    },
+    {
+      "id": "trellis",
+      "name": "TRELLIS.2",
+      "channel": "stable",
+      "manifest_path": "manifests/trellis.nymph.json"
+    },
+    {
+      "id": "lora",
+      "name": "LoRA / AI Toolkit",
+      "channel": "experimental",
+      "manifest_path": "manifests/lora.nymph.json"
+    },
+    {
+      "id": "worbi",
+      "name": "WORBI",
+      "channel": "test",
+      "manifest_path": "manifests/worbi.nymph.json"
+    }
+  ]
+}

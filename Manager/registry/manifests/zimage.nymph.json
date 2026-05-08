@@ -1,0 +1,48 @@
+{
+  "manifest_version": 1,
+  "id": "zimage",
+  "name": "Z-Image Turbo",
+  "kind": "repo",
+  "category": "runtime",
+  "version": "1.0.0",
+  "description": "High-performance 2D image generation runtime.",
+  "source": {
+    "repo": "git@github.com:nymphnerds/zimage.git",
+    "ref": "main"
+  },
+  "entrypoints": {
+    "install": "scripts/install_zimage.sh",
+    "status": "scripts/zimage_status.sh",
+    "start": "scripts/zimage_start.sh",
+    "stop": "scripts/zimage_stop.sh",
+    "open": "scripts/zimage_open.sh",
+    "logs": "scripts/zimage_logs.sh",
+    "update": "scripts/update_zimage.sh",
+    "uninstall": "scripts/zimage_uninstall.sh"
+  },
+  "capabilities": [
+    "install",
+    "status",
+    "start",
+    "stop",
+    "open",
+    "logs",
+    "update",
+    "uninstall"
+  ],
+  "dependencies": [],
+  "ui": {
+    "show_tab_when_installed": true,
+    "tab_label": "Z-Image",
+    "page_kind": "zimage",
+    "install_label": "Install Z-Image Turbo",
+    "sort_order": 20
+  },
+  "runtime": {
+    "install_root": "~/Z-Image",
+    "logs_dir": "~/Z-Image/logs"
+  },
+  "update_policy": {
+    "channel": "stable"
+  }
+}
