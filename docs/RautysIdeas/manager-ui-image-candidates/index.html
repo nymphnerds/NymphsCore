@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Manager UI Image Candidates</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #071011;
+      --panel: #0b1718;
+      --panel-border: #173235;
+      --text: #e7f6f4;
+      --muted: #91b7b3;
+      --accent: #22e4de;
+      --accent-2: #8ddb43;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      padding: 32px;
+      background:
+        radial-gradient(circle at top, rgba(34, 228, 222, 0.08), transparent 32%),
+        linear-gradient(180deg, #071011 0%, #04090a 100%);
+      color: var(--text);
+      font-family: "Segoe UI", system-ui, sans-serif;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: 32px;
+      line-height: 1.1;
+    }
+
+    p {
+      margin: 0 0 24px;
+      color: var(--muted);
+      max-width: 960px;
+    }
+
+    .note {
+      display: inline-block;
+      margin-bottom: 24px;
+      padding: 10px 14px;
+      border: 1px solid var(--panel-border);
+      border-radius: 12px;
+      background: rgba(11, 23, 24, 0.8);
+      color: var(--accent);
+      font-size: 14px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 20px;
+    }
+
+    .card {
+      overflow: hidden;
+      border: 1px solid var(--panel-border);
+      border-radius: 18px;
+      background: rgba(11, 23, 24, 0.88);
+      box-shadow: 0 18px 60px rgba(0, 0, 0, 0.28);
+    }
+
+    .image-wrap {
+      padding: 14px 14px 0;
+    }
+
+    img {
+      display: block;
+      width: 100%;
+      height: 560px;
+      object-fit: cover;
+      object-position: center top;
+      border-radius: 12px;
+      background: #020606;
+    }
+
+    .meta {
+      padding: 14px 16px 18px;
+    }
+
+    .slot {
+      margin: 0 0 6px;
+      color: var(--accent-2);
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .file {
+      margin: 0 0 8px;
+      font-size: 13px;
+      line-height: 1.4;
+      color: var(--text);
+      word-break: break-all;
+    }
+
+    .tag {
+      display: inline-block;
+      margin: 0;
+      padding: 5px 10px;
+      border: 1px solid rgba(34, 228, 222, 0.28);
+      border-radius: 999px;
+      color: var(--accent);
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Manager UI Sidebar Image Candidates</h1>
+  <p>These are the current shortlist options for the rotating Manager sidebar artwork. Each card is labeled so you can say “keep 1, 3, 6” instead of dealing with long filenames.</p>
+  <div class="note">// Open this file in your browser or IDE preview and pick the ones you want in the rotation set.</div>
+
+  <div class="grid">
+    <article class="card">
+      <div class="image-wrap">
+        <img src="ig_0da3da56770e42510169f9f6b11244819190bb7cb8a8843c0f.png" alt="Candidate 1">
+      </div>
+      <div class="meta">
+        <p class="slot">Candidate 1</p>
+        <p class="file">ig_...f6b11244819190bb7cb8a8843c0f.png</p>
+        <span class="tag">organic + networked</span>
+      </div>
+    </article>
+
+    <article class="card">
+      <div class="image-wrap">
+        <img src="ig_0da3da56770e42510169f9f78322948191b3df997a481133a9.png" alt="Candidate 2">
+      </div>
+      <div class="meta">
+        <p class="slot">Candidate 2</p>
+        <p class="file">ig_...f78322948191b3df997a481133a9.png</p>
+        <span class="tag">balanced + atmospheric</span>
+      </div>
+    </article>
+
+    <article class="card">
+      <div class="image-wrap">
+        <img src="ig_0da3da56770e42510169f9fab406788191869c965fb2869bca.png" alt="Candidate 3">
+      </div>
+      <div class="meta">
+        <p class="slot">Candidate 3</p>
+        <p class="file">ig_...fab406788191869c965fb2869bca.png</p>
+        <span class="tag">calm + premium</span>
+      </div>
+    </article>
+
+    <article class="card">
+      <div class="image-wrap">
+        <img src="ig_0da3da56770e42510169f9f887f1048191a045900c239aa943.png" alt="Candidate 4">
+      </div>
+      <div class="meta">
+        <p class="slot">Candidate 4</p>
+        <p class="file">ig_...f887f1048191a045900c239aa943.png</p>
+        <span class="tag">symbolic + mystical</span>
+      </div>
+    </article>
+
+    <article class="card">
+      <div class="image-wrap">
+        <img src="ig_0da3da56770e42510169f9f71f89e881918e37dac71ceb791e.png" alt="Candidate 5">
+      </div>
+      <div class="meta">
+        <p class="slot">Candidate 5</p>
+        <p class="file">ig_...f71f89e881918e37dac71ceb791e.png</p>
+        <span class="tag">gentle + luminous</span>
+      </div>
+    </article>
+
+    <article class="card">
+      <div class="image-wrap">
+        <img src="ig_0da3da56770e42510169f9f9533180819187e675dfda9a5b32.png" alt="Candidate 6">
+      </div>
+      <div class="meta">
+        <p class="slot">Candidate 6</p>
+        <p class="file">ig_...f9533180819187e675dfda9a5b32.png</p>
+        <span class="tag">story-rich + expansive</span>
+      </div>
+    </article>
+
+    <article class="card">
+      <div class="image-wrap">
+        <img src="ig_0da3da56770e42510169f9fb13d3d88191907f561d04a0062f.png" alt="Candidate 7">
+      </div>
+      <div class="meta">
+        <p class="slot">Candidate 7</p>
+        <p class="file">ig_...fb13d3d88191907f561d04a0062f.png</p>
+        <span class="tag">dense + bioluminescent</span>
+      </div>
+    </article>
+
+    <article class="card">
+      <div class="image-wrap">
+        <img src="ig_0da3da56770e42510169f9f816db20819199f4df6d4e7283e1.png" alt="Candidate 8">
+      </div>
+      <div class="meta">
+        <p class="slot">Candidate 8</p>
+        <p class="file">ig_...f816db20819199f4df6d4e7283e1.png</p>
+        <span class="tag">mushroom-heavy + wild</span>
+      </div>
+    </article>
+  </div>
+</body>
+</html>

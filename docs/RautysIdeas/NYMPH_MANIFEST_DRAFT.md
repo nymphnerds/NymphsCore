@@ -327,6 +327,20 @@ Use this flow:
 
 This keeps community modules independent: a new WORBI wrapper fix, LoRA launcher fix, or future Nymph backend fix should normally ship from its own repo.
 
+Manager-side integration note:
+
+- Keep the Manager's WSL command small.
+- Do not inject module or Manager helper scripts through nested heredocs.
+- Stage helper scripts inside the managed distro before running them.
+- Print the staged script path and byte count before execution so failures are diagnosable.
+- Treat the module install/update command result separately from any later state refresh or registry recheck.
+
+The WORBI `6.2.52` update proved this distinction:
+
+- module-owned wrapper fix: lives in `nymphnerds/worbi`
+- generic script-launch fix: lives in Manager
+- misleading success/failure label fix: lives in Manager UI flow
+
 ### `status`
 
 The status script should be truthful even when PID files are stale or missing.

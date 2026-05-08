@@ -86,6 +86,11 @@ public partial class MainWindow : Window
         MainContentScrollViewer.ScrollToTop();
     }
 
+    private void SettingsButton_Click(object sender, RoutedEventArgs e)
+    {
+        SettingsPopup.IsOpen = !SettingsPopup.IsOpen;
+    }
+
     private void ApplyDarkTitleBar()
     {
         var windowHandle = new WindowInteropHelper(this).Handle;
