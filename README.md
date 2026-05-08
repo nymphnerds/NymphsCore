@@ -39,7 +39,7 @@ http://localhost:8080
 To install the local backend on Windows:
 
 1. Download the manager app:
-   [NymphsCoreManager-win-x64.zip](https://github.com/nymphnerds/NymphsCore/raw/main/Manager/apps/NymphsCoreManager/publish/NymphsCoreManager-win-x64.zip)
+   [NymphsCoreManager-win-x64.zip](Manager/apps/NymphsCoreManager/publish/NymphsCoreManager-win-x64.zip?raw=1)
 2. Extract the zip to a normal Windows folder.
 3. Run `NymphsCoreManager.exe`.
 4. Let the manager bootstrap its own fresh Ubuntu WSL base locally.
