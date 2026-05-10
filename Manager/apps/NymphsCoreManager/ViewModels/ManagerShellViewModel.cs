@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Threading;
@@ -20,7 +21,13 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
     private readonly List<string> _sidebarArtPaths = [];
     private readonly string _sidebarPortraitOverrideFileName = "NymphMycelium1.png";
     private readonly List<NymphModuleViewModel> _allModules;
+    private readonly HashSet<string> _modulesWithActiveLifecycle = new(StringComparer.OrdinalIgnoreCase);
+    private readonly CancellationTokenSource _operationCancellation = new();
+    private bool _shutdownStarted;
     private readonly AsyncRelayCommand _refreshCommand;
+    private readonly AsyncRelayCommand _setupWindowsWslCommand;
+    private readonly AsyncRelayCommand _setupBaseRuntimeCommand;
+    private readonly AsyncRelayCommand _uninstallBaseRuntimeCommand;
     private readonly AsyncRelayCommand _checkForUpdatesCommand;
     private readonly RelayCommand<NymphModuleViewModel> _openModuleCommand;
     private readonly RelayCommand<NymphModuleViewModel> _installModuleCommand;
@@ -51,9 +58,23 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
     private string _runtimeWindowsDiskUsageLabel = "- / -";
     private string _runtimeGpuVramLabel = "Unavailable";
     private string _runtimeGpuTempLabel = "Unavailable";
+    private string _runtimeBrainLlmStateLabel = "LLM: Offline";
+    private string _runtimeBrainModelLabel = "Model: -";
+    private string _runtimeBrainContextLabel = "Context: -";
+    private string _runtimeBrainTokensPerSecondLabel = "TPS: -";
     private double _runtimeCpuBarWidth;
     private double _runtimeMemoryBarWidth;
     private double _runtimeDiskBarWidth;
+    private string _baseRuntimeSummary = "Base runtime has not been checked yet.";
+    private string _baseRuntimeDetail = "Install the NymphsCore WSL shell first. Modules install later from the registry.";
+    private string _baseRuntimeCardSubtitle = "Install base shell";
+    private string _baseRuntimeCardStatus = "Not installed";
+    private string _baseRuntimeActionText = "Install Base Runtime";
+    private string _baseRuntimeProgressText = "Ready.";
+    private string _baseRuntimeOperationLabel = "idle";
+    private bool _isBaseRuntimeOperationActive;
+    private bool _managedDistroDetected;
+    private bool _windowsWslReady;
     private string _systemChecksSummary = "System checks have not run yet.";
     private string _installedModulesSummary = "Scanning installed Nymphs...";
     private string _availableModulesSummary = "Manifest-aware shell is loading the known module roster.";
@@ -62,6 +83,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
     private string _moduleLogsTitle = "No module logs loaded.";
     private string _moduleLogsDetail = string.Empty;
     private string _currentSidebarArtPath = string.Empty;
+    private string _unifiedLogText = string.Empty;
     private bool _isBusy;
     private bool _hasLoadedModuleState;
     private bool _isRefreshingRuntimeMonitorLive;
@@ -88,66 +110,12 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         RecentLogLines = [];
         UnifiedLogLines = [];
 
-        _allModules =
-        [
-            new NymphModuleViewModel(
-                "brain",
-                "Brain",
-                "BR",
-                "service",
-                "repo",
-                "Local coding and orchestration stack managed as an optional Nymph.",
-                BuildManagedDistroPath("home", _settings.LinuxUser, "Nymphs-Brain"),
-                "#97DF48",
-                ["status", "start", "stop", "open", "logs"],
-                ["check-upstream", "test-upstream", "package"]),
-            new NymphModuleViewModel(
-                "zimage",
-                "Z-Image Turbo",
-                "ZI",
-                "runtime",
-                "repo",
-                "Z-Image Turbo image generation runtime managed as an optional Nymph.",
-                BuildManagedDistroPath("home", _settings.LinuxUser, "Z-Image"),
-                "#22DDF0",
-                ["status", "configure", "open", "logs"],
-                ["check-upstream", "test-upstream", "package"]),
-            new NymphModuleViewModel(
-                "lora",
-                "LoRA",
-                "LO",
-                "trainer",
-                "repo",
-                "AI Toolkit powered LoRA training sidecar for Z-Image Turbo.",
-                BuildManagedDistroPath("home", _settings.LinuxUser, "ZImage-Trainer"),
-                "#39C7FF",
-                ["status", "configure", "open", "logs"],
-                ["check-upstream", "test-upstream", "package"]),
-            new NymphModuleViewModel(
-                "trellis",
-                "TRELLIS.2",
-                "TR",
-                "runtime",
-                "repo",
-                "3D structure generation runtime handled as an installable module rather than a permanent core section.",
-                BuildManagedDistroPath("home", _settings.LinuxUser, "TRELLIS.2"),
-                "#C8EE47",
-                ["status", "configure", "open", "logs"],
-                ["check-upstream", "test-upstream", "package"]),
-            new NymphModuleViewModel(
-                "worbi",
-                "WORBI",
-                "WB",
-                "tool",
-                "archive",
-                "Local worldbuilding application packaged as an optional self-contained Nymph.",
-                BuildManagedDistroPath("home", _settings.LinuxUser, "worbi"),
-                "#A9E347",
-                ["status", "start", "stop", "open", "logs"],
-                ["check-upstream", "test-upstream", "package"]),
-        ];
+        _allModules = [];
 
         _refreshCommand = new AsyncRelayCommand(RefreshAsync, () => !IsBusy);
+        _setupWindowsWslCommand = new AsyncRelayCommand(SetupWindowsWslAsync, CanSetupWindowsWsl);
+        _setupBaseRuntimeCommand = new AsyncRelayCommand(SetupBaseRuntimeAsync, CanSetupBaseRuntime);
+        _uninstallBaseRuntimeCommand = new AsyncRelayCommand(UninstallBaseRuntimeAsync, CanUninstallBaseRuntime);
         _checkForUpdatesCommand = new AsyncRelayCommand(CheckForUpdatesAsync, () => !IsBusy);
         _openModuleCommand = new RelayCommand<NymphModuleViewModel>(OpenModule, module => module is not null);
         _installModuleCommand = new RelayCommand<NymphModuleViewModel>(InstallModule, module => module?.IsInstalled == false && !IsBusy);
@@ -161,7 +129,6 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
         LoadSidebarArtwork();
         LoadHistoricalLogs();
-        PrimeModulePresence();
         RebuildModuleCollections();
         RebuildModuleNavigation();
         HasLoadedModuleState = true;
@@ -197,7 +164,19 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
     public ObservableCollection<string> UnifiedLogLines { get; }
 
+    public string UnifiedLogText
+    {
+        get => _unifiedLogText;
+        private set => SetProperty(ref _unifiedLogText, value);
+    }
+
     public AsyncRelayCommand RefreshCommand => _refreshCommand;
+
+    public AsyncRelayCommand SetupWindowsWslCommand => _setupWindowsWslCommand;
+
+    public AsyncRelayCommand SetupBaseRuntimeCommand => _setupBaseRuntimeCommand;
+
+    public AsyncRelayCommand UninstallBaseRuntimeCommand => _uninstallBaseRuntimeCommand;
 
     public AsyncRelayCommand CheckForUpdatesCommand => _checkForUpdatesCommand;
 
@@ -223,6 +202,8 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
     public RelayCommand OpenReadmeCommand => new(() => SafeRun(_workflowService.OpenReadme, "README opened."));
 
+    public RelayCommand OpenSourceCommand => new(() => SafeRun(_workflowService.OpenSourceRepo, "Source repo opened."));
+
     public RelayCommand OpenAddonGuideCommand => new(() => SafeRun(_workflowService.OpenAddonGuide, "Addon guide opened."));
 
     public RelayCommand OpenFootprintCommand => new(() => SafeRun(_workflowService.OpenFootprintDoc, "Footprint document opened."));
@@ -231,6 +212,8 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
     public RelayCommand OpenTerminalCommand => new(OpenTerminal);
 
+    public RelayCommand ShowBaseRuntimeCommand => new(() => SelectPrimaryPage(ManagerPageKind.BaseRuntime));
+
     public RelayCommand ShowSystemChecksCommand => new(() => SelectPrimaryPage(ManagerPageKind.SystemChecks));
 
     public RelayCommand ShowLogsCommand => new(() => SelectPrimaryPage(ManagerPageKind.Logs));
@@ -238,6 +221,8 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
     public RelayCommand ShowHomeCommand => new(() => SelectPrimaryPage(ManagerPageKind.Home));
 
     public RelayCommand ShowGuideCommand => new(() => SelectPrimaryPage(ManagerPageKind.Guide));
+
+    public string AppVersionLabel { get; } = BuildAppVersionLabel();
 
     public string ModuleActionFeedbackTitle
     {
@@ -320,6 +305,10 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                 case ManagerPageKind.Home:
                     CurrentPageTitle = "Home";
                     CurrentPageSubtitle = "Overview of your system and modules";
+                    break;
+                case ManagerPageKind.BaseRuntime:
+                    CurrentPageTitle = "Base Runtime";
+                    CurrentPageSubtitle = "Managed WSL shell, platform status, and repair actions";
                     break;
                 case ManagerPageKind.SystemChecks:
                     CurrentPageTitle = "System Checks";
@@ -486,6 +475,30 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         private set => SetProperty(ref _runtimeGpuTempLabel, value);
     }
 
+    public string RuntimeBrainLlmStateLabel
+    {
+        get => _runtimeBrainLlmStateLabel;
+        private set => SetProperty(ref _runtimeBrainLlmStateLabel, value);
+    }
+
+    public string RuntimeBrainModelLabel
+    {
+        get => _runtimeBrainModelLabel;
+        private set => SetProperty(ref _runtimeBrainModelLabel, value);
+    }
+
+    public string RuntimeBrainContextLabel
+    {
+        get => _runtimeBrainContextLabel;
+        private set => SetProperty(ref _runtimeBrainContextLabel, value);
+    }
+
+    public string RuntimeBrainTokensPerSecondLabel
+    {
+        get => _runtimeBrainTokensPerSecondLabel;
+        private set => SetProperty(ref _runtimeBrainTokensPerSecondLabel, value);
+    }
+
     public double RuntimeCpuBarWidth
     {
         get => _runtimeCpuBarWidth;
@@ -502,6 +515,95 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
     {
         get => _runtimeDiskBarWidth;
         private set => SetProperty(ref _runtimeDiskBarWidth, value);
+    }
+
+    public string BaseRuntimeSummary
+    {
+        get => _baseRuntimeSummary;
+        private set => SetProperty(ref _baseRuntimeSummary, value);
+    }
+
+    public string BaseRuntimeDetail
+    {
+        get => _baseRuntimeDetail;
+        private set => SetProperty(ref _baseRuntimeDetail, value);
+    }
+
+    public string BaseRuntimeCardSubtitle
+    {
+        get => _baseRuntimeCardSubtitle;
+        private set => SetProperty(ref _baseRuntimeCardSubtitle, value);
+    }
+
+    public string BaseRuntimeCardStatus
+    {
+        get => _baseRuntimeCardStatus;
+        private set => SetProperty(ref _baseRuntimeCardStatus, value);
+    }
+
+    public string BaseRuntimeActionText
+    {
+        get => _baseRuntimeActionText;
+        private set => SetProperty(ref _baseRuntimeActionText, value);
+    }
+
+    public string BaseRuntimeProgressText
+    {
+        get => _baseRuntimeProgressText;
+        private set => SetProperty(ref _baseRuntimeProgressText, value);
+    }
+
+    public string BaseRuntimeOperationLabel
+    {
+        get => _baseRuntimeOperationLabel;
+        private set => SetProperty(ref _baseRuntimeOperationLabel, value);
+    }
+
+    public bool IsBaseRuntimeOperationActive
+    {
+        get => _isBaseRuntimeOperationActive;
+        private set => SetProperty(ref _isBaseRuntimeOperationActive, value);
+    }
+
+    public bool ManagedDistroDetected
+    {
+        get => _managedDistroDetected;
+        private set
+        {
+            if (SetProperty(ref _managedDistroDetected, value))
+            {
+                OnPropertyChanged(nameof(BaseRuntimeStatusLabel));
+                OnPropertyChanged(nameof(BaseRuntimeStatusBrush));
+                _setupBaseRuntimeCommand.RaiseCanExecuteChanged();
+                _uninstallBaseRuntimeCommand.RaiseCanExecuteChanged();
+            }
+        }
+    }
+
+    public string BaseRuntimeStatusLabel => ManagedDistroDetected ? "Ready" : "Not installed";
+
+    public string BaseRuntimeStatusBrush => ManagedDistroDetected ? "#97DF48" : "#D9B36B";
+
+    public string WindowsWslStatusLabel => WindowsWslReady ? "Ready" : "Missing / not ready";
+
+    public string WindowsWslStatusBrush => WindowsWslReady ? "#97DF48" : "#D9B36B";
+
+    public string SetupWindowsWslActionText => WindowsWslReady ? "Windows WSL Ready" : "Set Up Windows WSL";
+
+    public bool WindowsWslReady
+    {
+        get => _windowsWslReady;
+        private set
+        {
+            if (SetProperty(ref _windowsWslReady, value))
+            {
+                OnPropertyChanged(nameof(WindowsWslStatusLabel));
+                OnPropertyChanged(nameof(WindowsWslStatusBrush));
+                OnPropertyChanged(nameof(SetupWindowsWslActionText));
+                _setupWindowsWslCommand.RaiseCanExecuteChanged();
+                _setupBaseRuntimeCommand.RaiseCanExecuteChanged();
+            }
+        }
     }
 
     public string SystemChecksSummary
@@ -539,6 +641,9 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             }
 
             _refreshCommand.RaiseCanExecuteChanged();
+            _setupWindowsWslCommand.RaiseCanExecuteChanged();
+            _setupBaseRuntimeCommand.RaiseCanExecuteChanged();
+            _uninstallBaseRuntimeCommand.RaiseCanExecuteChanged();
             _checkForUpdatesCommand.RaiseCanExecuteChanged();
             _openModuleCommand.RaiseCanExecuteChanged();
             _installModuleCommand.RaiseCanExecuteChanged();
@@ -576,6 +681,8 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
     public bool IsHomePage => CurrentPageKind == ManagerPageKind.Home;
 
+    public bool IsBaseRuntimePage => CurrentPageKind == ManagerPageKind.BaseRuntime;
+
     public bool IsSystemChecksPage => CurrentPageKind == ManagerPageKind.SystemChecks;
 
     public bool IsLogsPage => CurrentPageKind == ManagerPageKind.Logs;
@@ -603,6 +710,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             }
 
             OnPropertyChanged(nameof(IsHomePage));
+            OnPropertyChanged(nameof(IsBaseRuntimePage));
             OnPropertyChanged(nameof(IsSystemChecksPage));
             OnPropertyChanged(nameof(IsLogsPage));
             OnPropertyChanged(nameof(IsGuidePage));
@@ -617,10 +725,37 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
     public void Dispose()
     {
+        _operationCancellation.Cancel();
+        _operationCancellation.Dispose();
         _sidebarArtTimer.Stop();
         _sidebarArtTimer.Tick -= OnSidebarArtTimerTick;
         _runtimeMonitorTimer.Stop();
         _runtimeMonitorTimer.Tick -= OnRuntimeMonitorTimerTick;
+    }
+
+    public async Task ShutdownAsync()
+    {
+        if (_shutdownStarted)
+        {
+            return;
+        }
+
+        _shutdownStarted = true;
+        _operationCancellation.Cancel();
+        AppendActivity("Manager shutdown requested. Stopping active module lifecycle jobs in the managed WSL distro...");
+
+        try
+        {
+            using var shutdownTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(8));
+            await _workflowService.CancelActiveNymphModuleLifecyclesAsync(
+                _settings,
+                new Progress<string>(AppendActivity),
+                shutdownTimeout.Token).ConfigureAwait(true);
+        }
+        catch (Exception ex)
+        {
+            AppendActivity($"Shutdown lifecycle cleanup warning: {ex.Message}");
+        }
     }
 
     private async Task RefreshAsync()
@@ -637,7 +772,9 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         try
         {
             await RefreshSystemChecksAsync().ConfigureAwait(true);
+            await RefreshBaseRuntimeStateAsync().ConfigureAwait(true);
             await RefreshRuntimeMonitorAsync().ConfigureAwait(true);
+            await RefreshModuleRosterAsync().ConfigureAwait(true);
             await RefreshModuleStateAsync().ConfigureAwait(true);
             LoadHistoricalLogs();
             LastRefreshedText = $"Last refreshed {DateTime.Now:HH:mm:ss}";
@@ -692,6 +829,270 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         }
     }
 
+    private bool CanSetupBaseRuntime()
+    {
+        return !IsBusy && WindowsWslReady;
+    }
+
+    private bool CanSetupWindowsWsl()
+    {
+        return !IsBusy && !WindowsWslReady;
+    }
+
+    private bool CanUninstallBaseRuntime()
+    {
+        return !IsBusy && ManagedDistroDetected;
+    }
+
+    private async Task SetupWindowsWslAsync()
+    {
+        if (IsBusy)
+        {
+            return;
+        }
+
+        IsBusy = true;
+        IsBaseRuntimeOperationActive = true;
+        BaseRuntimeOperationLabel = "wsl";
+        StatusMessage = "Setting up Windows WSL support...";
+        BaseRuntimeProgressText = StatusMessage;
+        AppendActivity(StatusMessage);
+
+        try
+        {
+            await _workflowService.BootstrapWslAsync(
+                new Progress<string>(ReportBaseRuntimeProgress),
+                CancellationToken.None).ConfigureAwait(true);
+
+            await RefreshSystemChecksAsync().ConfigureAwait(true);
+            if (WindowsWslReady)
+            {
+                StatusMessage = "Windows WSL is ready.";
+                BaseRuntimeProgressText = "Windows WSL is ready. Click Install Base Runtime next.";
+            }
+            else
+            {
+                StatusMessage = "Windows WSL setup ran.";
+                BaseRuntimeProgressText = "Windows WSL setup ran. If Windows asked for a restart, restart Windows, reopen Manager, then install Base Runtime.";
+            }
+
+            AppendActivity(BaseRuntimeProgressText);
+            LastRefreshedText = $"Last refreshed {DateTime.Now:HH:mm:ss}";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = "Windows WSL setup needs attention.";
+            BaseRuntimeProgressText = ex.Message;
+            AppendActivity($"Windows WSL setup warning: {ex.Message}");
+        }
+        finally
+        {
+            IsBaseRuntimeOperationActive = false;
+            IsBusy = false;
+        }
+    }
+
+    private async Task SetupBaseRuntimeAsync()
+    {
+        if (IsBusy)
+        {
+            return;
+        }
+
+        if (!WindowsWslReady)
+        {
+            BaseRuntimeOperationLabel = "wsl";
+            BaseRuntimeProgressText = "Windows WSL is not ready. Run Set Up Windows WSL first, restart if Windows asks, then install Base Runtime.";
+            StatusMessage = "Windows WSL is required before Base Runtime can install.";
+            AppendActivity(BaseRuntimeProgressText);
+            return;
+        }
+
+        IsBusy = true;
+        IsBaseRuntimeOperationActive = true;
+        BaseRuntimeOperationLabel = ManagedDistroDetected ? "repair" : "install";
+        StatusMessage = ManagedDistroDetected
+            ? "Repairing base NymphsCore runtime shell..."
+            : "Installing base NymphsCore runtime shell...";
+        BaseRuntimeProgressText = StatusMessage;
+        AppendActivity(StatusMessage);
+
+        try
+        {
+            ReportBaseRuntimeProgress("Checking for an existing managed WSL runtime...");
+            var existingDistroName = await _workflowService.GetExistingManagedDistroNameAsync(CancellationToken.None).ConfigureAwait(true);
+            var settings = CreateBaseRuntimeSettings(existingDistroName);
+
+            AppendActivity(settings.RepairExistingDistro
+                ? $"Reusing existing {settings.DistroName} distro for base shell repair."
+                : $"Creating {settings.DistroName} distro at {settings.InstallLocation}.");
+            AppendActivity("Module install choices are intentionally skipped here. Modules are installed later from registry cards.");
+            ReportBaseRuntimeProgress(settings.RepairExistingDistro
+                ? "Preparing repair of the existing managed WSL runtime..."
+                : "Preparing fresh Ubuntu runtime shell install...");
+
+            await _workflowService.ImportBaseDistroAsync(
+                settings,
+                new Progress<string>(ReportBaseRuntimeProgress),
+                CancellationToken.None).ConfigureAwait(true);
+
+            ApplyRuntimeSettings(settings);
+            ManagedDistroDetected = true;
+            BaseRuntimeActionText = "Repair Base Runtime";
+            BaseRuntimeSummary = $"{settings.DistroName} base shell is ready.";
+            BaseRuntimeDetail = "No optional modules were installed. Use module cards to install each Nymph individually.";
+            BaseRuntimeCardSubtitle = "WSL shell ready";
+            BaseRuntimeCardStatus = "Ready";
+            StatusMessage = "Base runtime shell ready.";
+            BaseRuntimeProgressText = "Ready.";
+            AppendActivity(StatusMessage);
+
+            await RefreshSystemChecksAsync().ConfigureAwait(true);
+            await RefreshRuntimeMonitorAsync().ConfigureAwait(true);
+            await RefreshModuleStateAsync().ConfigureAwait(true);
+            LastRefreshedText = $"Last refreshed {DateTime.Now:HH:mm:ss}";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = "Base runtime setup needs attention.";
+            BaseRuntimeSummary = "Base runtime setup failed.";
+            BaseRuntimeDetail = ex.Message;
+            BaseRuntimeProgressText = ex.Message;
+            AppendActivity($"Base runtime setup warning: {ex.Message}");
+        }
+        finally
+        {
+            IsBaseRuntimeOperationActive = false;
+            IsBusy = false;
+        }
+    }
+
+    private async Task UninstallBaseRuntimeAsync()
+    {
+        if (IsBusy || !ManagedDistroDetected)
+        {
+            return;
+        }
+
+        var existingDistroName = await _workflowService.GetExistingManagedDistroNameAsync(CancellationToken.None).ConfigureAwait(true);
+        if (string.IsNullOrWhiteSpace(existingDistroName))
+        {
+            ManagedDistroDetected = false;
+            BaseRuntimeProgressText = "No managed runtime distro was found.";
+            return;
+        }
+
+        var confirmation = MessageBox.Show(
+            $"Unregister the managed WSL runtime?\n\nThis removes the WSL distro '{existingDistroName}' and deletes its runtime folder. Modules installed inside that distro will be removed too.",
+            "Unregister WSL Runtime",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Warning);
+        if (confirmation != MessageBoxResult.Yes)
+        {
+            BaseRuntimeProgressText = "Base runtime uninstall cancelled.";
+            AppendActivity(BaseRuntimeProgressText);
+            return;
+        }
+
+        IsBusy = true;
+        IsBaseRuntimeOperationActive = true;
+        BaseRuntimeOperationLabel = "unregister";
+        StatusMessage = $"Unregistering {existingDistroName} WSL runtime...";
+        BaseRuntimeProgressText = StatusMessage;
+        AppendActivity(StatusMessage);
+
+        try
+        {
+            var settings = CreateBaseRuntimeSettings(existingDistroName);
+            await _workflowService.UninstallBaseRuntimeAsync(
+                settings,
+                new Progress<string>(ReportBaseRuntimeProgress),
+                CancellationToken.None).ConfigureAwait(true);
+
+            ApplyRuntimeSettings(CreateDefaultInstallSettings());
+            ManagedDistroDetected = false;
+            BaseRuntimeActionText = "Install Base Runtime";
+            BaseRuntimeSummary = "No NymphsCore managed WSL shell detected.";
+            BaseRuntimeDetail = "Install the base shell first. Modules remain registry-managed and optional.";
+            BaseRuntimeCardSubtitle = "Install base shell";
+            BaseRuntimeCardStatus = "Not installed";
+            BaseRuntimeProgressText = "Base runtime uninstalled.";
+            StatusMessage = "Base runtime uninstalled.";
+            AppendActivity(StatusMessage);
+
+            await RefreshSystemChecksAsync().ConfigureAwait(true);
+            await RefreshRuntimeMonitorAsync().ConfigureAwait(true);
+            await RefreshModuleStateAsync().ConfigureAwait(true);
+            LastRefreshedText = $"Last refreshed {DateTime.Now:HH:mm:ss}";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = "Base runtime uninstall needs attention.";
+            BaseRuntimeSummary = "Base runtime uninstall failed.";
+            BaseRuntimeDetail = ex.Message;
+            BaseRuntimeProgressText = ex.Message;
+            AppendActivity($"Base runtime uninstall warning: {ex.Message}");
+        }
+        finally
+        {
+            IsBaseRuntimeOperationActive = false;
+            IsBusy = false;
+        }
+    }
+
+    private void ReportBaseRuntimeProgress(string? message)
+    {
+        if (string.IsNullOrWhiteSpace(message))
+        {
+            return;
+        }
+
+        var normalized = message.Trim();
+        BaseRuntimeProgressText = normalized;
+        AppendActivity(normalized);
+    }
+
+    private async Task RefreshBaseRuntimeStateAsync()
+    {
+        try
+        {
+            var existingDistroName = await _workflowService.GetExistingManagedDistroNameAsync(CancellationToken.None).ConfigureAwait(true);
+            ManagedDistroDetected = !string.IsNullOrWhiteSpace(existingDistroName);
+            if (ManagedDistroDetected)
+            {
+                _settings.DistroName = existingDistroName!;
+                BaseRuntimeActionText = "Repair Base Runtime";
+                BaseRuntimeSummary = $"{existingDistroName} managed WSL shell detected.";
+                BaseRuntimeDetail = "Base runtime is present. Modules remain registry-managed and optional.";
+                BaseRuntimeCardSubtitle = "WSL shell detected";
+                BaseRuntimeCardStatus = "Ready";
+                BaseRuntimeProgressText = "Ready.";
+            }
+            else
+            {
+                BaseRuntimeActionText = "Install Base Runtime";
+                BaseRuntimeSummary = "No NymphsCore managed WSL shell detected.";
+                var installTarget = $"Install target: {_settings.InstallLocation}.";
+                BaseRuntimeDetail = _workflowService.BaseTarAvailable
+                    ? $"Ready to import from {_workflowService.BaseTarPath}. {installTarget}"
+                    : $"Ready to bootstrap a fresh Ubuntu base locally. {installTarget}";
+                BaseRuntimeCardSubtitle = "Install base shell";
+                BaseRuntimeCardStatus = "Not installed";
+                BaseRuntimeProgressText = "Ready to install.";
+            }
+        }
+        catch (Exception ex)
+        {
+            ManagedDistroDetected = false;
+            BaseRuntimeActionText = "Install Base Runtime";
+            BaseRuntimeSummary = "Base runtime state could not be checked.";
+            BaseRuntimeDetail = ex.Message;
+            BaseRuntimeCardSubtitle = "Check failed";
+            BaseRuntimeCardStatus = "Needs attention";
+            BaseRuntimeProgressText = ex.Message;
+        }
+    }
+
     private void ApplyModuleUpdateResults(IReadOnlyList<NymphModuleUpdateInfo> updateResults)
     {
         foreach (var result in updateResults)
@@ -738,6 +1139,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                 : "Base platform looks healthy for a modular shell.";
 
         var wslCheck = checks.FirstOrDefault(check => string.Equals(check.Key, InstallerWorkflowService.WslAvailabilityCheckKey, StringComparison.OrdinalIgnoreCase));
+        WindowsWslReady = wslCheck?.Status == CheckState.Pass;
         RuntimePanelDetail = wslCheck?.Details ?? "The shared base runtime check has not returned details yet.";
     }
 
@@ -756,249 +1158,206 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         RuntimeWindowsDiskUsageLabel = snapshot.WindowsDiskUsageLabel;
         RuntimeGpuVramLabel = snapshot.GpuVramLabel;
         RuntimeGpuTempLabel = snapshot.GpuTempLabel;
+        RuntimeBrainLlmStateLabel = snapshot.BrainLlmStateLabel;
+        RuntimeBrainModelLabel = snapshot.BrainModelLabel;
+        RuntimeBrainContextLabel = snapshot.BrainContextLabel;
+        RuntimeBrainTokensPerSecondLabel = snapshot.BrainTokensPerSecondLabel;
         RuntimeCpuBarWidth = ComputeRuntimeBarWidth(snapshot.CpuPercent);
         RuntimeMemoryBarWidth = ComputeRuntimeBarWidth(snapshot.MemoryPercent);
         RuntimeDiskBarWidth = ComputeRuntimeBarWidth(snapshot.DiskPercent);
+
+        if (ManagedDistroDetected && snapshot.IsAvailable)
+        {
+            BaseRuntimeCardSubtitle = snapshot.DistributionLabel;
+            BaseRuntimeCardStatus = "Ready";
+        }
+    }
+
+    private async Task RefreshModuleRosterAsync()
+    {
+        var selectedModuleId = DisplayedModule?.Id ?? SelectedModule?.Id;
+        IReadOnlyList<NymphModuleManifestInfo> manifests;
+
+        try
+        {
+            manifests = await _workflowService.GetNymphModuleRegistryManifestInfosAsync(CancellationToken.None).ConfigureAwait(true);
+        }
+        catch (Exception ex)
+        {
+            AppendActivity($"Module registry warning: {ex.Message}");
+            if (_allModules.Count == 0)
+            {
+                InstalledModulesSummary = "Module registry could not be loaded yet.";
+                AvailableModulesSummary = "Check network access or the Nymphs registry JSON.";
+            }
+
+            return;
+        }
+
+        _allModules.Clear();
+        var index = 0;
+        foreach (var manifest in manifests)
+        {
+            _allModules.Add(CreateModuleViewModel(manifest, index++));
+        }
+
+        PrimeModulePresence();
+        RebuildModuleCollections();
+        RebuildModuleNavigation();
+
+        if (CurrentPageKind == ManagerPageKind.Module && !string.IsNullOrWhiteSpace(selectedModuleId))
+        {
+            var replacement = _allModules.FirstOrDefault(module => string.Equals(module.Id, selectedModuleId, StringComparison.OrdinalIgnoreCase));
+            if (replacement is not null)
+            {
+                ShowModulePage(replacement);
+            }
+        }
+    }
+
+    private NymphModuleViewModel CreateModuleViewModel(NymphModuleManifestInfo manifest, int index)
+    {
+        var module = new NymphModuleViewModel(
+            manifest.Id,
+            manifest.Name,
+            manifest.ShortName,
+            manifest.Category,
+            manifest.Kind,
+            manifest.Description,
+            ResolveManagedInstallPath(manifest.InstallRoot, manifest.Id),
+            BuildModuleAccent(manifest.Id, index),
+            manifest.Capabilities,
+            manifest.DevCapabilities);
+
+        module.ApplyManifestInfo(manifest);
+        return module;
     }
 
     private async Task RefreshModuleStateAsync()
     {
-        RuntimeBackendStatus? zimageRuntime = null;
-        RuntimeBackendStatus? trellisRuntime = null;
-        string? brainStatusOutput = null;
-        string? worbiStatusOutput = null;
+        foreach (var module in _allModules)
+        {
+            if (_modulesWithActiveLifecycle.Contains(module.Id))
+            {
+                continue;
+            }
 
-        try
-        {
-            var runtimeStatuses = await _workflowService.GetRuntimeBackendStatusesAsync(
-                _settings,
-                new Progress<string>(AppendActivity),
-                CancellationToken.None).ConfigureAwait(true);
-
-            runtimeStatuses.TryGetValue("zimage", out zimageRuntime);
-            runtimeStatuses.TryGetValue("trellis", out trellisRuntime);
+            var snapshot = await RunModuleStatusSnapshotAsync(module).ConfigureAwait(true);
+            ApplyModuleSnapshot(module, snapshot);
         }
-        catch (Exception ex)
-        {
-            AppendActivity($"Runtime status warning: {ex.Message}");
-        }
-
-        try
-        {
-            brainStatusOutput = await _workflowService.GetNymphsBrainStatusAsync(_settings, CancellationToken.None).ConfigureAwait(true);
-        }
-        catch (Exception ex)
-        {
-            AppendActivity($"Brain status warning: {ex.Message}");
-        }
-
-        try
-        {
-            worbiStatusOutput = await _workflowService.RunNymphModuleActionAsync(
-                _settings,
-                "worbi",
-                "status",
-                new Progress<string>(_ => { }),
-                CancellationToken.None).ConfigureAwait(true);
-        }
-        catch (Exception ex)
-        {
-            AppendActivity($"WORBI status warning: {ex.Message}");
-        }
-
-        ApplyBrainState(brainStatusOutput);
-        ApplyRuntimeModuleState("zimage", zimageRuntime);
-        ApplyRuntimeModuleState("trellis", trellisRuntime);
-        ApplyLoraState();
-        ApplyWorbiState(worbiStatusOutput);
 
         RebuildModuleCollections();
         RebuildModuleNavigation();
         HasLoadedModuleState = true;
     }
 
-    private void ApplyBrainState(string? statusOutput)
+    private async Task<NymphStatusSnapshot> RunModuleStatusSnapshotAsync(NymphModuleViewModel module)
     {
-        var module = FindModule("brain");
-        var installPath = module.InstallPath;
-        var installed = SafeDirectoryExists(installPath);
-        var llmState = "unknown";
-        var modelState = "Not detected";
-
-        if (!string.IsNullOrWhiteSpace(statusOutput))
+        try
         {
-            var lines = statusOutput
-                .Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                .ToList();
-            llmState = NormalizeBrainServiceState(
-                FindStatusValue(lines, "llama-server:")
-                ?? FindStatusValue(lines, "LLM server:")
-                ?? "unknown");
-            modelState = FindStatusValue(lines, "Model loaded:")
-                ?? FindStatusValue(lines, "Model configured:")
-                ?? "Not detected";
+            using var statusTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(7));
+            var output = await _workflowService.RunNymphModuleActionAsync(
+                _settings,
+                module.Id,
+                "status",
+                new Progress<string>(_ => { }),
+                statusTimeout.Token).ConfigureAwait(true);
+
+            return NymphStatusSnapshot.FromStatusOutput(module.Id, output);
+        }
+        catch (OperationCanceledException)
+        {
+            AppendActivity($"{module.Name} status timed out; keeping Manager responsive.");
+            return new NymphStatusSnapshot(
+                module.Id,
+                IsInstalled: false,
+                IsRunning: false,
+                Version: "not-installed",
+                State: "available",
+                Detail: $"{module.Name} status check timed out. The module is treated as not installed until it reports cleanly.",
+                InstallRoot: module.InstallPath,
+                Health: "timeout",
+                Values: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["status_error"] = "timeout",
+                });
+        }
+        catch (Exception ex)
+        {
+            AppendActivity($"{module.Name} status warning: {ex.Message}");
+            return new NymphStatusSnapshot(
+                module.Id,
+                IsInstalled: false,
+                IsRunning: false,
+                Version: "not-installed",
+                State: "available",
+                Detail: $"{module.Name} status entrypoint is not available yet.",
+                InstallRoot: module.InstallPath,
+                Health: "unknown",
+                Values: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["status_error"] = ex.Message,
+                });
+        }
+    }
+
+    private void ApplyModuleSnapshot(NymphModuleViewModel module, NymphStatusSnapshot snapshot)
+    {
+        var stateLabel = NormalizeModuleStateLabel(snapshot.State, snapshot.IsInstalled, snapshot.IsRunning);
+        var statusBrush = snapshot.IsRunning
+            ? "#6FD96C"
+            : snapshot.IsInstalled
+                ? StateNeedsAttention(snapshot.State, snapshot.Health) ? "#B7791F" : "#4CD0C1"
+                : "#6E745A";
+
+        var secondaryParts = new List<string>();
+        if (snapshot.IsInstalled && !string.IsNullOrWhiteSpace(snapshot.Health))
+        {
+            secondaryParts.Add($"Health: {snapshot.Health}");
         }
 
-        var running = string.Equals(llmState, "running", StringComparison.OrdinalIgnoreCase);
-        var stateLabel = running
-            ? "Running"
-            : installed
-                ? "Installed"
-                : "Available";
+        var runtimePresent = snapshot.Get("runtime_present");
+        if (string.Equals(runtimePresent, "true", StringComparison.OrdinalIgnoreCase))
+        {
+            secondaryParts.Add($"Runtime: {runtimePresent}");
+        }
+
+        var dataPresent = snapshot.Get("data_present");
+        if (string.Equals(dataPresent, "true", StringComparison.OrdinalIgnoreCase))
+        {
+            secondaryParts.Add($"Data: {dataPresent}");
+        }
+
+        var url = snapshot.Get("url") ?? snapshot.Get("frontend_url") ?? snapshot.Get("backend_url");
+        if (snapshot.IsInstalled && !string.IsNullOrWhiteSpace(url))
+        {
+            secondaryParts.Add($"URL: {url}");
+        }
 
         module.ApplyState(
-            installed,
-            running,
-            GetInstalledModuleVersionLabel(module.Id, installed),
-            stateLabel,
-            running ? "#6FD96C" : installed ? "#4CD0C1" : "#6E745A",
-            installed
-                ? $"Local model: {NormalizeLoadedBrainModel(modelState)}"
-                : "Brain is available as an optional Nymph.",
-            installed
-                ? "Dedicated Brain controls can move into its own page as the manifest-driven shell fills out."
-                : "Install wrappers are still being migrated into the new modular contract.");
-    }
-
-    private void ApplyRuntimeModuleState(string moduleId, RuntimeBackendStatus? runtimeStatus)
-    {
-        var module = FindModule(moduleId);
-        var installed = SafeDirectoryExists(module.InstallPath) || runtimeStatus is not null && !runtimeStatus.IsNotChecked;
-
-        var stateLabel = installed
-            ? runtimeStatus?.ReadinessLabel ?? "Installed"
-            : "Available";
-
-        var statusBrush = runtimeStatus?.TestReady == true
-            ? "#6FD96C"
-            : runtimeStatus?.EnvironmentReady == true
-                ? "#4CD0C1"
-                : installed
-                    ? "#B7791F"
-                    : "#6E745A";
-
-        module.ApplyState(
-            installed,
-            runtimeStatus?.TestReady == true,
-            GetInstalledModuleVersionLabel(module.Id, installed),
+            snapshot.IsInstalled,
+            snapshot.IsRunning,
+            snapshot.IsInstalled ? ValueOrFallback(snapshot.Version, "unknown") : "Not installed",
             stateLabel,
             statusBrush,
-            runtimeStatus?.CompactDetail
-                ?? (installed
-                    ? "Module files were detected, but live runtime detail is not available yet."
-                    : $"{module.Name} is available as an optional Nymph."),
-            installed
-                ? "This runtime is no longer treated as a permanent built-in core section."
-                : "Install it only when you want this runtime in the shared platform.");
-    }
-
-    private void ApplyWorbiState(string? statusOutput)
-    {
-        var module = FindModule("worbi");
-        var installPath = module.InstallPath;
-        var statusValues = ParseKeyValueLines(statusOutput);
-        var installed = TryParseStatusBool(statusValues, "installed") ?? SafeDirectoryExists(installPath);
-        var serverPidPath = Path.Combine(installPath, "logs", "worbi-server.pid");
-        var clientPidPath = Path.Combine(installPath, "logs", "worbi-client.pid");
-        var backend = GetStatusValue(statusValues, "backend");
-        var health = GetStatusValue(statusValues, "health");
-        var running = TryParseStatusBool(statusValues, "running")
-            ?? (SafeFileExists(serverPidPath)
-                || SafeFileExists(clientPidPath)
-                || string.Equals(backend, "running", StringComparison.OrdinalIgnoreCase)
-                || string.Equals(backend, "running-unmanaged", StringComparison.OrdinalIgnoreCase)
-                || string.Equals(backend, "responding", StringComparison.OrdinalIgnoreCase));
-        var statusDetail = GetStatusValue(statusValues, "detail");
-        var statusUrl = GetStatusValue(statusValues, "url") ?? GetStatusValue(statusValues, "frontend_url") ?? "http://localhost:8082";
-        var statusVersion = GetStatusValue(statusValues, "version");
-
-        module.ApplyState(
-            installed,
-            running,
-            installed && !string.IsNullOrWhiteSpace(statusVersion) && !string.Equals(statusVersion, "unknown", StringComparison.OrdinalIgnoreCase)
-                ? statusVersion
-                : GetInstalledModuleVersionLabel(module.Id, installed),
-            running ? "Running" : installed ? "Installed" : "Available",
-            running ? "#6FD96C" : installed ? "#4CD0C1" : "#6E745A",
-            installed
-                ? statusDetail ?? $"Local-first worldbuilding app under the managed distro. Default app endpoint is `{statusUrl}`."
-                : "WORBI is available as an optional archive-based Nymph.",
-            installed
-                ? $"Health: {ValueOrFallback(health, "not checked")}. App: {statusUrl}"
-                : "The shell already understands WORBI as a module even before the full manifest layer is live.");
-    }
-
-    private void ApplyLoraState()
-    {
-        var module = FindModule("lora");
-        var installPath = module.InstallPath;
-        var installed = SafeDirectoryExists(installPath);
-        var officialUiLauncher = Path.Combine(installPath, "bin", "ztrain-start-official-ui");
-        var gradioLauncher = Path.Combine(installPath, "bin", "ztrain-start-gradio-ui");
-        var trainerPython = Path.Combine(installPath, "ai-toolkit", "venv", "bin", "python");
-        var adapterMarker = Path.Combine(installPath, "adapters", "zimage_turbo_training_adapter", "selected_adapter_path.txt");
-        var isReady = SafeFileExists(officialUiLauncher)
-            && SafeFileExists(gradioLauncher)
-            && SafeFileExists(trainerPython)
-            && SafeFileExists(adapterMarker);
-
-        module.ApplyState(
-            installed,
-            false,
-            GetInstalledModuleVersionLabel(module.Id, installed),
-            installed ? (isReady ? "Installed" : "Needs attention") : "Available",
-            installed ? (isReady ? "#4CD0C1" : "#B7791F") : "#6E745A",
-            installed
-                ? isReady
-                    ? "AI Toolkit training sidecar is installed with official UI, Gradio UI, Python environment, and Z-Image Turbo adapter markers present."
-                    : "LoRA trainer files were detected, but one or more manager launch/support files are missing."
-                : "LoRA training is available as an optional Nymph.",
-            installed
-                ? "This module owns datasets, jobs, LoRA outputs, and trainer UI launchers under ZImage-Trainer."
-                : "Install it only when you want local Z-Image Turbo LoRA training.");
+            snapshot.Detail,
+            secondaryParts.Count == 0
+                ? "Status came from the module-owned status entrypoint."
+                : string.Join(Environment.NewLine, secondaryParts));
     }
 
     private void PrimeModulePresence()
     {
         foreach (var module in _allModules)
         {
-            var installed = SafeDirectoryExists(module.InstallPath);
-            var running = false;
-            var stateLabel = installed ? "Installed" : "Available";
-            var statusBrush = installed ? "#4CD0C1" : "#6E745A";
-            var detail = installed
-                ? "Module files detected. Live runtime detail is still loading."
-                : $"{module.Name} is available as an optional Nymph.";
-            var secondaryDetail = installed
-                ? "Fast startup state from local install detection."
-                : "Install it when you want this module in the shared platform.";
-
-            if (string.Equals(module.Id, "brain", StringComparison.OrdinalIgnoreCase))
-            {
-                detail = installed
-                    ? "Brain files detected. Live model status is still loading."
-                    : "Brain is available as an optional Nymph.";
-            }
-            else if (string.Equals(module.Id, "worbi", StringComparison.OrdinalIgnoreCase))
-            {
-                var serverPidPath = Path.Combine(module.InstallPath, "logs", "worbi-server.pid");
-                var clientPidPath = Path.Combine(module.InstallPath, "logs", "worbi-client.pid");
-                running = SafeFileExists(serverPidPath) || SafeFileExists(clientPidPath);
-                stateLabel = running ? "Running" : installed ? "Installed" : "Available";
-                statusBrush = running ? "#6FD96C" : installed ? "#4CD0C1" : "#6E745A";
-                detail = installed
-                    ? "WORBI files detected. Live app status is still loading."
-                    : "WORBI is available as an optional archive-based Nymph.";
-            }
-
             module.ApplyState(
-                installed,
-                running,
-                GetInstalledModuleVersionLabel(module.Id, installed),
-                stateLabel,
-                statusBrush,
-                detail,
-                secondaryDetail);
+                isInstalled: false,
+                isRunning: false,
+                versionLabel: "Not checked",
+                stateLabel: "Checking",
+                statusBrush: "#6E745A",
+                detail: $"{module.Name} status has not been refreshed yet.",
+                secondaryDetail: "The shell will ask the module-owned status entrypoint for runtime truth.");
         }
     }
 
@@ -1069,7 +1428,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
         if (CurrentPageKind == ManagerPageKind.Module)
         {
-            var replacement = InstalledModules.FirstOrDefault(module => string.Equals(module.Id, selectedModuleId, StringComparison.OrdinalIgnoreCase));
+            var replacement = _allModules.FirstOrDefault(module => string.Equals(module.Id, selectedModuleId, StringComparison.OrdinalIgnoreCase));
             if (replacement is not null)
             {
                 ShowModulePage(replacement);
@@ -1177,6 +1536,8 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             UnifiedLogLines.Add(line);
         }
 
+        UnifiedLogText = string.Join(Environment.NewLine, mergedLines);
+
         RecentLogLines.Clear();
         foreach (var line in mergedLines.TakeLast(8))
         {
@@ -1193,6 +1554,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
         var line = $"[{DateTime.Now:HH:mm:ss}] {message.Trim()}";
         ActivityLines.Add(line);
+        PersistActivityLine(line);
 
         while (ActivityLines.Count > 200)
         {
@@ -1200,6 +1562,21 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         }
 
         LoadHistoricalLogs();
+    }
+
+    private void PersistActivityLine(string line)
+    {
+        try
+        {
+            Directory.CreateDirectory(_workflowService.LogFolderPath);
+            File.AppendAllText(
+                Path.Combine(_workflowService.LogFolderPath, "manager-app.log"),
+                $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] shell {line}{Environment.NewLine}");
+        }
+        catch
+        {
+            // The UI log should keep working even if the file is temporarily locked.
+        }
     }
 
     private void OpenModule(NymphModuleViewModel? module)
@@ -1241,9 +1618,17 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         }
 
         IsBusy = true;
+        _modulesWithActiveLifecycle.Add(module.Id);
         StatusMessage = $"Installing {module.Name} from the Nymphs registry...";
         ShowModuleLogs = false;
         var installLines = new List<string>();
+        ApplyModuleLifecycleState(
+            module,
+            "Installing",
+            "#D9B36B",
+            "Installing",
+            $"{module.Name} install is running inside the managed WSL distro.",
+            "Status refresh is paused for this module until the lifecycle action finishes.");
         SetModuleActionFeedback(
             $"{module.Name}: installing",
             "Starting module registry install...");
@@ -1254,7 +1639,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                 _settings,
                 module.Id,
                 CreateModuleLiveProgress(module, "install", installLines),
-                CancellationToken.None).ConfigureAwait(true);
+                _operationCancellation.Token).ConfigureAwait(true);
             StatusMessage = $"{module.Name} installed.";
             SetModuleActionFeedback(
                 $"{module.Name}: install finished",
@@ -1264,6 +1649,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             var installedVersion = ExtractInstalledModuleVersion(installLines);
             ApplyImmediateModuleInstallResult(module, isInstalled: true, "Install completed. Live status verification will refresh next.", installedVersion);
             ClearModuleUpdateAfterSuccessfulInstall(module, installedVersion);
+            _modulesWithActiveLifecycle.Remove(module.Id);
             try
             {
                 await RefreshModuleStateAsync().ConfigureAwait(true);
@@ -1287,6 +1673,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         }
         finally
         {
+            _modulesWithActiveLifecycle.Remove(module.Id);
             IsBusy = false;
         }
     }
@@ -1313,9 +1700,17 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         }
 
         IsBusy = true;
+        _modulesWithActiveLifecycle.Add(module.Id);
         StatusMessage = $"Updating {module.Name} from the Nymphs registry...";
         ShowModuleLogs = false;
         var updateLines = new List<string>();
+        ApplyModuleLifecycleState(
+            module,
+            "Updating",
+            "#D9B36B",
+            module.VersionLabel,
+            $"{module.Name} update is running inside the managed WSL distro.",
+            "Status refresh is paused for this module until the lifecycle action finishes.");
         SetModuleActionFeedback(
             $"{module.Name}: updating",
             "Fetching the module registry entry and rerunning the module install/update flow...");
@@ -1326,7 +1721,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                 _settings,
                 module.Id,
                 CreateModuleLiveProgress(module, "update", updateLines),
-                CancellationToken.None).ConfigureAwait(true);
+                _operationCancellation.Token).ConfigureAwait(true);
             StatusMessage = $"{module.Name} updated.";
             UpdateSummary = $"{module.Name} updated from the registry.";
             SetModuleActionFeedback(
@@ -1337,6 +1732,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             var installedVersion = ExtractInstalledModuleVersion(updateLines) ?? module.RemoteVersionLabel;
             ApplyImmediateModuleInstallResult(module, isInstalled: true, "Update completed. Live status verification will refresh next.", installedVersion);
             ClearModuleUpdateAfterSuccessfulInstall(module, installedVersion);
+            _modulesWithActiveLifecycle.Remove(module.Id);
 
             try
             {
@@ -1373,6 +1769,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         }
         finally
         {
+            _modulesWithActiveLifecycle.Remove(module.Id);
             IsBusy = false;
         }
     }
@@ -1580,7 +1977,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                 OpenFirstUrlFromOutput(module, openOutput);
             }
 
-            if (normalizedAction is "start" or "stop" or "status")
+            if (normalizedAction is not "logs" and not "open")
             {
                 await RefreshModuleStateAsync().ConfigureAwait(true);
             }
@@ -1656,7 +2053,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
     {
         var lines = output
             .Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .TakeLast(10)
+            .TakeLast(5)
             .ToArray();
 
         return lines.Length == 0
@@ -1747,12 +2144,22 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         }
 
         IsBusy = true;
+        _modulesWithActiveLifecycle.Add(targetId);
         StatusMessage = purge
             ? $"Deleting {targetName} from the managed distro..."
             : $"Uninstalling {targetName} from the managed distro...";
         ShowModuleLogs = false;
         var uninstallLines = new List<string>();
         var actionLabel = purge ? "delete" : "uninstall";
+        ApplyModuleLifecycleState(
+            module,
+            purge ? "Deleting" : "Uninstalling",
+            "#D9B36B",
+            module.VersionLabel,
+            purge
+                ? $"{targetName} delete is running inside the managed WSL distro."
+                : $"{targetName} uninstall is running inside the managed WSL distro.",
+            "Status refresh is paused for this module until the lifecycle action finishes.");
         SetModuleActionFeedback(
             $"{targetName}: {actionLabel} in progress",
             purge
@@ -1767,7 +2174,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                 targetId,
                 purge,
                 CreateModuleLiveProgress(module, actionLabel, uninstallLines),
-                CancellationToken.None).ConfigureAwait(true);
+                _operationCancellation.Token).ConfigureAwait(true);
 
             AppendActivity(purge
                 ? $"{targetName} delete completed."
@@ -1782,6 +2189,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                 $"{targetName}: {actionLabel} finished",
                 BuildModuleActionFeedbackDetail(string.Join(Environment.NewLine, uninstallLines.Append(uninstallOutput))));
 
+            _modulesWithActiveLifecycle.Remove(targetId);
             try
             {
                 await RefreshModuleStateAsync().ConfigureAwait(true);
@@ -1810,8 +2218,37 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         }
         finally
         {
+            _modulesWithActiveLifecycle.Remove(targetId);
             IsBusy = false;
         }
+    }
+
+    private void ApplyModuleLifecycleState(
+        NymphModuleViewModel module,
+        string stateLabel,
+        string statusBrush,
+        string versionLabel,
+        string detail,
+        string secondaryDetail)
+    {
+        module.ApplyState(
+            module.IsInstalled,
+            module.IsRunning,
+            versionLabel,
+            stateLabel,
+            statusBrush,
+            detail,
+            secondaryDetail);
+
+        RebuildModuleCollections();
+        RebuildModuleNavigation();
+        RefreshDisplayedModuleActionState();
+
+        _openModuleCommand.RaiseCanExecuteChanged();
+        _installModuleCommand.RaiseCanExecuteChanged();
+        _updateModuleCommand.RaiseCanExecuteChanged();
+        _uninstallModuleCommand.RaiseCanExecuteChanged();
+        _deleteModuleCommand.RaiseCanExecuteChanged();
     }
 
     private void ApplyImmediateModuleInstallResult(NymphModuleViewModel module, bool isInstalled, string detail, string? installedVersionOverride = null)
@@ -1922,6 +2359,24 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         }
     }
 
+    private static string BuildAppVersionLabel()
+    {
+        var version = Assembly.GetExecutingAssembly()
+            .GetCustomAttribute<AssemblyInformationalVersionAttribute>()
+            ?.InformationalVersion;
+
+        if (string.IsNullOrWhiteSpace(version))
+        {
+            version = Assembly.GetExecutingAssembly().GetName().Version?.ToString(3);
+        }
+
+        version = string.IsNullOrWhiteSpace(version)
+            ? "unknown"
+            : version.Split('+', 2)[0].Trim();
+
+        return $"NymphsCore v{version}";
+    }
+
     private void SelectPrimaryPage(ManagerPageKind pageKind)
     {
         var item = PrimaryNavigationItems.FirstOrDefault(nav => nav.PageKind == pageKind);
@@ -1938,6 +2393,10 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
         switch (pageKind)
         {
+            case ManagerPageKind.BaseRuntime:
+                CurrentPageTitle = "Base Runtime";
+                CurrentPageSubtitle = "Managed WSL shell, platform status, and repair actions";
+                break;
             case ManagerPageKind.SystemChecks:
                 CurrentPageTitle = "System Checks";
                 CurrentPageSubtitle = "Live platform diagnostics and readiness checks";
@@ -2008,101 +2467,71 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         };
     }
 
-    private static string NormalizeBrainServiceState(string value)
+    private InstallSettings CreateBaseRuntimeSettings(string? existingDistroName)
     {
-        var normalized = value.Trim().ToLowerInvariant();
-        if (normalized.StartsWith("running", StringComparison.OrdinalIgnoreCase))
-        {
-            return "running";
-        }
-
-        if (normalized.StartsWith("stopped", StringComparison.OrdinalIgnoreCase))
-        {
-            return "stopped";
-        }
-
-        return normalized;
+        var settings = CreateDefaultInstallSettings();
+        settings.DistroName = existingDistroName ?? InstallerWorkflowService.ManagedDistroName;
+        settings.TarPath = _workflowService.BaseTarPath;
+        settings.InstallLocation = _settings.InstallLocation;
+        settings.LinuxUser = InstallerWorkflowService.ManagedLinuxUser;
+        settings.RepairExistingDistro = !string.IsNullOrWhiteSpace(existingDistroName);
+        settings.PrefetchModelsNow = false;
+        settings.InstallNymphsBrain = false;
+        settings.InstallZImageTrainer = false;
+        settings.DownloadBrainModelNow = false;
+        settings.HuggingFaceToken = string.Empty;
+        return settings;
     }
 
-    private static string NormalizeLoadedBrainModel(string? value)
+    private void ApplyRuntimeSettings(InstallSettings settings)
     {
-        if (string.IsNullOrWhiteSpace(value))
+        _settings.DistroName = settings.DistroName;
+        _settings.TarPath = settings.TarPath;
+        _settings.InstallLocation = settings.InstallLocation;
+        _settings.LinuxUser = settings.LinuxUser;
+        _settings.RepairExistingDistro = settings.RepairExistingDistro;
+        _settings.PrefetchModelsNow = false;
+        _settings.InstallNymphsBrain = false;
+        _settings.InstallZImageTrainer = false;
+        _settings.DownloadBrainModelNow = false;
+    }
+
+    private static string NormalizeModuleStateLabel(string? state, bool isInstalled, bool isRunning)
+    {
+        if (isRunning)
         {
-            return "Not detected";
+            return "Running";
         }
 
-        return value.Trim();
-    }
-
-    private static string? FindStatusValue(IEnumerable<string> lines, string prefix)
-    {
-        var line = lines.FirstOrDefault(item => item.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
-        return line is null ? null : line[prefix.Length..].Trim();
-    }
-
-    private static IReadOnlyDictionary<string, string> ParseKeyValueLines(string? output)
-    {
-        if (string.IsNullOrWhiteSpace(output))
+        if (string.IsNullOrWhiteSpace(state))
         {
-            return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            return isInstalled ? "Installed" : "Available";
         }
 
-        return output
-            .Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Select(line => line.Split('=', 2, StringSplitOptions.TrimEntries))
-            .Where(parts => parts.Length == 2 && !string.IsNullOrWhiteSpace(parts[0]))
-            .GroupBy(parts => parts[0], StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(group => group.Key, group => group.Last()[1], StringComparer.OrdinalIgnoreCase);
-    }
-
-    private static string? GetStatusValue(IReadOnlyDictionary<string, string> values, string key)
-    {
-        return values.TryGetValue(key, out var value) && !string.IsNullOrWhiteSpace(value)
-            ? value.Trim()
-            : null;
-    }
-
-    private static bool? TryParseStatusBool(IReadOnlyDictionary<string, string> values, string key)
-    {
-        var value = GetStatusValue(values, key);
-        if (value is null)
+        return state.Trim().ToLowerInvariant() switch
         {
-            return null;
-        }
+            "available" => "Available",
+            "installed" => "Installed",
+            "running" => "Running",
+            "needs_attention" => "Needs attention",
+            "installing" => "Installing",
+            "uninstalling" => "Uninstalling",
+            "updating" => "Updating",
+            "deleting" => "Deleting",
+            _ => CultureInfo.CurrentCulture.TextInfo.ToTitleCase(state.Trim().Replace('_', ' ')),
+        };
+    }
 
-        return value.Equals("true", StringComparison.OrdinalIgnoreCase)
-            || value.Equals("yes", StringComparison.OrdinalIgnoreCase)
-            || value.Equals("running", StringComparison.OrdinalIgnoreCase)
-            || value.Equals("ok", StringComparison.OrdinalIgnoreCase);
+    private static bool StateNeedsAttention(string? state, string? health)
+    {
+        return string.Equals(state, "needs_attention", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(health, "degraded", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(health, "unavailable", StringComparison.OrdinalIgnoreCase);
     }
 
     private static string ValueOrFallback(string? value, string fallback)
     {
         return string.IsNullOrWhiteSpace(value) ? fallback : value.Trim();
-    }
-
-    private static bool SafeDirectoryExists(string path)
-    {
-        try
-        {
-            return Directory.Exists(path);
-        }
-        catch
-        {
-            return false;
-        }
-    }
-
-    private static bool SafeFileExists(string path)
-    {
-        try
-        {
-            return File.Exists(path);
-        }
-        catch
-        {
-            return false;
-        }
     }
 
     private static double ComputeRuntimeBarWidth(int percent)
@@ -2150,6 +2579,58 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         var parts = new List<string> { $@"\\wsl.localhost\{_settings.DistroName}" };
         parts.AddRange(segments);
         return Path.Combine(parts.ToArray());
+    }
+
+    private string ResolveManagedInstallPath(string installRoot, string moduleId)
+    {
+        var normalized = string.IsNullOrWhiteSpace(installRoot)
+            ? $"$HOME/{moduleId}"
+            : installRoot.Trim();
+
+        if (normalized.StartsWith("$HOME/", StringComparison.Ordinal))
+        {
+            normalized = $"/home/{_settings.LinuxUser}/{normalized["$HOME/".Length..]}";
+        }
+        else if (normalized.Equals("$HOME", StringComparison.Ordinal))
+        {
+            normalized = $"/home/{_settings.LinuxUser}";
+        }
+        else if (normalized.StartsWith("~/", StringComparison.Ordinal))
+        {
+            normalized = $"/home/{_settings.LinuxUser}/{normalized[2..]}";
+        }
+        else if (normalized.Equals("~", StringComparison.Ordinal))
+        {
+            normalized = $"/home/{_settings.LinuxUser}";
+        }
+
+        var segments = normalized
+            .TrimStart('/')
+            .Split('/', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        return BuildManagedDistroPath(segments);
+    }
+
+    private static string BuildModuleAccent(string moduleId, int index)
+    {
+        var palette = new[]
+        {
+            "#97DF48",
+            "#22DDF0",
+            "#39C7FF",
+            "#C8EE47",
+            "#A9E347",
+            "#F0B84A",
+            "#66D3A7",
+            "#D98CC8",
+        };
+
+        if (string.IsNullOrWhiteSpace(moduleId))
+        {
+            return palette[Math.Abs(index) % palette.Length];
+        }
+
+        var hash = moduleId.Aggregate(0, (current, character) => unchecked((current * 31) + character));
+        return palette[(int)(Math.Abs((long)hash) % palette.Length)];
     }
 
     private NymphModuleViewModel FindModule(string id)

@@ -64,6 +64,16 @@ function ConvertTo-WslPath {
     }
 
     $normalized = $WindowsPath -replace '\\', '/'
+    if ($normalized -match '^//(?:wsl\.localhost|wsl\$)/([^/]+)/(.*)$') {
+        $sourceDistroName = $matches[1]
+        if (-not [string]::IsNullOrWhiteSpace($DistroName) -and $sourceDistroName -ieq $DistroName) {
+            return "/" + $matches[2]
+        }
+
+        # Do not silently execute source/dev distro paths inside the target runtime distro.
+        return $null
+    }
+
     if ($normalized -match '^([A-Za-z]):/(.*)$') {
         $drive = $matches[1].ToLowerInvariant()
         $rest = $matches[2]

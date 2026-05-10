@@ -12,7 +12,11 @@ public sealed record ShellRuntimeMonitorSnapshot(
     int DiskPercent,
     string WindowsDiskUsageLabel,
     string GpuVramLabel,
-    string GpuTempLabel)
+    string GpuTempLabel,
+    string BrainLlmStateLabel,
+    string BrainModelLabel,
+    string BrainContextLabel,
+    string BrainTokensPerSecondLabel)
 {
     public static ShellRuntimeMonitorSnapshot Offline { get; } = new(
         false,
@@ -26,5 +30,9 @@ public sealed record ShellRuntimeMonitorSnapshot(
         0,
         "- / -",
         "Unavailable",
-        "Unavailable");
+        "Unavailable",
+        "LLM: Offline",
+        "Model: -",
+        "Context: -",
+        "TPS: -");
 }

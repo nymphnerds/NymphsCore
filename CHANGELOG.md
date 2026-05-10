@@ -8,6 +8,104 @@ This file focuses on user-facing and system-level changes rather than package-by
 
 Newest entries first.
 
+### 2026-05-10 Registry-driven module shell and V1 lifecycle contract
+Source: Rauty plugin-manager standardization pass after hardcoded Manager module surfaces were removed from the active shell.
+
+Changed in source:
+
+- Manager module roster now loads from the remote `nymphs-registry` JSON instead of a hardcoded five-module seed
+- registry card metadata was expanded so available modules can render useful cards before install:
+  - `short_name`
+  - `category`
+  - `packaging`
+  - `summary`
+  - `install_root`
+  - `sort_order`
+- added a Base Runtime install/repair action to create or repair only the managed `NymphsCore` WSL shell
+- Base Runtime now opens a dedicated page from the System Overview card; install/repair lives on that page instead of firing from the card
+- Base Runtime page now has explicit Windows WSL readiness, install, progress, current-state, and unregister surfaces
+- Base Runtime install is gated behind Windows WSL readiness; the Manager no longer implies the managed runtime can be installed before Windows WSL is available
+- Base Runtime setup now avoids leaking dev-WSL paths into the target runtime by staging bootstrap scripts inside the managed `NymphsCore` distro
+- Base Runtime unregister removes the managed WSL distro/runtime folder and warns that modules installed inside that distro are removed too
+- runtime monitor mode was added so the Manager can collapse into a compact always-on-top-style monitor surface
+- monitor mode now restores to a sane full app size even if it was entered from a tiny/sidebar-only window
+- sidebar runtime monitor now includes collapsible Brain telemetry readouts for LLM state, model, context, and tokens/sec
+- sidebar footer version now comes from the Manager assembly version instead of a hardcoded XAML string
+- Manager app version was bumped to `0.9.2` for the current plugin-shell standardization build
+- sidebar `Open Source` footer text now links to the main NymphsCore GitHub repository
+- Logs page was changed to a selectable/copyable text surface while preserving the terminal-style visual direction
+- Base Runtime progress spacing was tightened so common two-line install progress messages fit above the bottom status bar
+- module detail live-progress output is now bounded so long install output cannot stretch the page and hide the Manager Contract controls
+- Manager now holds a module in an active lifecycle state during install/update/uninstall/delete so background status refreshes cannot flip it back to Available mid-action
+- module lifecycle scripts now write a generic action state file under `~/.cache/nymphs-modules/actions/` so a reopened Manager can identify in-progress module work
+- Manager close now cancels active module lifecycle operations when the close is graceful and asks the managed `NymphsCore` distro to stop Manager-owned lifecycle process trees
+- Manager status now also detects in-flight module install/uninstall scripts when an older action did not create an action-state file
+- module status checks are now time-bounded so stale or broken module scripts cannot leave cards stuck in `Checking`
+- status checks no longer run stale module bin wrappers when the install marker is missing, avoiding partial-install hangs
+- module detail pages now stay on the selected module during install/status refresh instead of jumping back to Home when the module is not yet installed
+- central Manager lifecycle wrappers are staged from the packaged Manager scripts first, keeping the EXE and install/uninstall wrapper behavior in sync
+- old hardcoded module choices are intentionally skipped by base setup; modules are installed later from registry cards
+- documented the next Base Runtime lifecycle direction: status, repair, helper-script updates, system-package updates, and explicit Ubuntu migration
+- added generic `key=value` status parsing for module status scripts
+- removed module-specific status projection helpers from the active Manager shell
+- Manager lifecycle state is now driven by generic status snapshots instead of Brain/Z-Image/LoRA/TRELLIS/WORBI-specific view-model code
+- normalized local module manifests for Brain, Z-Image, LoRA, TRELLIS, and WORBI toward Manifest Contract V1
+- normalized local install/status/uninstall scripts around `.nymph-module-version` as installed-runtime truth
+- preserved data no longer implies installed runtime in the local status contract
+- release build still succeeds after the shell/contract changes
+
+Remote registry:
+
+- pushed `nymphnerds/nymphs-registry` commit `2e4a523 Add module card metadata to registry`
+- `nymphs.json` now provides module card data for all five official modules
+
+Remote module repos:
+
+- pushed `nymphnerds/worbi` commit `d6d72ac Use module version marker for WORBI install status`
+- pushed `nymphnerds/worbi` commit `87fa41d Keep WORBI status version on install marker`
+- pushed `nymphnerds/worbi` commit `bcf03a4 Harden WORBI staged installs`
+- WORBI status now follows the module standard: `.nymph-module-version` is installed-runtime truth; a leftover install folder alone is not installed
+- WORBI status now reports the install marker version instead of the internal package/app version
+- WORBI install now stages into a temp folder, installs production server dependencies before swapping into `~/worbi`, skips automatic backup folders, and times out dependency install instead of hanging forever
+- WORBI install lessons were promoted into the module standard: staged install, marker written last, no random backup folders, bounded status, bounded progress, and manifest-declared data/log scopes
+
+Validated locally:
+
+- Debug build passed
+- Debug build passed again after the Base Runtime shell action was added
+- Debug build passed after the Base Runtime page and monitor-mode UI pass
+- Debug build passed after the module lifecycle/progress stability pass
+- Debug build passed after the close/reopen lifecycle cleanup pass
+- Debug build passed after the sidebar footer/version and Base Runtime progress spacing pass
+- Debug build passed after the module status timeout/page-pinning stability pass
+- Debug build passed after the WORBI staged install note and monitor/full restore fix
+- Windows release build script passed
+- Windows release build script passed again after the final Base Runtime page layout update
+- Windows release build script passed after the module lifecycle/progress stability pass
+- Windows release build script passed after the close/reopen lifecycle cleanup pass
+- Windows release build script passed after the sidebar footer/version and Base Runtime progress spacing pass
+- Windows release build script passed after the module status timeout/page-pinning stability pass
+- Windows release build script passed after the WORBI staged install note and monitor/full restore fix
+- registry JSON and all local module manifests parse as valid JSON
+- install/status/uninstall scripts pass shell syntax checks
+- central Manager install/uninstall scripts pass shell syntax checks after lifecycle action-state additions
+- fake-root lifecycle contract tests passed for all five modules
+- Manager registry loader returned all five modules with registry/manifest metadata
+- central Manager install/uninstall wrapper dry-runs resolved module manifests and roots correctly
+- live WORBI install completed inside the managed `NymphsCore` runtime and now reports installed `version=6.3.0` from `.nymph-module-version`
+- direct clean WORBI install from the pushed remote script completed in the managed `NymphsCore` runtime in 14 seconds and reported `state=installed`
+
+Current caveats:
+
+- full heavyweight installs were not run for Brain, Z-Image, LoRA, or TRELLIS in this pass
+- next proof phase should install modules one at a time into a fresh/clean managed `NymphsCore` runtime from registry cards
+- WORBI still needs the full Manager-click abuse pass after the staged installer fix: install from card, close mid-install, reopen, uninstall, reinstall, start/stop/open/logs
+- module-owned declarative Manager surfaces are not implemented yet
+- old hardcoded Manager UI should be rebuilt as module-owned surfaces after lifecycle install/status/uninstall is proven per module
+- `Delete Module + Data` remains intentionally WORBI-only until manifest-declared purge scopes are generalized
+- local module repos were normalized, but individual remote module repos still need to be checked and pushed if they have not already been synced
+- release artifacts under `Manager/apps/NymphsCoreManager/publish/` changed because the release build was run
+
 ### 2026-05-07 Available module cards open detail pages first
 Source: WORBI reinstall UX testing after uninstall/delete became reliable.
 

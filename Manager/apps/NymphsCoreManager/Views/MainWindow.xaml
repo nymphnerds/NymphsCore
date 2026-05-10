@@ -8,13 +8,14 @@
         Icon="/AppAssets/nsw.ico"
         Width="1060"
         Height="620"
-        MinWidth="480"
-        MinHeight="420"
+        MinWidth="240"
+        MinHeight="390"
         ResizeMode="CanResize"
         WindowStartupLocation="CenterScreen"
         Background="#081112"
         UseLayoutRounding="True"
-        SnapsToDevicePixels="True">
+        SnapsToDevicePixels="True"
+        SizeChanged="Window_SizeChanged">
   <Window.Resources>
     <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter" />
 
@@ -443,6 +444,79 @@
       <Setter Property="Margin" Value="0" />
     </Style>
 
+    <Style TargetType="ToggleButton" x:Key="RuntimeMonitorToggleStyle">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderBrush" Value="#173436" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="Padding" Value="8,4" />
+      <Setter Property="Foreground" Value="#8FB2AD" />
+      <Setter Property="FontFamily" Value="Cascadia Mono" />
+      <Setter Property="FontSize" Value="10.5" />
+      <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="ToggleButton">
+            <Border x:Name="ToggleChrome"
+                    Background="{TemplateBinding Background}"
+                    BorderBrush="{TemplateBinding BorderBrush}"
+                    BorderThickness="{TemplateBinding BorderThickness}"
+                    CornerRadius="4"
+                    Padding="{TemplateBinding Padding}">
+              <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                VerticalAlignment="Center" />
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="ToggleChrome" Property="BorderBrush" Value="#245456" />
+                <Setter Property="Foreground" Value="#23E7DB" />
+              </Trigger>
+              <Trigger Property="IsChecked" Value="True">
+                <Setter TargetName="ToggleChrome" Property="Background" Value="#081314" />
+                <Setter TargetName="ToggleChrome" Property="BorderBrush" Value="#2A5B5E" />
+                <Setter Property="Foreground" Value="#97DF48" />
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+
+    <Style TargetType="Button" x:Key="MonitorExitButtonStyle">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderBrush" Value="#173436" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="Padding" Value="8,4" />
+      <Setter Property="Foreground" Value="#23E7DB" />
+      <Setter Property="FontFamily" Value="Cascadia Mono" />
+      <Setter Property="FontSize" Value="10.5" />
+      <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <Border x:Name="ButtonChrome"
+                    Background="{TemplateBinding Background}"
+                    BorderBrush="{TemplateBinding BorderBrush}"
+                    BorderThickness="{TemplateBinding BorderThickness}"
+                    CornerRadius="4"
+                    Padding="{TemplateBinding Padding}">
+              <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                VerticalAlignment="Center" />
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="ButtonChrome" Property="BorderBrush" Value="#2A5B5E" />
+                <Setter TargetName="ButtonChrome" Property="Background" Value="#081314" />
+                <Setter Property="Foreground" Value="#97DF48" />
+              </Trigger>
+              <Trigger Property="IsPressed" Value="True">
+                <Setter TargetName="ButtonChrome" Property="Background" Value="#050C0D" />
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+
     <Style TargetType="ListBoxItem" x:Key="NavigationListBoxItemStyle">
       <Setter Property="Padding" Value="0" />
       <Setter Property="Margin" Value="0,0,0,12" />
@@ -509,16 +583,82 @@
         </Setter.Value>
       </Setter>
     </Style>
+
+    <Style TargetType="RepeatButton" x:Key="LogScrollRepeatButtonStyle">
+      <Setter Property="Focusable" Value="False" />
+      <Setter Property="IsTabStop" Value="False" />
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="RepeatButton">
+            <Border Background="Transparent" />
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+
+    <Style TargetType="Thumb" x:Key="LogScrollThumbStyle">
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Thumb">
+            <Border x:Name="ThumbChrome"
+                    Width="8"
+                    Margin="2,0"
+                    CornerRadius="4"
+                    Background="#2AA8A2" />
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="ThumbChrome" Property="Background" Value="#35C8C0" />
+              </Trigger>
+              <Trigger Property="IsDragging" Value="True">
+                <Setter TargetName="ThumbChrome" Property="Background" Value="#23E7DB" />
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+
+    <Style TargetType="ScrollBar" x:Key="LogScrollBarStyle">
+      <Setter Property="Width" Value="12" />
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="ScrollBar">
+            <Grid Width="12"
+                  Background="#0A1516">
+              <Border BorderBrush="#123030"
+                      BorderThickness="1,0,0,0" />
+              <Track x:Name="PART_Track"
+                     IsDirectionReversed="True">
+                <Track.DecreaseRepeatButton>
+                  <RepeatButton Command="{x:Static ScrollBar.PageUpCommand}"
+                                Style="{StaticResource LogScrollRepeatButtonStyle}" />
+                </Track.DecreaseRepeatButton>
+                <Track.Thumb>
+                  <Thumb Style="{StaticResource LogScrollThumbStyle}" />
+                </Track.Thumb>
+                <Track.IncreaseRepeatButton>
+                  <RepeatButton Command="{x:Static ScrollBar.PageDownCommand}"
+                                Style="{StaticResource LogScrollRepeatButtonStyle}" />
+                </Track.IncreaseRepeatButton>
+              </Track>
+            </Grid>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
   </Window.Resources>
 
 	    <Grid>
 	      <Grid.ColumnDefinitions>
-	      <ColumnDefinition Width="232" />
-	      <ColumnDefinition Width="8" />
-	      <ColumnDefinition Width="*" />
+	      <ColumnDefinition x:Name="SidebarColumn" Width="232" />
+	      <ColumnDefinition x:Name="ShellGutterColumn" Width="8" />
+	      <ColumnDefinition x:Name="MainContentColumn" Width="*" />
 	    </Grid.ColumnDefinitions>
 
 	    <Border Grid.Column="0"
+              x:Name="SidebarRoot"
+              SizeChanged="SidebarRoot_SizeChanged"
 	            Background="#020708"
 	            BorderBrush="#173436"
 	            BorderThickness="0,0,1,0">
@@ -529,7 +669,8 @@
 	          <RowDefinition Height="Auto" />
 	        </Grid.RowDefinitions>
 
-        <Grid Grid.Row="0"
+        <Grid x:Name="SidebarHeader"
+              Grid.Row="0"
               Panel.ZIndex="2"
               Background="Transparent"
               Margin="14,18,12,0">
@@ -543,10 +684,26 @@
                    Stretch="Uniform"
                    HorizontalAlignment="Left" />
           </DockPanel>
-          <TextBlock Grid.Row="1"
+          <DockPanel Grid.Row="1"
                      Margin="2,6,0,0"
-                     Text="// GameDev Ai Pipelines"
-                     Style="{StaticResource AccentTextStyle}" />
+                     LastChildFill="False">
+            <TextBlock Text="// GameDev Ai Pipelines"
+                       Style="{StaticResource AccentTextStyle}" />
+            <Button x:Name="MonitorModeToggleButton"
+                    DockPanel.Dock="Right"
+                    Style="{StaticResource MonitorExitButtonStyle}"
+                    Width="38"
+                    Height="20"
+                    Margin="8,-1,0,0"
+                    Padding="0"
+                    Click="MonitorModeToggleButton_Click">
+              <TextBlock x:Name="MonitorModeToggleText"
+                         Text="mon"
+                         FontSize="9.5"
+                         HorizontalAlignment="Center"
+                         VerticalAlignment="Center" />
+            </Button>
+          </DockPanel>
         </Grid>
 
 	        <Grid Grid.Row="0"
@@ -577,13 +734,19 @@
               </Image.Triggers>
             </Image>
           </Grid>
+        </Grid>
 
-          <StackPanel Margin="10,114,40,0"
-                      VerticalAlignment="Top">
+        <Grid x:Name="SidebarNavHost"
+              Grid.Row="1"
+              Panel.ZIndex="2"
+              Margin="10,16,40,8"
+              ClipToBounds="True">
           <ListBox ItemsSource="{Binding PrimaryNavigationItems}"
                    SelectedItem="{Binding SelectedNavigationItem}"
                    Background="Transparent"
                    BorderThickness="0"
+                   ScrollViewer.VerticalScrollBarVisibility="Disabled"
+                   ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                    ItemContainerStyle="{StaticResource NavigationListBoxItemStyle}">
             <ListBox.ItemTemplate>
               <DataTemplate>
@@ -608,10 +771,10 @@
               </DataTemplate>
             </ListBox.ItemTemplate>
           </ListBox>
-          </StackPanel>
         </Grid>
 
-	        <Border Grid.Row="2"
+	        <Border x:Name="SidebarRuntimePanel"
+                  Grid.Row="2"
 	                BorderBrush="Transparent"
 	                BorderThickness="0"
 	                Margin="0">
@@ -657,28 +820,68 @@
                      Text="{Binding RuntimeGpuTempLabel, StringFormat=GPU Temp: {0}}"
                      Foreground="#FF9E57"
                      FontSize="12" />
+          <ToggleButton x:Name="BrainMonitorToggle"
+                        Margin="0,8,0,0"
+                        Style="{StaticResource RuntimeMonitorToggleStyle}">
+            <DockPanel LastChildFill="True">
+              <TextBlock DockPanel.Dock="Right"
+                         Text="+"
+                         Margin="8,0,0,0"
+                         Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ToggleButton}}" />
+              <TextBlock Text="// BRAIN MONITOR"
+                         Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ToggleButton}}" />
+            </DockPanel>
+          </ToggleButton>
+          <StackPanel Margin="0,6,0,0"
+                      Visibility="{Binding IsChecked, ElementName=BrainMonitorToggle, Converter={StaticResource BoolToVisibilityConverter}}">
+            <TextBlock Text="{Binding RuntimeBrainLlmStateLabel}"
+                       Foreground="#E7F5F2"
+                       FontFamily="Segoe UI Semibold"
+                       FontSize="12" />
+            <TextBlock Margin="0,3,0,0"
+                       Text="{Binding RuntimeBrainTokensPerSecondLabel}"
+                       Foreground="#FFD166"
+                       FontSize="12" />
+            <TextBlock Margin="0,3,0,0"
+                       Text="{Binding RuntimeBrainContextLabel}"
+                       Foreground="#8ED8FF"
+                       FontSize="12" />
+            <TextBlock Margin="0,3,0,0"
+                       Text="{Binding RuntimeBrainModelLabel}"
+                       Foreground="#9BB9B4"
+                       FontSize="11"
+                       TextTrimming="CharacterEllipsis" />
+          </StackPanel>
           <TextBlock Margin="0,8,0,0"
                      Text="{Binding LastRefreshedText}"
                      Style="{StaticResource AccentTextStyle}"
                      FontSize="12.5" />
-          <Rectangle Margin="0,12,0,12"
-                     Height="1"
-                     Fill="#173436"
-                     Opacity="0.85" />
-          <TextBlock Text="NymphsCore v0.9.0"
-                     Foreground="#CFE4DE"
-                     FontFamily="Segoe UI Semibold"
-                     FontSize="13" />
-          <TextBlock Text="Open Source"
-                     Margin="0,4,0,0"
-                     Style="{StaticResource AccentTextStyle}"
-                     FontSize="14" />
+          <StackPanel x:Name="SidebarFooterHost">
+            <Rectangle Margin="0,12,0,12"
+                       Height="1"
+                       Fill="#173436"
+                       Opacity="0.85" />
+            <TextBlock Text="{Binding AppVersionLabel}"
+                       Foreground="#CFE4DE"
+                       FontFamily="Segoe UI Semibold"
+                       FontSize="13" />
+            <TextBlock Margin="0,4,0,0"
+                       Style="{StaticResource AccentTextStyle}"
+                       FontSize="14">
+              <Hyperlink Command="{Binding OpenSourceCommand}"
+                         Foreground="{StaticResource AccentBrush}"
+                         TextDecorations="{x:Null}">
+                <Run Text="Open Source" />
+              </Hyperlink>
+            </TextBlock>
+          </StackPanel>
           </StackPanel>
         </Border>
       </Grid>
     </Border>
 
-    <Grid Grid.Column="2"
+    <Grid x:Name="MainContentShell"
+          Grid.Column="2"
           Margin="22,0,22,0">
       <Grid.RowDefinitions>
         <RowDefinition Height="Auto" />
@@ -793,8 +996,7 @@
                   </ItemsControl.ItemsPanel>
                   <Button Style="{StaticResource HomeCardButtonStyle}"
                           Command="{Binding ShowSystemChecksCommand}">
-                    <Border Style="{StaticResource OverviewCardBorderStyle}"
-                            Margin="0">
+                    <Border Style="{StaticResource OverviewCardBorderStyle}">
                       <Grid>
                         <Grid.RowDefinitions>
                           <RowDefinition Height="Auto" />
@@ -821,6 +1023,40 @@
                         <StackPanel Grid.Row="1"
                                     Style="{StaticResource HomeCardStatusRowStyle}">
                           <TextBlock Text="{Binding SystemChecksSummary}"
+                                     Style="{StaticResource HomeOverviewStatusTextStyle}" />
+                        </StackPanel>
+                      </Grid>
+                    </Border>
+                  </Button>
+                  <Button Style="{StaticResource HomeCardButtonStyle}"
+                          Command="{Binding ShowBaseRuntimeCommand}">
+                    <Border Style="{StaticResource OverviewCardBorderStyle}">
+                      <Grid>
+                        <Grid.RowDefinitions>
+                          <RowDefinition Height="Auto" />
+                          <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+                        <Grid>
+                          <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                          </Grid.ColumnDefinitions>
+                          <Border Style="{StaticResource HomeOverviewIconBorderStyle}">
+                            <TextBlock Text="&#xE756;"
+                                       Style="{StaticResource HomeOverviewIconTextStyle}" />
+                          </Border>
+                          <StackPanel Grid.Column="1"
+                                      VerticalAlignment="Center">
+                            <TextBlock Text="Base Runtime"
+                                       Style="{StaticResource HomeCardTitleStyle}"
+                                       Foreground="#EEF8F6" />
+                            <TextBlock Text="{Binding BaseRuntimeCardSubtitle}"
+                                       Style="{StaticResource HomeCardBodyStyle}" />
+                          </StackPanel>
+                        </Grid>
+                        <StackPanel Grid.Row="1"
+                                    Style="{StaticResource HomeCardStatusRowStyle}">
+                          <TextBlock Text="{Binding BaseRuntimeCardStatus}"
                                      Style="{StaticResource HomeOverviewStatusTextStyle}" />
                         </StackPanel>
                       </Grid>
@@ -868,6 +1104,266 @@
                     </ItemsPanelTemplate>
                   </ItemsControl.ItemsPanel>
                 </ItemsControl>
+              </StackPanel>
+            </Grid>
+          </Grid>
+
+          <Grid Visibility="{Binding IsBaseRuntimePage, Converter={StaticResource BoolToVisibilityConverter}}">
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="18" />
+                <ColumnDefinition Width="232" />
+              </Grid.ColumnDefinitions>
+
+              <Grid Grid.Column="0">
+                <Grid.RowDefinitions>
+                  <RowDefinition Height="Auto" />
+                  <RowDefinition Height="*" />
+                  <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <StackPanel Grid.Row="0">
+                <DockPanel LastChildFill="False">
+                  <Border Width="48"
+                          Height="48"
+                          CornerRadius="14"
+                          Background="#0A1717"
+                          BorderBrush="#23E7DB"
+                          BorderThickness="1"
+                          Margin="0,0,12,0">
+                    <TextBlock Text="WS"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center"
+                               FontFamily="Cascadia Mono"
+                               FontSize="15"
+                               FontWeight="Bold"
+                               Foreground="#23E7DB" />
+                  </Border>
+                  <StackPanel>
+                    <TextBlock Text="Base Runtime"
+                               FontFamily="Bahnschrift SemiBold"
+                               FontSize="32"
+                               Foreground="#F2FBF9" />
+                    <TextBlock Text="{Binding BaseRuntimeStatusLabel}"
+                               Foreground="{Binding BaseRuntimeStatusBrush}"
+                               FontWeight="Bold"
+                               FontSize="16" />
+                  </StackPanel>
+                </DockPanel>
+
+                <TextBlock Margin="0,8,0,0"
+                           Text="Managed WSL shell, platform status, and repair actions."
+                           Foreground="#B1C9C5"
+                           FontSize="13"
+                           TextWrapping="Wrap" />
+                </StackPanel>
+
+                <Border Grid.Row="1"
+                        Margin="0,10,0,0"
+                        Style="{StaticResource PanelBorderStyle}"
+                        Padding="14,10"
+                        Background="#0A1415"
+                        VerticalAlignment="Stretch">
+                  <Grid>
+                    <Grid.RowDefinitions>
+                      <RowDefinition Height="Auto" />
+                      <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <StackPanel Grid.Row="0">
+                      <TextBlock Text="// BASE RUNTIME GUIDE"
+                                 Style="{StaticResource MonoLabelStyle}"
+                                 Foreground="{StaticResource LimeBrush}" />
+                      <TextBlock Margin="0,6,0,0"
+                                 Text="Use this order: get Windows WSL ready, install the NymphsCore runtime, then add modules from their cards."
+                                 Foreground="#D8EAE6"
+                                 FontWeight="SemiBold"
+                                 FontSize="12"
+                                 TextWrapping="Wrap" />
+                    </StackPanel>
+
+                    <UniformGrid Grid.Row="1"
+                                 Rows="3"
+                                 Columns="1"
+                                 Margin="0,10,0,0">
+                      <Grid Margin="0,0,0,5">
+                        <Grid.ColumnDefinitions>
+                          <ColumnDefinition Width="46" />
+                          <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="01"
+                                   Foreground="#97DF48"
+                                   FontFamily="Cascadia Mono"
+                                   FontSize="19"
+                                   FontWeight="Bold"
+                                   VerticalAlignment="Top" />
+                        <StackPanel Grid.Column="1">
+                          <TextBlock Text="Check Windows WSL"
+                                     Foreground="#F0FAF7"
+                                     FontFamily="Segoe UI Semibold"
+                                     FontSize="13" />
+                          <TextBlock Margin="0,2,0,0"
+                                     Text="Look at Current State. If Windows WSL says Ready, skip the setup button and install Base Runtime."
+                                     Foreground="#9AB8B4"
+                                     FontSize="11"
+                                     TextWrapping="Wrap" />
+                        </StackPanel>
+                      </Grid>
+
+                      <Grid Margin="0,0,0,5">
+                        <Grid.ColumnDefinitions>
+                          <ColumnDefinition Width="46" />
+                          <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="02"
+                                   Foreground="#23E7DB"
+                                   FontFamily="Cascadia Mono"
+                                   FontSize="19"
+                                   FontWeight="Bold"
+                                   VerticalAlignment="Top" />
+                        <StackPanel Grid.Column="1">
+                          <TextBlock Text="Set Up Windows WSL only if needed"
+                                     Foreground="#F0FAF7"
+                                     FontFamily="Segoe UI Semibold"
+                                     FontSize="13" />
+                          <TextBlock Margin="0,2,0,0"
+                                     Text="Use this when Windows WSL is missing or not ready. Approve any Windows prompt, restart if asked, then reopen Manager."
+                                     Foreground="#9AB8B4"
+                                     FontSize="11"
+                                     TextWrapping="Wrap" />
+                        </StackPanel>
+                      </Grid>
+
+                      <Grid>
+                        <Grid.ColumnDefinitions>
+                          <ColumnDefinition Width="46" />
+                          <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="03"
+                                   Foreground="#D77CD1"
+                                   FontFamily="Cascadia Mono"
+                                   FontSize="19"
+                                   FontWeight="Bold"
+                                   VerticalAlignment="Top" />
+                        <StackPanel Grid.Column="1">
+                          <TextBlock Text="Install Base Runtime, then modules"
+                                     Foreground="#F0FAF7"
+                                     FontFamily="Segoe UI Semibold"
+                                     FontSize="13" />
+                          <TextBlock Margin="0,2,0,0"
+                                     Text="Base Runtime creates the managed Ubuntu shell named NymphsCore. After that, install each module from its card."
+                                     Foreground="#9AB8B4"
+                                     FontSize="11"
+                                     TextWrapping="Wrap" />
+                        </StackPanel>
+                      </Grid>
+                    </UniformGrid>
+                  </Grid>
+                </Border>
+
+                <StackPanel Grid.Row="2"
+                            Margin="0,7,0,0">
+                  <TextBlock Text="// RUNTIME PROGRESS"
+                             Style="{StaticResource MonoLabelStyle}"
+                             Foreground="{StaticResource LimeBrush}" />
+                  <Border Margin="0,6,0,0"
+                          Style="{StaticResource PanelBorderStyle}"
+                          Padding="9,8"
+                          MinHeight="52"
+                          Background="#081314">
+                    <Grid>
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                      </Grid.ColumnDefinitions>
+                      <TextBlock Grid.Column="0"
+                                 Text="{Binding BaseRuntimeOperationLabel}"
+                                 Foreground="#97DF48"
+                                 FontFamily="Cascadia Mono"
+                                 FontSize="12"
+                                 Margin="0,0,14,0"
+                                 VerticalAlignment="Center" />
+                      <TextBlock Grid.Column="1"
+                                 Text="{Binding BaseRuntimeProgressText}"
+                                 Foreground="#7FF7EF"
+                                 FontFamily="Cascadia Mono"
+                                 FontSize="12"
+                                 TextWrapping="Wrap"
+                                 MaxHeight="40"
+                                 VerticalAlignment="Center" />
+                    </Grid>
+                  </Border>
+                </StackPanel>
+              </Grid>
+
+              <StackPanel Grid.Column="2">
+                <TextBlock Text="// ACTIONS"
+                           Style="{StaticResource MonoLabelStyle}"
+                           Foreground="{StaticResource LimeBrush}" />
+                <Button Margin="0,10,0,6"
+                        Style="{StaticResource ShellButtonStyle}"
+                        Command="{Binding SetupWindowsWslCommand}"
+                        Content="{Binding SetupWindowsWslActionText}" />
+                <Button Margin="0,0,0,6"
+                        Style="{StaticResource ShellButtonStyle}"
+                        Command="{Binding SetupBaseRuntimeCommand}"
+                        Content="{Binding BaseRuntimeActionText}" />
+                <Button Margin="0,0,0,6"
+                        Style="{StaticResource ShellButtonStyle}"
+                        Command="{Binding UninstallBaseRuntimeCommand}"
+                        Content="Unregister WSL Runtime" />
+                <Button Margin="0"
+                        Style="{StaticResource ShellButtonStyle}"
+                        Command="{Binding ShowHomeCommand}"
+                        Content="Back To Home" />
+
+                <Border Margin="0,10,0,0"
+                        Style="{StaticResource PanelBorderStyle}"
+                        Padding="10"
+                        Background="#081314">
+                  <StackPanel>
+                    <TextBlock Text="// CURRENT STATE"
+                               Style="{StaticResource MonoLabelStyle}"
+                               Foreground="{StaticResource LimeBrush}" />
+                    <TextBlock Margin="0,7,0,0"
+                               Text="{Binding WindowsWslStatusLabel, StringFormat=Windows WSL: {0}}"
+                               Foreground="{Binding WindowsWslStatusBrush}"
+                               FontSize="12" />
+                    <TextBlock Margin="0,5,0,0"
+                               Text="{Binding BaseRuntimeStatusLabel, StringFormat=Status: {0}}"
+                               Foreground="#D8EAE6"
+                               FontSize="12" />
+                    <TextBlock Margin="0,5,0,0"
+                               Text="{Binding BaseRuntimeCardSubtitle, StringFormat=Base runtime: {0}}"
+                               Foreground="#D8EAE6"
+                               FontSize="12"
+                               TextWrapping="Wrap" />
+                    <TextBlock Margin="0,5,0,0"
+                               Text="{Binding RuntimePanelSummary}"
+                               Foreground="#9AB8B4"
+                               FontSize="11"
+                               TextWrapping="Wrap" />
+                    <TextBlock Margin="0,5,0,0"
+                               Text="{Binding RuntimeDiskUsageLabel, StringFormat=WSL disk: {0}}"
+                               Foreground="#9AB8B4"
+                               FontSize="11" />
+                    <TextBlock Margin="0,5,0,0"
+                               Text="{Binding RuntimeWindowsDiskUsageLabel, StringFormat=Win disk: {0}}"
+                               Foreground="#9AB8B4"
+                               FontSize="11" />
+                  </StackPanel>
+                </Border>
+                <Border Margin="0,8,0,0"
+                        Style="{StaticResource PanelBorderStyle}"
+                        Padding="9"
+                        Background="#100F0A"
+                        BorderBrush="#4A3820">
+                  <TextBlock Text="Unregister removes the managed WSL distro, its runtime folder, and modules installed inside it."
+                             Foreground="#D9B36B"
+                             FontSize="11"
+                             TextWrapping="Wrap" />
+                </Border>
               </StackPanel>
             </Grid>
           </Grid>
@@ -936,113 +1432,51 @@
             </StackPanel>
           </Grid>
 
-          <Grid Visibility="{Binding IsLogsPage, Converter={StaticResource BoolToVisibilityConverter}}">
-            <StackPanel Margin="0,0,0,16">
+          <Grid Visibility="{Binding IsLogsPage, Converter={StaticResource BoolToVisibilityConverter}}"
+                Height="{Binding ActualHeight, ElementName=MainContentScrollViewer}">
+            <Grid.RowDefinitions>
+              <RowDefinition Height="Auto" />
+              <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+            <Grid Grid.Row="0">
               <TextBlock Text="// LOG STREAM"
                          Style="{StaticResource MonoLabelStyle}"
                          Foreground="{StaticResource LimeBrush}" />
-                  <Border Margin="0,12,0,0"
-                      Height="430"
+            </Grid>
+            <Border Grid.Row="1"
+                      Margin="0,12,0,0"
                       Background="#081112"
                       BorderBrush="#173435"
                       BorderThickness="1"
                       Padding="14">
-                <ListBox x:Name="UnifiedLogList"
-                         ItemsSource="{Binding UnifiedLogLines}"
+                <TextBox x:Name="UnifiedLogTextBox"
+                         Text="{Binding UnifiedLogText, Mode=OneWay}"
                          Background="Transparent"
                          BorderThickness="0"
                          Padding="0"
                          Foreground="#8FD7D0"
+                         CaretBrush="#23E7DB"
+                         SelectionBrush="#2AA8A2"
+                         SelectionOpacity="0.38"
                          FontFamily="Consolas"
                          FontSize="11"
                          FontWeight="Light"
-                         ScrollViewer.CanContentScroll="False"
-                         ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                         ScrollViewer.VerticalScrollBarVisibility="Auto">
-                  <ListBox.Resources>
-                    <Style TargetType="RepeatButton" x:Key="LogScrollRepeatButtonStyle">
-                      <Setter Property="Background" Value="Transparent" />
-                      <Setter Property="BorderThickness" Value="0" />
-                      <Setter Property="Focusable" Value="False" />
-                      <Setter Property="IsTabStop" Value="False" />
-                      <Setter Property="Template">
-                        <Setter.Value>
-                          <ControlTemplate TargetType="RepeatButton">
-                            <Border Background="Transparent" />
-                          </ControlTemplate>
-                        </Setter.Value>
-                      </Setter>
-                    </Style>
-                    <Style TargetType="Thumb" x:Key="LogScrollThumbStyle">
-                      <Setter Property="Background" Value="#2AA8A2" />
-                      <Setter Property="Template">
-                        <Setter.Value>
-                          <ControlTemplate TargetType="Thumb">
-                            <Border Background="{TemplateBinding Background}"
-                                    CornerRadius="4"
-                                    Opacity="0.92" />
-                          </ControlTemplate>
-                        </Setter.Value>
-                      </Setter>
-                    </Style>
-                    <Style TargetType="ScrollBar">
-                      <Setter Property="Background" Value="#0B1718" />
-                      <Setter Property="Width" Value="8" />
-                      <Setter Property="Template">
-                        <Setter.Value>
-                          <ControlTemplate TargetType="ScrollBar">
-                            <Border Background="Transparent"
-                                    Margin="6,0,0,0">
-                              <Grid Background="#0D181A">
-                                <Track x:Name="PART_Track"
-                                       IsDirectionReversed="True">
-                                  <Track.DecreaseRepeatButton>
-                                    <RepeatButton Style="{StaticResource LogScrollRepeatButtonStyle}"
-                                                  Command="ScrollBar.PageUpCommand" />
-                                  </Track.DecreaseRepeatButton>
-                                  <Track.Thumb>
-                                    <Thumb Style="{StaticResource LogScrollThumbStyle}" />
-                                  </Track.Thumb>
-                                  <Track.IncreaseRepeatButton>
-                                    <RepeatButton Style="{StaticResource LogScrollRepeatButtonStyle}"
-                                                  Command="ScrollBar.PageDownCommand" />
-                                  </Track.IncreaseRepeatButton>
-                                </Track>
-                              </Grid>
-                            </Border>
-                          </ControlTemplate>
-                        </Setter.Value>
-                      </Setter>
-                    </Style>
-                  </ListBox.Resources>
-                  <ListBox.ItemContainerStyle>
-                    <Style TargetType="ListBoxItem">
-                      <Setter Property="Padding" Value="0" />
-                      <Setter Property="Margin" Value="0" />
-                      <Setter Property="Focusable" Value="False" />
-                      <Setter Property="Template">
-                        <Setter.Value>
-                          <ControlTemplate TargetType="ListBoxItem">
-                            <ContentPresenter />
-                          </ControlTemplate>
-                        </Setter.Value>
-                      </Setter>
-                    </Style>
-                  </ListBox.ItemContainerStyle>
-                  <ListBox.ItemTemplate>
-                    <DataTemplate>
-                      <TextBlock Margin="0,0,0,4"
-                                 Text="{Binding}"
-                                 Foreground="#8FD7D0"
-                                 FontFamily="Consolas"
-                                 FontSize="11"
-                                 FontWeight="Light"
-                                 TextWrapping="Wrap" />
-                    </DataTemplate>
-                  </ListBox.ItemTemplate>
-                </ListBox>
+                         TextWrapping="Wrap"
+                         AcceptsReturn="True"
+                         AcceptsTab="True"
+                         IsReadOnly="True"
+                         IsReadOnlyCaretVisible="True"
+                         MinHeight="0"
+                         HorizontalAlignment="Stretch"
+                         VerticalAlignment="Stretch"
+                         VerticalScrollBarVisibility="Visible"
+                         HorizontalScrollBarVisibility="Disabled">
+                  <TextBox.Resources>
+                    <Style TargetType="ScrollBar"
+                           BasedOn="{StaticResource LogScrollBarStyle}" />
+                  </TextBox.Resources>
+                </TextBox>
               </Border>
-            </StackPanel>
           </Grid>
 
           <Grid Visibility="{Binding IsGuidePage, Converter={StaticResource BoolToVisibilityConverter}}">
@@ -1172,27 +1606,38 @@
 
                 <Border Margin="0,18,0,0"
                         Style="{StaticResource PanelBorderStyle}"
-                        Padding="18"
+                        Padding="16"
                         Background="#0A1415"
-                        MinHeight="188">
-                  <StackPanel>
+                        Height="170">
+                  <Grid>
+                    <Grid.RowDefinitions>
+                      <RowDefinition Height="Auto" />
+                      <RowDefinition Height="Auto" />
+                      <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
                     <TextBlock Text="// LIVE DETAIL"
                                Style="{StaticResource MonoLabelStyle}"
                                Foreground="{StaticResource LimeBrush}" />
-                    <TextBlock Margin="0,12,0,0"
+                    <TextBlock Grid.Row="1"
+                               Margin="0,10,0,0"
                                Text="{Binding ModuleActionFeedbackTitle}"
                                Foreground="#D8EAE6"
                                FontWeight="SemiBold"
                                TextWrapping="Wrap" />
-                    <TextBlock Margin="0,10,0,0"
-                               Text="{Binding ModuleActionFeedbackDetail}"
-                               Foreground="#9AB8B4"
-                               FontSize="12"
-                               TextWrapping="Wrap" />
-                  </StackPanel>
+                    <ScrollViewer Grid.Row="2"
+                                  Margin="0,8,0,0"
+                                  VerticalScrollBarVisibility="Hidden"
+                                  HorizontalScrollBarVisibility="Disabled"
+                                  CanContentScroll="False">
+                      <TextBlock Text="{Binding ModuleActionFeedbackDetail}"
+                                 Foreground="#9AB8B4"
+                                 FontSize="12"
+                                 TextWrapping="Wrap" />
+                    </ScrollViewer>
+                  </Grid>
                 </Border>
 
-                <TextBlock Margin="0,22,0,10"
+                <TextBlock Margin="0,16,0,10"
                            Text="// MANAGER CONTRACT"
                            Style="{StaticResource MonoLabelStyle}"
                            Foreground="{StaticResource LimeBrush}" />

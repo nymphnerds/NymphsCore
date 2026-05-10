@@ -2,250 +2,226 @@
   <img src="Graphics/NymphsCoreLogo.png" alt="NymphsCore" width="960">
 </p>
 
-The central hub for the NymphNerds game development backend. This repo contains the core runtime, Manager, and Blender addon source that power the local pipeline.
+NymphsCore is the local runtime and Manager shell for NymphNerds game-development AI pipelines.
+
+This repository contains the Windows Manager, WSL runtime scripts, Blender addon source, and standardization notes for turning the old hardcoded tool stack into a registry-driven module system.
 
 ---
 
-## Install NymphsCore
+## Current Branch State
 
-NymphsCore Manager is the Windows setup and repair app for the local backend runtime used by the Nymphs Blender addon.
+Branch: `rauty`
 
-Use it when you want the Nymphs backend on your own Windows PC, without manually building WSL, CUDA, Python environments, or model caches.
+Manager build: `v0.9.2`
 
-### What It Installs
+This branch is an active plugin/module standardization checkpoint.
 
-The manager imports and maintains a dedicated WSL distro named `NymphsCore`.
+The Manager is no longer meant to install every tool through one hardcoded install flow. The new shape is:
 
-Inside that distro, it prepares the supported local backend stack:
+```text
+Install Base Runtime -> load module cards from registry -> install modules one at a time
+```
 
-- `TRELLIS.2` for single-image image-to-3D and texture/retexture workflows
-- `Z-Image` / Nunchaku for local text-to-image and image-to-image generation
-- CUDA 13.0, Python environments, helper scripts, and runtime checks
+What works now:
 
-The managed Linux user inside the distro is:
+- Manager shell loads official module cards from `nymphs-registry`.
+- Base Runtime is a first-class system card for creating or unregistering the managed `NymphsCore` WSL distro.
+- The old hardcoded module surfaces have been removed from the active shell.
+- Module status is parsed through generic `key=value` snapshots.
+- WORBI is the first live proof module for the new lifecycle contract.
+- The packaged Manager release is rebuilt under:
+
+```text
+Manager/apps/NymphsCoreManager/publish/win-x64/NymphsCoreManager.exe
+Manager/apps/NymphsCoreManager/publish/NymphsCoreManager-win-x64.zip
+```
+
+Still in proof phase:
+
+- Brain, Z-Image, LoRA, and TRELLIS still need full install/status/start/stop/open/logs/uninstall validation under the new module contract.
+- Module-owned UI surfaces are not finished yet.
+- `Delete Module + Data` remains conservative until each module declares safe purge scopes.
+
+The live handoff for this work is:
+
+[Nymph Plugin Standardization Handoff](docs/RautysIdeas/NYMPH_PLUGIN_STANDARDIZATION_HANDOFF.md)
+
+---
+
+## Module Contract Rule
+
+The current standard is:
+
+```text
+registry -> nymph.json manifest -> entrypoints -> status key/value snapshot -> Manager UI truth
+```
+
+Installed state must be based on the version marker:
+
+```text
+installed runtime == .nymph-module-version exists
+installed runtime != install folder exists
+installed runtime != preserved data exists
+```
+
+Installers should:
+
+- install into a temp/staging folder first
+- install dependencies inside staging
+- swap into the real install root only after success
+- write `.nymph-module-version` last
+- leave a clean not-installed state if interrupted
+- avoid random backup folders in `/home/nymph`
+- preserve only manifest-declared user data
+- expose bounded, fast status checks
+- declare log paths so the Manager can find module logs
+
+---
+
+## Quick Start For This Branch
+
+1. Download or build the Manager release from this branch.
+2. Extract the zip to a normal Windows folder.
+3. Run `NymphsCoreManager.exe`.
+4. Open `Base Runtime`.
+5. Confirm Windows WSL is ready.
+6. Install Base Runtime.
+7. Return Home and install modules from their cards.
+
+The managed WSL distro is named:
+
+```text
+NymphsCore
+```
+
+The managed Linux user is:
 
 ```text
 nymph
 ```
 
-The usual local API address is:
+Important WSL boundary:
 
 ```text
-http://localhost:8080
+NymphsCore_Lite = dev/source WSL
+NymphsCore      = managed runtime WSL
 ```
 
-### Download
+Runtime setup must not make the managed `NymphsCore` distro execute scripts from `NymphsCore_Lite` paths.
 
-To install the local backend on Windows:
+---
 
-1. Download the manager app:
-   [NymphsCoreManager-win-x64.zip](https://github.com/nymphnerds/NymphsCore/raw/refs/heads/rauty/Manager/apps/NymphsCoreManager/publish/NymphsCoreManager-win-x64.zip)
-2. Extract the zip to a normal Windows folder.
-3. Run `NymphsCoreManager.exe`.
-4. Let the manager bootstrap its own fresh Ubuntu WSL base locally.
+## Download
 
-Optional faster path:
+Current `rauty` build:
 
-- If you already have a compatible `NymphsCore.tar`, place it beside `NymphsCoreManager.exe`.
-- If no tar is present, the manager creates the base distro locally instead.
+[NymphsCoreManager-win-x64.zip](https://github.com/nymphnerds/NymphsCore/raw/refs/heads/rauty/Manager/apps/NymphsCoreManager/publish/NymphsCoreManager-win-x64.zip)
 
-Your extracted folder should look like this:
+After downloading:
 
-```text
-NymphsCoreManager-win-x64/
-  NymphsCoreManager.exe
-  scripts/
-    ...
-```
+1. Extract the zip.
+2. Run `NymphsCoreManager.exe`.
+3. If Windows SmartScreen appears, choose `More info`, then `Run anyway`.
 
-Important:
+The Manager is currently unsigned.
 
-- Do not run the manager from inside the zip.
-- Extract it first.
-- `NymphsCore.tar` is optional; the manager can bootstrap a fresh Ubuntu base locally.
-- A prebuilt tar is only a faster fallback if you already have one.
+---
 
-### Quick Start
-
-1. Download `NymphsCoreManager-win-x64.zip`.
-2. Extract it to a normal folder on Windows.
-3. Run `NymphsCoreManager.exe`.
-4. Approve the Windows administrator prompt.
-5. Leave model prefetch turned on unless you need a shorter first install.
-6. Use `Runtime Tools` after install to check backend readiness or run smoke tests.
-
-The manager build is currently unsigned. If Windows SmartScreen appears, choose `More info`, then `Run anyway`.
-
-### Requirements
+## Requirements
 
 Recommended baseline:
 
 - Windows 10 or Windows 11
-- NVIDIA GPU with current drivers
 - WSL available on the machine
+- NVIDIA GPU with current drivers for GPU-heavy modules
 - reliable internet connection
-- about `120 GB` free before install
-- `150 GB` free if you want comfortable headroom
+- enough free disk space for the base runtime plus module-specific models/assets
 
-The ready-to-run backend footprint is currently about `92 GB` installed. The model prefetch stage can download about `72 GB` of required model and helper files.
+Disk usage now depends on which modules you install. Base Runtime is intentionally separate from optional modules.
 
-For the detailed disk story, read:
+Model and artifact path standardization is still part of the next module-contract pass.
 
-- [Install Disk And Model Footprint](docs/FOOTPRINT.md)
+---
 
-### Manager Flow
+## Manager Screens
 
-The manager walks through these steps:
+Current shell:
 
-- `Welcome`: explains the local runtime and links to docs
-- `System Check`: checks administrator access, WSL, NVIDIA visibility, optional prebuilt distro package, and existing distros
-- `Install Location`: chooses the Windows drive/folder for the managed distro
-- `WSL Resources And Models`: chooses WSL resource settings, model prefetch, and optional experimental modules
-- `Installation Progress`: bootstraps or imports the distro and prepares runtime environments
-- `Finish`: summarizes the install
-- `Runtime Tools`: checks backend status, fetches missing models, and runs smoke tests
+- `Home`: system overview and registry-provided module cards
+- `Base Runtime`: Windows WSL readiness, managed runtime install, progress, current state, and unregister
+- `Logs`: selectable Manager log stream
+- `Guide`: lightweight user guidance
+- compact monitor mode: sidebar-only runtime monitor with optional always-on-top behavior
 
-Model prefetch is recommended for non-technical users. Turning it off only skips the large model downloads; the manager still prepares the runtime stack. Missing models can be fetched later from `Runtime Tools` or during first real use from the addon.
+Module cards open a detail page first. Install is a deliberate action from the detail page.
 
-The installer can also offer an experimental optional `Nymphs-Brain` local LLM stack. It installs under `/home/nymph/Nymphs-Brain` inside WSL when selected, is not required for the Blender backend, and can be skipped safely.
+---
 
-If selected, `Nymphs-Brain` now includes:
+## Official Modules
 
-- LM Studio CLI model management
-- a CUDA-accelerated `llama-server` local LLM runtime on `http://localhost:8000/v1`
-- Open WebUI on `http://localhost:8081`
-- a local MCP gateway for tool access from Cline/Open WebUI
-- optional OpenRouter-backed `llm-wrapper` delegation with local prompt caching
-- helper commands under `/home/nymph/Nymphs-Brain/bin`
-- a bundled `remote_llm_mcp` runtime under `Manager/scripts/remote_llm_mcp`
+Registry cards currently cover:
 
-The installer and runtime wrappers use LM Studio's normal CLI flow for model fetch and management, then serve the selected GGUF model through `llama-server`. No separate manual daemon bootstrap step should be needed.
+- Brain
+- Z-Image Turbo
+- LoRA
+- TRELLIS.2
+- WORBI
 
-For the full optional Brain stack guide, see:
+Proof order:
 
 ```text
-docs/NYMPHS_BRAIN_GUIDE.md
+WORBI -> Z-Image -> LoRA -> Brain -> TRELLIS
 ```
 
-### Runtime Tools
+WORBI is currently the most standardized live module. Its installer has been hardened to stage installs, write the version marker last, and avoid backup clutter.
 
-Use `Runtime Tools` to:
+---
 
-- check whether `Z-Image` and `TRELLIS.2` are ready
-- fetch missing model files into an existing install
-- run backend smoke tests
-- confirm the local API can start
-- check whether the optional Brain module is installed
+## Build Manager
 
-Smoke tests are slower than normal status checks because they actually start a backend and wait for a response.
+From Windows PowerShell:
 
-### Brain
-
-Use the dedicated `Brain` page to:
-
-- check Brain `LLM`, `MCP`, `Open WebUI`, and model status
-- start or stop the Brain stack
-- start or stop Open WebUI
-- enter an optional OpenRouter key for `llm-wrapper`
-- open `Manage Models` for the local GGUF model, context length, and optional remote wrapper model
-- update the Linux-side Brain stack components
-- inspect the Brain activity log
-
-The intended Manager-first flow is:
-
-1. install Brain from the Manager
-2. optionally enter an OpenRouter key on the Brain page and click `Apply Key`
-3. use `Manage Models` to choose the local GGUF model, context length, and optional remote `llm-wrapper` model
-4. start Brain or run `Update Stack`
-
-If no OpenRouter key is present, Brain skips `llm-wrapper` and still starts the rest of the stack normally.
-
-You can verify the wrapper directly from WSL with:
-
-```bash
-curl -s http://127.0.0.1:8099/llm-wrapper/llm_call \
-  -H 'Content-Type: application/json' \
-  -d '{"prompt":"Reply with exactly DIRECT_WRAPPER_TEST_OK and nothing else."}'
+```powershell
+powershell -ExecutionPolicy Bypass -File "\\wsl.localhost\NymphsCore_Lite\home\nymph\NymphsCore\Manager\apps\NymphsCoreManager\build-release.ps1"
 ```
 
-### Logs And Troubleshooting
+From the WSL dev shell, the project lives at:
 
-Logs are written under:
+```text
+/home/nymph/NymphsCore/Manager/apps/NymphsCoreManager
+```
+
+The release build produces:
+
+```text
+Manager/apps/NymphsCoreManager/publish/win-x64/NymphsCoreManager.exe
+Manager/apps/NymphsCoreManager/publish/NymphsCoreManager-win-x64.zip
+```
+
+---
+
+## Logs
+
+Windows Manager logs are written under:
 
 ```text
 %LOCALAPPDATA%\NymphsCore\
 ```
 
-If something fails, send the newest `installer-run-*.log` and a screenshot of the manager window.
+Module logs should be standardized through module manifests and status output. This is part of the community module contract work.
 
-Common causes:
+---
 
-- WSL is too old for local no-tar bootstrap, or an optional prebuilt tar is incompatible
-- the manager was launched from inside the zip
-- not enough free disk space
-- WSL is disabled or unhealthy
-- NVIDIA is not visible inside WSL
-- the model download is still running or was interrupted
+## Important Docs
 
-Rerunning the latest manager is the intended repair path for interrupted installs, missing packages, missing models, or refreshed runtime scripts. The optional Nymphs-Brain install should not require a separate LM Studio initialization step outside the manager.
-
-### After Install
-
-After the backend is installed, use the Blender addon through the published user guide:
-
-- [Blender Addon User Guide](docs/BLENDER_ADDON_USER_GUIDE.md)
-- Blender addon: available on Superhive (temporary URL)
-
-Useful docs:
-
-- [Absolute Beginner Local Backend Install Guide](docs/ABSOLUTE_BEGINNER_INSTALL_GUIDE.md)
+- [Nymph Plugin Standardization Handoff](docs/RautysIdeas/NYMPH_PLUGIN_STANDARDIZATION_HANDOFF.md)
+- [Plugin Manager Implementation Plan](docs/RautysIdeas/NYMPH_PLUGIN_MANAGER_IMPLEMENTATION_PLAN.md)
 - [Install Disk And Model Footprint](docs/FOOTPRINT.md)
-- [Blender Addon User Guide](docs/BLENDER_ADDON_USER_GUIDE.md)
-- [Nymphs-Brain Guide](docs/NYMPHS_BRAIN_GUIDE.md)
 
 ---
 
-## Structure
+## Status
 
-```
-NymphsCore/
-├── Manager/        — WSL backend, C# installer, and setup scripts
-└── docs/           — install guides, backend docs, and addon user guide
-```
+This branch is useful for testing the new Manager shell and module lifecycle contract.
 
-### Why is the Blender Addon separate now?
-The live Blender addon source now lives outside this repo so the Manager/runtime monorepo can stay public-facing without carrying the addon implementation.
-
-Public install and usage docs remain here in `docs/BLENDER_ADDON_USER_GUIDE.md`, while distribution is temporarily described as available on Superhive.
-
----
-
-## Adding Things in Future
-
-**New Blender distribution change** — publish package updates through the private distribution path and public Superhive-facing listing.
-
-**New Blender addon source work** — make changes in the separate private addon source repo.
-
----
-
-## Contributing
-
-```bash
-git clone https://github.com/nymphnerds/NymphsCore.git
-```
-
-No submodules. Push normally.
-
-## Changelog
-
-See [`CHANGELOG.md`](CHANGELOG.md) for the full NymphsCore change history across the Manager, Blender addon, and extension publishing flow.
-
----
-
-## Related Repos
-
-| Repo | Purpose |
-|---|---|
-| Blender addon | Available on Superhive (temporary URL) |
-| [NymphsCore](https://github.com/nymphnerds/NymphsCore) | Current Manager, installer, runtime helpers, and public docs |
-| [Nymphs2D2](https://github.com/nymphnerds/Nymphs2D2) | 2D backend repo used for the `Z-Image` runtime |
+It should not be treated as the final stable public installer until the official modules have each passed the same install/status/start/stop/open/logs/uninstall loop from registry cards.

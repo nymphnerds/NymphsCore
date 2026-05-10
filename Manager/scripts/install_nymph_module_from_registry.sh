@@ -54,8 +54,27 @@ WORK_ROOT="${NYMPHS_MODULE_WORK_ROOT:-${HOME}/.cache/nymphs-modules}"
 REPO_ROOT="${WORK_ROOT}/repos/${MODULE_ID}"
 REGISTRY_FILE="${WORK_ROOT}/registry.json"
 MANIFEST_FILE="${WORK_ROOT}/${MODULE_ID}.nymph.json"
+ACTION_ROOT="${WORK_ROOT}/actions"
+ACTION_STATE_FILE="${ACTION_ROOT}/${MODULE_ID}.state"
 
-mkdir -p "${WORK_ROOT}/repos"
+mkdir -p "${WORK_ROOT}/repos" "${ACTION_ROOT}"
+
+write_action_state() {
+  local status="$1"
+  local detail="$2"
+  cat > "${ACTION_STATE_FILE}" <<EOF
+module=${MODULE_ID}
+action=install
+status=${status}
+pid=$$
+started_at=$(date -Is)
+detail=${detail}
+EOF
+}
+
+clear_action_state() {
+  rm -f "${ACTION_STATE_FILE}"
+}
 
 require_tool() {
   local tool="$1"
@@ -119,6 +138,9 @@ if [[ "${DRY_RUN}" -eq 1 ]]; then
   echo "would_read_manifest=${MANIFEST_FILE}"
   exit 0
 fi
+
+write_action_state "running" "Installing ${MODULE_ID} from the Nymphs registry."
+trap clear_action_state EXIT
 
 if [[ -d "${REPO_ROOT}/.git" ]]; then
   git -C "${REPO_ROOT}" fetch --depth 1 origin "${REPO_BRANCH}"

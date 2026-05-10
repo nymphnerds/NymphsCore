@@ -1,4 +1,5 @@
 using System.Collections.Specialized;
+using System.ComponentModel;
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
@@ -17,7 +18,18 @@ public partial class MainWindow : Window
     private const int DwmwaBorderColor = 34;
     private const int DwmwaCaptionColor = 35;
     private const int DwmwaTextColor = 36;
+    private const double MinimumCleanNavSpace = 90;
+    private const double SidebarOnlyMonitorWidth = 360;
+    private const double MonitorModeWidth = 240;
+    private const double MonitorModeHeight = 390;
+    private const double MinimumFullModeWidth = 820;
+    private const double MinimumFullModeHeight = 560;
+    private const double DefaultFullModeWidth = 1060;
+    private const double DefaultFullModeHeight = 620;
     private ManagerShellViewModel? _viewModel;
+    private Rect? _preMonitorModeBounds;
+    private bool _isMonitorMode;
+    private bool _shutdownComplete;
 
     public MainWindow()
     {
@@ -31,6 +43,29 @@ public partial class MainWindow : Window
         if (_viewModel is not null)
         {
             _viewModel.UnifiedLogLines.CollectionChanged += OnUnifiedLogLinesChanged;
+        }
+    }
+
+    protected override async void OnClosing(CancelEventArgs e)
+    {
+        if (_shutdownComplete || _viewModel is null)
+        {
+            base.OnClosing(e);
+            return;
+        }
+
+        e.Cancel = true;
+        IsEnabled = false;
+
+        try
+        {
+            await _viewModel.ShutdownAsync().ConfigureAwait(true);
+        }
+        finally
+        {
+            _shutdownComplete = true;
+            IsEnabled = true;
+            Close();
         }
     }
 
@@ -56,8 +91,63 @@ public partial class MainWindow : Window
 
         ApplyDarkTitleBar();
         await _viewModel.InitializeAsync();
+        UpdateCompactMonitorMode();
         _ = Dispatcher.BeginInvoke(ScrollMainContentToTop, DispatcherPriority.Loaded);
         ScrollUnifiedLogToLatest();
+    }
+
+    private void SidebarRoot_SizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        UpdateCompactMonitorMode();
+    }
+
+    private void Window_SizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        UpdateCompactMonitorMode();
+    }
+
+    private void UpdateCompactMonitorMode()
+    {
+        if (SidebarRoot is null ||
+            SidebarHeader is null ||
+            SidebarNavHost is null ||
+            SidebarRuntimePanel is null ||
+            SidebarFooterHost is null ||
+            MonitorModeToggleText is null ||
+            SidebarColumn is null ||
+            ShellGutterColumn is null ||
+            MainContentColumn is null ||
+            MainContentShell is null)
+        {
+            return;
+        }
+
+        var sidebarOnlyMode = _isMonitorMode || ActualWidth < SidebarOnlyMonitorWidth;
+        var usedSidebarHeight = SidebarHeader.ActualHeight + SidebarRuntimePanel.ActualHeight + 42;
+        var availableNavSpace = SidebarRoot.ActualHeight - usedSidebarHeight;
+        var verticallyCompact = _isMonitorMode || availableNavSpace < MinimumCleanNavSpace;
+
+        SidebarNavHost.Visibility = verticallyCompact
+            ? Visibility.Collapsed
+            : Visibility.Visible;
+        SidebarFooterHost.Visibility = verticallyCompact
+            ? Visibility.Collapsed
+            : Visibility.Visible;
+        MonitorModeToggleText.Text = _isMonitorMode ? "full" : "mon";
+
+        if (sidebarOnlyMode)
+        {
+            SidebarColumn.Width = new GridLength(232);
+            ShellGutterColumn.Width = new GridLength(0);
+            MainContentColumn.Width = new GridLength(0);
+            MainContentShell.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        SidebarColumn.Width = new GridLength(232);
+        ShellGutterColumn.Width = new GridLength(8);
+        MainContentColumn.Width = new GridLength(1, GridUnitType.Star);
+        MainContentShell.Visibility = Visibility.Visible;
     }
 
     private void OnUnifiedLogLinesChanged(object? sender, NotifyCollectionChangedEventArgs e)
@@ -67,18 +157,13 @@ public partial class MainWindow : Window
 
     private void ScrollUnifiedLogToLatest()
     {
-        if (UnifiedLogList.Items.Count == 0)
+        if (UnifiedLogTextBox is null)
         {
             return;
         }
 
-        var lastItem = UnifiedLogList.Items[UnifiedLogList.Items.Count - 1];
-        UnifiedLogList.ScrollIntoView(lastItem);
-
-        if (FindDescendant<ScrollViewer>(UnifiedLogList) is { } scrollViewer)
-        {
-            scrollViewer.ScrollToBottom();
-        }
+        UnifiedLogTextBox.CaretIndex = UnifiedLogTextBox.Text.Length;
+        UnifiedLogTextBox.ScrollToEnd();
     }
 
     private void ScrollMainContentToTop()
@@ -89,6 +174,84 @@ public partial class MainWindow : Window
     private void SettingsButton_Click(object sender, RoutedEventArgs e)
     {
         SettingsPopup.IsOpen = !SettingsPopup.IsOpen;
+    }
+
+    private void MonitorModeToggleButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_isMonitorMode)
+        {
+            ExitMonitorMode();
+            return;
+        }
+
+        EnterMonitorMode();
+    }
+
+    private void EnterMonitorMode()
+    {
+        SettingsPopup.IsOpen = false;
+
+        if (WindowState != WindowState.Normal)
+        {
+            WindowState = WindowState.Normal;
+        }
+
+        var right = Left + Width;
+        var currentBounds = new Rect(Left, Top, Width, Height);
+        _preMonitorModeBounds = IsUsableFullModeBounds(currentBounds)
+            ? currentBounds
+            : BuildFullModeBounds(right);
+
+        _isMonitorMode = true;
+        Width = MonitorModeWidth;
+        Height = MonitorModeHeight;
+        Left = Math.Max(0, right - Width);
+        Topmost = true;
+        UpdateCompactMonitorMode();
+    }
+
+    private void ExitMonitorMode()
+    {
+        _isMonitorMode = false;
+        Topmost = false;
+
+        var preferredRight = Left + Width;
+        var bounds = _preMonitorModeBounds is { } savedBounds && IsUsableFullModeBounds(savedBounds)
+            ? savedBounds
+            : BuildFullModeBounds(preferredRight);
+
+        _preMonitorModeBounds = null;
+        Left = bounds.Left;
+        Top = bounds.Top;
+        Width = bounds.Width;
+        Height = bounds.Height;
+
+        UpdateCompactMonitorMode();
+        _ = Dispatcher.BeginInvoke(UpdateCompactMonitorMode, DispatcherPriority.Loaded);
+    }
+
+    private static bool IsUsableFullModeBounds(Rect bounds)
+    {
+        return bounds.Width >= MinimumFullModeWidth && bounds.Height >= MinimumFullModeHeight;
+    }
+
+    private static Rect BuildFullModeBounds(double preferredRight)
+    {
+        var workArea = SystemParameters.WorkArea;
+        var width = Math.Min(DefaultFullModeWidth, Math.Max(MinimumFullModeWidth, workArea.Width - 40));
+        var height = Math.Min(DefaultFullModeHeight, Math.Max(MinimumFullModeHeight, workArea.Height - 40));
+        width = Math.Min(width, workArea.Width);
+        height = Math.Min(height, workArea.Height);
+
+        var minLeft = workArea.Left;
+        var maxLeft = workArea.Right - width;
+        var left = Math.Max(minLeft, Math.Min(maxLeft, preferredRight - width));
+
+        var minTop = workArea.Top;
+        var maxTop = workArea.Bottom - height;
+        var top = Math.Max(minTop, Math.Min(maxTop, SystemParameters.WorkArea.Top + 40));
+
+        return new Rect(left, top, width, height);
     }
 
     private void ApplyDarkTitleBar()

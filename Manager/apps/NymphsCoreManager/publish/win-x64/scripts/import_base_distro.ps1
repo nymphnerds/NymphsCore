@@ -55,6 +55,12 @@ function ConvertTo-WslPath {
     }
 
     $normalized = $WindowsPath -replace '\\', '/'
+    if ($normalized -match '^//(?:wsl\.localhost|wsl\$)/([^/]+)/(.*)$') {
+        # Never ask WSL to translate a path that belongs to a WSL distro.
+        # Source/dev distro paths are not valid inside the target runtime distro.
+        return $null
+    }
+
     if ($normalized -match '^([A-Za-z]):/(.*)$') {
         $drive = $matches[1].ToLowerInvariant()
         $rest = $matches[2]
@@ -218,9 +224,9 @@ function Invoke-FreshBootstrapImport {
         throw "Bootstrap script was not found: $bootstrapScriptPath"
     }
 
-    $bootstrapScriptWslPath = ConvertTo-WslPath -WindowsPath $bootstrapScriptPath
-    if ([string]::IsNullOrWhiteSpace($bootstrapScriptWslPath)) {
-        throw "Failed to convert bootstrap script path for WSL access: $bootstrapScriptPath"
+    $bootstrapScriptContent = Get-Content -Path $bootstrapScriptPath -Raw
+    if ([string]::IsNullOrWhiteSpace($bootstrapScriptContent)) {
+        throw "Bootstrap script was empty: $bootstrapScriptPath"
     }
 
     New-Item -ItemType Directory -Path $TargetInstallLocation -Force | Out-Null
@@ -230,16 +236,21 @@ set -euo pipefail
 export NYMPHS3D_HELPER_REPO_URL="__HELPER_REPO_URL__"
 export NYMPHS3D_HELPER_REPO_BRANCH="__HELPER_REPO_BRANCH__"
 export NYMPHS3D_BOOTSTRAP_PREPARE_RUNTIME_REPOS=0
-/bin/bash "__BOOTSTRAP_SCRIPT_PATH__"
+cat >/tmp/nymphscore-bootstrap-fresh-distro-root.sh <<'NYMPHS_BOOTSTRAP_SCRIPT'
+__BOOTSTRAP_SCRIPT_CONTENT__
+NYMPHS_BOOTSTRAP_SCRIPT
+chmod +x /tmp/nymphscore-bootstrap-fresh-distro-root.sh
+/bin/bash /tmp/nymphscore-bootstrap-fresh-distro-root.sh
 '@
     $bootstrapCommand = $bootstrapCommand.Replace("__HELPER_REPO_URL__", $HelperRepoUrl)
     $bootstrapCommand = $bootstrapCommand.Replace("__HELPER_REPO_BRANCH__", $HelperRepoBranch)
-    $bootstrapCommand = $bootstrapCommand.Replace("__BOOTSTRAP_SCRIPT_PATH__", $bootstrapScriptWslPath)
+    $bootstrapCommand = $bootstrapCommand.Replace("__BOOTSTRAP_SCRIPT_CONTENT__", $bootstrapScriptContent)
 
     try {
         Write-Host "Bootstrapping a fresh Ubuntu base locally..."
         Write-Host "Managed distro: $TargetDistroName"
         Write-Host "Install location: $TargetInstallLocation"
+        Write-Host "Waiting for WSL to download and register $BootstrapDistribution. This can be quiet while Windows creates ext4.vhdx..."
         try {
             Invoke-NativeOrThrow -FilePath "wsl" -ArgumentList @("--install", "--distribution", $BootstrapDistribution, "--name", $TargetDistroName, "--location", $TargetInstallLocation, "--no-launch") -FailureMessage "Failed to install managed distro"
         }
@@ -248,6 +259,7 @@ export NYMPHS3D_BOOTSTRAP_PREPARE_RUNTIME_REPOS=0
         }
 
         try {
+            Write-Host "Running first-boot bootstrap inside '$TargetDistroName'..."
             Invoke-NativeOrThrow -FilePath "wsl" -ArgumentList @("-d", $TargetDistroName, "--user", "root", "--", "bash", "-lc", $bootstrapCommand) -FailureMessage "Bootstrap preparation failed"
         }
         catch {

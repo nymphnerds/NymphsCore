@@ -5,92 +5,27 @@ Branch: `rauty`
 
 ## Purpose
 
-This is the single source of truth for the next Manager implementation pass.
-
-It replaces the older scattered handoffs about:
-
-- module lifecycle fixes
-- Nymph Plugin standardization
-- the `baffledtests` branch review
-- next-session notes
-
-The plan is deliberately concrete. The next work should not be another broad architecture sketch. It should make one module, WORBI, boring and reliable first, then generalize from the proven lifecycle.
-
-## Current Repo State
-
-Work is cleanly back on `rauty`.
-
-The old `baffledtests` branch was reviewed, mined for one safe fix, then deleted locally and remotely.
-
-Latest known pushed commits from this session:
+Build the Nymph Plugin Manager around one strict lifecycle/status contract and module-owned Manager UI surfaces for all official modules:
 
 ```text
-4063cc2 fix(manager): carry over system checks navigation fix
-db7fa33 docs: add full next session handoff
+Brain
+Z-Image
+LoRA
+TRELLIS
+WORBI
 ```
 
-The Manager release build passed after the System Checks fix.
+WORBI is the first proof module because it is light and clearly exposes the preserved-data/install-state bug. It is not the whole scope.
 
-Working release build route:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File "\\wsl.localhost\NymphsCore_Lite\home\nymph\NymphsCore\Manager\apps\NymphsCoreManager\build-release.ps1"
-```
-
-When run from Bash, preserve UNC escaping:
-
-```bash
-/bin/bash -lc "powershell.exe -NoProfile -ExecutionPolicy Bypass -File '\\\\wsl.localhost\\NymphsCore_Lite\\home\\nymph\\NymphsCore\\Manager\\apps\\NymphsCoreManager\\build-release.ps1'"
-```
-
-## Non-Negotiable Decisions
-
-### Stay On `rauty`
-
-Continue all work on `rauty`.
-
-Do not recreate or merge `baffledtests`.
-
-### Do Not Bring Back `baffledtests` Churn
-
-Reject these from `baffledtests` permanently:
-
-- `MegaPhase4` namespace changes
-- `MegaPhase4` assembly name
-- `NymphsCore.MegaPhase4.exe`
-- JPG conversion of sidebar portraits
-- published binaries from that branch
-- broad line-ending churn
-- scaffolded registry services as the implementation baseline
-- lifecycle-complete claims that were not proven in this repo
-
-The sidebar portrait assets must remain PNG because they need transparency and are still WIP Photoshop assets.
-
-### Keep The System Checks Fix
-
-One useful fix from `baffledtests` was already carried over.
-
-File:
+Implementation direction:
 
 ```text
-Manager/apps/NymphsCoreManager/ViewModels/ManagerShellViewModel.cs
+define the all-module contract -> prove it with WORBI -> apply it to every module -> then generalize Manager hosting
 ```
-
-Fix:
-
-```csharp
-SelectedNavigationItem = null;
-```
-
-It was added to the fallback path in `SelectPrimaryPage`.
-
-Reason:
-
-`SystemChecks` is opened from a Home card, but it is not part of `PrimaryNavigationItems`. Without clearing `SelectedNavigationItem`, the UI can show Home as selected while the actual page is System Checks. Then clicking Home later can do nothing because the selected navigation item has not changed.
 
 ## The Real Goal
 
-The Manager should become strict and boring at the lifecycle layer.
+The Manager should become strict and boring at the lifecycle layer across every official module.
 
 The goal is not to make every module UI identical.
 
@@ -115,6 +50,16 @@ Core rule:
 Manager owns lifecycle, status truth, registry, safety, and host shell.
 Modules own their manifest, entrypoints, and Manager-facing config/control surface.
 ```
+
+This means the `main` branch Manager pages should be treated as workflow references, not as the future architecture.
+
+On `main`, the Manager owns large hardcoded backend pages:
+
+- Runtime Tools for Z-Image and TRELLIS
+- Z-Image Trainer for LoRA/AI Toolkit training
+- Brain tools for Brain service/model/OpenRouter controls
+
+Those workflows are valuable. The ownership is wrong for the plugin model. The module-specific page bodies should move into module-owned Manager surfaces while the Manager keeps the shared shell, lifecycle rail, status refresh, confirmations, and logging.
 
 ## Why This Matters
 
@@ -141,28 +86,125 @@ They should not necessarily share:
 - module-specific page body
 - local workflow UI
 
+The `main` branch UI proves why this matters:
+
+- Brain needs service controls, model manager launch, OpenRouter key handling, and live monitor readouts.
+- Z-Image needs model fetch, backend health, smoke test, and runtime dependency controls.
+- LoRA needs a dense training workflow: datasets, captions, presets, adapter choice, job creation, queue controls, progress, and logs.
+- TRELLIS needs GGUF quant selection, model fetch, adapter repair, smoke tests, and heavy-runtime status.
+- WORBI needs lightweight app lifecycle and links/logs.
+
+Those pages should not all be baked into `ManagerShellViewModel`.
+
 ## Target Ownership Model
 
 ### Manager Owns
 
 - registry and manifest discovery
 - manifest validation
+- module descriptor cache
+- status snapshot execution and parsing
 - install/update/uninstall/delete-data orchestration
 - status refresh truth
 - shared lifecycle action rail
 - host page shell
+- declarative Manager surface renderer
 - navigation placement
 - permissions and confirmations
 - dry-run rules
 - destructive-action safety
 - busy/error/progress/log behavior
 - projection of status into cards, badges, buttons, and navigation
+- shared secrets plumbing where the Manager is the appropriate owner, such as Hugging Face or OpenRouter token storage
+
+### Base Runtime Install
+
+The new Manager still needs an easy first-run install path, but it should not copy the old module-choice installer.
+
+Base setup should do only this:
+
+```text
+install or repair the managed NymphsCore WSL distro
+configure the default Linux user
+normalize shell/profile paths
+prepare the Manager shell for registry-driven module installs
+```
+
+Base setup should not hardcode optional module installs:
+
+```text
+Brain
+Z-Image
+LoRA
+TRELLIS
+WORBI
+```
+
+Those belong after base setup as registry module cards.
+
+The base runtime also needs its own lifecycle. It is not a normal optional module, but it should be managed with the same boring status-truth discipline:
+
+```text
+install -> status -> repair -> update -> migrate
+```
+
+Base runtime status should track:
+
+```text
+Ubuntu version
+WSL kernel availability
+NymphsCore helper scripts version
+system package readiness
+CUDA/toolchain readiness
+shared data/model/cache layout version
+```
+
+Suggested marker:
+
+```text
+/etc/nymphscore/base-runtime.json
+```
+
+Example:
+
+```json
+{
+  "base_schema": 1,
+  "ubuntu": "24.04",
+  "manager_channel": "rauty",
+  "helper_scripts_commit": "abc123",
+  "data_layout": 1,
+  "created_at": "2026-05-10",
+  "last_repair_at": "2026-05-10"
+}
+```
+
+Base Runtime actions should be separate from module actions:
+
+```text
+status
+repair
+update_helper_scripts
+update_system_packages
+migrate_base
+```
+
+Rules:
+
+- patch/minor base repairs can be a normal safe action
+- helper script updates can be checked and applied separately from module updates
+- Ubuntu major-version changes should be explicit migrations, not automatic upgrades
+- migration should be offered only when tested and supported
+- modules must not be installed as part of base setup
+- module data/model stores should survive base repair and migration
+- base runtime update state should not block viewing the module registry, but it may block install/start actions when the platform is unhealthy
 
 ### Module Owns
 
 - manifest
 - lifecycle entrypoint scripts
 - status script
+- Manager surface definition
 - config page contents
 - settings fields
 - module-specific controls
@@ -170,10 +212,83 @@ They should not necessarily share:
 - health details
 - module-specific logs/actions presentation
 - explanatory labels and defaults for its own workflow
+- module action names and argument contracts
+- module-specific validation rules that can be represented declaratively
 
-## The WORBI Bug To Prove Against
+## All-Module Scope
+
+The lifecycle and UI ownership work applies to every official module, not only WORBI.
+
+Current target modules:
+
+```text
+brain
+zimage
+lora
+trellis
+worbi
+```
+
+Each module should converge on:
+
+- one canonical `nymph.json` shape
+- one `entrypoints` object
+- one installed runtime marker contract
+- one status output minimum
+- one uninstall/delete-data policy declaration
+- one module-owned Manager surface definition
+
+The Manager should stop growing hardcoded pages for individual modules. If a module needs special UI, the module ships the UI definition and Manager hosts it.
+
+## Main Branch UI Reference
+
+The `main` branch is useful as a workflow inventory.
+
+It currently has Manager-owned pages in:
+
+```text
+Manager/apps/NymphsCoreManager/Views/MainWindow.xaml
+Manager/apps/NymphsCoreManager/ViewModels/MainWindowViewModel.cs
+Manager/apps/NymphsCoreManager/Services/InstallerWorkflowService.cs
+```
+
+Important page regions from `main`:
+
+```text
+Runtime Tools page
+  Z-Image status, model fetch, smoke test
+  TRELLIS status, GGUF quant selection, model fetch/repair, smoke test
+
+Z-Image Trainer page
+  LoRA dataset/metadata/caption workflow
+  AI Toolkit launch/kill
+  LoRA job creation/start/stop/delete
+  training presets, adapter version, steps, rank, low VRAM, progress
+
+Brain page
+  Brain LLM/MCP/WebUI status
+  local model and remote model display
+  live monitor panel
+  start/stop services
+  WebUI start/open
+  model manager launch
+  update stack
+  OpenRouter key apply
+```
+
+These workflows should be preserved, but moved out of Manager hardcoding.
+
+Treat `main` as:
+
+```text
+workflow reference, not architecture reference
+```
+
+## The First Bug To Prove Against
 
 WORBI is the first proof module because it exposes the current state problem clearly.
+
+This bug is not unique to WORBI. Every module that preserves data after uninstall can hit the same class of false-installed state if installed truth is inferred from a directory that can legitimately remain after runtime uninstall.
 
 Normal WORBI uninstall preserves user data:
 
@@ -225,6 +340,24 @@ Installed runtime must not mean:
 ~/worbi directory exists
 ```
 
+General rule for every module:
+
+```text
+installed runtime != install root exists
+installed runtime != preserved data exists
+installed runtime == module-declared runtime marker exists
+```
+
+Target markers:
+
+```text
+Brain    ~/Nymphs-Brain/.nymph-module-version
+Z-Image  ~/Z-Image/.nymph-module-version
+LoRA     ~/ZImage-Trainer/.nymph-module-version
+TRELLIS  ~/TRELLIS.2/.nymph-module-version
+WORBI    ~/worbi/.nymph-module-version
+```
+
 ## Status Contract
 
 Every module status script must print machine-readable `key=value` lines.
@@ -253,6 +386,52 @@ backend_url=<url-or-empty>
 logs_dir=<path-or-empty>
 marker=<path-to-version-marker>
 ```
+
+Module-specific status keys are allowed and expected.
+
+Examples:
+
+```text
+Brain:
+llm_running=true|false
+mcp_running=true|false
+open_webui_running=true|false
+local_model=<model-or-empty>
+remote_model=<model-or-empty>
+
+Z-Image:
+env_ready=true|false
+models_ready=true|false|unknown
+server_info_url=<url-or-empty>
+
+LoRA:
+repo_ready=true|false
+venv_ready=true|false
+node_ready=true|false
+ui_ready=true|false
+adapter_ready=true|false
+model_ready=true|false
+official_ui_running=true|false
+gradio_running=true|false
+worker_running=true|false
+dataset_count=<number>
+lora_count=<number>
+
+TRELLIS:
+env_ready=true|false
+adapter_ready=true|false
+runtime_ready=true|false
+models_ready=true|false|unknown
+quant=<quant>
+
+WORBI:
+backend=running|stopped|unknown
+frontend=running|stopped|unknown
+```
+
+Manager lifecycle buttons should depend only on the standard keys.
+
+Module-owned Manager surfaces may use standard keys and module-specific keys.
 
 WORBI-specific target:
 
@@ -306,6 +485,16 @@ For WORBI:
 
 ```text
 ~/worbi/.nymph-module-version
+```
+
+For all modules:
+
+```text
+Brain    ~/Nymphs-Brain/.nymph-module-version
+Z-Image  ~/Z-Image/.nymph-module-version
+LoRA     ~/ZImage-Trainer/.nymph-module-version
+TRELLIS  ~/TRELLIS.2/.nymph-module-version
+WORBI    ~/worbi/.nymph-module-version
 ```
 
 ## Lifecycle Action Rule
@@ -368,7 +557,7 @@ WORBI currently uses one shape:
 "runtime": { "install_root": "~/worbi" }
 ```
 
-Other modules use another shape:
+Brain, Z-Image, LoRA, and TRELLIS currently use another shape:
 
 ```json
 "packaging": "repo",
@@ -384,6 +573,8 @@ Other modules use another shape:
   "uninstall": "..."
 }
 ```
+
+That mismatch matters now. The Manager registry installer already expects `entrypoints.install`, but most module manifests still expose actions under `manager`. This needs to converge before the plugin manager can be trusted.
 
 Canonical V1 should look like this:
 
@@ -457,18 +648,137 @@ Canonical V1 should look like this:
 }
 ```
 
+The same canonical shape should be applied to every module, with module-specific roots and surfaces.
+
+Expected canonical roots:
+
+```text
+brain   install.root="$HOME/Nymphs-Brain"
+zimage  install.root="$HOME/Z-Image"
+lora    install.root="$HOME/ZImage-Trainer"
+trellis install.root="$HOME/TRELLIS.2"
+worbi   install.root="$HOME/worbi"
+```
+
+## Shared Model And Weights Store
+
+Model downloads should not be scattered inside every module install root.
+
+The plugin standard should define one shared artifact root for heavyweight model assets:
+
+```text
+$HOME/NymphsData/models
+```
+
+Module runtimes can still live in their own install roots, but model and weight downloads should use declared subdirectories under the shared root:
+
+```text
+$HOME/NymphsData/models/brain
+$HOME/NymphsData/models/zimage
+$HOME/NymphsData/models/lora
+$HOME/NymphsData/models/trellis
+$HOME/NymphsData/models/shared
+```
+
+Suggested environment variables:
+
+```text
+NYMPHS_DATA_ROOT="$HOME/NymphsData"
+NYMPHS_MODELS_ROOT="$HOME/NymphsData/models"
+NYMPHS_CACHE_ROOT="$HOME/NymphsData/cache"
+NYMPHS_OUTPUTS_ROOT="$HOME/NymphsData/outputs"
+```
+
+Manifest Contract V1 should grow an `artifacts` section:
+
+```json
+"artifacts": {
+  "models_root": "$HOME/NymphsData/models",
+  "module_models": "$HOME/NymphsData/models/zimage",
+  "shared_models": "$HOME/NymphsData/models/shared",
+  "cache_root": "$HOME/NymphsData/cache/zimage",
+  "outputs_root": "$HOME/NymphsData/outputs/zimage"
+}
+```
+
+Rules:
+
+- install scripts create the declared artifact directories if needed
+- fetch/download actions write models to `artifacts.module_models` or `artifacts.shared_models`
+- uninstall runtime does not remove shared models by default
+- delete-data/purge may remove module-owned artifacts only when the manifest declares the scope
+- modules should link or configure their native tools to read from the shared model store
+- Hugging Face cache should be centralized where practical, rather than duplicated per module
+- status should report model readiness without treating model presence as installed-runtime truth
+
 Manifest rules:
 
 - use `packaging`, not both `kind` and `packaging`
 - use `source.type`, not several unrelated source shapes
 - use one `entrypoints` object
+- move legacy `manager.status/start/stop/open/logs/...` into `entrypoints`
 - use `install.root`, not sometimes `runtime.install_root` and sometimes `install.path`
+- use `install.entrypoint`, not `install.script`
 - use `install.version_marker`
+- use `install.installed_markers` for optional extra runtime checks, but do not let extra markers override the primary marker contract
 - keep `ui.page=custom` for module-specific pages
 - keep `ui.standard_lifecycle_rail=true`
 - use `ui.manager_surface` for module-owned config/control body
 - start with `manager_surface.type=declarative`
 - allow `webview` later only with explicit local URL/path and sandbox rules
+
+Canonical action names should start with:
+
+```text
+status
+install
+update
+start
+stop
+open
+logs
+uninstall
+```
+
+Module-specific action names are allowed after that:
+
+```text
+Brain:
+refresh
+apply_openrouter_key
+open_model_manager
+start_webui
+stop_webui
+update_stack
+
+Z-Image:
+fetch_models
+smoke_test
+check_runtime_updates
+apply_runtime_mode
+
+LoRA:
+refresh
+start_official_ui
+stop_official_ui
+start_gradio_ui
+create_job
+start_job
+stop_job
+delete_job
+open_datasets
+open_loras
+draft_captions
+
+TRELLIS:
+fetch_models
+repair_adapter
+smoke_test
+
+WORBI:
+open
+logs
+```
 
 ## Module-Owned Manager Surface
 
@@ -506,6 +816,251 @@ Phase C: native extension only if truly needed
 
 Do not start with arbitrary module-owned native WPF code.
 
+### Phase A Surface Shape
+
+Start with JSON. YAML can come later only if there is a strong reason.
+
+Each module may ship:
+
+```text
+ui/manager.surface.json
+```
+
+The Manager reads this file from the cloned/cached module repo referenced by the manifest:
+
+```json
+"ui": {
+  "page": "custom",
+  "page_kind": "lora",
+  "standard_lifecycle_rail": true,
+  "manager_surface": {
+    "type": "declarative",
+    "schema": "ui/manager.surface.json"
+  }
+}
+```
+
+The declarative surface should support these building blocks first:
+
+```text
+section
+text
+status_badge
+status_grid
+metric
+button
+button_group
+text_input
+password_input
+select
+toggle
+slider
+number_input
+path_link
+log_panel
+progress_bar
+divider
+```
+
+Each control should bind to one of:
+
+```text
+status.<key>
+setting.<key>
+secret.<key>
+action.<entrypoint>
+```
+
+Example action button:
+
+```json
+{
+  "type": "button",
+  "label": "Fetch Models",
+  "action": "fetch_models",
+  "enabled_when": "status.installed == true",
+  "refresh_status_after": true
+}
+```
+
+Example status badge:
+
+```json
+{
+  "type": "status_badge",
+  "label": "Models",
+  "value": "status.models_ready",
+  "map": {
+    "true": { "text": "Ready", "tone": "ok" },
+    "false": { "text": "Missing", "tone": "warning" },
+    "unknown": { "text": "Unknown", "tone": "muted" }
+  }
+}
+```
+
+Example select that becomes an action argument:
+
+```json
+{
+  "type": "select",
+  "id": "trellis_quant",
+  "label": "GGUF quant",
+  "default": "Q5_K_M",
+  "options": [
+    { "value": "Q4_K_M", "label": "Q4_K_M" },
+    { "value": "Q5_K_M", "label": "Q5_K_M" },
+    { "value": "Q6_K", "label": "Q6_K" },
+    { "value": "Q8_0", "label": "Q8_0" },
+    { "value": "all", "label": "All" }
+  ]
+}
+```
+
+Example action using a setting:
+
+```json
+{
+  "type": "button",
+  "label": "Fetch TRELLIS Models",
+  "action": "fetch_models",
+  "args": {
+    "quant": "setting.trellis_quant"
+  },
+  "refresh_status_after": true
+}
+```
+
+### Main Branch Page Migration Map
+
+Use the `main` branch pages as source material for module surfaces.
+
+#### Brain Surface
+
+Move from Manager-owned `Brain` page to `brain/ui/manager.surface.json`.
+
+Initial declarative surface should include:
+
+- service status grid for LLM, MCP, WebUI
+- local model and remote model display
+- live monitor metrics if status exposes them
+- Start Brain action
+- Stop Brain action
+- Start/Open WebUI action
+- Manage Models action
+- Update Stack action
+- OpenRouter key input
+- Apply OpenRouter Key action
+- Brain log panel
+
+Brain-specific status keys should come from `brain_status.sh` and optional monitor keys.
+
+#### Z-Image Surface
+
+Move Z-Image parts of Runtime Tools to `zimage/ui/manager.surface.json`.
+
+Initial declarative surface should include:
+
+- backend readiness badge
+- environment readiness
+- model readiness
+- server URL
+- Fetch Models action
+- Smoke Test action
+- runtime log panel
+
+Runtime dependency mode controls may remain Manager-owned at first if they affect shared runtime packages, but the long-term direction is for Z-Image/TRELLIS module actions to expose their own update/check/repair controls.
+
+#### LoRA Surface
+
+Move Z-Image Trainer page to `lora/ui/manager.surface.json`.
+
+Initial declarative surface should include:
+
+- trainer readiness badge
+- dataset count
+- LoRA count
+- official UI and Gradio UI status
+- LoRA/job name text input
+- dataset picker or path selector
+- open pictures/datasets/LoRAs actions
+- caption with Brain action
+- caption mode select
+- preset select
+- adapter version select
+- sample prompt text input
+- steps slider/number input
+- checkpoint count select
+- learning rate select
+- LoRA rank select
+- low VRAM toggle
+- Add Job action
+- Start Job action
+- Stop Job action
+- Delete Job action
+- progress bar
+- training log panel
+
+LoRA is the strongest reason to avoid making the Manager own every module's page. Its workflow is too specific and will keep changing.
+
+#### TRELLIS Surface
+
+Move TRELLIS parts of Runtime Tools to `trellis/ui/manager.surface.json`.
+
+Initial declarative surface should include:
+
+- backend readiness badge
+- environment readiness
+- adapter readiness
+- runtime readiness
+- model readiness
+- GGUF quant select
+- Fetch Models action
+- Repair Adapter action
+- Smoke Test action
+- runtime log panel
+
+TRELLIS should still be tested last because it is heavy and has higher blast radius.
+
+#### WORBI Surface
+
+Move WORBI-specific page body to `worbi/ui/manager.surface.json`.
+
+Initial declarative surface should include:
+
+- app status badge
+- health status
+- frontend URL
+- backend URL
+- Open action
+- Logs action
+- optional app config fields later
+
+WORBI remains the first proof module because this is the smallest surface.
+
+### Manager Renderer Rules
+
+The Manager renderer should:
+
+- reject unknown control types unless explicitly allowed
+- reject actions not declared in the manifest
+- pass only declared args
+- never infer delete paths from UI fields
+- keep destructive actions in the shared lifecycle rail or explicit declared destructive-action section
+- show module logs/progress in a shared way
+- run `action -> status -> UI refresh` after every mutating action
+- keep layout responsive and bounded inside the host page shell
+- keep module surface failures isolated so a bad surface cannot crash the Manager shell
+
+### What Not To Do
+
+Do not:
+
+- port the `main` branch XAML wholesale into `rauty`
+- keep adding module-specific hardcoded WPF pages to Manager
+- load arbitrary module-supplied WPF assemblies in the first implementation pass
+- let declarative UI controls bypass the manifest action allowlist
+- let module UI decide installed/running state independently of status snapshots
+
 ## Manager Data Model Direction
 
 The Manager should eventually separate static manifest data from dynamic status truth.
@@ -521,18 +1076,22 @@ NymphStatusSnapshot
   dynamic status truth from status script
   installed, running, version, health, data_present, runtime_present
 
+NymphManagerSurface
+  module-owned UI definition
+  sections, controls, status bindings, action bindings, validation hints
+
 NymphModuleViewModel
   UI projection
-  descriptor + latest snapshot + current action progress
+  descriptor + latest snapshot + current action progress + rendered surface state
 ```
 
 Current `ManagerShellViewModel` still manually constructs modules. Long term, this becomes:
 
 ```text
-registry -> manifest fetch/cache -> descriptors -> status snapshots -> view models
+registry -> manifest fetch/cache -> descriptors -> status snapshots -> view models -> rendered module surfaces
 ```
 
-But do not start by building the whole abstraction. Prove WORBI first.
+But do not start by building the whole abstraction. Define the all-module contract, prove it with WORBI, then bring the other modules onto it deliberately.
 
 ## Destructive Action Safety
 
@@ -562,27 +1121,112 @@ For now, keep destructive purge/delete-data WORBI-only unless a module manifest 
 
 ## Implementation Phases
 
-### Phase 0: Confirm Clean Start
+### Phase 1: Define The All-Module Contract In Code And Docs
 
-Check:
-
-```text
-git status
-git branch
-```
-
-Expected:
+Create or update Manager-side contract models before touching all module behavior:
 
 ```text
-on rauty
-no baffledtests branch
-origin/baffledtests absent
-working tree clean except intentional changes
+NymphPluginDescriptor
+NymphStatusSnapshot
+NymphManagerSurface
+NymphModuleAction
+NymphUninstallPolicy
 ```
 
-### Phase 1: Fix WORBI Scripts
+This does not need to be a giant registry rewrite. Keep it small enough to support the current five modules.
 
-Likely module repo path from prior work:
+Required contract decisions:
+
+- canonical manifest V1 fields
+- canonical status minimum keys
+- version marker path
+- action allowlist
+- mutating action refresh rule
+- declarative surface schema version
+- shared lifecycle rail behavior
+- destructive action policy
+
+### Phase 2: Normalize Manifests For All Modules
+
+Update module manifests in:
+
+```text
+/home/nymph/NymphsModules/brain/nymph.json
+/home/nymph/NymphsModules/zimage/nymph.json
+/home/nymph/NymphsModules/lora/nymph.json
+/home/nymph/NymphsModules/trellis/nymph.json
+/home/nymph/NymphsModules/worbi/nymph.json
+```
+
+Converge every manifest on:
+
+- `manifest_version`
+- `id`
+- `name`
+- `short_name`
+- `version`
+- `description`
+- `category`
+- `packaging`
+- `source`
+- `install.root`
+- `install.entrypoint`
+- `install.version_marker`
+- `install.installed_markers`
+- `entrypoints`
+- `uninstall`
+- `runtime`
+- `ui.page`
+- `ui.page_kind`
+- `ui.standard_lifecycle_rail`
+- `ui.manager_surface`
+
+Do not keep `manager.status/start/stop/...` as a permanent dialect.
+
+### Phase 3: Fix Module Scripts
+
+Apply the marker/status/uninstall contract to every module.
+
+Suggested order:
+
+```text
+1. WORBI    lightest proof case
+2. LoRA     exercises rich module-owned UI/status without touching core image runtime
+3. Z-Image  core image backend
+4. Brain    service/model/secret complexity
+5. TRELLIS  heaviest runtime, test last
+```
+
+For each module:
+
+- install writes `<install.root>/.nymph-module-version`
+- install prints installed version if possible
+- status reads `.nymph-module-version`
+- status reports `installed=false` when marker is absent
+- status reports `runtime_present`
+- status reports `data_present`
+- status reports `version`
+- status reports `state`
+- status reports `detail`
+- uninstall removes `.nymph-module-version`
+- normal uninstall preserves declared data by default
+- purge/delete-data remains explicit
+- model/weight downloads go under the shared artifact root, not inside disposable runtime roots
+- status exits `0` even when runtime is not installed
+
+Preserved data examples:
+
+```text
+Brain    shared models, open-webui-data, mcp, secrets, logs
+Z-Image  outputs, logs, shared model cache, Hugging Face cache
+LoRA     datasets, loras, jobs, config, logs
+TRELLIS  outputs, logs, shared model cache, Hugging Face cache
+WORBI    data, projects, config, logs
+```
+
+### Phase 4: Prove With WORBI First
+
+WORBI module scripts:
 
 ```text
 /home/nymph/NymphsModules/worbi/scripts/
@@ -608,7 +1252,9 @@ Required behavior:
 - uninstall preserves data by default
 - purge/delete-data remains explicit
 
-### Phase 2: Adjust Manager WORBI Parsing Only As Needed
+This phase proves the contract, not the final scope.
+
+### Phase 5: Add Manager Status Snapshot Path
 
 Relevant Manager files:
 
@@ -619,22 +1265,77 @@ Manager/apps/NymphsCoreManager/Services/InstallerWorkflowService.cs
 
 Check:
 
-- how WORBI status output is parsed
-- whether `data_present` can be surfaced
+- how every module status output is parsed
 - whether installed state comes only from `installed=`
+- whether `data_present`, `runtime_present`, `state`, `health`, and `marker` can be surfaced
 - whether action methods patch state optimistically before refresh
+- whether module action buttons depend on the standard snapshot
 
 First target:
 
 ```text
-make current Manager behave correctly with corrected WORBI status
+make current Manager behave correctly with corrected status for all five modules
 ```
 
 Do not jump straight to a full registry rewrite.
 
-### Phase 3: Enforce Action Then Status
+### Phase 6: Add Declarative Surface Renderer
 
-For WORBI:
+Implement a small renderer for `ui.manager_surface.type=declarative`.
+
+First supported controls:
+
+```text
+section
+text
+status_badge
+status_grid
+button
+text_input
+password_input
+select
+toggle
+slider
+number_input
+log_panel
+progress_bar
+```
+
+Start with one or two surfaces:
+
+```text
+worbi/ui/manager.surface.json
+lora/ui/manager.surface.json
+```
+
+WORBI proves the simple case. LoRA proves the rich page case from the `main` branch Z-Image Trainer workflow.
+
+### Phase 7: Migrate Main Branch Workflows Into Module Surfaces
+
+Use `main` as the reference.
+
+Migration order:
+
+```text
+WORBI
+LoRA
+Z-Image
+Brain
+TRELLIS
+```
+
+For each module:
+
+- create `ui/manager.surface.json`
+- expose all required status keys
+- expose all required module-specific actions
+- map UI controls to manifest-declared actions
+- keep shared install/update/uninstall/delete-data in Manager lifecycle rail
+- test action output followed by status refresh
+
+### Phase 8: Enforce Action Then Status
+
+For every module:
 
 ```text
 install -> status
@@ -643,13 +1344,55 @@ start -> status
 stop -> status
 uninstall -> status
 delete data -> status
+module-specific mutating action -> status
 ```
 
 If optimistic UI state remains, it must be temporary and replaced by status truth.
 
-### Phase 4: Test WORBI Repeatedly
+### Phase 9: Test Repeatedly
 
-Minimum test cycle:
+```text
+fresh status
+install
+status
+start
+status
+stop
+status
+uninstall preserving data
+status
+reinstall
+status
+uninstall preserving data again
+status
+```
+
+Expected after normal uninstall:
+
+```text
+installed=false
+data_present=true if preserved data remains
+runtime_present=false
+Manager shows install/reinstall path
+Manager does not show runtime controls as if runtime is installed
+module-owned page body can explain preserved data without overriding lifecycle truth
+```
+
+### Phase 10: Generalize Registry/Navigation Slowly
+
+After status and surfaces work for the five current modules, expand the registry/navigation layer.
+
+Target:
+
+```text
+registry -> manifest fetch/cache -> descriptors -> status snapshots -> module view models -> rendered surfaces
+```
+
+Do this only after the lifecycle contract is proven.
+
+## WORBI Proof Cycle
+
+WORBI still gets a dedicated proof cycle because it is the smallest safe end-to-end test.
 
 ```text
 fresh status
@@ -677,33 +1420,11 @@ Manager shows install/reinstall path
 Manager does not show runtime controls as if WORBI is installed
 ```
 
-### Phase 5: Add Strict WORBI Manifest
-
-Only after WORBI lifecycle is stable:
-
-- define strict WORBI manifest V1
-- validate required fields
-- include `install.version_marker`
-- include lifecycle entrypoints
-- include `ui.manager_surface`
-- keep Manager host shell generic
-
-### Phase 6: Generalize Slowly
-
-After WORBI passes repeated lifecycle testing, expand in this order:
-
-1. Brain
-2. Z-Image
-3. LoRA
-4. TRELLIS last
-
-TRELLIS should be last because it is heavy and recently had wiped-test-WSL risk.
-
 ## Test Requirements
 
 ### Script-Level Tests
 
-For WORBI:
+For every module:
 
 ```text
 status before install
@@ -723,23 +1444,74 @@ Assertions:
 - data can remain without installed=true
 - status output remains parseable key=value
 - uninstall does not delete preserved data unless explicitly asked
+- status exits `0` when runtime is absent
+- `installed`, `runtime_present`, and `data_present` remain distinct
+- module-specific status keys do not replace the standard keys
+
+Minimum module script test matrix:
+
+```text
+Brain:
+  install -> status -> start -> status -> stop -> status -> uninstall preserving data -> status
+
+Z-Image:
+  install -> status -> fetch_models if safe -> status -> smoke_test if models ready -> uninstall preserving data -> status
+
+LoRA:
+  install -> status -> start UI -> status -> stop UI -> status -> uninstall preserving data -> status
+
+TRELLIS:
+  status -> install only when intentionally testing heavy runtime -> status -> uninstall preserving data -> status
+
+WORBI:
+  install -> status -> start -> status -> stop -> status -> uninstall preserving data -> status -> reinstall -> status
+```
 
 ### Manager-Level Tests
 
 Verify:
 
-- Home cards reflect WORBI installed state correctly
-- WORBI page reflects installed/runtime/data state correctly
+- Home cards reflect every module's installed state correctly
+- module pages reflect installed/runtime/data state correctly
 - install button appears when runtime is absent
 - runtime actions appear only when installed
-- uninstall does not leave UI stuck as installed
+- uninstall does not leave UI stuck as installed for any module
 - reinstall after preserved-data uninstall works
 - logs/progress show action output
 - final state comes from status refresh
+- module-owned declarative surfaces render without crashing the Manager
+- module surface buttons only call manifest-declared actions
+- module surface controls can read status keys and pass declared action args
+- shared lifecycle rail remains Manager-owned
+
+Module-owned UI regression checks:
+
+```text
+WORBI surface:
+  status/health/URLs render
+  open/logs actions work
+
+LoRA surface:
+  training controls render from declarative surface
+  action buttons call LoRA manifest actions
+  progress/log panel updates
+
+Z-Image surface:
+  readiness/model status render
+  fetch/smoke actions remain status-truth-driven
+
+Brain surface:
+  service/model/OpenRouter controls render
+  secrets are passed through Manager-owned secret plumbing, not plain manifest literals
+
+TRELLIS surface:
+  quant selector and repair/fetch/smoke actions render
+  heavy tests run only when intentionally requested
+```
 
 ### Shell Regression Tests
 
-Verify the carried-over System Checks fix:
+Verify shell navigation remains correct:
 
 ```text
 Home -> System Checks -> Home
@@ -751,9 +1523,7 @@ Module page -> Home
 
 Do not:
 
-- standardize every module at once
-- resurrect `baffledtests`
-- reintroduce `MegaPhase4`
+- attempt a big-bang implementation of every module UI at once
 - convert PNG art to JPG
 - use directory existence as installed truth
 - trust lifecycle-complete docs without tests
@@ -762,6 +1532,8 @@ Do not:
 - make Manager own every module's config fields
 - infer delete-data targets from UI state
 - treat action output as final state
+- preserve both manifest dialects forever
+- port the `main` branch hardcoded XAML pages wholesale into the new shell
 
 ## Files To Keep In Mind
 
@@ -787,18 +1559,56 @@ Likely WORBI module scripts:
 /home/nymph/NymphsModules/worbi/scripts/
 ```
 
+Other module repos/scripts:
+
+```text
+/home/nymph/NymphsModules/brain/
+/home/nymph/NymphsModules/zimage/
+/home/nymph/NymphsModules/lora/
+/home/nymph/NymphsModules/trellis/
+/home/nymph/NymphsModules/worbi/
+```
+
+Main branch workflow reference files:
+
+```text
+Manager/apps/NymphsCoreManager/Views/MainWindow.xaml
+Manager/apps/NymphsCoreManager/ViewModels/MainWindowViewModel.cs
+Manager/apps/NymphsCoreManager/Services/InstallerWorkflowService.cs
+```
+
 ## Final Brief
 
-Continue on `rauty`.
+This is an all-module plugin manager plan.
 
-Use this plan as the single handoff.
+Make the lifecycle contract marker-driven and status-truth-driven for every official module:
 
-Make WORBI lifecycle state marker-driven and status-truth-driven before generalizing the Nymph Plugin standard.
+```text
+Brain
+Z-Image
+LoRA
+TRELLIS
+WORBI
+```
+
+Use WORBI as the first proof because it is light and clearly exposes the preserved-data false-installed bug.
+
+Use the `main` branch Manager pages as workflow references for module-owned UI surfaces, not as hardcoded pages to port into `rauty`.
 
 The successful end state for the next implementation pass is:
+
+```text
+The Manager can discover all five modules, read one canonical manifest shape, run standard lifecycle actions, refresh state from status truth, and host module-owned declarative UI surfaces without hardcoding every module page.
+```
+
+The first proof milestone is:
 
 ```text
 WORBI can install, uninstall while preserving data, reinstall, and refresh Manager UI correctly every time.
 ```
 
-Only after that should the manifest-driven plugin architecture expand to the other modules.
+The next proof milestone is:
+
+```text
+LoRA's `main` branch Z-Image Trainer workflow can be represented as a module-owned declarative Manager surface.
+```

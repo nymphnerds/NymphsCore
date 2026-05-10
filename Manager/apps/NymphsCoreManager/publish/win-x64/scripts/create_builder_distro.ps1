@@ -50,6 +50,11 @@ function ConvertTo-WslPath {
     }
 
     $normalized = $WindowsPath -replace '\\', '/'
+    if ($normalized -match '^//(?:wsl\.localhost|wsl\$)/([^/]+)/(.*)$') {
+        # Builder setup must not treat another WSL distro's UNC path as local to the builder.
+        return $null
+    }
+
     if ($normalized -match '^([A-Za-z]):/(.*)$') {
         $drive = $matches[1].ToLowerInvariant()
         $rest = $matches[2]

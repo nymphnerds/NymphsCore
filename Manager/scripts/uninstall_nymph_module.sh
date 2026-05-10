@@ -58,6 +58,8 @@ MODULE_ID="$(printf '%s' "${MODULE_ID}" | tr '[:upper:]' '[:lower:]')"
 INSTALL_ROOT=""
 PRESERVE_NAMES=()
 WORK_ROOT="${NYMPHS_MODULE_WORK_ROOT:-${HOME}/.cache/nymphs-modules}"
+ACTION_ROOT="${WORK_ROOT}/actions"
+ACTION_STATE_FILE=""
 
 case "${MODULE_ID}" in
   brain)
@@ -91,6 +93,27 @@ esac
 echo "module=${MODULE_ID}"
 echo "install_root=${INSTALL_ROOT}"
 echo "purge=${PURGE}"
+
+mkdir -p "${ACTION_ROOT}"
+ACTION_STATE_FILE="${ACTION_ROOT}/${MODULE_ID}.state"
+
+write_action_state() {
+  local action="$1"
+  local status="$2"
+  local detail="$3"
+  cat > "${ACTION_STATE_FILE}" <<EOF
+module=${MODULE_ID}
+action=${action}
+status=${status}
+pid=$$
+started_at=$(date -Is)
+detail=${detail}
+EOF
+}
+
+clear_action_state() {
+  rm -f "${ACTION_STATE_FILE}"
+}
 
 if [[ "${PURGE}" -eq 1 && "${MODULE_ID}" != "worbi" ]]; then
   echo "ERROR: destructive purge is temporarily disabled for ${MODULE_ID} while module routing is being audited." >&2
@@ -168,6 +191,13 @@ if [[ "${YES}" -ne 1 ]]; then
   echo "Refusing to uninstall without --yes. Re-run with --dry-run to preview." >&2
   exit 3
 fi
+
+if [[ "${PURGE}" -eq 1 ]]; then
+  write_action_state "delete" "running" "Deleting ${MODULE_ID} from the managed WSL distro."
+else
+  write_action_state "uninstall" "running" "Uninstalling ${MODULE_ID} from the managed WSL distro."
+fi
+trap clear_action_state EXIT
 
 stop_known_processes() {
   case "${MODULE_ID}" in
