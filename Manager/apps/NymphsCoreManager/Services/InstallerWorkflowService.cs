@@ -4142,11 +4142,15 @@ meta:
         var category = GetJsonString(manifestRoot, "category") ?? GetJsonString(registryElement, "category") ?? "";
         var kind = GetJsonString(manifestRoot, "packaging") ?? GetJsonString(manifestRoot, "kind") ?? GetJsonString(registryElement, "packaging") ?? "";
         var sourceSummary = "";
+        var repositoryUrl = "";
         if (manifestRoot.TryGetProperty("source", out var sourceElement) && sourceElement.ValueKind == JsonValueKind.Object)
         {
             sourceSummary = GetJsonString(sourceElement, "archive")
                 ?? GetJsonString(sourceElement, "repo")
                 ?? GetJsonString(sourceElement, "url")
+                ?? "";
+            repositoryUrl = GetJsonString(sourceElement, "repo")
+                ?? GetJsonString(sourceElement, "repository")
                 ?? "";
         }
 
@@ -4155,6 +4159,20 @@ meta:
             repoElement.ValueKind == JsonValueKind.Object)
         {
             sourceSummary = GetJsonString(repoElement, "url") ?? "";
+        }
+
+        if (string.IsNullOrWhiteSpace(repositoryUrl) &&
+            manifestRoot.TryGetProperty("repo", out var repositoryElement) &&
+            repositoryElement.ValueKind == JsonValueKind.Object)
+        {
+            repositoryUrl = GetJsonString(repositoryElement, "url") ?? "";
+        }
+
+        if (string.IsNullOrWhiteSpace(repositoryUrl))
+        {
+            repositoryUrl = GetJsonString(registryElement, "repo_url")
+                ?? GetJsonString(registryElement, "repository_url")
+                ?? BuildGitHubRepositoryUrlFromManifestUrl(manifestUrl);
         }
 
         var installRoot = "";
@@ -4207,11 +4225,35 @@ meta:
             Version: GetJsonString(manifestRoot, "version") ?? "",
             Description: GetJsonString(manifestRoot, "description") ?? GetJsonString(registryElement, "summary") ?? "",
             ManifestUrl: manifestUrl,
+            RepositoryUrl: repositoryUrl,
             SourceSummary: sourceSummary,
             InstallRoot: installRoot,
             Capabilities: capabilities,
             DevCapabilities: ["check-upstream", "test-upstream", "package"],
             SortOrder: sortOrder);
+    }
+
+    private static string BuildGitHubRepositoryUrlFromManifestUrl(string manifestUrl)
+    {
+        if (!Uri.TryCreate(manifestUrl, UriKind.Absolute, out var uri))
+        {
+            return "";
+        }
+
+        if (!string.Equals(uri.Host, "raw.githubusercontent.com", StringComparison.OrdinalIgnoreCase))
+        {
+            return "";
+        }
+
+        var parts = uri.AbsolutePath
+            .Trim('/')
+            .Split('/', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (parts.Length < 2)
+        {
+            return "";
+        }
+
+        return $"https://github.com/{parts[0]}/{parts[1]}";
     }
 
     private static IReadOnlyList<string> ReadObjectPropertyNames(JsonElement root, string propertyName)

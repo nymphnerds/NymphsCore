@@ -1755,6 +1755,12 @@
                         Style="{StaticResource ShellButtonStyle}"
                         Command="{Binding ShowHomeCommand}"
                         Content="Back To Home" />
+                <Button Margin="0,10,0,0"
+                        Style="{StaticResource ShellButtonStyle}"
+                        Command="{Binding OpenModuleSourceCommand}"
+                        CommandParameter="{Binding DisplayedModule}"
+                        Visibility="{Binding DisplayedModule.HasRepositoryUrl, Converter={StaticResource BoolToVisibilityConverter}}"
+                        Content="Open GitHub" />
                 <Border Margin="0,18,0,0"
                         Style="{StaticResource PanelBorderStyle}"
                         Padding="14"

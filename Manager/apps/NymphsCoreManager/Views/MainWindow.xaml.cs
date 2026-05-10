@@ -196,16 +196,14 @@ public partial class MainWindow : Window
             WindowState = WindowState.Normal;
         }
 
-        var right = Left + Width;
         var currentBounds = new Rect(Left, Top, Width, Height);
         _preMonitorModeBounds = IsUsableFullModeBounds(currentBounds)
             ? currentBounds
-            : BuildFullModeBounds(right);
+            : BuildFullModeBounds(Left + Width);
 
         _isMonitorMode = true;
         Width = MonitorModeWidth;
         Height = MonitorModeHeight;
-        Left = Math.Max(0, right - Width);
         Topmost = true;
         UpdateCompactMonitorMode();
     }

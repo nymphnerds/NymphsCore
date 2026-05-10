@@ -31,7 +31,8 @@ Changed in source:
 - monitor mode now restores to a sane full app size even if it was entered from a tiny/sidebar-only window
 - sidebar runtime monitor now includes collapsible Brain telemetry readouts for LLM state, model, context, and tokens/sec
 - sidebar footer version now comes from the Manager assembly version instead of a hardcoded XAML string
-- Manager app version was bumped to `0.9.2` for the current plugin-shell standardization build
+- Manager app version was bumped to `0.9.3` for the current plugin-shell standardization build
+- monitor mode now collapses in place instead of shifting the window right
 - sidebar `Open Source` footer text now links to the main NymphsCore GitHub repository
 - Logs page was changed to a selectable/copyable text surface while preserving the terminal-style visual direction
 - Base Runtime progress spacing was tightened so common two-line install progress messages fit above the bottom status bar
@@ -68,6 +69,7 @@ Remote module repos:
 - WORBI status now reports the install marker version instead of the internal package/app version
 - WORBI install now stages into a temp folder, installs production server dependencies before swapping into `~/worbi`, skips automatic backup folders, and times out dependency install instead of hanging forever
 - WORBI install lessons were promoted into the module standard: staged install, marker written last, no random backup folders, bounded status, bounded progress, and manifest-declared data/log scopes
+- module detail pages now expose an `Open GitHub` action when a repository URL can be derived from the module manifest or registry entry
 
 Validated locally:
 

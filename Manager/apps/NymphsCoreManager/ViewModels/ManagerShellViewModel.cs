@@ -33,6 +33,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
     private readonly RelayCommand<NymphModuleViewModel> _installModuleCommand;
     private readonly RelayCommand<NymphModuleViewModel> _updateModuleCommand;
     private readonly RelayCommand<NymphModuleViewModel> _openModuleInstallPathCommand;
+    private readonly RelayCommand<NymphModuleViewModel> _openModuleSourceCommand;
     private readonly RelayCommand<string> _runModuleActionCommand;
     private readonly RelayCommand<string> _runModuleDevActionCommand;
     private readonly RelayCommand _toggleDeveloperModeCommand;
@@ -121,6 +122,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         _installModuleCommand = new RelayCommand<NymphModuleViewModel>(InstallModule, module => module?.IsInstalled == false && !IsBusy);
         _updateModuleCommand = new RelayCommand<NymphModuleViewModel>(UpdateModule, module => module is { IsInstalled: true, HasUpdate: true } && !IsBusy);
         _openModuleInstallPathCommand = new RelayCommand<NymphModuleViewModel>(OpenModuleInstallPath, module => module?.CanOpenInstallPath == true);
+        _openModuleSourceCommand = new RelayCommand<NymphModuleViewModel>(OpenModuleSource, module => module?.HasRepositoryUrl == true);
         _runModuleActionCommand = new RelayCommand<string>(RunSelectedModuleAction, CanRunSelectedModuleAction);
         _runModuleDevActionCommand = new RelayCommand<string>(RunSelectedModuleDevAction, CanRunSelectedModuleDevAction);
         _toggleDeveloperModeCommand = new RelayCommand(ToggleDeveloperMode);
@@ -187,6 +189,8 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
     public RelayCommand<NymphModuleViewModel> UpdateModuleCommand => _updateModuleCommand;
 
     public RelayCommand<NymphModuleViewModel> OpenModuleInstallPathCommand => _openModuleInstallPathCommand;
+
+    public RelayCommand<NymphModuleViewModel> OpenModuleSourceCommand => _openModuleSourceCommand;
 
     public RelayCommand<string> RunModuleActionCommand => _runModuleActionCommand;
 
@@ -1839,6 +1843,28 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         catch (Exception ex)
         {
             AppendActivity($"Could not open {module.Name} install path: {ex.Message}");
+        }
+    }
+
+    private void OpenModuleSource(NymphModuleViewModel? module)
+    {
+        if (module is null || !module.HasRepositoryUrl)
+        {
+            return;
+        }
+
+        try
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = module.RepositoryUrl,
+                UseShellExecute = true,
+            });
+            AppendActivity($"{module.Name} GitHub page opened.");
+        }
+        catch (Exception ex)
+        {
+            AppendActivity($"Could not open {module.Name} GitHub page: {ex.Message}");
         }
     }
 

@@ -97,6 +97,13 @@ Manager renders a standard module shell + declared module surface
 
 This is the key next standardization step for community modules.
 
+Small UI rule from the latest pass:
+
+```text
+Monitor mode should collapse in place, preserving the window's top-left position.
+Module GitHub/source links belong on the module detail page actions rail, not on compact Home cards.
+```
+
 ## Critical WSL Boundary Warning
 
 Do not confuse the two WSL worlds.

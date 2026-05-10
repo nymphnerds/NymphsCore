@@ -12,7 +12,7 @@ This repository contains the Windows Manager, WSL runtime scripts, Blender addon
 
 Branch: `rauty`
 
-Manager build: `v0.9.2`
+Manager build: `v0.9.3`
 
 This branch is an active plugin/module standardization checkpoint.
 
@@ -115,7 +115,7 @@ Runtime setup must not make the managed `NymphsCore` distro execute scripts from
 
 Current `rauty` build:
 
-[NymphsCoreManager-win-x64.zip](https://github.com/nymphnerds/NymphsCore/raw/refs/heads/rauty/Manager/apps/NymphsCoreManager/publish/NymphsCoreManager-win-x64.zip)
+[NymphsCoreManager-win-x64.zip](https://github.com/nymphnerds/NymphsCore/raw/rauty/Manager/apps/NymphsCoreManager/publish/NymphsCoreManager-win-x64.zip)
 
 After downloading:
 

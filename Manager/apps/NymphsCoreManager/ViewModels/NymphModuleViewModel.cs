@@ -16,6 +16,7 @@ public sealed class NymphModuleViewModel : ViewModelBase
     private bool _hasUpdate;
     private string _remoteVersionLabel = "Not checked";
     private string _updateDetail = "No module update check has run yet.";
+    private string _repositoryUrl = "";
 
     public NymphModuleViewModel(
         string id,
@@ -121,6 +122,20 @@ public sealed class NymphModuleViewModel : ViewModelBase
         private set => SetProperty(ref _updateDetail, value);
     }
 
+    public string RepositoryUrl
+    {
+        get => _repositoryUrl;
+        private set
+        {
+            if (SetProperty(ref _repositoryUrl, value))
+            {
+                OnPropertyChanged(nameof(HasRepositoryUrl));
+            }
+        }
+    }
+
+    public bool HasRepositoryUrl => !string.IsNullOrWhiteSpace(RepositoryUrl);
+
     public string DisplayStateLabel => HasUpdate ? "Update available" : StateLabel;
 
     public string DisplayStatusBrush => HasUpdate ? "#D49A2A" : StatusBrush;
@@ -176,6 +191,7 @@ public sealed class NymphModuleViewModel : ViewModelBase
         var sourceLine = string.IsNullOrWhiteSpace(manifest.SourceSummary)
             ? manifest.ManifestUrl
             : manifest.SourceSummary;
+        RepositoryUrl = manifest.RepositoryUrl;
         SecondaryDetail = $"Registry manifest: {manifest.ManifestUrl}\nSource: {sourceLine}";
     }
 
