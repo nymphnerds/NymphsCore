@@ -147,6 +147,19 @@ Small UI rule from the latest pass:
 ```text
 Monitor mode should collapse in place, preserving the window's top-left position.
 Module GitHub/source links belong on the module detail page actions rail, not on compact Home cards.
+After the final design pass, module GitHub/source links should live as compact
+`Source: GitHub` facts, not as full-width lifecycle action buttons.
+```
+
+End-of-session repo state:
+
+```text
+Active branch: modular
+Remote branch: origin/modular
+Old remote branch: rauty deleted
+Main branch: keep as old Manager UI/workflow reference
+Latest focus: module lifecycle standardization, Base Runtime shell, WORBI proof module
+Next phase: test each official module from registry cards, one at a time
 ```
 
 ## Critical WSL Boundary Warning

@@ -83,6 +83,7 @@ Remote module repos:
   - `Manager/scripts/uninstall_nymph_module.sh`
 - consolidated handoff docs around one active file: `docs/Ideas/NYMPH_PLUGIN_STANDARDIZATION_HANDOFF.md`
 - repointed the Manager Guide button to repo docs because the old static `home/` site was removed
+- moved module GitHub/source links out of the large action rail and into the compact `Module Facts` area as `Source: GitHub`
 
 Validated locally:
 
@@ -101,6 +102,7 @@ Validated locally:
 - Windows release build script passed after the sidebar footer/version and Base Runtime progress spacing pass
 - Windows release build script passed after the module status timeout/page-pinning stability pass
 - Windows release build script passed after the WORBI staged install note and monitor/full restore fix
+- Windows release build script passed after bundling Manager lifecycle wrappers and after moving the module source link into facts
 - registry JSON and all local module manifests parse as valid JSON
 - install/status/uninstall scripts pass shell syntax checks
 - central Manager install/uninstall scripts pass shell syntax checks after lifecycle action-state additions
