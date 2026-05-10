@@ -1,13 +1,62 @@
 # Nymph Plugin Standardization Handoff
 
 Date: 2026-05-10
-Branch context: `rauty`
+Branch context: `modular`
+
+`modular` is the future-main path for the registry-driven Manager. Keep the current `main` branch available as the old-manager UI/workflow reference until module-owned frontend surfaces replace those hardcoded pages.
+
+Promotion checklist for when `modular` becomes `main`:
+
+```text
+README.md
+- Download link:
+  https://github.com/nymphnerds/NymphsCore/raw/modular/Manager/apps/NymphsCoreManager/publish/NymphsCoreManager-win-x64.zip
+  -> raw/main/...
+
+Manager/apps/NymphsCoreManager/Services/InstallerWorkflowService.cs
+- GuideUrl:
+  blob/modular/docs/GETTING_STARTED.md
+  -> blob/main/docs/GETTING_STARTED.md
+
+- ModularManagerScriptsBaseUrl:
+  https://raw.githubusercontent.com/nymphnerds/NymphsCore/modular/Manager/scripts
+  -> https://raw.githubusercontent.com/nymphnerds/NymphsCore/main/Manager/scripts
+
+  Runtime scripts pulled from that branch URL by the Manager:
+  - Manager/scripts/install_nymph_module_from_registry.sh
+  - Manager/scripts/uninstall_nymph_module.sh
+
+  These are staged into the managed `NymphsCore` distro at action time.
+  If the branch name changes and this URL is stale, module install/uninstall
+  can fetch the wrong wrapper or fail even if the packaged EXE starts fine.
+
+Docs
+- Branch context labels saying `modular` should become `main` or be removed after merge.
+```
 
 ## Where This Session Landed
 
 The Manager is now much closer to a clean plugin shell.
 
 The active shell no longer depends on a hardcoded five-module roster for discovery. It loads official module metadata from `nymphs-registry`, combines that with module manifests, and projects module cards from generic metadata.
+
+Repo cleanup landed in this session too:
+
+```text
+Keep one active handoff:
+docs/RautysIdeas/NYMPH_PLUGIN_STANDARDIZATION_HANDOFF.md
+
+Removed stale roots:
+ManagerFEUI/
+Monitor/
+WORBI-installer/
+home/
+index.html
+
+Removed old handoff scratch files from docs/.
+```
+
+The app Guide button now points at the repo docs instead of the removed static `home/` site.
 
 The lifecycle layer is now moving around one standard contract:
 

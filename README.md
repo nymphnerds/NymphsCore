@@ -10,11 +10,33 @@ This repository contains the Windows Manager, WSL runtime scripts, Blender addon
 
 ## Current Branch State
 
-Branch: `rauty`
+Branch: `modular`
 
 Manager build: `v0.9.3`
 
 This branch is an active plugin/module standardization checkpoint.
+
+### Branch Promotion Notes
+
+`modular` is intended to become `main` once the registry-driven Manager is stable.
+
+Keep current `main` for now. It is still the old-manager UI/workflow reference.
+
+Before promoting `modular` to `main`, change:
+
+| Place | Current | Promote to |
+| --- | --- | --- |
+| README download link | `raw/modular/.../NymphsCoreManager-win-x64.zip` | `raw/main/...` |
+| `GuideUrl` | `blob/modular/docs/GETTING_STARTED.md` | `blob/main/docs/GETTING_STARTED.md` |
+| `ModularManagerScriptsBaseUrl` | `raw.githubusercontent.com/nymphnerds/NymphsCore/modular/Manager/scripts` | `raw.githubusercontent.com/nymphnerds/NymphsCore/main/Manager/scripts` |
+| docs branch labels | `modular` | `main` or remove label |
+
+Manager runtime wrappers pulled from this branch URL:
+
+- `Manager/scripts/install_nymph_module_from_registry.sh`
+- `Manager/scripts/uninstall_nymph_module.sh`
+
+If that URL is stale, module install/uninstall can fetch the wrong wrapper even when the EXE launches fine.
 
 The Manager is no longer meant to install every tool through one hardcoded install flow. The new shape is:
 
@@ -41,6 +63,13 @@ Still in proof phase:
 - Brain, Z-Image, LoRA, and TRELLIS still need full install/status/start/stop/open/logs/uninstall validation under the new module contract.
 - Module-owned UI surfaces are not finished yet.
 - `Delete Module + Data` remains conservative until each module declares safe purge scopes.
+
+Cleaned repo layout:
+
+- `Manager/` is the active Windows Manager and packaged release.
+- `Graphics/` holds shared logo/source assets.
+- `docs/` holds public docs plus the single active standardization handoff.
+- Old prototype roots (`ManagerFEUI/`, `Monitor/`, `WORBI-installer/`, and the static `home/` site) were removed from this branch.
 
 The live handoff for this work is:
 
@@ -113,9 +142,9 @@ Runtime setup must not make the managed `NymphsCore` distro execute scripts from
 
 ## Download
 
-Current `rauty` build:
+Current `modular` build:
 
-[NymphsCoreManager-win-x64.zip](https://github.com/nymphnerds/NymphsCore/raw/rauty/Manager/apps/NymphsCoreManager/publish/NymphsCoreManager-win-x64.zip)
+[NymphsCoreManager-win-x64.zip](https://github.com/nymphnerds/NymphsCore/raw/modular/Manager/apps/NymphsCoreManager/publish/NymphsCoreManager-win-x64.zip)
 
 After downloading:
 

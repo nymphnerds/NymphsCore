@@ -17,12 +17,12 @@ public sealed class InstallerWorkflowService
     public const string ManagedLinuxUser = "nymph";
     public const string WslAvailabilityCheckKey = "wsl_availability";
     public const string ExistingWslDistrosCheckKey = "existing_wsl_distros";
-    public const string GuideUrl = "https://nymphnerds.github.io/NymphsCore/home/guides.html";
+    public const string GuideUrl = "https://github.com/nymphnerds/NymphsCore/blob/modular/docs/GETTING_STARTED.md";
     public const string ReadmeUrl = "https://github.com/nymphnerds/NymphsCore/blob/main/Manager/README.md";
     public const string SourceRepoUrl = "https://github.com/nymphnerds/NymphsCore";
     public const string FootprintDocUrl = "https://github.com/nymphnerds/NymphsCore/blob/main/docs/FOOTPRINT.md";
     public const string AddonGuideUrl = "https://github.com/nymphnerds/NymphsCore/blob/main/docs/BLENDER_ADDON_USER_GUIDE.md";
-    private const string RautyManagerScriptsBaseUrl = "https://raw.githubusercontent.com/nymphnerds/NymphsCore/rauty/Manager/scripts";
+    private const string ModularManagerScriptsBaseUrl = "https://raw.githubusercontent.com/nymphnerds/NymphsCore/modular/Manager/scripts";
     private const string NymphModuleRegistryUrl = "https://raw.githubusercontent.com/nymphnerds/nymphs-registry/main/nymphs.json";
 
     private readonly ProcessRunner _processRunner = new();
@@ -4314,7 +4314,7 @@ meta:
 
         var normalizedModuleId = moduleId.Trim().ToLowerInvariant();
         var stagedUninstallScriptPath = $"/tmp/nymphs-manager-uninstall-{normalizedModuleId}.sh";
-        var remoteUninstallScriptUrl = $"{RautyManagerScriptsBaseUrl}/uninstall_nymph_module.sh";
+        var remoteUninstallScriptUrl = $"{ModularManagerScriptsBaseUrl}/uninstall_nymph_module.sh";
         var installRoot = GetNymphModuleInstallRoot(settings, normalizedModuleId);
 
         var scriptArguments = new List<string>
@@ -4400,7 +4400,7 @@ meta:
 
         var normalizedModuleId = moduleId.Trim().ToLowerInvariant();
         var stagedInstallScriptPath = $"/tmp/nymphs-manager-install-{normalizedModuleId}.sh";
-        var remoteInstallScriptUrl = $"{RautyManagerScriptsBaseUrl}/install_nymph_module_from_registry.sh";
+        var remoteInstallScriptUrl = $"{ModularManagerScriptsBaseUrl}/install_nymph_module_from_registry.sh";
         var scriptArguments = new List<string>
         {
             "--module",

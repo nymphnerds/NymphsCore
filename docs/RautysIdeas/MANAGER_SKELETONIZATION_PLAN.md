@@ -1,7 +1,7 @@
 # Manager Skeletonization Plan
 
 **Generated**: 2026-05-05  
-**Branch Context**: `rauty`  
+**Branch Context**: `modular`  
 **Purpose**: Plan the next step of stripping `NymphsCore` down to its true core so it is ready to host installable `Nymphs`, including `Brain`, `Z-Image`, and `TRELLIS.2`.
 
 ---

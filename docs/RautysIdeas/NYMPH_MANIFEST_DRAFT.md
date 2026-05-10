@@ -1,7 +1,7 @@
 # Nymph Manifest Draft
 
 **Generated**: 2026-05-05  
-**Branch Context**: `rauty`  
+**Branch Context**: `modular`  
 **Purpose**: Draft a small manifest format for installable `Nymphs` managed by `NymphsCore`.
 
 ---
@@ -173,7 +173,7 @@ Where:
 
 ```json
 "source": {
-  "archive": "WORBI-installer/worbi-6.2.18.tar.gz"
+  "archive": "packages/worbi-6.3.0.tar.gz"
 }
 ```
 
@@ -181,7 +181,7 @@ Optional richer form:
 
 ```json
 "source": {
-  "archive": "WORBI-installer/worbi-6.2.18.tar.gz",
+  "archive": "packages/worbi-6.3.0.tar.gz",
   "format": "tar.gz"
 }
 ```
@@ -518,10 +518,10 @@ This does not need to be complex in v1.
   "name": "WORBI",
   "kind": "archive",
   "category": "tool",
-  "version": "6.2.18",
+  "version": "6.3.0",
   "description": "Local worldbuilding app managed by NymphsCore.",
   "source": {
-    "archive": "WORBI-installer/worbi-6.2.18.tar.gz",
+    "archive": "packages/worbi-6.3.0.tar.gz",
     "format": "tar.gz"
   },
   "entrypoints": {

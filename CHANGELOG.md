@@ -70,6 +70,18 @@ Remote module repos:
 - WORBI install now stages into a temp folder, installs production server dependencies before swapping into `~/worbi`, skips automatic backup folders, and times out dependency install instead of hanging forever
 - WORBI install lessons were promoted into the module standard: staged install, marker written last, no random backup folders, bounded status, bounded progress, and manifest-declared data/log scopes
 - module detail pages now expose an `Open GitHub` action when a repository URL can be derived from the module manifest or registry entry
+- cleaned obsolete repository roots from the branch:
+  - `ManagerFEUI/`
+  - `Monitor/`
+  - `WORBI-installer/`
+  - `home/`
+  - root `index.html`
+- renamed the active development branch from `rauty` to `modular`; `main` remains the old-manager UI/workflow reference until this branch is ready to replace it
+- documented the promotion checklist for branch-specific URLs, including the Manager runtime wrappers pulled from this branch:
+  - `Manager/scripts/install_nymph_module_from_registry.sh`
+  - `Manager/scripts/uninstall_nymph_module.sh`
+- consolidated handoff docs around one active file: `docs/RautysIdeas/NYMPH_PLUGIN_STANDARDIZATION_HANDOFF.md`
+- repointed the Manager Guide button to repo docs because the old static `home/` site was removed
 
 Validated locally:
 
@@ -224,7 +236,7 @@ Manager-side launcher fixes learned from the test:
 
 Current important caveat:
 
-- the Rauty build currently fetches Manager helper scripts from the `rauty` branch raw URL
+- the modular build currently fetches Manager helper scripts from the `modular` branch raw URL
 - before merging Rauty to `main`, that script source should become release-aware, configurable, or switched to the release branch
 
 Why it matters:
@@ -239,7 +251,7 @@ module repo changes -> nymph.json version bump -> Manager Check for Updates -> U
 - Manager only needs changes when the generic module contract or script-launch plumbing itself is wrong
 
 ### 2026-05-07 Rauty modular Manager lifecycle shell: Nymph cards, registry installs, and module pages
-Source: `rauty` branch module-skeleton work, especially commit `361e242` plus the follow-up live Manager/WORBI testing that happened before this changelog was updated.
+Source: `modular` branch module-skeleton work, especially commit `361e242` plus the follow-up live Manager/WORBI testing that happened before this changelog was updated.
 
 Documented changes:
 
@@ -423,7 +435,7 @@ Why it matters:
 - all module lifecycle smoke tests must target `NymphsCore`
 
 ### 2026-05-05 WORBI installer bootstrap and early module-repo direction
-Source: `rauty` branch commits `505d6b2`, `c378208`, `e426b74`, `320e4b2`, and `116a6c4`, before WORBI moved into the cleaner external module-repo/registry plan.
+Source: `modular` branch commits `505d6b2`, `c378208`, `e426b74`, `320e4b2`, and `116a6c4`, before WORBI moved into the cleaner external module-repo/registry plan.
 
 Documented changes:
 

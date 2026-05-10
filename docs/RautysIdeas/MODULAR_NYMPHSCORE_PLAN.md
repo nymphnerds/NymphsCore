@@ -1,7 +1,7 @@
 # Modular NymphsCore Plan
 
 **Generated**: 2026-05-05  
-**Branch Context**: `rauty`  
+**Branch Context**: `modular`  
 **Purpose**: Concise plan for restructuring `NymphsCore` into an open modular platform with installable `Nymphs`.
 
 ---

@@ -1,7 +1,7 @@
 # Nymph UI Shell Brief
 
 **Generated**: 2026-05-05  
-**Branch Context**: `rauty`  
+**Branch Context**: `modular`  
 **Purpose**: Define how installed and available Nymphs should be presented in the new modular `NymphsCore` Manager UI.
 
 ---

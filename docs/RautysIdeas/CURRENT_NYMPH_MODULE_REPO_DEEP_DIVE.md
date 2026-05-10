@@ -1,7 +1,7 @@
 # Current Nymph Module Repo Deep Dive
 
 **Generated**: 2026-05-07  
-**Branch Context**: `rauty`  
+**Branch Context**: `modular`  
 **Purpose**: Map the current installed/planned Manager backends into the future `nymph.json` + registry shape.
 
 ---
@@ -10,7 +10,7 @@
 
 - Do not switch branches to inspect `main`.
 - Use `git show main:path/to/file` when checking old installer structure.
-- Develop this conversion on `rauty`.
+- Develop this conversion on `modular`.
 - Keep live runtime/install state out of `nymph.json`.
 - Treat `nymph.json` as static module definition.
 - Treat runtime detection as Manager/service state.

@@ -1,7 +1,7 @@
 # Nymph Plugin Manager Implementation Plan
 
 Date: 2026-05-10
-Branch: `rauty`
+Branch: `modular`
 
 ## Purpose
 
@@ -171,7 +171,7 @@ Example:
 {
   "base_schema": 1,
   "ubuntu": "24.04",
-  "manager_channel": "rauty",
+  "manager_channel": "modular",
   "helper_scripts_commit": "abc123",
   "data_layout": 1,
   "created_at": "2026-05-10",
@@ -1055,7 +1055,7 @@ The Manager renderer should:
 
 Do not:
 
-- port the `main` branch XAML wholesale into `rauty`
+- port the `main` branch XAML wholesale into `modular`
 - keep adding module-specific hardcoded WPF pages to Manager
 - load arbitrary module-supplied WPF assemblies in the first implementation pass
 - let declarative UI controls bypass the manifest action allowlist
@@ -1593,7 +1593,7 @@ WORBI
 
 Use WORBI as the first proof because it is light and clearly exposes the preserved-data false-installed bug.
 
-Use the `main` branch Manager pages as workflow references for module-owned UI surfaces, not as hardcoded pages to port into `rauty`.
+Use the `main` branch Manager pages as workflow references for module-owned UI surfaces, not as hardcoded pages to port into `modular`.
 
 The successful end state for the next implementation pass is:
 

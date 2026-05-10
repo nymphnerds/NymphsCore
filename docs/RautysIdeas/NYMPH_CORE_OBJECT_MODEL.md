@@ -1,7 +1,7 @@
 # Nymph Core Object Model
 
 **Generated**: 2026-05-05  
-**Branch Context**: `rauty`  
+**Branch Context**: `modular`  
 **Purpose**: Concrete Manager-side C# object model for turning `NymphsCore` into a modular host for installable `Nymphs`.
 
 ---
