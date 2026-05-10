@@ -72,7 +72,7 @@ Cleaned repo layout:
 
 The live handoff for this work is:
 
-[Nymph Plugin Standardization Handoff](docs/RautysIdeas/NYMPH_PLUGIN_STANDARDIZATION_HANDOFF.md)
+[Nymph Plugin Standardization Handoff](docs/Ideas/NYMPH_PLUGIN_STANDARDIZATION_HANDOFF.md)
 
 ---
 
@@ -242,8 +242,8 @@ Module logs should be standardized through module manifests and status output. T
 
 ## Important Docs
 
-- [Nymph Plugin Standardization Handoff](docs/RautysIdeas/NYMPH_PLUGIN_STANDARDIZATION_HANDOFF.md)
-- [Plugin Manager Implementation Plan](docs/RautysIdeas/NYMPH_PLUGIN_MANAGER_IMPLEMENTATION_PLAN.md)
+- [Nymph Plugin Standardization Handoff](docs/Ideas/NYMPH_PLUGIN_STANDARDIZATION_HANDOFF.md)
+- [Plugin Manager Implementation Plan](docs/Ideas/NYMPH_PLUGIN_MANAGER_IMPLEMENTATION_PLAN.md)
 - [Install Disk And Model Footprint](docs/FOOTPRINT.md)
 
 ---

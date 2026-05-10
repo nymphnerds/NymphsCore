@@ -23,8 +23,7 @@ Package WORBI so that `NymphsCore Manager` can discover, install, and manage it 
 
 ## 3. Design References
 
-- **Package structure**: `NymphsCore/docs/RautysIdeas/WORBI_GIT_MODULE_HOSTING_HANDOFF.md`
-- **Production server approach**: `NymphsCore/docs/RautysIdeas/WORBI_MANAGER_HANDOFF.md` (Section 7.1 — production runtime, not dev servers)
+- **Current module standard**: `NymphsCore/docs/Ideas/NYMPH_PLUGIN_STANDARDIZATION_HANDOFF.md`
 - **Current installer**: `/home/nymph/Nymphs-Brain/WORBI` (source project)
 
 ---
@@ -74,7 +73,7 @@ Package WORBI so that `NymphsCore Manager` can discover, install, and manage it 
   - `worbi_logs.sh` — print log paths or tail logs
 - [ ] Place archive in `packages/` directory
 - [ ] Add `README.md`
-- [ ] Verify repo structure matches handoff spec:
+- [ ] Verify repo structure matches the current module standard:
   ```
   worbi/
     nymph.json
@@ -224,7 +223,7 @@ detail=WORBI is running.
 
 ## 8. Production Build Approach
 
-Per WORBI_MANAGER_HANDOFF.md Section 7.1:
+Per the current module standard:
 
 1. **Frontend**: Run `npm run build` in client directory to produce `dist/` static files
 2. **Backend**: Express server serves static `dist/` files and handles API routes

@@ -81,7 +81,7 @@ Remote module repos:
 - bundled generic Manager lifecycle wrappers with the packaged EXE instead of fetching them from the branch raw URL:
   - `Manager/scripts/install_nymph_module_from_registry.sh`
   - `Manager/scripts/uninstall_nymph_module.sh`
-- consolidated handoff docs around one active file: `docs/RautysIdeas/NYMPH_PLUGIN_STANDARDIZATION_HANDOFF.md`
+- consolidated handoff docs around one active file: `docs/Ideas/NYMPH_PLUGIN_STANDARDIZATION_HANDOFF.md`
 - repointed the Manager Guide button to repo docs because the old static `home/` site was removed
 
 Validated locally:

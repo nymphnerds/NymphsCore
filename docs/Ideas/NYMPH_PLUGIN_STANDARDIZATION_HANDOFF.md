@@ -40,7 +40,7 @@ Repo cleanup landed in this session too:
 
 ```text
 Keep one active handoff:
-docs/RautysIdeas/NYMPH_PLUGIN_STANDARDIZATION_HANDOFF.md
+docs/Ideas/NYMPH_PLUGIN_STANDARDIZATION_HANDOFF.md
 
 Removed stale roots:
 ManagerFEUI/

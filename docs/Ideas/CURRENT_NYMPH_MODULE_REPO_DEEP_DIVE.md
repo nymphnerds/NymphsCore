@@ -488,10 +488,10 @@ Current WSL state:
 not detected
 ```
 
-Existing handoff:
+Current standard reference:
 
 ```text
-docs/RautysIdeas/WORBI_GIT_MODULE_HOSTING_HANDOFF.md
+docs/Ideas/NYMPH_PLUGIN_STANDARDIZATION_HANDOFF.md
 ```
 
 Recommended future module repo:
