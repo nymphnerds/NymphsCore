@@ -72,6 +72,27 @@ installed runtime != preserved data exists
 
 The next session should not start by redesigning the shell again. The shell is now good enough to begin the proof phase.
 
+Recommended prompt for the next session:
+
+```text
+Read docs/Ideas/NYMPH_PLUGIN_STANDARDIZATION_HANDOFF.md and continue the modular Manager proof phase.
+
+Start with the managed NymphsCore WSL runtime. Test one official module at a time from the Manager registry cards.
+
+Focus on:
+1. install
+2. status
+3. start/stop/open/logs
+4. uninstall
+5. interrupted/closed-app behavior
+6. whether the module follows the .nymph-module-version contract
+
+Use WORBI as the reference standard, then move to Z-Image, LoRA, Brain, and TRELLIS.
+
+Do not redesign the shell unless a test exposes a real stability problem.
+Keep docs/Ideas/NYMPH_PLUGIN_STANDARDIZATION_HANDOFF.md and CHANGELOG.md updated.
+```
+
 Start with the managed runtime and official modules, in this order:
 
 ```text
