@@ -22,7 +22,6 @@ public sealed class InstallerWorkflowService
     public const string SourceRepoUrl = "https://github.com/nymphnerds/NymphsCore";
     public const string FootprintDocUrl = "https://github.com/nymphnerds/NymphsCore/blob/main/docs/FOOTPRINT.md";
     public const string AddonGuideUrl = "https://github.com/nymphnerds/NymphsCore/blob/main/docs/BLENDER_ADDON_USER_GUIDE.md";
-    private const string ModularManagerScriptsBaseUrl = "https://raw.githubusercontent.com/nymphnerds/NymphsCore/modular/Manager/scripts";
     private const string NymphModuleRegistryUrl = "https://raw.githubusercontent.com/nymphnerds/nymphs-registry/main/nymphs.json";
 
     private readonly ProcessRunner _processRunner = new();
@@ -4314,7 +4313,6 @@ meta:
 
         var normalizedModuleId = moduleId.Trim().ToLowerInvariant();
         var stagedUninstallScriptPath = $"/tmp/nymphs-manager-uninstall-{normalizedModuleId}.sh";
-        var remoteUninstallScriptUrl = $"{ModularManagerScriptsBaseUrl}/uninstall_nymph_module.sh";
         var installRoot = GetNymphModuleInstallRoot(settings, normalizedModuleId);
 
         var scriptArguments = new List<string>
@@ -4333,9 +4331,9 @@ meta:
             ? $"Deleting module '{moduleId}' from the managed distro..."
             : $"Uninstalling module '{moduleId}' from the managed distro...");
 
-        var result = await RunRemoteManagerScriptAsync(
+        var result = await RunPackagedManagerScriptAsync(
             settings,
-            remoteUninstallScriptUrl,
+            "uninstall_nymph_module.sh",
             stagedUninstallScriptPath,
             scriptArguments,
             "uninstall",
@@ -4400,7 +4398,6 @@ meta:
 
         var normalizedModuleId = moduleId.Trim().ToLowerInvariant();
         var stagedInstallScriptPath = $"/tmp/nymphs-manager-install-{normalizedModuleId}.sh";
-        var remoteInstallScriptUrl = $"{ModularManagerScriptsBaseUrl}/install_nymph_module_from_registry.sh";
         var scriptArguments = new List<string>
         {
             "--module",
@@ -4409,9 +4406,9 @@ meta:
 
         progress.Report($"Installing module '{moduleId}' from the Nymphs registry...");
 
-        var result = await RunRemoteManagerScriptAsync(
+        var result = await RunPackagedManagerScriptAsync(
             settings,
-            remoteInstallScriptUrl,
+            "install_nymph_module_from_registry.sh",
             stagedInstallScriptPath,
             scriptArguments,
             "install",
@@ -4427,9 +4424,9 @@ meta:
         }
     }
 
-    private async Task<CommandResult> RunRemoteManagerScriptAsync(
+    private async Task<CommandResult> RunPackagedManagerScriptAsync(
         InstallSettings settings,
-        string scriptUrl,
+        string scriptName,
         string stagedScriptPath,
         IReadOnlyList<string> scriptArguments,
         string label,
@@ -4442,47 +4439,25 @@ meta:
             progress: null,
             cancellationToken).ConfigureAwait(false);
 
-        var localScriptPath = GetPackagedManagerScriptPath(scriptUrl);
-        if (!string.IsNullOrWhiteSpace(localScriptPath))
+        var localScriptPath = GetPackagedManagerScriptPath(scriptName);
+        if (string.IsNullOrWhiteSpace(localScriptPath))
         {
-            progress.Report($"staging_{label}_script_from_manager={localScriptPath}");
-            var encodedScript = Convert.ToBase64String(File.ReadAllBytes(localScriptPath));
-            var stageCommand =
-                "set -euo pipefail; " +
-                $"mkdir -p $(dirname {ToBashSingleQuoted(stagedScriptPath)}); " +
-                $"printf %s {ToBashSingleQuoted(encodedScript)} | base64 -d > {ToBashSingleQuoted(stagedScriptPath)}; " +
-                $"chmod +x {ToBashSingleQuoted(stagedScriptPath)}";
-            var stageResult = await RunWslBashAsync(settings, stageCommand, progress, cancellationToken).ConfigureAwait(false);
-            if (stageResult.ExitCode != 0)
-            {
-                return stageResult;
-            }
+            throw new FileNotFoundException(
+                $"Packaged Manager script '{scriptName}' was not found in '{ScriptsDirectory}'. Rebuild the Manager package.",
+                Path.Combine(ScriptsDirectory, scriptName));
         }
-        else
+
+        progress.Report($"staging_{label}_script_from_manager={localScriptPath}");
+        var encodedScript = Convert.ToBase64String(File.ReadAllBytes(localScriptPath));
+        var stageCommand =
+            "set -euo pipefail; " +
+            $"mkdir -p $(dirname {ToBashSingleQuoted(stagedScriptPath)}); " +
+            $"printf %s {ToBashSingleQuoted(encodedScript)} | base64 -d > {ToBashSingleQuoted(stagedScriptPath)}; " +
+            $"chmod +x {ToBashSingleQuoted(stagedScriptPath)}";
+        var stageResult = await RunWslBashAsync(settings, stageCommand, progress, cancellationToken).ConfigureAwait(false);
+        if (stageResult.ExitCode != 0)
         {
-            progress.Report($"fetching_{label}_script={scriptUrl}");
-
-            var fetchResult = await RunWslCommandAsync(
-                settings,
-                ["curl", "-fsSL", scriptUrl, "-o", stagedScriptPath],
-                progress,
-                cancellationToken).ConfigureAwait(false);
-
-            if (fetchResult.ExitCode != 0)
-            {
-                return fetchResult;
-            }
-
-            var chmodResult = await RunWslCommandAsync(
-                settings,
-                ["chmod", "+x", stagedScriptPath],
-                progress,
-                cancellationToken).ConfigureAwait(false);
-
-            if (chmodResult.ExitCode != 0)
-            {
-                return chmodResult;
-            }
+            return stageResult;
         }
 
         progress.Report($"staged_{label}_script={stagedScriptPath}");
@@ -4511,14 +4486,9 @@ meta:
         }
     }
 
-    private string? GetPackagedManagerScriptPath(string scriptUrl)
+    private string? GetPackagedManagerScriptPath(string scriptName)
     {
-        if (!Uri.TryCreate(scriptUrl, UriKind.Absolute, out var uri))
-        {
-            return null;
-        }
-
-        var scriptName = Path.GetFileName(uri.LocalPath);
+        scriptName = Path.GetFileName(scriptName);
         if (string.IsNullOrWhiteSpace(scriptName))
         {
             return null;

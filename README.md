@@ -28,15 +28,14 @@ Before promoting `modular` to `main`, change:
 | --- | --- | --- |
 | README download link | `raw/modular/.../NymphsCoreManager-win-x64.zip` | `raw/main/...` |
 | `GuideUrl` | `blob/modular/docs/GETTING_STARTED.md` | `blob/main/docs/GETTING_STARTED.md` |
-| `ModularManagerScriptsBaseUrl` | `raw.githubusercontent.com/nymphnerds/NymphsCore/modular/Manager/scripts` | `raw.githubusercontent.com/nymphnerds/NymphsCore/main/Manager/scripts` |
 | docs branch labels | `modular` | `main` or remove label |
 
-Manager runtime wrappers pulled from this branch URL:
+Manager runtime wrappers are bundled in the EXE zip under `scripts/`:
 
 - `Manager/scripts/install_nymph_module_from_registry.sh`
 - `Manager/scripts/uninstall_nymph_module.sh`
 
-If that URL is stale, module install/uninstall can fetch the wrong wrapper even when the EXE launches fine.
+The Manager stages those bundled files into the managed `NymphsCore` distro at action time. It should not fetch generic lifecycle wrappers from this repo over the network during normal EXE use.
 
 The Manager is no longer meant to install every tool through one hardcoded install flow. The new shape is:
 

@@ -18,17 +18,13 @@ Manager/apps/NymphsCoreManager/Services/InstallerWorkflowService.cs
   blob/modular/docs/GETTING_STARTED.md
   -> blob/main/docs/GETTING_STARTED.md
 
-- ModularManagerScriptsBaseUrl:
-  https://raw.githubusercontent.com/nymphnerds/NymphsCore/modular/Manager/scripts
-  -> https://raw.githubusercontent.com/nymphnerds/NymphsCore/main/Manager/scripts
+Bundled Manager lifecycle wrappers:
+- Manager/scripts/install_nymph_module_from_registry.sh
+- Manager/scripts/uninstall_nymph_module.sh
 
-  Runtime scripts pulled from that branch URL by the Manager:
-  - Manager/scripts/install_nymph_module_from_registry.sh
-  - Manager/scripts/uninstall_nymph_module.sh
-
-  These are staged into the managed `NymphsCore` distro at action time.
-  If the branch name changes and this URL is stale, module install/uninstall
-  can fetch the wrong wrapper or fail even if the packaged EXE starts fine.
+These are packaged under `scripts/` beside the EXE and staged into the managed
+`NymphsCore` distro at action time. They should not be fetched from this repo
+over the network during normal EXE use.
 
 Docs
 - Branch context labels saying `modular` should become `main` or be removed after merge.

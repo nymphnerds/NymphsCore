@@ -77,7 +77,8 @@ Remote module repos:
   - `home/`
   - root `index.html`
 - renamed the active development branch from `rauty` to `modular`; `main` remains the old-manager UI/workflow reference until this branch is ready to replace it
-- documented the promotion checklist for branch-specific URLs, including the Manager runtime wrappers pulled from this branch:
+- documented the promotion checklist for branch-specific URLs
+- bundled generic Manager lifecycle wrappers with the packaged EXE instead of fetching them from the branch raw URL:
   - `Manager/scripts/install_nymph_module_from_registry.sh`
   - `Manager/scripts/uninstall_nymph_module.sh`
 - consolidated handoff docs around one active file: `docs/RautysIdeas/NYMPH_PLUGIN_STANDARDIZATION_HANDOFF.md`
@@ -224,7 +225,7 @@ Manager-side launcher fixes learned from the test:
 - do not inject complex shell scripts with nested heredocs into `wsl.exe ... bash -lc`
 - nested heredocs broke the registry installer around its Python heredocs
 - base64 staging was better but still too fragile in the live WSL command path
-- the current Rauty fix fetches the Manager helper script from the branch raw URL into `/tmp` inside the managed distro, then executes it there
+- the earlier branch-raw helper fetch was replaced by packaged Manager lifecycle wrappers staged into `/tmp` inside the managed distro
 - critical temp paths are now literal paths like `/tmp/nymphs-manager-install-worbi.sh`, rather than relying on fragile shell variable expansion inside the command string
 - install/update success must be treated separately from follow-up refresh/check warnings
 - fixed a Home-page catch-22 discovered after uninstall/reinstall testing:
@@ -236,8 +237,8 @@ Manager-side launcher fixes learned from the test:
 
 Current important caveat:
 
-- the modular build currently fetches Manager helper scripts from the `modular` branch raw URL
-- before merging Rauty to `main`, that script source should become release-aware, configurable, or switched to the release branch
+- generic Manager lifecycle wrappers are now bundled with the EXE zip under `scripts/`
+- module-specific scripts still come from module repos through the registry/manifest contract
 
 Why it matters:
 
