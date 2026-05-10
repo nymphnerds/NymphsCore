@@ -1931,6 +1931,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             return;
         }
 
+        SelectedNavigationItem = null;
         CurrentPageKind = pageKind;
         SelectedModule = null;
         DisplayedModule = null;

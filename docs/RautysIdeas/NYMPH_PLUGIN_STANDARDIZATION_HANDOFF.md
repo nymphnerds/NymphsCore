@@ -29,8 +29,8 @@ But the actual lifecycle contract is still not robust enough:
 The main fix direction:
 
 ```text
-Module repo owns the manifest and entrypoints.
-Manager owns the generic lifecycle engine and shell UI.
+Module repo owns the manifest, entrypoints, and Manager-facing config/control surface.
+Manager owns the generic lifecycle engine, host shell, safety rules, and status truth.
 Status output is the source of truth after every action.
 Remaining user data does not mean a module is installed.
 ```
@@ -120,6 +120,27 @@ InitializeAsync() -> RefreshAsync()
 RefreshAsync() -> system checks + runtime monitor + module state
 ```
 
+### Safe Fix From `baffledtests`: System Checks Navigation
+
+The `baffledtests` branch contains one small Manager shell fix that is worth carrying over.
+
+Bug:
+
+`SystemChecks` is opened from a Home card, but it is not in `PrimaryNavigationItems`. The page can change to System Checks while `SelectedNavigationItem` still points at Home. After that, clicking Home in the sidebar can do nothing because the selected nav item did not actually change.
+
+Fix direction:
+
+In `ManagerShellViewModel.SelectPrimaryPage`, when the requested page is not found in `PrimaryNavigationItems`, clear the selected nav item before setting the page:
+
+```csharp
+SelectedNavigationItem = null;
+CurrentPageKind = pageKind;
+SelectedModule = null;
+DisplayedModule = null;
+```
+
+This is separate from the Nymph Plugin standardization work, but it should be taken as a small shell reliability fix before deeper lifecycle work.
+
 Current hardcoded module roster is created inside `ManagerShellViewModel`:
 
 ```text
@@ -150,19 +171,19 @@ The current XAML already has a good standard page shell:
 
 This is the right general direction.
 
-Keep the standard shell, but make the data and actions come from a strict module contract instead of Manager-side hardcoding.
+Keep the standard host shell, but make the data, actions, and module-specific config surface come from a strict module contract instead of Manager-side hardcoding.
 
 Recommended page split:
 
 ```text
-Standard Shell For Every Module
+Manager-Owned Host Shell For Every Module
   header
   status/version
   lifecycle action rail
   logs/status/progress
   module facts
 
-Custom Module Body
+Module-Owned Manager Surface
   WORBI-specific body
   TRELLIS-specific body
   Z-Image-specific body
@@ -170,7 +191,64 @@ Custom Module Body
   LoRA-specific body
 ```
 
-Do not try to make every module page identical. Standardize lifecycle and state. Let module pages be custom.
+Do not try to make every module page identical. Standardize lifecycle, status, safety, and host placement. Let each module bring the Manager-facing config/control page it needs.
+
+## Important Direction Change: Module Owns Its Manager Config Surface
+
+The Manager should not become a giant pile of module-specific config plumbing.
+
+The cleaner model is an ownership inversion:
+
+```text
+Bad direction:
+Manager knows every module's settings, controls, fields, and special UI.
+Each module is forced to fit Manager's hardcoded plumbing.
+
+Better direction:
+Each module ships a Manager-facing config/control definition.
+Manager validates it, hosts it, and connects it to the shared lifecycle/status contract.
+```
+
+The standard should define the host contract, not every module's internal UI.
+
+Manager owns:
+
+- registry and manifest discovery
+- install/update/uninstall/delete-data flow
+- status refresh truth
+- navigation placement
+- shared lifecycle rail
+- permissions, confirmations, dry-run rules, and destructive-action safety
+- consistent busy/error/log/progress behavior
+
+Module owns:
+
+- config page contents
+- settings fields
+- module-specific controls
+- health detail presentation
+- advanced runtime options
+- module-specific logs/actions presentation
+- explanatory labels and defaults for its own workflow
+
+This matters because TRELLIS, Z-Image, Brain, LoRA, and WORBI are not the same type of thing. They should share lifecycle/state semantics, but not be forced into one Manager-authored config UI.
+
+Recommended first implementation path:
+
+```text
+Phase A: declarative config page
+  Module manifest declares sections, fields, toggles, selects, paths, ports, buttons, and validation.
+  Manager renders these using a safe built-in renderer.
+
+Phase B: optional embedded local web surface
+  Module may expose a local HTML/WebView surface for richer module-owned UI.
+  Manager hosts it in a bounded panel and still owns lifecycle/status/destructive-action controls.
+
+Phase C: native extension only if truly needed
+  Avoid arbitrary native WPF plugin loading until the lifecycle contract is proven.
+```
+
+For now, prefer declarative config and/or local web surfaces over arbitrary module-loaded code. The Manager should host module UI safely, not execute unreviewed UI code with full trust.
 
 ## Current Lifecycle Flow
 
@@ -373,7 +451,11 @@ Recommended canonical fields:
     "page": "custom",
     "page_kind": "worbi",
     "sort_order": 50,
-    "standard_lifecycle_rail": true
+    "standard_lifecycle_rail": true,
+    "manager_surface": {
+      "type": "declarative",
+      "schema": "ui/worbi.manager.json"
+    }
   }
 }
 ```
@@ -386,6 +468,8 @@ Notes:
 - Use `install.root`, not `runtime.install_root` sometimes and `install.path` other times.
 - Keep `ui.page=custom` for module-specific pages.
 - Keep `standard_lifecycle_rail=true` so custom pages still use Manager-owned install/update/uninstall/delete.
+- Use `ui.manager_surface` to describe the module-owned Manager config/control body.
+- Start with `manager_surface.type=declarative`; allow `webview` later only with explicit local URL/path and sandbox rules.
 
 ## Proposed Status Output Contract
 
