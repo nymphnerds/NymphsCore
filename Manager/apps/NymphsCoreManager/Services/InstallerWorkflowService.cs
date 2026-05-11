@@ -4350,10 +4350,13 @@ meta:
         }
         catch
         {
-            return null;
+            // If the registry network read is unavailable, official modules still follow
+            // the nymphnerds/<module-id> repo convention used by the registry.
         }
 
-        return null;
+        return Regex.IsMatch(moduleId, "^[a-z0-9][a-z0-9_-]{0,39}$", RegexOptions.CultureInvariant)
+            ? new TrustedModuleSourceInfo($"https://github.com/nymphnerds/{moduleId}.git", "main")
+            : null;
     }
 
     private static string ResolveNymphModuleRepositoryUrl(

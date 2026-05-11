@@ -1918,6 +1918,8 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         ModuleUiStatus = args.Count == 0
             ? $"Running {action}..."
             : $"Running {action} {string.Join(" ", args)}...";
+        AppendActivity($"{module.Name} {action} started from module UI.");
+        SelectPrimaryPage(ManagerPageKind.Logs);
 
         try
         {

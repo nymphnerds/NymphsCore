@@ -1828,7 +1828,6 @@
         <Grid.RowDefinitions>
           <RowDefinition Height="Auto" />
           <RowDefinition Height="*" />
-          <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
         <DockPanel Grid.Row="0"
@@ -1848,45 +1847,6 @@
                       CoreWebView2InitializationCompleted="ModuleUiBrowser_CoreWebView2InitializationCompleted"
                       NavigationStarting="ModuleUiBrowser_NavigationStarting"
                       NavigationCompleted="ModuleUiBrowser_NavigationCompleted" />
-
-        <Border Grid.Row="2"
-                Margin="0,8,0,0"
-                Padding="10,7"
-                Background="#081314"
-                BorderBrush="#173436"
-                BorderThickness="1,1,1,0">
-          <Grid>
-            <Grid.ColumnDefinitions>
-              <ColumnDefinition Width="Auto" />
-              <ColumnDefinition Width="*" />
-              <ColumnDefinition Width="120" />
-            </Grid.ColumnDefinitions>
-            <TextBlock Grid.Column="0"
-                       Margin="0,0,12,0"
-                       Text="{Binding ModuleUiTitle}"
-                       Foreground="{StaticResource LimeBrush}"
-                       FontFamily="Cascadia Mono"
-                       FontSize="10.5"
-                       FontWeight="SemiBold"
-                       VerticalAlignment="Center" />
-            <TextBlock Grid.Column="1"
-                       Text="{Binding ModuleUiStatus}"
-                       Foreground="#B8D3CF"
-                       FontFamily="Cascadia Mono"
-                       FontSize="10.5"
-                       TextTrimming="CharacterEllipsis"
-                       VerticalAlignment="Center" />
-            <ProgressBar Grid.Column="2"
-                         Height="6"
-                         Margin="12,0,0,0"
-                         Foreground="{StaticResource AccentBrush}"
-                         Background="#102426"
-                         BorderThickness="0"
-                         IsIndeterminate="True"
-                         Visibility="{Binding IsBusy, Converter={StaticResource BoolToVisibilityConverter}}"
-                         VerticalAlignment="Center" />
-          </Grid>
-        </Border>
       </Grid>
 
       <Border Grid.Row="2"
