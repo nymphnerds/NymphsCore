@@ -1442,7 +1442,21 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         }
         catch (Exception ex)
         {
-            AppendActivity($"{module.Name} status warning: {ex.Message}");
+            if (IsNormalUnavailableModuleStatus(ex.Message))
+            {
+                return new NymphStatusSnapshot(
+                    module.Id,
+                    IsInstalled: false,
+                    IsRunning: false,
+                    Version: "not-installed",
+                    State: "available",
+                    Detail: $"{module.Name} is available from the registry, but is not installed yet.",
+                    InstallRoot: module.InstallPath,
+                    Health: "unknown",
+                    Values: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase));
+            }
+
+            AppendActivity($"{module.Name} status warning: {FirstNonEmptyLine(ex.Message)}");
             var markerVersion = _workflowService.GetInstalledNymphModuleMarkerVersion(_settings, module.Id);
             if (!string.IsNullOrWhiteSpace(markerVersion))
             {
@@ -1526,8 +1540,32 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             secondaryParts.Count == 0
                 ? "Status came from the module-owned status entrypoint."
                 : string.Join(Environment.NewLine, secondaryParts));
-        AppendActivity(BuildModuleStatusLogLine(module, snapshot));
+        if (ShouldLogModuleStatusSnapshot(snapshot))
+        {
+            AppendActivity(BuildModuleStatusLogLine(module, snapshot));
+        }
+
         RefreshInstalledModuleUiInfo(module);
+    }
+
+    private static bool IsNormalUnavailableModuleStatus(string? message)
+    {
+        return !string.IsNullOrWhiteSpace(message) &&
+               message.Contains("installed=false", StringComparison.OrdinalIgnoreCase) &&
+               message.Contains("state=available", StringComparison.OrdinalIgnoreCase) &&
+               message.Contains("Module is available from the registry, but is not installed yet.", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool ShouldLogModuleStatusSnapshot(NymphStatusSnapshot snapshot)
+    {
+        if (snapshot.IsInstalled || snapshot.IsRunning)
+        {
+            return true;
+        }
+
+        var statusError = snapshot.Get("status_error");
+        return !string.IsNullOrWhiteSpace(statusError) &&
+               !IsNormalUnavailableModuleStatus(statusError);
     }
 
     private static string BuildModuleStatusLogLine(NymphModuleViewModel module, NymphStatusSnapshot snapshot)
@@ -1554,6 +1592,18 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         }
 
         return string.Join(" ", parts);
+    }
+
+    private static string FirstNonEmptyLine(string? message)
+    {
+        if (string.IsNullOrWhiteSpace(message))
+        {
+            return "unknown status error";
+        }
+
+        return message
+            .Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .FirstOrDefault() ?? message.Trim();
     }
 
     private static void AddStatusValue(List<string> parts, string key, string? value)
