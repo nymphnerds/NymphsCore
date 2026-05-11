@@ -5012,16 +5012,16 @@ meta:
         var trustedModuleSource = isStatusAction || hasLocalActionEntrypoint
             ? null
             : await TryGetTrustedNymphModuleSourceInfoAsync(normalizedModuleId, cancellationToken).ConfigureAwait(false);
-        var trustedRepoUrl = trustedModuleSource?.RepositoryUrl ?? "";
-        var trustedRepoBranch = trustedModuleSource?.Branch ?? "";
-        if (!isStatusAction && string.IsNullOrWhiteSpace(trustedRepoUrl))
+        var moduleActionRepoUrl = trustedModuleSource?.RepositoryUrl ?? "";
+        var moduleActionRepoBranch = trustedModuleSource?.Branch ?? "";
+        if (!isStatusAction && string.IsNullOrWhiteSpace(moduleActionRepoUrl))
         {
-            trustedRepoUrl = $"https://github.com/nymphnerds/{normalizedModuleId}.git";
+            moduleActionRepoUrl = $"https://github.com/nymphnerds/{normalizedModuleId}.git";
         }
 
-        if (!isStatusAction && string.IsNullOrWhiteSpace(trustedRepoBranch))
+        if (!isStatusAction && string.IsNullOrWhiteSpace(moduleActionRepoBranch))
         {
-            trustedRepoBranch = "main";
+            moduleActionRepoBranch = "main";
         }
 
         if (isStatusAction)
@@ -5069,13 +5069,9 @@ meta:
             (!isStatusAction
                 ? "if [[ -z \"$ENTRYPOINT\" ]]; then " +
                   $"  mkdir -p {ToBashSingleQuoted(moduleWorkRoot)}/repos; " +
-                  $"  REPO_URL={ToBashSingleQuoted(trustedRepoUrl)}; " +
-                  $"  REPO_BRANCH={ToBashSingleQuoted(trustedRepoBranch)}; " +
-                  $"  if [[ -z \"$REPO_URL\" ]]; then REPO_URL={ToBashSingleQuoted($"https://github.com/nymphnerds/{normalizedModuleId}.git")}; fi; " +
-                  "  if [[ -z \"$REPO_BRANCH\" ]]; then REPO_BRANCH=main; fi; " +
                   "  if command -v git >/dev/null 2>&1; then " +
                   $"        rm -rf {ToBashSingleQuoted(cacheRepo)}; " +
-                  $"        git clone --depth 1 --branch \"$REPO_BRANCH\" \"$REPO_URL\" {ToBashSingleQuoted(cacheRepo)} || echo module_action_repo_clone_failed={ToBashSingleQuoted(cacheRepo)} >&2; " +
+                  $"        git clone --depth 1 --branch {ToBashSingleQuoted(moduleActionRepoBranch)} {ToBashSingleQuoted(moduleActionRepoUrl)} {ToBashSingleQuoted(cacheRepo)} || echo module_action_repo_clone_failed={ToBashSingleQuoted(cacheRepo)} >&2; " +
                   "    else " +
                   "      echo module_action_refresh_tools_missing >&2; " +
                   "  fi; " +
@@ -5102,9 +5098,9 @@ meta:
                   "  exit 5; ") +
             "fi";
 
-        if (!isStatusAction && !hasLocalActionEntrypoint)
+        if (!isStatusAction)
         {
-            progress.Report($"Module action source '{normalizedModuleId}' -> {trustedRepoUrl}#{trustedRepoBranch}");
+            progress.Report($"Module action source '{normalizedModuleId}' -> {moduleActionRepoUrl}#{moduleActionRepoBranch}");
         }
 
         progress.Report($"Running module action '{normalizedAction}' for '{normalizedModuleId}'...");
