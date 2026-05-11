@@ -10,7 +10,7 @@ You need:
 
 Current manager download:
 
-- [NymphsCoreManager-win-x64.zip](https://github.com/nymphnerds/NymphsCore/raw/main/Manager/apps/NymphsCoreManager/publish/NymphsCoreManager-win-x64.zip)
+- [NymphsCoreManager-win-x64.zip](https://github.com/nymphnerds/NymphsCore/raw/modular/Manager/apps/NymphsCoreManager/publish/NymphsCoreManager-win-x64.zip)
 
 The manager bootstraps a fresh Ubuntu WSL base locally. A prebuilt distro package is not required.
 
