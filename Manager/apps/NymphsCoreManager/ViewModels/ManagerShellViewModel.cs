@@ -16,6 +16,7 @@ namespace NymphsCoreManager.ViewModels;
 public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 {
     private readonly InstallerWorkflowService _workflowService;
+    private readonly SharedSecretsService _sharedSecretsService = new();
     private readonly InstallSettings _settings;
     private readonly DispatcherTimer _sidebarArtTimer;
     private readonly DispatcherTimer _runtimeMonitorTimer;
@@ -102,6 +103,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
     {
         _workflowService = workflowService;
         _settings = CreateDefaultInstallSettings();
+        _settings.HuggingFaceToken = _sharedSecretsService.Load().HuggingFaceToken?.Trim() ?? string.Empty;
 
         PrimaryNavigationItems = new ObservableCollection<ShellNavigationItemViewModel>
         {
@@ -2002,7 +2004,13 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             return;
         }
 
-        var args = ResolveModuleUiActionArguments(uri);
+        var args = ResolveModuleUiActionArguments(uri).ToList();
+        if (string.Equals(module.Id, "zimage", StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(action, "fetch_models", StringComparison.OrdinalIgnoreCase))
+        {
+            ApplyModuleHuggingFaceTokenArgument(args);
+        }
+
         IsBusy = true;
         StatusMessage = $"Running {module.Name} {action}...";
         ModuleUiStatus = args.Count == 0
@@ -2086,7 +2094,11 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             }
 
             var value = parts.Length > 1 ? Uri.UnescapeDataString(parts[1]).Trim() : string.Empty;
-            if (string.IsNullOrWhiteSpace(value) || value.Any(char.IsControl) || value.Length > 120)
+            var isHuggingFaceToken = string.Equals(key, "hf_token", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(key, "hf-token", StringComparison.OrdinalIgnoreCase);
+            if ((!isHuggingFaceToken && string.IsNullOrWhiteSpace(value)) ||
+                value.Any(char.IsControl) ||
+                value.Length > 256)
             {
                 continue;
             }
@@ -2096,6 +2108,38 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         }
 
         return args;
+    }
+
+    private void ApplyModuleHuggingFaceTokenArgument(IReadOnlyList<string> args)
+    {
+        var token = GetModuleActionArgumentValue(args, "--hf_token") ??
+            GetModuleActionArgumentValue(args, "--hf-token");
+        if (token is null)
+        {
+            return;
+        }
+
+        _settings.HuggingFaceToken = token.Trim();
+        var existing = _sharedSecretsService.Load();
+        existing.HuggingFaceToken = _settings.HuggingFaceToken;
+        _sharedSecretsService.Save(existing);
+
+        AppendActivity(string.IsNullOrWhiteSpace(_settings.HuggingFaceToken)
+            ? "Hugging Face token cleared for model downloads."
+            : "Hugging Face token saved for model downloads.");
+    }
+
+    private static string? GetModuleActionArgumentValue(IReadOnlyList<string> args, string key)
+    {
+        for (var index = 0; index < args.Count - 1; index++)
+        {
+            if (string.Equals(args[index], key, StringComparison.OrdinalIgnoreCase))
+            {
+                return args[index + 1];
+            }
+        }
+
+        return null;
     }
 
     private void InstallModule(NymphModuleViewModel? module)

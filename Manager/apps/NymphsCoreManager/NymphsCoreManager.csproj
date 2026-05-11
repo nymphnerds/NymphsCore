@@ -35,7 +35,6 @@
 
   <ItemGroup>
     <Compile Remove="ViewModels/MainWindowViewModel.cs" />
-    <Compile Remove="Services/SharedSecretsService.cs" />
     <Compile Remove="Models/TrellisGgufQuantOption.cs" />
     <Compile Remove="Models/RuntimeBackendStatus.cs" />
     <Compile Remove="Models/ZImageTrainerStatus.cs" />

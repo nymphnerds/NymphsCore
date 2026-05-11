@@ -5197,6 +5197,7 @@ meta:
     {
         var precision = "auto";
         var rank = "32";
+        var huggingFaceToken = settings.HuggingFaceToken;
         for (var index = 0; index < actionArguments.Count; index++)
         {
             var argument = actionArguments[index];
@@ -5223,6 +5224,26 @@ meta:
             if (argument.StartsWith("--rank=", StringComparison.OrdinalIgnoreCase))
             {
                 rank = argument["--rank=".Length..].Trim();
+                continue;
+            }
+
+            if ((string.Equals(argument, "--hf_token", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(argument, "--hf-token", StringComparison.OrdinalIgnoreCase)) &&
+                index + 1 < actionArguments.Count)
+            {
+                huggingFaceToken = actionArguments[++index].Trim();
+                continue;
+            }
+
+            if (argument.StartsWith("--hf_token=", StringComparison.OrdinalIgnoreCase))
+            {
+                huggingFaceToken = argument["--hf_token=".Length..].Trim();
+                continue;
+            }
+
+            if (argument.StartsWith("--hf-token=", StringComparison.OrdinalIgnoreCase))
+            {
+                huggingFaceToken = argument["--hf-token=".Length..].Trim();
             }
         }
 
@@ -5257,9 +5278,9 @@ meta:
         var encodedPrefetchScript = Convert.ToBase64String(File.ReadAllBytes(localPrefetchScript));
         var encodedCommonPathsScript = Convert.ToBase64String(File.ReadAllBytes(localCommonPathsScript));
         var nunchakuWeightRepo = "nunchaku-ai/nunchaku-z-image-turbo";
-        var tokenExport = string.IsNullOrWhiteSpace(settings.HuggingFaceToken)
+        var tokenExport = string.IsNullOrWhiteSpace(huggingFaceToken)
             ? string.Empty
-            : $"export NYMPHS3D_HF_TOKEN={ToBashSingleQuoted(settings.HuggingFaceToken.Trim())}; ";
+            : $"export NYMPHS3D_HF_TOKEN={ToBashSingleQuoted(huggingFaceToken.Trim())}; ";
         var bashCommand =
             "set -euo pipefail; " +
             $"export HOME={ToBashSingleQuoted(homePath)}; " +
@@ -5324,7 +5345,7 @@ meta:
                 continue;
             }
 
-            if (value.Length > 160 ||
+            if (value.Length > 256 ||
                 value.Any(char.IsControl) ||
                 !Regex.IsMatch(value, "^[A-Za-z0-9._=:/@+-]+$", RegexOptions.CultureInvariant))
             {

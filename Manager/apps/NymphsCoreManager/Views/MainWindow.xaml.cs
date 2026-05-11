@@ -5,6 +5,8 @@ using System.Globalization;
 using System.IO;
 using System.Net;
 using System.Runtime.InteropServices;
+using System.Text.RegularExpressions;
+using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Interop;
@@ -328,6 +330,7 @@ public partial class MainWindow : Window
                 if (string.Equals(uiType, "local_html", StringComparison.OrdinalIgnoreCase))
                 {
                     var html = File.ReadAllText(fullPath);
+                    html = InjectModuleUiSecrets(html);
                     ModuleUiBrowser.NavigateToString(html);
                     AppendModuleUiHostLog($"navigate_to_string_ms={stopwatch.ElapsedMilliseconds} bytes={html.Length}");
                     return;
@@ -441,6 +444,70 @@ public partial class MainWindow : Window
     private void ScrollMainContentToTop()
     {
         MainContentScrollViewer.ScrollToTop();
+    }
+
+    private static string InjectModuleUiSecrets(string html)
+    {
+        if (!html.Contains("fetch_models", StringComparison.OrdinalIgnoreCase) &&
+            !html.Contains("hf-token", StringComparison.OrdinalIgnoreCase))
+        {
+            return html;
+        }
+
+        var token = new SharedSecretsService().Load().HuggingFaceToken?.Trim() ?? string.Empty;
+        var script = "<style>input#hf-token{min-height:30px;background:#101d1f;color:#f4fffb;border:1px solid #24494d;border-radius:4px;padding:4px 9px;min-width:280px;}</style><script>window.NYMPHSCORE_HF_TOKEN=" +
+            JsonSerializer.Serialize(token) +
+            @";
+window.addEventListener('DOMContentLoaded', function() {
+  var tokenInput = document.getElementById('hf-token');
+  var controls = document.querySelector('.controls');
+  if (!tokenInput && controls) {
+    var label = document.createElement('label');
+    label.textContent = 'HF Token';
+    tokenInput = document.createElement('input');
+    tokenInput.id = 'hf-token';
+    tokenInput.type = 'password';
+    tokenInput.autocomplete = 'off';
+    tokenInput.placeholder = 'Saved token optional';
+    label.appendChild(tokenInput);
+    var firstButton = controls.querySelector('button');
+    controls.insertBefore(label, firstButton || null);
+  }
+  if (tokenInput) {
+    try {
+      tokenInput.value = window.NYMPHSCORE_HF_TOKEN || window.localStorage.getItem('nymphscore_hf_token') || '';
+    } catch (error) {
+      tokenInput.value = window.NYMPHSCORE_HF_TOKEN || '';
+    }
+  }
+  var originalFetchModels = window.fetchModels;
+  window.fetchModels = function() {
+    var token = tokenInput ? tokenInput.value.trim() : '';
+    try {
+      if (token) {
+        window.localStorage.setItem('nymphscore_hf_token', token);
+      } else {
+        window.localStorage.removeItem('nymphscore_hf_token');
+      }
+    } catch (error) {}
+    if (typeof window.runAction === 'function') {
+      window.runAction('fetch_models', {
+        precision: document.getElementById('precision').value,
+        rank: document.getElementById('rank').value,
+        hf_token: token
+      });
+      return;
+    }
+    if (typeof originalFetchModels === 'function') {
+      originalFetchModels();
+    }
+  };
+});
+</script>";
+
+        return html.Contains("</head>", StringComparison.OrdinalIgnoreCase)
+            ? Regex.Replace(html, "</head>", script + "</head>", RegexOptions.IgnoreCase)
+            : script + html;
     }
 
     private void SettingsButton_Click(object sender, RoutedEventArgs e)
