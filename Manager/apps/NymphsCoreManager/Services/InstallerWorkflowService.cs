@@ -5191,11 +5191,21 @@ meta:
 
         var homePath = $"/home/{settings.LinuxUser}";
         var zimageRoot = $"{homePath}/Z-Image";
+        var zimagePython = $"{zimageRoot}/.venv-nunchaku/bin/python";
+        var nunchakuWeightRepo = "nunchaku-ai/nunchaku-z-image-turbo";
         var tokenExport = string.IsNullOrWhiteSpace(settings.HuggingFaceToken)
             ? string.Empty
             : $"export NYMPHS3D_HF_TOKEN={ToBashSingleQuoted(settings.HuggingFaceToken.Trim())}; ";
-        var precisionExport = $"export Z_IMAGE_NUNCHAKU_PRECISION={ToBashSingleQuoted(precision)}; ";
-        var rankExport = $"export Z_IMAGE_NUNCHAKU_RANK={ToBashSingleQuoted(rank)}; ";
+        var zimagePythonEnv =
+            $"Z_IMAGE_RUNTIME=nunchaku " +
+            $"Z_IMAGE_NUNCHAKU_MODEL_REPO={ToBashSingleQuoted(nunchakuWeightRepo)} " +
+            $"Z_IMAGE_NUNCHAKU_PRECISION={ToBashSingleQuoted(precision)} " +
+            $"Z_IMAGE_NUNCHAKU_RANK={ToBashSingleQuoted(rank)} " +
+            $"NYMPHS3D_HF_CACHE_DIR=\"$NYMPHS3D_HF_CACHE_DIR\" " +
+            $"HF_HOME=\"$HF_HOME\" " +
+            $"HF_HUB_CACHE=\"$HF_HUB_CACHE\" " +
+            $"HF_HUB_DISABLE_XET=1 " +
+            $"HF_HUB_DISABLE_PROGRESS_BARS=1 ";
         var bashCommand =
             "set -euo pipefail; " +
             $"export HOME={ToBashSingleQuoted(homePath)}; " +
@@ -5213,20 +5223,15 @@ meta:
             "export HF_HUB_DISABLE_PROGRESS_BARS=1; " +
             tokenExport +
             "if [[ -n \"${NYMPHS3D_HF_TOKEN:-}\" ]]; then export HF_TOKEN=\"$NYMPHS3D_HF_TOKEN\"; fi; " +
-            precisionExport +
-            rankExport +
-            "export Z_IMAGE_RUNTIME=nunchaku; " +
-            "export Z_IMAGE_NUNCHAKU_MODEL_REPO=\"${Z_IMAGE_NUNCHAKU_MODEL_REPO:-nunchaku-ai/nunchaku-z-image-turbo}\"; " +
-            $"if [[ ! -x {ToBashSingleQuoted($"{zimageRoot}/.venv-nunchaku/bin/python")} ]]; then echo 'Z-Image Nunchaku runtime is missing. Install or repair Z-Image first.' >&2; exit 1; fi; " +
+            $"if [[ ! -x {ToBashSingleQuoted(zimagePython)} ]]; then echo 'Z-Image Nunchaku runtime is missing. Install or repair Z-Image first.' >&2; exit 1; fi; " +
             $"if [[ ! -f {ToBashSingleQuoted($"{zimageRoot}/scripts/prefetch_model.py")} ]]; then echo 'Z-Image prefetch script is missing. Install or repair Z-Image first.' >&2; exit 1; fi; " +
             $"cd {ToBashSingleQuoted(zimageRoot)}; " +
-            "source .venv-nunchaku/bin/activate; " +
             "echo zimage_model=Tongyi-MAI/Z-Image-Turbo; " +
-            "echo nunchaku_weight_repo=\"$Z_IMAGE_NUNCHAKU_MODEL_REPO\"; " +
-            "echo nunchaku_precision=\"$Z_IMAGE_NUNCHAKU_PRECISION\"; " +
-            "echo nunchaku_rank=\"$Z_IMAGE_NUNCHAKU_RANK\"; " +
-            "python scripts/prefetch_model.py; " +
-            "python - <<'PY'\n" +
+            $"echo nunchaku_weight_repo={ToBashSingleQuoted(nunchakuWeightRepo)}; " +
+            $"echo nunchaku_precision={ToBashSingleQuoted(precision)}; " +
+            $"echo nunchaku_rank={ToBashSingleQuoted(rank)}; " +
+            $"{zimagePythonEnv}{ToBashSingleQuoted(zimagePython)} scripts/prefetch_model.py; " +
+            $"{zimagePythonEnv}{ToBashSingleQuoted(zimagePython)} - <<'PY'\n" +
             "import os\n" +
             "from huggingface_hub import hf_hub_download\n" +
             "repo_id = os.getenv('Z_IMAGE_NUNCHAKU_MODEL_REPO') or 'nunchaku-ai/nunchaku-z-image-turbo'\n" +
