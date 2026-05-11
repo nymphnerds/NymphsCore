@@ -10,6 +10,8 @@ public sealed class InstallSettings
 
     public required string InstallLocation { get; set; }
 
+    public bool PrefetchModelsNow { get; set; }
+
     public bool RepairExistingDistro { get; set; }
 
     /// <summary>
@@ -22,6 +24,10 @@ public sealed class InstallSettings
     /// </summary>
     public bool ModuleOnlyRun { get; set; }
 
+    public string HuggingFaceToken { get; set; } = string.Empty;
+
+    public string TrellisGgufQuant { get; set; } = "all";
+
     public WslConfigMode WslConfigMode { get; set; } = WslConfigMode.Recommended;
 
     public int WslMemoryGb { get; set; }
@@ -30,5 +36,19 @@ public sealed class InstallSettings
 
     public int WslSwapGb { get; set; }
 
+    public bool InstallNymphsBrain { get; set; }
+
+    public bool InstallZImageTrainer { get; set; }
+
+    public bool DownloadBrainModelNow { get; set; }
+
     public string BrainInstallRoot { get; set; } = "/home/nymph/Nymphs-Brain";
+
+    public string BrainModelId { get; set; } = "auto";
+
+    public string BrainQuantization { get; set; } = "q4_k_m";
+
+    public int BrainContextLength { get; set; } = 16384;
+
+    public string OpenRouterApiKey { get; set; } = string.Empty;
 }

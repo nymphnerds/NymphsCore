@@ -68,6 +68,90 @@ installed runtime != install root exists
 installed runtime != preserved data exists
 ```
 
+## 2026-05-11 Recovery Note
+
+This session became unstable because too many architectural and startup/status changes were made while Z-Image was being proven. Start the next session conservatively.
+
+Hard guardrails:
+
+```text
+Work locally on modular until the Manager and Z-Image proof are tested.
+Do not push remote modular until the user explicitly confirms the build works.
+Do not create extra local branches unless the user asks.
+Do not redesign the shell while debugging a module lifecycle issue.
+Do not put Z-Image/TRELLIS/Brain/LoRA/WORBI-specific UI back into Manager source.
+```
+
+Known good recovery points from live testing:
+
+```text
+Initial system/runtime check recovered after restart.
+WORBI installed state recovered and shows correctly.
+The Manager can install Z-Image far enough to write .nymph-module-version=0.1.2.
+The Manager can detect Z-Image as installed from the marker.
+Logs page text selection/copy was restored without changing the visual design.
+```
+
+Do not regress the marker contract:
+
+```text
+The .nymph-module-version marker is installation truth.
+If marker exists, the module is installed.
+If marker exists but status fails, times out, or reports installed=false, keep the module installed and show only a status warning/detail.
+Do not demote marker-installed modules back to Available.
+Do not show a scary top-level "Needs attention" install state just because status is broken.
+Fix the module status script/manifest path that contradicted the marker.
+```
+
+Current Z-Image proof state:
+
+```text
+Z-Image install reached installed_module_version=0.1.2.
+The installed marker exists from the Manager perspective.
+The Z-Image status entrypoint currently fails or reports installed=false even though the marker exists.
+That is a Z-Image module contract bug, not proof that the marker system is wrong.
+Next step: inspect the installed Z-Image nymph.json and status_zimage.sh inside the managed NymphsCore distro, then fix the module repo so status reads the same marker path the installer writes.
+```
+
+Current local Manager artifact:
+
+```text
+Version: 0.9.13
+Exe: Manager/apps/NymphsCoreManager/publish/win-x64/NymphsCoreManager.exe
+Zip: Manager/apps/NymphsCoreManager/publish/NymphsCoreManager-win-x64.zip
+Remote push: do not push until the user confirms this local build behaves correctly.
+```
+
+Manager-side source fix now in the local build:
+
+```text
+If .nymph-module-version exists, Manager keeps the module Installed even if status fails/times out/reports installed=false.
+The status problem is surfaced as warning/detail text.
+The top-level module state should not show Needs attention solely because the status entrypoint failed.
+```
+
+Startup/status refresh lesson:
+
+```text
+Cards should appear from registry/manifest roster quickly.
+Cards may show Checking until live status updates them.
+Do not hide the whole installed/available grid behind slow module status probes.
+Do not run many WSL status/runtime probes in parallel until ProcessRunner/WSL contention is proven safe.
+Keep status timeouts bounded.
+The bottom status line should distinguish "shell loaded" from "live status refreshed".
+```
+
+Module UI lesson:
+
+```text
+The local Manager test build now uses WebView2 for installed module HTML instead of WPF WebBrowser.
+Keep this simple: no module-specific Manager frontend code, no virtual-host experiments until measured, and no visible startup WebView overlay on Home.
+The module still owns ui/manager.html; the Manager should only host it after install.
+For Z-Image, keep the simple module detail page intact and open the module-owned UI from the standard right rail.
+The current Manager-side module UI surface keeps the sidebar and uses a full-width but thin standard Back bar above the hosted UI.
+WebView2 prewarm is attempted offscreen during app startup while runtime/module checks run; local testing still needs to confirm whether this makes the first module UI open acceptable.
+```
+
 ## Tomorrow Starts Here
 
 The next session should not start by redesigning the shell again. The shell is now good enough to begin the proof phase.
@@ -172,7 +256,7 @@ ui.manager_ui.type = local_html
 ui.manager_ui.entrypoint = ui/manager.html
 ```
 
-The next Manager UI-hosting pass should replace WPF `WebBrowser` with Microsoft Edge WebView2.
+The local v0.9.13 Manager test build has replaced WPF `WebBrowser` with Microsoft Edge WebView2 for installed module UI.
 
 Reason:
 
@@ -181,6 +265,35 @@ WebView2 is the current Microsoft-supported WPF web host.
 It is Edge/Chromium based, supports modern HTML/CSS/JS, and fits the existing resizable WPF Manager shell.
 It can host module-owned static web apps and served localhost web apps without putting module-specific UI code in Manager.
 ```
+
+Current local host behavior:
+
+```text
+Manager keeps the shell/sidebar.
+Manager shows a standard full-width thin Back bar.
+Manager opens installed module ui.manager_ui in WebView2.
+Manager routes nymphs-module-action:// links to validated module entrypoints.
+Manager prewarms the real WebView2 module UI host on app launch.
+Modules own the HTML/CSS/JS and lifecycle scripts.
+```
+
+Fast-load lesson from the Z-Image proof:
+
+```text
+For local_html, do not use file:// navigation.
+Copy installed module UI to %LOCALAPPDATA%\NymphsCore\ModuleUiCache.
+Read the cached HTML and load it with WebView2 NavigateToString.
+Allow WebView2 data: navigations, because NavigateToString internally becomes data:.
+Use %LOCALAPPDATA%\NymphsCore\WebView2 as the explicit WebView2 user-data folder.
+Do not let WebView2 create NymphsCoreManager.exe.WebView2 beside a UNC-launched EXE.
+Prewarm the actual visible module UI WebView2 control, not a separate dummy browser.
+Set the module UI page visible before setting ModuleUiSource.
+Queue the first module UI navigation at high dispatcher priority, not Background/idle priority.
+Skip repeated navigation to the same cached source.
+Do not let background module-status refresh reopen or reload the current module UI page.
+```
+
+If future UI work regresses open speed, check `%LOCALAPPDATA%\NymphsCore\manager-app.log` for `module-ui-host` lines. A healthy open has `module UI opened`, `navigate_request`, `navigate_to_string_ms`, and `navigation_complete` in the same second for small local HTML pages.
 
 Planned module UI types:
 
@@ -191,7 +304,7 @@ served_web_app    module-owned localhost app, started/stopped by module actions
 external_browser  open externally when embedding is not appropriate
 ```
 
-For local static module web apps, prefer WebView2 virtual host mapping over raw `file://` paths so module UIs get a real HTTPS origin, relative assets, storage APIs, and modern browser behavior:
+For future local static module web apps, prefer WebView2 virtual host mapping over raw `file://` paths only after it is measured and proven locally. The first v0.9.13 WebView2 recovery path should stay boring and working before more hosting changes are attempted.
 
 ```text
 https://<module-id>.nymphs.invalid/index.html -> <installed module root>/ui/dist

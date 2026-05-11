@@ -156,6 +156,13 @@ installed != install folder exists
 installed != preserved data exists
 ```
 
+Manager interpretation rule:
+
+- The install marker is the source of truth for whether a module is installed.
+- A `status` script must agree with the marker.
+- If the marker exists but `status` fails, times out, or reports `installed=false`, the Manager should keep the module in the installed group and surface a status warning/detail. It should not demote the module to available, and it should not show a scary top-level install state.
+- The proper fix for a marker/status mismatch is in the module status script or manifest path, not a Manager hardcode.
+
 ## Status Contract
 
 `status` must be fast, timeout-safe, and safe when files are missing.
@@ -322,12 +329,12 @@ Rules:
 - The Manager reads `ui.manager_ui` only from the installed module folder.
 - The Manager does not render custom UI from the remote registry before install.
 - `entrypoint` must be a safe relative path inside the installed module root.
-- The right-side Manager rail remains standard across modules.
+- The Manager shell remains standard across modules. The current WebView2 host keeps the sidebar and shows a full-width, thin standard Back bar above the hosted module UI.
 - The UI should call module actions through the Manager action bridge, not by running shell directly.
 
 See [NYMPH_MODULE_UI_STANDARD.md](NYMPH_MODULE_UI_STANDARD.md) for the focused UI contract.
 
-Future Manager builds should use WebView2 for modern module frontends. The intended expansion is:
+Current local Manager builds use WebView2 for modern module frontends. The intended expansion is:
 
 ```text
 local_html        simple installed HTML page
@@ -337,6 +344,8 @@ external_browser  open outside Manager when embedding is not suitable
 ```
 
 This keeps the architecture the same: the Manager hosts and routes, while the module owns the web UI.
+
+Module authors should keep local HTML lightweight and self-contained. Avoid remote CDN dependencies for Manager-hosted controls. Any expensive backend checks, model scans, or downloads should be triggered through explicit module actions, not during HTML page load.
 
 ## UI Action Bridge
 

@@ -19,6 +19,7 @@ public sealed class NymphModuleViewModel : ViewModelBase
     private string _repositoryUrl = "";
     private bool _hasInstalledModuleUi;
     private string _moduleUiTitle = "Module UI";
+    private InstalledNymphModuleUiInfo? _installedModuleUiInfo;
 
     public NymphModuleViewModel(
         string id,
@@ -150,6 +151,12 @@ public sealed class NymphModuleViewModel : ViewModelBase
         private set => SetProperty(ref _moduleUiTitle, value);
     }
 
+    public InstalledNymphModuleUiInfo? InstalledModuleUiInfo
+    {
+        get => _installedModuleUiInfo;
+        private set => SetProperty(ref _installedModuleUiInfo, value);
+    }
+
     public string DisplayStateLabel => HasUpdate ? "Update available" : StateLabel;
 
     public string DisplayStatusBrush => HasUpdate ? "#D49A2A" : StatusBrush;
@@ -188,10 +195,16 @@ public sealed class NymphModuleViewModel : ViewModelBase
         OnPropertyChanged(nameof(CanInstall));
         OnPropertyChanged(nameof(DisplayStateLabel));
         OnPropertyChanged(nameof(DisplayStatusBrush));
+
+        if (!isInstalled)
+        {
+            ApplyInstalledModuleUi(null);
+        }
     }
 
     public void ApplyInstalledModuleUi(InstalledNymphModuleUiInfo? uiInfo)
     {
+        InstalledModuleUiInfo = IsInstalled ? uiInfo : null;
         HasInstalledModuleUi = IsInstalled && uiInfo is not null;
         ModuleUiTitle = uiInfo?.Title ?? "Module UI";
     }
@@ -203,7 +216,7 @@ public sealed class NymphModuleViewModel : ViewModelBase
             RemoteVersionLabel = manifest.Version;
         }
 
-        if (!string.IsNullOrWhiteSpace(manifest.Description))
+        if (!IsInstalled && !string.IsNullOrWhiteSpace(manifest.Description))
         {
             Detail = manifest.Description;
         }
@@ -212,7 +225,12 @@ public sealed class NymphModuleViewModel : ViewModelBase
             ? manifest.ManifestUrl
             : manifest.SourceSummary;
         RepositoryUrl = manifest.RepositoryUrl;
-        SecondaryDetail = $"Registry manifest: {manifest.ManifestUrl}\nSource: {sourceLine}";
+        var manifestDetail = $"Registry manifest: {manifest.ManifestUrl}\nSource: {sourceLine}";
+        SecondaryDetail = IsInstalled &&
+                          !string.IsNullOrWhiteSpace(SecondaryDetail) &&
+                          !SecondaryDetail.Contains("Registry manifest:", StringComparison.OrdinalIgnoreCase)
+            ? $"{SecondaryDetail}\n\n{manifestDetail}"
+            : manifestDetail;
     }
 
     public void ApplyUpdateState(string? installedVersion, string? remoteVersion, bool hasUpdate, string detail)

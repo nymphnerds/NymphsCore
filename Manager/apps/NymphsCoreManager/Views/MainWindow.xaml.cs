@@ -1,12 +1,15 @@
 using System.Collections.Specialized;
 using System.ComponentModel;
+using System.Diagnostics;
+using System.IO;
+using System.Net;
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Interop;
 using System.Windows.Threading;
 using System.Windows.Media;
-using System.Windows.Navigation;
+using Microsoft.Web.WebView2.Core;
 using NymphsCoreManager.Services;
 using NymphsCoreManager.ViewModels;
 
@@ -32,6 +35,9 @@ public partial class MainWindow : Window
     private bool _isMonitorMode;
     private bool _shutdownComplete;
     private bool _shutdownInProgress;
+    private bool _moduleUiWebMessageAttached;
+    private Task<CoreWebView2Environment>? _moduleUiEnvironmentTask;
+    private string _lastModuleUiSource = string.Empty;
 
     public MainWindow()
     {
@@ -90,7 +96,7 @@ public partial class MainWindow : Window
         {
             try
             {
-                ModuleUiBrowser.Navigate("about:blank");
+                ModuleUiBrowser.CoreWebView2?.Navigate("about:blank");
             }
             catch (Exception)
             {
@@ -99,6 +105,8 @@ public partial class MainWindow : Window
 
             ModuleUiBrowser.Visibility = Visibility.Collapsed;
         }
+
+        _lastModuleUiSource = string.Empty;
     }
 
     protected override void OnClosed(EventArgs e)
@@ -123,6 +131,7 @@ public partial class MainWindow : Window
         }
 
         ApplyDarkTitleBar();
+        StartModuleUiPrewarm();
         await _viewModel.InitializeAsync();
         UpdateCompactMonitorMode();
         _ = Dispatcher.BeginInvoke(ScrollMainContentToTop, DispatcherPriority.Loaded);
@@ -190,33 +199,222 @@ public partial class MainWindow : Window
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == nameof(ManagerShellViewModel.ModuleUiSource))
+        if (e.PropertyName == nameof(ManagerShellViewModel.ModuleUiSource) ||
+            e.PropertyName == nameof(ManagerShellViewModel.IsModuleUiPage))
         {
-            Dispatcher.BeginInvoke(NavigateModuleUiBrowser, DispatcherPriority.Background);
+            Dispatcher.BeginInvoke(NavigateModuleUiBrowser, DispatcherPriority.Send);
         }
     }
 
-    private void NavigateModuleUiBrowser()
+    private void ModuleUiBrowser_Loaded(object sender, RoutedEventArgs e)
     {
-        if (ModuleUiBrowser is null || _viewModel?.ModuleUiSource is null)
+        Dispatcher.BeginInvoke(NavigateModuleUiBrowser, DispatcherPriority.Send);
+    }
+
+    private void StartModuleUiPrewarm()
+    {
+        _ = PrewarmModuleUiBrowserAsync();
+    }
+
+    private async Task PrewarmModuleUiBrowserAsync()
+    {
+        try
+        {
+            await EnsureModuleUiBrowserInitializedAsync().ConfigureAwait(true);
+            ModuleUiBrowser.CoreWebView2.NavigateToString("<!doctype html><html><body></body></html>");
+        }
+        catch
+        {
+            // Best effort only. The visible module UI host will still initialize on demand.
+        }
+    }
+
+    private void ModuleUiBrowser_CoreWebView2InitializationCompleted(
+        object? sender,
+        CoreWebView2InitializationCompletedEventArgs e)
+    {
+        if (!e.IsSuccess)
+        {
+            ModuleUiBrowser.NavigateToString(BuildModuleUiErrorHtml(
+                e.InitializationException?.Message ?? "WebView2 initialization failed."));
+            return;
+        }
+
+        AttachModuleUiWebMessageHandler();
+        Dispatcher.BeginInvoke(NavigateModuleUiBrowser, DispatcherPriority.Send);
+    }
+
+    private Task<CoreWebView2Environment> GetModuleUiEnvironmentAsync()
+    {
+        return _moduleUiEnvironmentTask ??= CreateModuleUiEnvironmentAsync();
+    }
+
+    private static async Task<CoreWebView2Environment> CreateModuleUiEnvironmentAsync()
+    {
+        var userDataFolder = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "NymphsCore",
+            "WebView2");
+        Directory.CreateDirectory(userDataFolder);
+        return await CoreWebView2Environment.CreateAsync(
+            browserExecutableFolder: null,
+            userDataFolder: userDataFolder).ConfigureAwait(true);
+    }
+
+    private async Task EnsureModuleUiBrowserInitializedAsync()
+    {
+        if (ModuleUiBrowser.CoreWebView2 is not null)
         {
             return;
         }
 
-        ModuleUiBrowser.Navigate(_viewModel.ModuleUiSource);
+        var stopwatch = Stopwatch.StartNew();
+        AppendModuleUiHostLog("ensure_start");
+        var environment = await GetModuleUiEnvironmentAsync().ConfigureAwait(true);
+        await ModuleUiBrowser.EnsureCoreWebView2Async(environment).ConfigureAwait(true);
+        AttachModuleUiWebMessageHandler();
+        AppendModuleUiHostLog($"ensure_complete_ms={stopwatch.ElapsedMilliseconds}");
     }
 
-    private void ModuleUiBrowser_Navigating(object sender, NavigatingCancelEventArgs e)
+    private async void NavigateModuleUiBrowser()
     {
-        if (_viewModel?.HandleModuleUiNavigation(e.Uri) == true)
+        if (ModuleUiBrowser is null || _viewModel is null)
         {
-            e.Cancel = true;
+            return;
+        }
+
+        var source = _viewModel.ModuleUiSource;
+        if (string.IsNullOrWhiteSpace(source))
+        {
+            if (_viewModel.IsModuleUiPage)
+            {
+                ModuleUiBrowser.NavigateToString(BuildModuleUiErrorHtml("Module UI source is empty."));
+            }
+            else
+            {
+                ModuleUiBrowser.CoreWebView2?.Navigate("about:blank");
+            }
+
+            _lastModuleUiSource = string.Empty;
+            return;
+        }
+
+        try
+        {
+            var stopwatch = Stopwatch.StartNew();
+            AppendModuleUiHostLog($"navigate_request source={source}");
+            await EnsureModuleUiBrowserInitializedAsync().ConfigureAwait(true);
+
+            if (File.Exists(source))
+            {
+                var fullPath = Path.GetFullPath(source);
+                if (string.Equals(_lastModuleUiSource, fullPath, StringComparison.OrdinalIgnoreCase))
+                {
+                    return;
+                }
+
+                _lastModuleUiSource = fullPath;
+                var uiType = _viewModel.DisplayedModule?.InstalledModuleUiInfo?.Type ?? string.Empty;
+                if (string.Equals(uiType, "local_html", StringComparison.OrdinalIgnoreCase))
+                {
+                    var html = File.ReadAllText(fullPath);
+                    ModuleUiBrowser.NavigateToString(html);
+                    AppendModuleUiHostLog($"navigate_to_string_ms={stopwatch.ElapsedMilliseconds} bytes={html.Length}");
+                    return;
+                }
+
+                ModuleUiBrowser.Source = new Uri(fullPath);
+                AppendModuleUiHostLog($"navigate_file_uri_ms={stopwatch.ElapsedMilliseconds}");
+                return;
+            }
+
+            AppendModuleUiHostLog($"navigate_missing source={source}");
+            ModuleUiBrowser.NavigateToString(BuildModuleUiErrorHtml($"Module UI file was not found: {source}"));
+        }
+        catch (Exception ex)
+        {
+            AppendModuleUiHostLog($"navigate_error {ex.Message}");
+            ModuleUiBrowser.NavigateToString(BuildModuleUiErrorHtml(ex.Message));
         }
     }
 
-    private void ModuleUiBrowser_LoadCompleted(object sender, NavigationEventArgs e)
+    private void AttachModuleUiWebMessageHandler()
     {
-        // The embedded browser is only a generic host for installed module-owned local HTML.
+        if (_moduleUiWebMessageAttached || ModuleUiBrowser.CoreWebView2 is null)
+        {
+            return;
+        }
+
+        ModuleUiBrowser.CoreWebView2.WebMessageReceived += ModuleUiBrowser_WebMessageReceived;
+        _moduleUiWebMessageAttached = true;
+    }
+
+    private void ModuleUiBrowser_WebMessageReceived(object? sender, CoreWebView2WebMessageReceivedEventArgs e)
+    {
+        if (!string.Equals(e.TryGetWebMessageAsString(), "back", StringComparison.OrdinalIgnoreCase) ||
+            _viewModel?.DisplayedModule is null)
+        {
+            return;
+        }
+
+        _viewModel.OpenModuleCommand.Execute(_viewModel.DisplayedModule);
+    }
+
+    private static string BuildModuleUiErrorHtml(string message)
+    {
+        return "<!doctype html><html><body style=\"margin:16px;background:#071112;color:#9db8b4;font:13px Segoe UI,sans-serif;\">" +
+               "<strong style=\"color:#edf8f6;\">Module UI could not be loaded.</strong><br>" +
+               WebUtility.HtmlEncode(message) +
+               "</body></html>";
+    }
+
+    private void ModuleUiBrowser_NavigationStarting(object sender, CoreWebView2NavigationStartingEventArgs e)
+    {
+        if (!Uri.TryCreate(e.Uri, UriKind.Absolute, out var uri))
+        {
+            AppendModuleUiHostLog("navigation_start invalid_uri");
+            return;
+        }
+
+        AppendModuleUiHostLog($"navigation_start scheme={uri.Scheme}");
+        if (_viewModel?.HandleModuleUiNavigation(uri) == true)
+        {
+            e.Cancel = true;
+            return;
+        }
+
+        if (string.Equals(uri.Scheme, "file", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(uri.Scheme, "about", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(uri.Scheme, "data", StringComparison.OrdinalIgnoreCase) ||
+            string.IsNullOrWhiteSpace(uri.Scheme))
+        {
+            return;
+        }
+
+        e.Cancel = true;
+    }
+
+    private void ModuleUiBrowser_NavigationCompleted(object sender, CoreWebView2NavigationCompletedEventArgs e)
+    {
+        AppendModuleUiHostLog($"navigation_complete success={e.IsSuccess} status={e.HttpStatusCode} error={e.WebErrorStatus}");
+    }
+
+    private static void AppendModuleUiHostLog(string message)
+    {
+        try
+        {
+            var logFolder = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "NymphsCore");
+            Directory.CreateDirectory(logFolder);
+            File.AppendAllText(
+                Path.Combine(logFolder, "manager-app.log"),
+                $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] module-ui-host {message}{Environment.NewLine}");
+        }
+        catch
+        {
+            // Diagnostics must never break the shell.
+        }
     }
 
     private void ScrollUnifiedLogToLatest()

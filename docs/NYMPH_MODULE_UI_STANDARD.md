@@ -4,7 +4,7 @@ This is the Manager/module boundary for custom module UI.
 
 ## Rule
 
-The Manager owns the shell, registry cards, install/update/uninstall controls, right rail, logs, and generic action routing.
+The Manager owns the shell, registry cards, install/update/uninstall controls, standard module detail page, standard Back navigation, logs, and generic action routing.
 
 Installed modules own any custom frontend.
 
@@ -33,9 +33,50 @@ Rules:
 - The Manager reads this only from the installed module folder, never from a remote registry preview.
 - If the installed file is absent or invalid, the Manager hides the custom UI button.
 
-## WebView2 Roadmap
+## WebView2 Host
 
-The Manager should move from WPF `WebBrowser` to Microsoft Edge WebView2 for module UI hosting.
+The Manager hosts installed module UI with Microsoft Edge WebView2.
+
+Current local host behavior:
+
+- The Manager keeps the left sidebar/shell.
+- The hosted module UI page has a standard full-width, thin `Back` bar owned by the Manager.
+- The module HTML owns only the content inside the hosted WebView2 surface.
+- The Manager warms the real WebView2 module UI host during app startup, but it must not overlay or block the Home page.
+- The Manager must not add module-specific frontend code for Z-Image, Brain, LoRA, TRELLIS, WORBI, or future modules.
+
+## Fast Load Rules
+
+These rules came from the Z-Image module UI performance proof. Keep them intact unless a replacement is timed and visually confirmed.
+
+For `local_html`:
+
+- Copy the installed module UI into the Manager's local module UI cache under `%LOCALAPPDATA%\NymphsCore\ModuleUiCache`.
+- Load the cached HTML with WebView2 `NavigateToString`, not `file://`.
+- Allow WebView2's internal `data:` navigation. `NavigateToString` becomes a `data:` navigation internally; blocking `data:` makes the page appear stuck on a blank surface.
+- Keep `nymphs-module-action://` interception for module actions.
+- Keep `file:`, `about:`, and `data:` allowed in the WebView2 navigation filter. Cancel other schemes unless the Manager explicitly supports them.
+
+For the WebView2 host:
+
+- Use an explicit local user-data folder: `%LOCALAPPDATA%\NymphsCore\WebView2`.
+- Do not let WebView2 create `NymphsCoreManager.exe.WebView2` beside the EXE, especially when the EXE is launched from a WSL/UNC path.
+- Prewarm the actual visible module UI `WebView2` control, not a separate throwaway hidden browser.
+- When opening a module UI, switch the shell to the module UI page before setting `ModuleUiSource`.
+- Queue module UI navigation at high dispatcher priority. Do not queue the first real navigation at idle/background priority; it can sit behind shell/status refresh work for many seconds.
+- Skip repeated navigation to the same cached module UI source.
+- Background status refresh must not reopen or reload the current module UI page.
+
+Timing logs belong in `%LOCALAPPDATA%\NymphsCore\manager-app.log` with the `module-ui-host` prefix. When debugging load performance, compare:
+
+```text
+module UI opened
+navigate_request
+navigate_to_string_ms
+navigation_complete
+```
+
+The expected healthy behavior is that `module UI opened` and `navigate_request` happen in the same second, and `navigate_to_string_ms` is near zero for small `local_html` pages.
 
 Current supported type:
 
@@ -81,7 +122,7 @@ external_browser
 }
 ```
 
-For static local apps, use WebView2 virtual host mapping instead of raw `file://` when possible:
+For future static local apps, WebView2 virtual host mapping may be used instead of raw `file://` when it is measured and proven locally:
 
 ```text
 https://<module-id>.nymphs.invalid/index.html
@@ -92,6 +133,8 @@ mapped to:
 ```text
 <installed module root>/ui/dist
 ```
+
+Do not switch an already working `local_html` host to a new loading mechanism without timing logs and local visual confirmation. First priority is boring, reliable load behavior.
 
 ## Action Bridge
 

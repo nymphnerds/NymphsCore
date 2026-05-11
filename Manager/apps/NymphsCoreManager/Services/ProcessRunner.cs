@@ -85,8 +85,18 @@ public sealed class ProcessRunner
         }
         catch (OperationCanceledException) when (!process.HasExited)
         {
-            process.Kill(entireProcessTree: true);
-            await process.WaitForExitAsync(CancellationToken.None).ConfigureAwait(false);
+            try
+            {
+                process.Kill(entireProcessTree: true);
+            }
+            catch (InvalidOperationException)
+            {
+                // The process may have exited between cancellation and the kill request.
+            }
+
+            await Task.WhenAny(
+                process.WaitForExitAsync(CancellationToken.None),
+                Task.Delay(TimeSpan.FromSeconds(2), CancellationToken.None)).ConfigureAwait(false);
             throw;
         }
 

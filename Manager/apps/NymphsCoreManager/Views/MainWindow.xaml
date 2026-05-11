@@ -1,6 +1,7 @@
 <Window x:Class="NymphsCoreManager.Views.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
@@ -881,8 +882,17 @@
     </Border>
 
     <Grid x:Name="MainContentShell"
-          Grid.Column="2"
-          Margin="22,0,22,0">
+          Grid.Column="2">
+      <Grid.Style>
+        <Style TargetType="Grid">
+          <Setter Property="Margin" Value="22,0,22,0" />
+          <Style.Triggers>
+            <DataTrigger Binding="{Binding IsModuleUiPage}" Value="True">
+              <Setter Property="Margin" Value="0" />
+            </DataTrigger>
+          </Style.Triggers>
+        </Style>
+      </Grid.Style>
       <Grid.RowDefinitions>
         <RowDefinition Height="Auto" />
         <RowDefinition Height="*" />
@@ -890,7 +900,8 @@
       </Grid.RowDefinitions>
 
       <Grid Grid.Row="0"
-            Margin="0,24,0,10">
+            Margin="0,24,0,10"
+            Visibility="{Binding IsStandardContentPage, Converter={StaticResource BoolToVisibilityConverter}}">
         <Grid.ColumnDefinitions>
           <ColumnDefinition Width="*" />
           <ColumnDefinition Width="Auto" />
@@ -968,6 +979,7 @@
 
       <ScrollViewer x:Name="MainContentScrollViewer"
                     Grid.Row="1"
+                    Visibility="{Binding IsStandardContentPage, Converter={StaticResource BoolToVisibilityConverter}}"
                     VerticalScrollBarVisibility="Hidden"
                     HorizontalScrollBarVisibility="Disabled"
                     CanContentScroll="False"
@@ -1810,41 +1822,35 @@
         </Grid>
       </ScrollViewer>
 
-      <Grid Visibility="{Binding IsModuleUiPage, Converter={StaticResource BoolToVisibilityConverter}}">
+      <Grid Grid.Row="0"
+            Grid.RowSpan="3"
+            Visibility="{Binding IsModuleUiPage, Converter={StaticResource BoolToVisibilityConverter}}">
         <Grid.RowDefinitions>
           <RowDefinition Height="Auto" />
           <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
         <DockPanel Grid.Row="0"
-                   Margin="0,0,0,12"
+                   Margin="0,4,0,6"
                    LastChildFill="True">
-          <Button DockPanel.Dock="Right"
-                  Style="{StaticResource ShellButtonStyle}"
+          <Button Style="{StaticResource ShellButtonStyle}"
                   Command="{Binding OpenModuleCommand}"
                   CommandParameter="{Binding DisplayedModule}"
-                  Content="Back To Module" />
-          <StackPanel>
-            <TextBlock Text="{Binding ModuleUiTitle}"
-                       Style="{StaticResource PageTitleStyle}" />
-            <TextBlock Margin="0,8,0,0"
-                       Text="{Binding ModuleUiStatus}"
-                       Style="{StaticResource PageSubtitleStyle}"
-                       TextWrapping="Wrap" />
-          </StackPanel>
+                  Height="28"
+                  Padding="8,2"
+                  Content="Back" />
         </DockPanel>
 
-        <Border Grid.Row="1"
-                Style="{StaticResource PanelBorderStyle}"
-                Padding="0"
-                ClipToBounds="True">
-          <WebBrowser x:Name="ModuleUiBrowser"
-                      Navigating="ModuleUiBrowser_Navigating"
-                      LoadCompleted="ModuleUiBrowser_LoadCompleted" />
-        </Border>
+        <wv2:WebView2 x:Name="ModuleUiBrowser"
+                      Grid.Row="1"
+                      Loaded="ModuleUiBrowser_Loaded"
+                      CoreWebView2InitializationCompleted="ModuleUiBrowser_CoreWebView2InitializationCompleted"
+                      NavigationStarting="ModuleUiBrowser_NavigationStarting"
+                      NavigationCompleted="ModuleUiBrowser_NavigationCompleted" />
       </Grid>
 
       <Border Grid.Row="2"
+              Visibility="{Binding IsStandardContentPage, Converter={StaticResource BoolToVisibilityConverter}}"
               Margin="0,8,0,8"
               Padding="8,5"
               Background="#081314"

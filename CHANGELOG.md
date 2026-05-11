@@ -8,6 +8,58 @@ This file focuses on user-facing and system-level changes rather than package-by
 
 Newest entries first.
 
+### 2026-05-11 Z-Image modular proof, marker recovery, and WebView2 follow-up
+Source: live modular Manager testing against the managed `NymphsCore` WSL runtime and the new Z-Image module path.
+
+Changed in source:
+
+- bumped the local test Manager build through `0.9.13` while stabilizing the Z-Image proof loop
+- added installed-module UI hosting from installed module manifests:
+  - Manager reads `ui.manager_ui` only from the installed module folder
+  - module-owned UI is opened from the standard right rail
+  - Manager still owns the shell, simple module detail page, action rail, logs, and lifecycle routing
+- moved the installed-module UI host from WPF `WebBrowser` to WebView2 in the local test build:
+  - module UI still comes only from the installed module `nymph.json`
+  - the module UI page keeps the Manager sidebar and uses a full-width, thin standard `Back` bar
+  - WebView2 now uses an explicit local user-data folder under `%LOCALAPPDATA%\NymphsCore\WebView2`, avoiding slow browser profiles beside UNC-launched EXEs
+  - WebView2 prewarm now targets the real module UI host instead of a separate offscreen helper browser
+  - `local_html` module pages are loaded from the local Manager cache with `NavigateToString` instead of `file://`
+  - WebView2 `data:` navigations are allowed because `NavigateToString` internally becomes a `data:` navigation
+  - first module UI navigation is queued at high dispatcher priority so it does not wait behind shell/status refresh work
+  - repeated navigation to the same cached module UI source is skipped
+  - background module-status refresh no longer reopens the current module UI page just to update module references
+  - the current tested path is intentionally simple: cached/local module HTML loaded by WebView2, no module-specific Manager UI logic
+- added/updated docs for the custom module UI contract in `docs/NYMPH_MODULE_UI_STANDARD.md`
+- began `docs/NYMPHS_MODULE_MAKING_GUIDE.md` as the community-facing module authoring guide
+- restored selectable/copyable log text behavior without changing the visual direction, while preserving normal autoscroll when the log view is not actively selected
+- preserved installed-module marker truth in Manager state:
+  - `.nymph-module-version` remains the source of truth for installed runtime state
+  - marker-installed modules stay in the installed group if `status` fails, times out, or incorrectly reports `installed=false`
+  - status failures now become warning/detail text, not a scary top-level install state
+- adjusted refresh wording so the Manager distinguishes fast shell/roster load from later live runtime/module-status refresh
+- reverted the experiment that hid all module cards until live status completed; cards should remain visible from registry/manifest data and update as live status returns
+- reverted the risky parallel WSL status/runtime probe experiment after it caused hangs; status probing should stay conservative until WSL/process contention is better understood
+- kept old module-specific Manager code excluded from the active build while preserving legacy source files for reference during migration
+
+Validated locally:
+
+- Windows release build passed for `0.9.13`
+- release publish completed to `Manager/apps/NymphsCoreManager/publish/win-x64/`
+- release zip rebuilt at `Manager/apps/NymphsCoreManager/publish/NymphsCoreManager-win-x64.zip`
+- after a Windows/WSL restart, initial system/runtime check recovered
+- WORBI installed state recovered and displayed correctly again
+- Z-Image install reached `installed_module_version=0.1.2`
+- Manager detected Z-Image as installed from the marker
+
+Current caveats:
+
+- do not push remote `modular` until the user confirms the local `0.9.13` build behaves correctly
+- do not create extra local branches for this proof work
+- Z-Image `status` currently contradicts the marker by failing or reporting not-installed even though the marker exists; fix the Z-Image module status script/manifest path next
+- module UI is now on WebView2 locally, but load latency still needs user-confirmed testing; do not declare the host-performance issue solved until the local EXE feels acceptable
+- startup/status should remain snappy but honest: show roster/cards quickly, update live status afterward, keep probes bounded, and avoid parallel WSL hammering until proven safe
+- `Manager/scripts/legacy` remains packaged for now as migration reference, but should be removed from release packaging after official modules are fully migrated and tested
+
 ### 2026-05-10 Registry-driven module shell and V1 lifecycle contract
 Source: Rauty plugin-manager standardization pass after hardcoded Manager module surfaces were removed from the active shell.
 
