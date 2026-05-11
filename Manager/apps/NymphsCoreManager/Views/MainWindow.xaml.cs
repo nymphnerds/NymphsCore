@@ -195,7 +195,12 @@ public partial class MainWindow : Window
 
     private void OnUnifiedLogLinesChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
-        Dispatcher.BeginInvoke(ScrollUnifiedLogToLatest, DispatcherPriority.Background);
+        Dispatcher.BeginInvoke(ScrollUnifiedLogToLatest, DispatcherPriority.ContextIdle);
+    }
+
+    private void UnifiedLogTextBox_TextChanged(object sender, TextChangedEventArgs e)
+    {
+        Dispatcher.BeginInvoke(ScrollUnifiedLogToLatest, DispatcherPriority.ContextIdle);
     }
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -425,11 +430,6 @@ public partial class MainWindow : Window
     private void ScrollUnifiedLogToLatest()
     {
         if (UnifiedLogTextBox is null)
-        {
-            return;
-        }
-
-        if (UnifiedLogTextBox.IsKeyboardFocusWithin || UnifiedLogTextBox.SelectionLength > 0)
         {
             return;
         }

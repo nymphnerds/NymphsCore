@@ -8,7 +8,7 @@ namespace NymphsCoreManager;
 
 public partial class App : Application
 {
-    private const string BuildMarker = "fetch-models-live-download-detail-20260511-2105";
+    private const string BuildMarker = "log-stream-follow-tail-20260511-2115";
 
     private static readonly string LogDirectory = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),

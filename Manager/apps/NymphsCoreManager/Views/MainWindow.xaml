@@ -1463,6 +1463,7 @@
                       Padding="14">
                 <TextBox x:Name="UnifiedLogTextBox"
                          Text="{Binding UnifiedLogText, Mode=OneWay}"
+                         TextChanged="UnifiedLogTextBox_TextChanged"
                          Background="Transparent"
                          BorderThickness="0"
                          Padding="0"
