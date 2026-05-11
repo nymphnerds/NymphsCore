@@ -5074,12 +5074,8 @@ meta:
                   $"  if [[ -z \"$REPO_URL\" ]]; then REPO_URL={ToBashSingleQuoted($"https://github.com/nymphnerds/{normalizedModuleId}.git")}; fi; " +
                   "  if [[ -z \"$REPO_BRANCH\" ]]; then REPO_BRANCH=main; fi; " +
                   "  if command -v git >/dev/null 2>&1; then " +
-                  $"        if [[ -d {ToBashSingleQuoted(cacheRepo)}/.git ]]; then " +
-                  $"          git -C {ToBashSingleQuoted(cacheRepo)} remote set-url origin \"$REPO_URL\" >/dev/null 2>&1 || true; " +
-                  $"          git -C {ToBashSingleQuoted(cacheRepo)} fetch --depth 1 origin \"$REPO_BRANCH\" >/dev/null 2>&1 && git -C {ToBashSingleQuoted(cacheRepo)} checkout -q FETCH_HEAD >/dev/null 2>&1 || echo module_action_repo_refresh_failed={ToBashSingleQuoted(cacheRepo)} >&2; " +
-                  "        else " +
-                  $"          rm -rf {ToBashSingleQuoted(cacheRepo)}; git clone --depth 1 --branch \"$REPO_BRANCH\" \"$REPO_URL\" {ToBashSingleQuoted(cacheRepo)} >/dev/null 2>&1 || echo module_action_repo_clone_failed={ToBashSingleQuoted(cacheRepo)} >&2; " +
-                  "        fi; " +
+                  $"        rm -rf {ToBashSingleQuoted(cacheRepo)}; " +
+                  $"        git clone --depth 1 --branch \"$REPO_BRANCH\" \"$REPO_URL\" {ToBashSingleQuoted(cacheRepo)} || echo module_action_repo_clone_failed={ToBashSingleQuoted(cacheRepo)} >&2; " +
                   "    else " +
                   "      echo module_action_refresh_tools_missing >&2; " +
                   "  fi; " +
