@@ -12,6 +12,7 @@ public sealed record NymphModuleManifestInfo(
     string RepositoryUrl,
     string SourceSummary,
     string InstallRoot,
+    string ManagerUiTitle,
     IReadOnlyList<string> Capabilities,
     IReadOnlyList<string> DevCapabilities,
     int SortOrder);

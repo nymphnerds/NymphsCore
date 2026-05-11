@@ -42,6 +42,7 @@ Current local host behavior:
 - The Manager keeps the left sidebar/shell.
 - The hosted module UI page has a standard full-width, thin `Back` bar owned by the Manager.
 - The module HTML owns only the content inside the hosted WebView2 surface.
+- The module manifest owns the custom UI button label through `ui.manager_ui.title`; the Manager displays that module-owned title instead of hardcoding module-specific labels.
 - The Manager warms the real WebView2 module UI host during app startup, but it must not overlay or block the Home page.
 - The Manager must not add module-specific frontend code for Z-Image, Brain, LoRA, TRELLIS, WORBI, or future modules.
 
@@ -159,6 +160,8 @@ fetch_models --quant q4_k_m
 ```
 
 The Manager does not run arbitrary shell from HTML.
+
+If an older installed manifest is missing a requested action, the Manager may refresh the trusted registry repo cache and resolve the action from the current module manifest before reporting it unavailable. This keeps action routing generic while letting modules add buttons such as model fetchers without Manager code changes.
 
 ## Z-Image Example
 

@@ -204,9 +204,13 @@ public sealed class NymphModuleViewModel : ViewModelBase
 
     public void ApplyInstalledModuleUi(InstalledNymphModuleUiInfo? uiInfo)
     {
+        var manifestTitle = !string.IsNullOrWhiteSpace(ModuleUiTitle) &&
+                            !string.Equals(ModuleUiTitle, "Module UI", StringComparison.OrdinalIgnoreCase)
+            ? ModuleUiTitle
+            : null;
         InstalledModuleUiInfo = IsInstalled ? uiInfo : null;
         HasInstalledModuleUi = IsInstalled && uiInfo is not null;
-        ModuleUiTitle = uiInfo?.Title ?? "Module UI";
+        ModuleUiTitle = manifestTitle ?? uiInfo?.Title ?? "Module UI";
     }
 
     public void ApplyManifestInfo(NymphModuleManifestInfo manifest)
@@ -214,6 +218,11 @@ public sealed class NymphModuleViewModel : ViewModelBase
         if (!string.IsNullOrWhiteSpace(manifest.Version))
         {
             RemoteVersionLabel = manifest.Version;
+        }
+
+        if (!string.IsNullOrWhiteSpace(manifest.ManagerUiTitle))
+        {
+            ModuleUiTitle = manifest.ManagerUiTitle;
         }
 
         if (!IsInstalled && !string.IsNullOrWhiteSpace(manifest.Description))

@@ -369,6 +369,13 @@ fetch_models --quant q4_k_m
 
 The Manager does not run arbitrary shell from HTML.
 
+The module owns the web UI label and behavior:
+
+- Set `ui.manager_ui.title` to the user-facing action label, such as `Fetch Models`.
+- Add every callable HTML action to `entrypoints`, such as `fetch_models`.
+- Keep the HTML lightweight; trigger model downloads, backend starts, scans, and other expensive work through explicit `nymphs-module-action://` links.
+- The Manager may refresh the trusted module repo cache to find a newly declared action, but the action still belongs to the module manifest and script.
+
 ## Security And Safety Rules
 
 Module scripts run inside the managed `NymphsCore` WSL runtime, so treat them like installer code.

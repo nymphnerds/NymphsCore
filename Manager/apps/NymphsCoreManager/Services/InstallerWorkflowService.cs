@@ -4248,6 +4248,15 @@ meta:
         }
 
         var capabilities = BuildCapabilities(entrypointActions);
+        var managerUiTitle = "";
+        if (manifestRoot.TryGetProperty("ui", out var manifestUiElement) &&
+            manifestUiElement.ValueKind == JsonValueKind.Object &&
+            manifestUiElement.TryGetProperty("manager_ui", out var managerUiElement) &&
+            managerUiElement.ValueKind == JsonValueKind.Object)
+        {
+            managerUiTitle = GetJsonString(managerUiElement, "title") ?? "";
+        }
+
         var sortOrder = 1000;
         if (manifestRoot.TryGetProperty("ui", out var uiElement) &&
             uiElement.ValueKind == JsonValueKind.Object &&
@@ -4274,6 +4283,7 @@ meta:
             RepositoryUrl: repositoryUrl,
             SourceSummary: sourceSummary,
             InstallRoot: installRoot,
+            ManagerUiTitle: managerUiTitle,
             Capabilities: capabilities,
             DevCapabilities: ["check-upstream", "test-upstream", "package"],
             SortOrder: sortOrder);
@@ -4838,7 +4848,9 @@ meta:
         var homePath = $"/home/{settings.LinuxUser}";
         var installRoot = GetNymphModuleInstallRoot(settings, normalizedModuleId);
         var cacheRepo = $"{homePath}/.cache/nymphs-modules/repos/{normalizedModuleId}";
+        var moduleWorkRoot = $"{homePath}/.cache/nymphs-modules";
         var manifestPath = $"{cacheRepo}/nymph.json";
+        var registryPath = $"{moduleWorkRoot}/registry.json";
         var installedManifestPath = $"{installRoot}/nymph.json";
         var versionMarkerPath = $"{installRoot}/.nymph-module-version";
         var localBinEntrypoint = $"{homePath}/.local/bin/{normalizedModuleId}-{normalizedAction}";
@@ -4890,6 +4902,38 @@ meta:
             $"if [[ -z \"$ENTRYPOINT\" && -f {ToBashSingleQuoted(manifestPath)} ]]; then " +
             $"ENTRYPOINT=$(MODULE_ACTION={ToBashSingleQuoted(normalizedAction)} python3 -c {ToBashSingleQuoted(entrypointReader)} {ToBashSingleQuoted(manifestPath)} 2>/dev/null || true); " +
             "fi; " +
+            (!isStatusAction
+                ? "if [[ -z \"$ENTRYPOINT\" ]]; then " +
+                  $"  mkdir -p {ToBashSingleQuoted(moduleWorkRoot)}/repos; " +
+                  "  if command -v curl >/dev/null 2>&1 && command -v git >/dev/null 2>&1 && command -v python3 >/dev/null 2>&1; then " +
+                  $"    if curl -fsSL {ToBashSingleQuoted(NymphModuleRegistryUrl)} -o {ToBashSingleQuoted(registryPath)}; then " +
+                  $"      MANIFEST_URL=$(python3 - {ToBashSingleQuoted(registryPath)} {ToBashSingleQuoted(normalizedModuleId)} <<'PY'\n" +
+                  "import json, sys\n" +
+                  "registry_path, module_id = sys.argv[1], sys.argv[2]\n" +
+                  "with open(registry_path, 'r', encoding='utf-8') as handle:\n" +
+                  "    registry = json.load(handle)\n" +
+                  "for module in registry.get('modules', []):\n" +
+                  "    if str(module.get('id', '')).lower() == module_id and module.get('trusted', False):\n" +
+                  "        print(str(module.get('manifest_url', '')).strip())\n" +
+                  "        break\n" +
+                  "PY\n" +
+                  "      ); " +
+                  "      if [[ \"$MANIFEST_URL\" =~ ^https://raw\\.githubusercontent\\.com/nymphnerds/([^/]+)/([^/]+)/nymph\\.json$ ]]; then " +
+                  "        REPO_URL=\"https://github.com/nymphnerds/${BASH_REMATCH[1]}.git\"; " +
+                  "        REPO_BRANCH=\"${BASH_REMATCH[2]}\"; " +
+                  $"        if [[ -d {ToBashSingleQuoted(cacheRepo)}/.git ]]; then " +
+                  $"          git -C {ToBashSingleQuoted(cacheRepo)} fetch --depth 1 origin \"$REPO_BRANCH\" >/dev/null 2>&1 && git -C {ToBashSingleQuoted(cacheRepo)} checkout -q FETCH_HEAD >/dev/null 2>&1 || true; " +
+                  "        else " +
+                  $"          rm -rf {ToBashSingleQuoted(cacheRepo)}; git clone --depth 1 --branch \"$REPO_BRANCH\" \"$REPO_URL\" {ToBashSingleQuoted(cacheRepo)} >/dev/null 2>&1 || true; " +
+                  "        fi; " +
+                  "      fi; " +
+                  "    fi; " +
+                  "  fi; " +
+                  $"  if [[ -f {ToBashSingleQuoted(manifestPath)} ]]; then " +
+                  $"    ENTRYPOINT=$(MODULE_ACTION={ToBashSingleQuoted(normalizedAction)} python3 -c {ToBashSingleQuoted(entrypointReader)} {ToBashSingleQuoted(manifestPath)} 2>/dev/null || true); " +
+                  "  fi; " +
+                  "fi; "
+                : string.Empty) +
             $"if [[ -n \"$ENTRYPOINT\" && -f {ToBashSingleQuoted(installRoot)}/\"$ENTRYPOINT\" ]]; then " +
             $"  {commandTimeoutPrefix}bash {ToBashSingleQuoted(installRoot)}/\"$ENTRYPOINT\"{quotedActionArguments}; " +
             $"elif [[ -n \"$ENTRYPOINT\" && -f {ToBashSingleQuoted(cacheRepo)}/\"$ENTRYPOINT\" ]]; then " +

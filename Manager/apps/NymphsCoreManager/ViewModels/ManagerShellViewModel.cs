@@ -2703,7 +2703,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
         if (DisplayedModule is not null && string.Equals(DisplayedModule.Id, module.Id, StringComparison.OrdinalIgnoreCase))
         {
-            RefreshDisplayedModuleActionState();
+            RefreshDisplayedModuleDetails(module);
             SetModuleActionFeedback(
                 $"{module.Name}: {module.DisplayStateLabel}",
                 $"{module.Detail}\n\n{module.SecondaryDetail}");
@@ -2723,6 +2723,26 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(ShowInstalledModuleActions));
         OnPropertyChanged(nameof(ShowDeleteModuleData));
         OnPropertyChanged(nameof(ShowModuleUiAction));
+    }
+
+    private void RefreshDisplayedModuleDetails(NymphModuleViewModel module)
+    {
+        if (DisplayedModule is null || !string.Equals(DisplayedModule.Id, module.Id, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        SelectedModule = module;
+        DisplayedModule = module;
+        CurrentPageTitle = module.Name;
+        CurrentPageSubtitle = module.Detail;
+        RefreshDisplayedModuleActionState();
+        _openModuleCommand.RaiseCanExecuteChanged();
+        _installModuleCommand.RaiseCanExecuteChanged();
+        _updateModuleCommand.RaiseCanExecuteChanged();
+        _uninstallModuleCommand.RaiseCanExecuteChanged();
+        _deleteModuleCommand.RaiseCanExecuteChanged();
+        _openModuleUiCommand.RaiseCanExecuteChanged();
     }
 
     private static string? ExtractInstalledModuleVersion(IEnumerable<string> outputLines)
