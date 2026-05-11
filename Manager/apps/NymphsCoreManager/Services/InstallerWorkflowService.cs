@@ -5014,6 +5014,15 @@ meta:
             : await TryGetTrustedNymphModuleSourceInfoAsync(normalizedModuleId, cancellationToken).ConfigureAwait(false);
         var trustedRepoUrl = trustedModuleSource?.RepositoryUrl ?? "";
         var trustedRepoBranch = trustedModuleSource?.Branch ?? "";
+        if (!isStatusAction && string.IsNullOrWhiteSpace(trustedRepoUrl))
+        {
+            trustedRepoUrl = $"https://github.com/nymphnerds/{normalizedModuleId}.git";
+        }
+
+        if (!isStatusAction && string.IsNullOrWhiteSpace(trustedRepoBranch))
+        {
+            trustedRepoBranch = "main";
+        }
 
         if (isStatusAction)
         {
