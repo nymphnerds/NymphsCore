@@ -17,6 +17,8 @@ public sealed class NymphModuleViewModel : ViewModelBase
     private string _remoteVersionLabel = "Not checked";
     private string _updateDetail = "No module update check has run yet.";
     private string _repositoryUrl = "";
+    private bool _hasInstalledModuleUi;
+    private string _moduleUiTitle = "Module UI";
 
     public NymphModuleViewModel(
         string id,
@@ -136,6 +138,18 @@ public sealed class NymphModuleViewModel : ViewModelBase
 
     public bool HasRepositoryUrl => !string.IsNullOrWhiteSpace(RepositoryUrl);
 
+    public bool HasInstalledModuleUi
+    {
+        get => _hasInstalledModuleUi;
+        private set => SetProperty(ref _hasInstalledModuleUi, value);
+    }
+
+    public string ModuleUiTitle
+    {
+        get => _moduleUiTitle;
+        private set => SetProperty(ref _moduleUiTitle, value);
+    }
+
     public string DisplayStateLabel => HasUpdate ? "Update available" : StateLabel;
 
     public string DisplayStatusBrush => HasUpdate ? "#D49A2A" : StatusBrush;
@@ -174,6 +188,12 @@ public sealed class NymphModuleViewModel : ViewModelBase
         OnPropertyChanged(nameof(CanInstall));
         OnPropertyChanged(nameof(DisplayStateLabel));
         OnPropertyChanged(nameof(DisplayStatusBrush));
+    }
+
+    public void ApplyInstalledModuleUi(InstalledNymphModuleUiInfo? uiInfo)
+    {
+        HasInstalledModuleUi = IsInstalled && uiInfo is not null;
+        ModuleUiTitle = uiInfo?.Title ?? "Module UI";
     }
 
     public void ApplyManifestInfo(NymphModuleManifestInfo manifest)

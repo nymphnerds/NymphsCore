@@ -55,18 +55,26 @@ if (Test-Path $scriptsSource) {
     }
 
     New-Item -ItemType Directory -Path $scriptsDestination -Force | Out-Null
-    Copy-Item -Path (Join-Path $scriptsSource "*") -Destination $scriptsDestination -Recurse -Force
-    
-    # Clean up Python cache
-    Get-ChildItem -Path $scriptsDestination -Recurse -Directory -Filter "__pycache__" |
-        Remove-Item -Recurse -Force
-    Get-ChildItem -Path $scriptsDestination -Recurse -File -Include "*.pyc", "*.pyo" |
-        Remove-Item -Force
-        
-    # Remove legacy wrappers if exists
-    $legacyPartsWrappers = Join-Path $scriptsDestination "hunyuan_parts_wrappers"
-    if (Test-Path $legacyPartsWrappers) {
-        Remove-Item -Path $legacyPartsWrappers -Recurse -Force
+    $managerScriptPaths = @(
+        "bootstrap_fresh_distro_root.sh",
+        "finalize_imported_distro.sh",
+        "import_base_distro.ps1",
+        "install_cuda_13_wsl.sh",
+        "install_nymph_module_from_registry.sh",
+        "install_system_deps.sh",
+        "monitor_query.sh",
+        "preflight_wsl.sh",
+        "run_finalize_in_distro.ps1",
+        "uninstall_nymph_module.sh"
+    )
+
+    foreach ($relativePath in $managerScriptPaths) {
+        $source = Join-Path $scriptsSource $relativePath
+        if (-not (Test-Path $source)) {
+            throw "Required Manager script not found: $source"
+        }
+
+        Copy-Item -Path $source -Destination (Join-Path $scriptsDestination $relativePath) -Force
     }
 }
 

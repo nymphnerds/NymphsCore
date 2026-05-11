@@ -156,12 +156,66 @@ Once module lifecycle is boring, rebuild the old Manager module UI as module-own
 The direction should be:
 
 ```text
-module manifest declares the page/surface
+module manifest declares the page/UI host
 module scripts own lifecycle and status truth
-Manager renders a standard module shell + declared module surface
+Manager renders a standard module shell + declared installed-module UI
 ```
 
 This is the key next standardization step for community modules.
+
+## WebView2 Direction For Module UI
+
+The current installed-module UI contract is intentionally small:
+
+```text
+ui.manager_ui.type = local_html
+ui.manager_ui.entrypoint = ui/manager.html
+```
+
+The next Manager UI-hosting pass should replace WPF `WebBrowser` with Microsoft Edge WebView2.
+
+Reason:
+
+```text
+WebView2 is the current Microsoft-supported WPF web host.
+It is Edge/Chromium based, supports modern HTML/CSS/JS, and fits the existing resizable WPF Manager shell.
+It can host module-owned static web apps and served localhost web apps without putting module-specific UI code in Manager.
+```
+
+Planned module UI types:
+
+```text
+local_html        simple installed HTML control page
+local_web_app     installed static app such as ui/dist/index.html
+served_web_app    module-owned localhost app, started/stopped by module actions
+external_browser  open externally when embedding is not appropriate
+```
+
+For local static module web apps, prefer WebView2 virtual host mapping over raw `file://` paths so module UIs get a real HTTPS origin, relative assets, storage APIs, and modern browser behavior:
+
+```text
+https://<module-id>.nymphs.invalid/index.html -> <installed module root>/ui/dist
+```
+
+Avoid `.local` hostnames because WebView2/Microsoft docs note they can cause navigation delays. Use a reserved non-real hostname such as `.invalid`.
+
+For served UIs such as AI Toolkit or Gradio-like dashboards, the module manifest should declare the URL and lifecycle actions:
+
+```json
+{
+  "ui": {
+    "manager_ui": {
+      "type": "served_web_app",
+      "start_action": "start_ui",
+      "stop_action": "stop_ui",
+      "url": "http://127.0.0.1:7860",
+      "title": "AI Toolkit"
+    }
+  }
+}
+```
+
+Manager still validates actions and owns the bridge. Modules still own the frontend.
 
 Small UI rule from the latest pass:
 
@@ -410,7 +464,7 @@ entrypoints
 ui.page
 ui.page_kind
 ui.standard_lifecycle_rail
-ui.manager_surface
+ui.manager_ui
 ```
 
 Next contract addition to make before the heavyweight install proof:
@@ -666,6 +720,19 @@ Manager/apps/NymphsCoreManager/publish/win-x64/NymphsCoreManager.pdb
 
 Decide whether those artifacts should be committed with this pass.
 
+Temporary source-tree migration note:
+
+```text
+Manager/scripts/legacy now contains monolith-era helpers for Z-Image, TRELLIS,
+Brain, training, runtime dependency checks, smoke tests, and old overlays.
+Keep that folder for now as migration/reference material while each official
+module is tested and moved into its own module repo.
+
+Do not package or call Manager/scripts/legacy from the generic Manager shell.
+After WORBI, Z-Image, LoRA, Brain, and TRELLIS are all tested from their module
+repos, delete whatever is left in Manager/scripts/legacy.
+```
+
 ## Suggested Next Moves
 
 1. Review the Manager diff and commit the shell/base-runtime/contract changes as one checkpoint if it looks sane.
@@ -676,4 +743,5 @@ Decide whether those artifacts should be committed with this pass.
 6. Run real WORBI install/status/open/logs/uninstall/reinstall from the Manager using the staged installer fix.
 7. Explicitly test abuse paths: close Manager mid-install, reopen during install, click refresh during install, uninstall while stopped, reinstall after partial install, and force-close/crash while an action is running. The expected result is boring: no stuck Checking state, no Home-page jump, no stale Available state during install, no backup clutter, and no partial folder treated as installed.
 8. Run Z-Image or LoRA next to prove the contract against a heavier AI module.
-9. Only after lifecycle proof, design the module-owned Manager surface schema and migrate old hardcoded module UI into module-owned frontend pages.
+9. Use `docs/NYMPH_MODULE_UI_STANDARD.md` for custom installed-module UI. The Manager hosts installed module `ui.manager_ui` only; it must not hardcode module frontend pages.
+10. After all official modules install/start/stop/log/uninstall cleanly from their own repos, delete `Manager/scripts/legacy`.

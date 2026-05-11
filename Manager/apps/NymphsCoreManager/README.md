@@ -38,10 +38,8 @@ NymphsCoreManager-win-x64/
 2. If Windows asks for administrator permission, click `Yes`.
 3. Run the system checks.
 4. Continue through the install steps.
-5. After a successful install, use the finish page to:
-   - fetch models later without reinstalling
-   - run smoke tests for `Z-Image` and `TRELLIS.2`
-6. To repair, refresh, or install optional experimental modules later, rerun the latest `NymphsCore Manager`.
+5. After the base runtime is ready, install modules from the Manager home page.
+6. Module-specific model downloads, smoke tests, and custom UI live in each installed module.
 
 ## Important Notes
 
@@ -49,22 +47,8 @@ NymphsCoreManager-win-x64/
 - Extract it first.
 - `NymphsCore.tar` is optional and is not shown as a required system check.
 - If the tar is missing, the app bootstraps a fresh Ubuntu base locally.
-- If an existing `NymphsCore` install is already present, the manager can reuse it for:
-  - update checks
-  - model downloads
-  - smoke tests
-  - repair / refresh reruns
-- `Nymphs-Brain` is optional and experimental. If selected, it installs inside WSL at `/home/nymph/Nymphs-Brain`; it is not required for the Blender backend.
-- if `Nymphs-Brain` is selected, the Manager exposes a dedicated Brain page with:
-  - `Start Brain`
-  - `Stop Brain`
-  - `Start/Stop WebUI`
-  - `Manage Models`
-  - `Update Stack`
-- Brain local model selection is handled by `lms-model`; optional remote llm-wrapper configuration is handled from the Brain page.
-- `Update Stack` refreshes the installed Brain wrapper scripts before updating llama-server, LM Studio model management, and Open WebUI packages.
-- the Brain install and Brain page actions use LM Studio CLI for model fetch/management, then launch `llama-server` on `http://localhost:8000/v1` for inference
-- Open WebUI is intended to open on `http://localhost:8081`
+- If an existing `NymphsCore` install is already present, the manager can reuse it for base runtime checks and registry-managed module operations.
+- Custom module frontends are loaded only from installed module manifests. See `docs/NYMPH_MODULE_UI_STANDARD.md`.
 
 ## If Something Fails
 

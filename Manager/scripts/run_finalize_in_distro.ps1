@@ -105,9 +105,6 @@ function Build-LinuxSessionPrefix {
         "export USER=" + (ConvertTo-BashSingleQuoted $UserName) + "; " +
         "export LOGNAME=" + (ConvertTo-BashSingleQuoted $UserName) + "; " +
         'export NYMPHS3D_RUNTIME_ROOT="$HOME"; ' +
-        'export NYMPHS3D_Z_IMAGE_DIR="$HOME/Z-Image"; ' +
-        'export NYMPHS3D_N2D2_DIR="$NYMPHS3D_Z_IMAGE_DIR"; ' +
-        'export NYMPHS3D_TRELLIS_DIR="$HOME/TRELLIS.2"; ' +
         $TokenExportPrefix
     )
 }
@@ -193,24 +190,7 @@ try {
     }
 
     if ($CheckUpdatesOnly.IsPresent) {
-        $checkUpdatesCommand = @(
-            "-d", $DistroName
-        ) + $wslUserArgs + @(
-            "--",
-            "/bin/bash", "-lc",
-            $sessionPrefix + "bash " + (ConvertTo-BashSingleQuoted "$effectiveScriptsDir/check_managed_repo_updates.sh")
-        )
-        $checkOutput = & wsl @checkUpdatesCommand 2>&1
-        foreach ($line in @($checkOutput)) {
-            $text = ("$line" -replace [char]0, "").TrimEnd()
-            if (-not [string]::IsNullOrWhiteSpace($text)) {
-                Write-Host $text
-            }
-        }
-        if ($LASTEXITCODE -ne 0) {
-            throw "Managed repo update check failed in distro '$DistroName'."
-        }
-        Write-Host "Managed repo update check completed."
+        Write-Host "Registry module update checks are handled by the Manager shell."
         return
     }
 

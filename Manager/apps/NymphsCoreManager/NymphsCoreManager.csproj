@@ -7,9 +7,9 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>NymphsCoreManager</RootNamespace>
     <AssemblyName>NymphsCoreManager</AssemblyName>
-    <VersionPrefix>0.9.3</VersionPrefix>
-    <FileVersion>0.9.3.0</FileVersion>
-    <AssemblyVersion>0.9.3.0</AssemblyVersion>
+    <VersionPrefix>0.9.4</VersionPrefix>
+    <FileVersion>0.9.4.0</FileVersion>
+    <AssemblyVersion>0.9.4.0</AssemblyVersion>
     <InformationalVersion>$(VersionPrefix)</InformationalVersion>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <ApplicationIcon>AppAssets/nsw.ico</ApplicationIcon>
@@ -37,8 +37,17 @@
     <Content Include="AppAssets/SidebarPortraits/*.png">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="../../scripts/**/*">
-      <Link>scripts/%(RecursiveDir)%(Filename)%(Extension)</Link>
+    <Content Include="../../scripts/bootstrap_fresh_distro_root.sh;
+                      ../../scripts/finalize_imported_distro.sh;
+                      ../../scripts/import_base_distro.ps1;
+                      ../../scripts/install_cuda_13_wsl.sh;
+                      ../../scripts/install_nymph_module_from_registry.sh;
+                      ../../scripts/install_system_deps.sh;
+                      ../../scripts/monitor_query.sh;
+                      ../../scripts/preflight_wsl.sh;
+                      ../../scripts/run_finalize_in_distro.ps1;
+                      ../../scripts/uninstall_nymph_module.sh">
+      <Link>scripts/%(Filename)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>

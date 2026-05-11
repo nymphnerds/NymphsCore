@@ -1456,8 +1456,8 @@
                          Padding="0"
                          Foreground="#8FD7D0"
                          CaretBrush="#23E7DB"
-                         SelectionBrush="#2AA8A2"
-                         SelectionOpacity="0.38"
+                         SelectionBrush="#1B6568"
+                         SelectionOpacity="0.95"
                          FontFamily="Consolas"
                          FontSize="11"
                          FontWeight="Light"
@@ -1735,6 +1735,12 @@
                         Content="Open Install Folder" />
                 <Button Margin="0,0,0,10"
                         Style="{StaticResource ShellButtonStyle}"
+                        Command="{Binding OpenModuleUiCommand}"
+                        CommandParameter="{Binding DisplayedModule}"
+                        Visibility="{Binding ShowModuleUiAction, Converter={StaticResource BoolToVisibilityConverter}}"
+                        Content="Open Module UI" />
+                <Button Margin="0,0,0,10"
+                        Style="{StaticResource ShellButtonStyle}"
                         Command="{Binding UpdateModuleCommand}"
                         CommandParameter="{Binding DisplayedModule}"
                         Visibility="{Binding DisplayedModule.HasUpdate, Converter={StaticResource BoolToVisibilityConverter}}"
@@ -1803,6 +1809,40 @@
           </Grid>
         </Grid>
       </ScrollViewer>
+
+      <Grid Visibility="{Binding IsModuleUiPage, Converter={StaticResource BoolToVisibilityConverter}}">
+        <Grid.RowDefinitions>
+          <RowDefinition Height="Auto" />
+          <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <DockPanel Grid.Row="0"
+                   Margin="0,0,0,12"
+                   LastChildFill="True">
+          <Button DockPanel.Dock="Right"
+                  Style="{StaticResource ShellButtonStyle}"
+                  Command="{Binding OpenModuleCommand}"
+                  CommandParameter="{Binding DisplayedModule}"
+                  Content="Back To Module" />
+          <StackPanel>
+            <TextBlock Text="{Binding ModuleUiTitle}"
+                       Style="{StaticResource PageTitleStyle}" />
+            <TextBlock Margin="0,8,0,0"
+                       Text="{Binding ModuleUiStatus}"
+                       Style="{StaticResource PageSubtitleStyle}"
+                       TextWrapping="Wrap" />
+          </StackPanel>
+        </DockPanel>
+
+        <Border Grid.Row="1"
+                Style="{StaticResource PanelBorderStyle}"
+                Padding="0"
+                ClipToBounds="True">
+          <WebBrowser x:Name="ModuleUiBrowser"
+                      Navigating="ModuleUiBrowser_Navigating"
+                      LoadCompleted="ModuleUiBrowser_LoadCompleted" />
+        </Border>
+      </Grid>
 
       <Border Grid.Row="2"
               Margin="0,8,0,8"

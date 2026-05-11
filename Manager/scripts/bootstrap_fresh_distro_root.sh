@@ -64,9 +64,6 @@ ln -sfn "Manager/scripts" "${NYMPHS3D_HELPER_ROOT}/scripts"
 cat >/etc/profile.d/nymphscore.sh <<'EOF'
 export NYMPHS3D_HELPER_ROOT=/opt/nymphs3d/NymphsCore
 export NYMPHS3D_RUNTIME_ROOT="$HOME"
-export NYMPHS3D_Z_IMAGE_DIR="$HOME/Z-Image"
-export NYMPHS3D_N2D2_DIR="$NYMPHS3D_Z_IMAGE_DIR"
-export NYMPHS3D_TRELLIS_DIR="$HOME/TRELLIS.2"
 EOF
 
 chmod 644 /etc/profile.d/nymphscore.sh

@@ -5,8 +5,6 @@ usage() {
   cat <<'EOF'
 Usage: uninstall_nymph_module.sh --module <id> [--dry-run] [--yes] [--purge]
 
-Modules: brain, zimage, trellis, lora, worbi
-
 Default uninstall removes the module install folder and moves known user data
 to ~/NymphsModuleBackups/<module>-<timestamp>. Use --purge to delete the whole
 module folder including module data.
@@ -55,40 +53,47 @@ if [[ -z "${MODULE_ID}" ]]; then
 fi
 
 MODULE_ID="$(printf '%s' "${MODULE_ID}" | tr '[:upper:]' '[:lower:]')"
-INSTALL_ROOT=""
-PRESERVE_NAMES=()
 WORK_ROOT="${NYMPHS_MODULE_WORK_ROOT:-${HOME}/.cache/nymphs-modules}"
 ACTION_ROOT="${WORK_ROOT}/actions"
 ACTION_STATE_FILE=""
 
-case "${MODULE_ID}" in
-  brain)
-    INSTALL_ROOT="${BRAIN_INSTALL_ROOT:-${HOME}/Nymphs-Brain}"
-    PRESERVE_NAMES=("models" "open-webui-data" "mcp" "secrets" "logs")
-    ;;
-  zimage)
-    INSTALL_ROOT="${NYMPHS3D_Z_IMAGE_DIR:-${HOME}/Z-Image}"
-    PRESERVE_NAMES=("outputs" "logs")
-    ;;
-  trellis)
-    INSTALL_ROOT="${NYMPHS3D_TRELLIS_DIR:-${HOME}/TRELLIS.2}"
-    PRESERVE_NAMES=("outputs" "logs")
-    ;;
-  lora|ai-toolkit)
-    MODULE_ID="lora"
-    INSTALL_ROOT="${ZIMAGE_TRAINER_ROOT:-${HOME}/ZImage-Trainer}"
-    PRESERVE_NAMES=("datasets" "loras" "jobs" "config" "logs")
-    ;;
-  worbi)
-    INSTALL_ROOT="${WORBI_ROOT:-${HOME}/worbi}"
-    PRESERVE_NAMES=("data" "projects" "config" "logs")
-    ;;
-  *)
-    echo "Unsupported module id: ${MODULE_ID}" >&2
-    usage >&2
-    exit 2
-    ;;
-esac
+read_manifest_install_root() {
+  local manifest_file="${WORK_ROOT}/repos/${MODULE_ID}/nymph.json"
+  [[ -f "${manifest_file}" ]] || return 1
+  command -v python3 >/dev/null 2>&1 || return 1
+
+  python3 - "${manifest_file}" "${HOME}" <<'PY'
+import json
+import sys
+
+manifest_path = sys.argv[1]
+home = sys.argv[2].rstrip("/")
+
+with open(manifest_path, "r", encoding="utf-8") as handle:
+    manifest = json.load(handle)
+
+root = ""
+install = manifest.get("install")
+if isinstance(install, dict):
+    root = str(install.get("root") or install.get("path") or "").strip()
+runtime = manifest.get("runtime")
+if not root and isinstance(runtime, dict):
+    root = str(runtime.get("install_root") or "").strip()
+
+root = root.replace("\\", "/").rstrip("/")
+parts = [part for part in root.split("/") if part]
+if not root.startswith(home + "/") or ".." in parts:
+    raise SystemExit(1)
+print(root)
+PY
+}
+
+if manifest_install_root="$(read_manifest_install_root 2>/dev/null)"; then
+  INSTALL_ROOT="${manifest_install_root}"
+else
+  INSTALL_ROOT="${HOME}/${MODULE_ID}"
+fi
+PRESERVE_NAMES=("data" "projects" "config" "logs" "outputs" "models" "datasets" "loras" "jobs" "secrets")
 
 echo "module=${MODULE_ID}"
 echo "install_root=${INSTALL_ROOT}"
@@ -114,12 +119,6 @@ EOF
 clear_action_state() {
   rm -f "${ACTION_STATE_FILE}"
 }
-
-if [[ "${PURGE}" -eq 1 && "${MODULE_ID}" != "worbi" ]]; then
-  echo "ERROR: destructive purge is temporarily disabled for ${MODULE_ID} while module routing is being audited." >&2
-  echo "No files were deleted."
-  exit 4
-fi
 
 run_module_owned_uninstall_if_available() {
   local repo_root="${WORK_ROOT}/repos/${MODULE_ID}"
@@ -200,24 +199,9 @@ fi
 trap clear_action_state EXIT
 
 stop_known_processes() {
-  case "${MODULE_ID}" in
-    brain)
-      if [[ -x "${INSTALL_ROOT}/bin/lms-stop" ]]; then
-        "${INSTALL_ROOT}/bin/lms-stop" || true
-      fi
-      ;;
-    lora)
-      pkill -f "${INSTALL_ROOT}/ai-toolkit" >/dev/null 2>&1 || true
-      ;;
-    worbi)
-      if [[ -x "${INSTALL_ROOT}/bin/worbi-stop" ]]; then
-        "${INSTALL_ROOT}/bin/worbi-stop" || true
-      elif [[ -x "${HOME}/.local/bin/worbi-stop" ]]; then
-        "${HOME}/.local/bin/worbi-stop" || true
-      fi
-      pkill -f "${INSTALL_ROOT}" >/dev/null 2>&1 || true
-      ;;
-  esac
+  if [[ -n "${INSTALL_ROOT}" ]]; then
+    pkill -f "${INSTALL_ROOT}" >/dev/null 2>&1 || true
+  fi
 }
 
 stop_known_processes

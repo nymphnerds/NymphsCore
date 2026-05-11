@@ -8,4 +8,5 @@ public enum ManagerPageKind
     Logs,
     Guide,
     Module,
+    ModuleUi,
 }

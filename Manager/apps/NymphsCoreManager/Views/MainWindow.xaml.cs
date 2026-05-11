@@ -6,6 +6,7 @@ using System.Windows.Controls;
 using System.Windows.Interop;
 using System.Windows.Threading;
 using System.Windows.Media;
+using System.Windows.Navigation;
 using NymphsCoreManager.Services;
 using NymphsCoreManager.ViewModels;
 
@@ -30,6 +31,7 @@ public partial class MainWindow : Window
     private Rect? _preMonitorModeBounds;
     private bool _isMonitorMode;
     private bool _shutdownComplete;
+    private bool _shutdownInProgress;
 
     public MainWindow()
     {
@@ -42,6 +44,7 @@ public partial class MainWindow : Window
 
         if (_viewModel is not null)
         {
+            _viewModel.PropertyChanged += OnViewModelPropertyChanged;
             _viewModel.UnifiedLogLines.CollectionChanged += OnUnifiedLogLinesChanged;
         }
     }
@@ -54,8 +57,16 @@ public partial class MainWindow : Window
             return;
         }
 
+        if (_shutdownInProgress)
+        {
+            e.Cancel = true;
+            return;
+        }
+
         e.Cancel = true;
-        IsEnabled = false;
+        _shutdownInProgress = true;
+        PrepareVisualsForShutdown();
+        Hide();
 
         try
         {
@@ -64,8 +75,29 @@ public partial class MainWindow : Window
         finally
         {
             _shutdownComplete = true;
-            IsEnabled = true;
             Close();
+        }
+    }
+
+    private void PrepareVisualsForShutdown()
+    {
+        if (SettingsPopup is not null)
+        {
+            SettingsPopup.IsOpen = false;
+        }
+
+        if (ModuleUiBrowser is not null)
+        {
+            try
+            {
+                ModuleUiBrowser.Navigate("about:blank");
+            }
+            catch (Exception)
+            {
+                // Best effort only: the app is already closing.
+            }
+
+            ModuleUiBrowser.Visibility = Visibility.Collapsed;
         }
     }
 
@@ -73,6 +105,7 @@ public partial class MainWindow : Window
     {
         if (_viewModel is not null)
         {
+            _viewModel.PropertyChanged -= OnViewModelPropertyChanged;
             _viewModel.UnifiedLogLines.CollectionChanged -= OnUnifiedLogLinesChanged;
             _viewModel.Dispose();
         }
@@ -155,9 +188,45 @@ public partial class MainWindow : Window
         Dispatcher.BeginInvoke(ScrollUnifiedLogToLatest, DispatcherPriority.Background);
     }
 
+    private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(ManagerShellViewModel.ModuleUiSource))
+        {
+            Dispatcher.BeginInvoke(NavigateModuleUiBrowser, DispatcherPriority.Background);
+        }
+    }
+
+    private void NavigateModuleUiBrowser()
+    {
+        if (ModuleUiBrowser is null || _viewModel?.ModuleUiSource is null)
+        {
+            return;
+        }
+
+        ModuleUiBrowser.Navigate(_viewModel.ModuleUiSource);
+    }
+
+    private void ModuleUiBrowser_Navigating(object sender, NavigatingCancelEventArgs e)
+    {
+        if (_viewModel?.HandleModuleUiNavigation(e.Uri) == true)
+        {
+            e.Cancel = true;
+        }
+    }
+
+    private void ModuleUiBrowser_LoadCompleted(object sender, NavigationEventArgs e)
+    {
+        // The embedded browser is only a generic host for installed module-owned local HTML.
+    }
+
     private void ScrollUnifiedLogToLatest()
     {
         if (UnifiedLogTextBox is null)
+        {
+            return;
+        }
+
+        if (UnifiedLogTextBox.IsKeyboardFocusWithin || UnifiedLogTextBox.SelectionLength > 0)
         {
             return;
         }
