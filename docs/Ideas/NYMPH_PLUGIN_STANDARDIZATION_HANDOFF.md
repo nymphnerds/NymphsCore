@@ -289,7 +289,8 @@ Do not let WebView2 create NymphsCoreManager.exe.WebView2 beside a UNC-launched 
 Prewarm the actual visible module UI WebView2 control, not a separate dummy browser.
 Set the module UI page visible before setting ModuleUiSource.
 Queue the first module UI navigation at high dispatcher priority, not Background/idle priority.
-Skip repeated navigation to the same cached source.
+Skip repeated navigation to the same cached source only when the path, timestamp, and file size match.
+Keep the fast ModuleUiCache, but never overwrite a newer cached HTML file with an older installed module UI source just because file length differs. That specific failure made Z-Image's rank selector fall back to stale r32-only HTML.
 Do not let background module-status refresh reopen or reload the current module UI page.
 ```
 

@@ -53,6 +53,7 @@ For `local_html`:
 
 - Copy the installed module UI into the Manager's local module UI cache under `%LOCALAPPDATA%\NymphsCore\ModuleUiCache`.
 - Refresh that cache when the installed module UI source changes. A stale cache makes module UI fixes look broken even when the module repo is correct.
+- Preserve a newer cache over an older installed source. Do not refresh only because byte length differs; that can let an old installed module UI overwrite a fast, corrected cache and reintroduce stale controls.
 - Load the cached HTML with WebView2 `NavigateToString`, not `file://`.
 - Allow WebView2's internal `data:` navigation. `NavigateToString` becomes a `data:` navigation internally; blocking `data:` makes the page appear stuck on a blank surface.
 - Keep `nymphs-module-action://` interception for module actions.
@@ -77,7 +78,7 @@ navigate_to_string_ms
 navigation_complete
 ```
 
-The expected healthy behavior is that `module UI opened` and `navigate_request` happen in the same second, and `navigate_to_string_ms` is near zero for small `local_html` pages.
+The expected healthy behavior is that `module UI opened` and `navigate_request` happen in the same second, and `navigate_to_string_ms` is near zero for small `local_html` pages. If a UI fix does not appear, compare the logged `bytes=` value with the cached file under `%LOCALAPPDATA%\NymphsCore\ModuleUiCache`; a smaller or older byte count usually means stale installed HTML has overwritten the cache.
 
 Current supported type:
 
