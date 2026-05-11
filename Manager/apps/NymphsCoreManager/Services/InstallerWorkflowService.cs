@@ -4603,8 +4603,7 @@ meta:
 
             var sourceInfo = new FileInfo(sourceFile);
             var cachedInfo = new FileInfo(cachedFile);
-            if (sourceInfo.Length != cachedInfo.Length ||
-                sourceInfo.LastWriteTimeUtc > cachedInfo.LastWriteTimeUtc)
+            if (sourceInfo.LastWriteTimeUtc > cachedInfo.LastWriteTimeUtc)
             {
                 return true;
             }
