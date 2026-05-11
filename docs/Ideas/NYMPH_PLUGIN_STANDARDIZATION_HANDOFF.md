@@ -718,7 +718,17 @@ Manager/apps/NymphsCoreManager/publish/win-x64/NymphsCoreManager.exe
 Manager/apps/NymphsCoreManager/publish/win-x64/NymphsCoreManager.pdb
 ```
 
-Decide whether those artifacts should be committed with this pass.
+Release packaging currently includes only the active sidebar artwork:
+
+```text
+Manager/apps/NymphsCoreManager/AppAssets/SidebarPortraits/NymphMycelium1.png
+```
+
+The other local sidebar images are intentionally still in the source tree as WIP
+art for later editing. Once those images are polished, re-expand the packaging
+rule and re-enable startup/sidebar artwork variation so each Manager launch can
+show a different portrait. Until then, do not ship the full WIP image set in the
+release zip.
 
 Temporary source-tree migration note:
 
