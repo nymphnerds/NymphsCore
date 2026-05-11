@@ -4886,7 +4886,8 @@ meta:
                 : string.Empty) +
             $"if [[ -f {ToBashSingleQuoted(installedManifestPath)} ]]; then " +
             $"ENTRYPOINT=$(MODULE_ACTION={ToBashSingleQuoted(normalizedAction)} python3 -c {ToBashSingleQuoted(entrypointReader)} {ToBashSingleQuoted(installedManifestPath)} 2>/dev/null || true); " +
-            $"elif [[ -f {ToBashSingleQuoted(manifestPath)} ]]; then " +
+            "fi; " +
+            $"if [[ -z \"$ENTRYPOINT\" && -f {ToBashSingleQuoted(manifestPath)} ]]; then " +
             $"ENTRYPOINT=$(MODULE_ACTION={ToBashSingleQuoted(normalizedAction)} python3 -c {ToBashSingleQuoted(entrypointReader)} {ToBashSingleQuoted(manifestPath)} 2>/dev/null || true); " +
             "fi; " +
             $"if [[ -n \"$ENTRYPOINT\" && -f {ToBashSingleQuoted(installRoot)}/\"$ENTRYPOINT\" ]]; then " +
