@@ -1526,7 +1526,42 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             secondaryParts.Count == 0
                 ? "Status came from the module-owned status entrypoint."
                 : string.Join(Environment.NewLine, secondaryParts));
+        AppendActivity(BuildModuleStatusLogLine(module, snapshot));
         RefreshInstalledModuleUiInfo(module);
+    }
+
+    private static string BuildModuleStatusLogLine(NymphModuleViewModel module, NymphStatusSnapshot snapshot)
+    {
+        var parts = new List<string>
+        {
+            $"{module.Name} status:",
+            $"installed={snapshot.IsInstalled.ToString().ToLowerInvariant()}",
+            $"running={snapshot.IsRunning.ToString().ToLowerInvariant()}",
+            $"state={ValueOrFallback(snapshot.State, "unknown")}",
+            $"health={ValueOrFallback(snapshot.Health, "unknown")}",
+            $"version={ValueOrFallback(snapshot.Version, "unknown")}",
+        };
+
+        AddStatusValue(parts, "runtime_present", snapshot.Get("runtime_present"));
+        AddStatusValue(parts, "env_ready", snapshot.Get("env_ready"));
+        AddStatusValue(parts, "models_ready", snapshot.Get("models_ready"));
+        AddStatusValue(parts, "recommended_precision", snapshot.Get("recommended_precision"));
+        AddStatusValue(parts, "gpu_vram_mb", snapshot.Get("gpu_vram_mb"));
+
+        if (!string.IsNullOrWhiteSpace(snapshot.Detail))
+        {
+            parts.Add($"detail={snapshot.Detail}");
+        }
+
+        return string.Join(" ", parts);
+    }
+
+    private static void AddStatusValue(List<string> parts, string key, string? value)
+    {
+        if (!string.IsNullOrWhiteSpace(value))
+        {
+            parts.Add($"{key}={value.Trim()}");
+        }
     }
 
     private void RefreshInstalledModuleUiInfo(NymphModuleViewModel module)
