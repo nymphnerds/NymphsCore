@@ -1837,6 +1837,11 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                     var fileName = Path.GetFileName(latestLog);
                     foreach (var line in ReadRecentLogLines(latestLog, 200))
                     {
+                        if (IsNoisyUnavailableModuleLogLine(line))
+                        {
+                            continue;
+                        }
+
                         unifiedEntries.Add((ParseUnifiedLogTimestamp(line), sequence++, $"{fileName}  {line}"));
                     }
                 }
@@ -2004,6 +2009,10 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             ? $"Running {action}..."
             : $"Running {action} {string.Join(" ", args)}...";
         AppendActivity($"{module.Name} {action} started from module UI.");
+        var liveLines = new List<string>();
+        SetModuleActionFeedback(
+            $"{module.Name}: {action} in progress",
+            "Waiting for module output...");
         SelectPrimaryPage(ManagerPageKind.Logs);
 
         try
@@ -2011,7 +2020,8 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             var liveProgress = new Progress<string>(line =>
             {
                 AppendActivity(line);
-                ModuleUiStatus = BuildModuleActionFeedbackDetail(line);
+                AppendModuleLiveLine(module, action, line, liveLines);
+                ModuleUiStatus = BuildModuleActionFeedbackDetail(string.Join(Environment.NewLine, liveLines));
             });
             var output = await _workflowService.RunNymphModuleActionAsync(
                 _settings,
@@ -2023,6 +2033,9 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
             AppendModuleActionOutput(module, action, output);
             ModuleUiStatus = BuildModuleActionFeedbackDetail(output);
+            SetModuleActionFeedback(
+                $"{module.Name}: {action} finished",
+                BuildModuleActionFeedbackDetail(string.Join(Environment.NewLine, liveLines.Append(output))));
             if (action is not "logs" and not "open")
             {
                 await RefreshModuleStateAsync().ConfigureAwait(true);
@@ -2570,6 +2583,12 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
     private static string BuildModuleActionFeedbackDetail(string output)
     {
+        var downloadDetail = BuildModelDownloadFeedbackDetail(output);
+        if (!string.IsNullOrWhiteSpace(downloadDetail))
+        {
+            return downloadDetail;
+        }
+
         var lines = output
             .Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .TakeLast(5)
@@ -2578,6 +2597,123 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         return lines.Length == 0
             ? "The command finished without output."
             : string.Join(Environment.NewLine, lines);
+    }
+
+    private static string? BuildModelDownloadFeedbackDetail(string output)
+    {
+        var lines = output.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var downloadLines = lines
+            .Where(line => line.Contains("MODEL DOWNLOAD", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+        if (downloadLines.Count == 0)
+        {
+            return null;
+        }
+
+        var latest = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var state = "downloading";
+        foreach (var line in downloadLines)
+        {
+            if (line.Contains("MODEL DOWNLOAD COMPLETE", StringComparison.OrdinalIgnoreCase))
+            {
+                state = "complete";
+            }
+            else if (line.Contains("MODEL DOWNLOAD FAILED", StringComparison.OrdinalIgnoreCase))
+            {
+                state = "failed";
+            }
+            else if (line.Contains("MODEL DOWNLOAD STARTED", StringComparison.OrdinalIgnoreCase))
+            {
+                state = "started";
+            }
+            else if (line.Contains("status=downloading", StringComparison.OrdinalIgnoreCase))
+            {
+                state = "downloading";
+            }
+
+            foreach (var key in new[]
+                     {
+                         "phase", "repo", "status", "cache_dir", "progress_interval", "waiting_on",
+                         "shared_cache", "downloaded_this_step", "repo_cache_blobs", "active_partial_files",
+                         "exit_status",
+                     })
+            {
+                var value = ExtractLogValue(line, key);
+                if (!string.IsNullOrWhiteSpace(value))
+                {
+                    latest[key] = value;
+                }
+            }
+        }
+
+        var detail = new List<string>
+        {
+            $"Model download: {state}",
+        };
+        AddFeedbackLine(detail, "Repo", latest.GetValueOrDefault("repo"));
+        AddFeedbackLine(detail, "Phase", latest.GetValueOrDefault("phase"));
+        AddFeedbackLine(detail, "Waiting on", latest.GetValueOrDefault("waiting_on"));
+        AddFeedbackLine(detail, "Cache", latest.GetValueOrDefault("shared_cache"));
+        AddFeedbackLine(detail, "Downloaded this step", latest.GetValueOrDefault("downloaded_this_step"));
+        AddFeedbackLine(detail, "Repo cache blobs", latest.GetValueOrDefault("repo_cache_blobs"));
+        AddFeedbackLine(detail, "Active partial files", latest.GetValueOrDefault("active_partial_files"));
+        AddFeedbackLine(detail, "Cache dir", latest.GetValueOrDefault("cache_dir"));
+        AddFeedbackLine(detail, "Exit status", latest.GetValueOrDefault("exit_status"));
+
+        detail.Add("");
+        detail.Add("Latest raw download lines:");
+        detail.AddRange(downloadLines.TakeLast(4));
+        return string.Join(Environment.NewLine, detail);
+    }
+
+    private static string? ExtractLogValue(string line, string key)
+    {
+        var marker = key + "=";
+        var start = line.IndexOf(marker, StringComparison.OrdinalIgnoreCase);
+        if (start < 0)
+        {
+            return null;
+        }
+
+        start += marker.Length;
+        var end = line.Length;
+        foreach (var nextKey in new[]
+                 {
+                     " phase=", " repo=", " status=", " cache_dir=", " progress_interval=", " waiting_on=",
+                     " shared_cache=", " downloaded_this_step=", " repo_cache_blobs=", " active_partial_files=",
+                     " exit_status=",
+                 })
+        {
+            var candidate = line.IndexOf(nextKey, start, StringComparison.OrdinalIgnoreCase);
+            if (candidate >= 0 && candidate < end)
+            {
+                end = candidate;
+            }
+        }
+
+        return line[start..end].Trim();
+    }
+
+    private static void AddFeedbackLine(List<string> lines, string label, string? value)
+    {
+        if (!string.IsNullOrWhiteSpace(value))
+        {
+            lines.Add($"{label}: {value.Trim()}");
+        }
+    }
+
+    private static bool IsNoisyUnavailableModuleLogLine(string line)
+    {
+        return line.Contains("Module is available from the registry, but is not installed yet.", StringComparison.OrdinalIgnoreCase) ||
+               line.Contains("status warning: Module action 'status' failed for 'brain'", StringComparison.OrdinalIgnoreCase) ||
+               line.Contains("status warning: Module action 'status' failed for 'lora'", StringComparison.OrdinalIgnoreCase) ||
+               line.Contains("status warning: Module action 'status' failed for 'trellis'", StringComparison.OrdinalIgnoreCase) ||
+               line.Contains("id=brain", StringComparison.OrdinalIgnoreCase) ||
+               line.Contains("id=lora", StringComparison.OrdinalIgnoreCase) ||
+               line.Contains("id=trellis", StringComparison.OrdinalIgnoreCase) ||
+               line.Contains("install_root=/home/nymph/Nymphs-Brain", StringComparison.OrdinalIgnoreCase) ||
+               line.Contains("install_root=/home/nymph/ZImage-Trainer", StringComparison.OrdinalIgnoreCase) ||
+               line.Contains("install_root=/home/nymph/TRELLIS.2", StringComparison.OrdinalIgnoreCase);
     }
 
     private bool OpenFirstUrlFromOutput(NymphModuleViewModel module, string output, bool quietWhenMissing = false)
