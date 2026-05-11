@@ -5062,6 +5062,8 @@ meta:
                   $"  mkdir -p {ToBashSingleQuoted(moduleWorkRoot)}/repos; " +
                   $"  REPO_URL={ToBashSingleQuoted(trustedRepoUrl)}; " +
                   $"  REPO_BRANCH={ToBashSingleQuoted(trustedRepoBranch)}; " +
+                  $"  if [[ -z \"$REPO_URL\" ]]; then REPO_URL={ToBashSingleQuoted($"https://github.com/nymphnerds/{normalizedModuleId}.git")}; fi; " +
+                  "  if [[ -z \"$REPO_BRANCH\" ]]; then REPO_BRANCH=main; fi; " +
                   "  if [[ -n \"$REPO_URL\" && -n \"$REPO_BRANCH\" ]]; then " +
                   "    if command -v git >/dev/null 2>&1; then " +
                   $"        if [[ -d {ToBashSingleQuoted(cacheRepo)}/.git ]]; then " +
