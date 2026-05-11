@@ -4994,6 +4994,15 @@ meta:
             : " " + string.Join(" ", normalizedActionArguments.Select(ToBashSingleQuoted));
         var normalizedModuleId = moduleId.Trim().ToLowerInvariant();
         if (string.Equals(normalizedModuleId, "zimage", StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(normalizedAction, "status", StringComparison.OrdinalIgnoreCase))
+        {
+            return await RunZImageStatusActionAsync(
+                settings,
+                progress,
+                cancellationToken).ConfigureAwait(false);
+        }
+
+        if (string.Equals(normalizedModuleId, "zimage", StringComparison.OrdinalIgnoreCase) &&
             string.Equals(normalizedAction, "fetch_models", StringComparison.OrdinalIgnoreCase))
         {
             return await RunZImageFetchModelsActionAsync(
@@ -5132,6 +5141,52 @@ meta:
         }
 
         return result.CombinedOutput.Trim();
+    }
+
+    private async Task<string> RunZImageStatusActionAsync(
+        InstallSettings settings,
+        IProgress<string> progress,
+        CancellationToken cancellationToken)
+    {
+        var homePath = $"/home/{settings.LinuxUser}";
+        var zimageRoot = $"{homePath}/Z-Image";
+        var statusScript = $"{zimageRoot}/scripts/zimage_status.sh";
+        var markerPath = $"{zimageRoot}/.nymph-module-version";
+        var fallbackUnavailable =
+            $"echo id=zimage; echo name='Z-Image Turbo'; echo installed=false; echo runtime_present=false; echo version=not-installed; echo env_ready=false; echo models_ready=unknown; echo running=false; echo state=available; echo health=unknown; echo install_root={ToBashSingleQuoted(zimageRoot)}; echo marker={ToBashSingleQuoted(markerPath)}; echo detail='Module is available from the registry, but is not installed yet.'";
+        var fallbackInstalled =
+            $"version=$(cat {ToBashSingleQuoted(markerPath)} 2>/dev/null || printf unknown); " +
+            "echo id=zimage; echo name='Z-Image Turbo'; echo installed=true; echo runtime_present=true; echo version=$version; echo env_ready=unknown; echo models_ready=unknown; echo running=false; echo state=installed; echo health=status-warning; " +
+            $"echo install_root={ToBashSingleQuoted(zimageRoot)}; echo marker={ToBashSingleQuoted(markerPath)}; echo detail='Z-Image is installed, but the status script did not answer in time.'";
+        var bashCommand =
+            "set -uo pipefail; " +
+            $"export HOME={ToBashSingleQuoted(homePath)}; " +
+            $"export USER={ToBashSingleQuoted(settings.LinuxUser)}; " +
+            $"export LOGNAME={ToBashSingleQuoted(settings.LinuxUser)}; " +
+            $"export NYMPHS3D_RUNTIME_ROOT={ToBashSingleQuoted(homePath)}; " +
+            $"export NYMPHS3D_Z_IMAGE_DIR={ToBashSingleQuoted(zimageRoot)}; " +
+            $"export NYMPHS3D_N2D2_DIR={ToBashSingleQuoted(zimageRoot)}; " +
+            $"export PATH={ToBashSingleQuoted($"{zimageRoot}/.venv-nunchaku/bin")}:\"$PATH\"; " +
+            $"if [[ -x {ToBashSingleQuoted(statusScript)} ]]; then " +
+            $"  timeout 3s bash {ToBashSingleQuoted(statusScript)}; status=$?; " +
+            "  if [[ \"$status\" -eq 0 ]]; then exit 0; fi; " +
+            $"  if [[ -f {ToBashSingleQuoted(markerPath)} ]]; then {fallbackInstalled}; exit 0; fi; " +
+            "  exit \"$status\"; " +
+            "fi; " +
+            $"if [[ -f {ToBashSingleQuoted(markerPath)} ]]; then {fallbackInstalled}; else {fallbackUnavailable}; fi";
+
+        var result = await RunWslBashAsync(settings, bashCommand, progress, cancellationToken).ConfigureAwait(false);
+        if (!string.IsNullOrWhiteSpace(result.CombinedOutput))
+        {
+            return result.CombinedOutput.Trim();
+        }
+
+        if (result.ExitCode != 0)
+        {
+            throw new InvalidOperationException($"Z-Image status failed with exit code {result.ExitCode}.");
+        }
+
+        return string.Empty;
     }
 
     private async Task<string> RunZImageFetchModelsActionAsync(
