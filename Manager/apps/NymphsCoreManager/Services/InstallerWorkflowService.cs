@@ -5190,7 +5190,8 @@ meta:
         }
 
         var homePath = $"/home/{settings.LinuxUser}";
-        var stageRoot = $"{homePath}/.cache/nymphs-manager/zimage-prefetch";
+        var stageRoot = $"/tmp/nymphs-manager-zimage-prefetch-{settings.LinuxUser}";
+        var stagedScriptsDirectory = $"{stageRoot}/scripts";
         var stagedPrefetchScript = $"{stageRoot}/scripts/prefetch_models.sh";
         var stagedCommonPathsScript = $"{stageRoot}/scripts/common_paths.sh";
         var localPrefetchScript = RequireScript(Path.Combine("legacy", "prefetch_models.sh"));
@@ -5206,10 +5207,9 @@ meta:
             $"export HOME={ToBashSingleQuoted(homePath)}; " +
             $"export USER={ToBashSingleQuoted(settings.LinuxUser)}; " +
             $"export LOGNAME={ToBashSingleQuoted(settings.LinuxUser)}; " +
-            $"STAGE_ROOT={ToBashSingleQuoted(stageRoot)}; " +
-            "rm -rf \"$STAGE_ROOT\"; " +
-            "mkdir -p \"$STAGE_ROOT/scripts\"; " +
-            "trap 'rm -rf \"$STAGE_ROOT\"' EXIT; " +
+            $"rm -rf {ToBashSingleQuoted(stageRoot)}; " +
+            $"mkdir -p {ToBashSingleQuoted(stagedScriptsDirectory)}; " +
+            $"trap 'rm -rf {ToBashSingleQuoted(stageRoot)}' EXIT; " +
             $"printf %s {ToBashSingleQuoted(encodedPrefetchScript)} | base64 -d > {ToBashSingleQuoted(stagedPrefetchScript)}; " +
             $"printf %s {ToBashSingleQuoted(encodedCommonPathsScript)} | base64 -d > {ToBashSingleQuoted(stagedCommonPathsScript)}; " +
             $"chmod +x {ToBashSingleQuoted(stagedPrefetchScript)} {ToBashSingleQuoted(stagedCommonPathsScript)}; " +
@@ -5228,6 +5228,7 @@ meta:
             tokenExport +
             "if [[ ! -x \"$NYMPHS3D_Z_IMAGE_DIR/.venv-nunchaku/bin/python\" ]]; then echo 'Z-Image Nunchaku runtime is missing. Install or repair Z-Image first.' >&2; exit 1; fi; " +
             "if [[ ! -f \"$NYMPHS3D_Z_IMAGE_DIR/scripts/prefetch_model.py\" ]]; then echo 'Z-Image prefetch script is missing. Install or repair Z-Image first.' >&2; exit 1; fi; " +
+            $"echo staged_prefetch_script={ToBashSingleQuoted(stagedPrefetchScript)}; " +
             "echo zimage_model=Tongyi-MAI/Z-Image-Turbo; " +
             $"echo nunchaku_weight_repo={ToBashSingleQuoted(nunchakuWeightRepo)}; " +
             $"echo nunchaku_precision={ToBashSingleQuoted(precision)}; " +
