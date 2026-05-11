@@ -5190,6 +5190,9 @@ meta:
         }
 
         var homePath = $"/home/{settings.LinuxUser}";
+        var zimageRoot = $"{homePath}/Z-Image";
+        var zimagePython = $"{zimageRoot}/.venv-nunchaku/bin/python";
+        var zimagePrefetchModelScript = $"{zimageRoot}/scripts/prefetch_model.py";
         var stageRoot = $"/tmp/nymphs-manager-zimage-prefetch-{settings.LinuxUser}";
         var stagedScriptsDirectory = $"{stageRoot}/scripts";
         var stagedPrefetchScript = $"{stageRoot}/scripts/prefetch_models.sh";
@@ -5213,11 +5216,11 @@ meta:
             $"printf %s {ToBashSingleQuoted(encodedPrefetchScript)} | base64 -d > {ToBashSingleQuoted(stagedPrefetchScript)}; " +
             $"printf %s {ToBashSingleQuoted(encodedCommonPathsScript)} | base64 -d > {ToBashSingleQuoted(stagedCommonPathsScript)}; " +
             $"chmod +x {ToBashSingleQuoted(stagedPrefetchScript)} {ToBashSingleQuoted(stagedCommonPathsScript)}; " +
-            "export NYMPHS3D_RUNTIME_ROOT=\"$HOME\"; " +
-            "export NYMPHS3D_Z_IMAGE_DIR=\"$HOME/Z-Image\"; " +
-            "export NYMPHS3D_N2D2_DIR=\"$NYMPHS3D_Z_IMAGE_DIR\"; " +
-            "export NYMPHS3D_TRELLIS_DIR=\"$HOME/TRELLIS.2\"; " +
-            "export PATH=\"$NYMPHS3D_Z_IMAGE_DIR/.venv-nunchaku/bin:$PATH\"; " +
+            $"export NYMPHS3D_RUNTIME_ROOT={ToBashSingleQuoted(homePath)}; " +
+            $"export NYMPHS3D_Z_IMAGE_DIR={ToBashSingleQuoted(zimageRoot)}; " +
+            $"export NYMPHS3D_N2D2_DIR={ToBashSingleQuoted(zimageRoot)}; " +
+            $"export NYMPHS3D_TRELLIS_DIR={ToBashSingleQuoted($"{homePath}/TRELLIS.2")}; " +
+            $"export PATH={ToBashSingleQuoted($"{zimageRoot}/.venv-nunchaku/bin")}:\"$PATH\"; " +
             "export Z_IMAGE_RUNTIME=nunchaku; " +
             $"export Z_IMAGE_NUNCHAKU_MODEL_REPO={ToBashSingleQuoted(nunchakuWeightRepo)}; " +
             $"export Z_IMAGE_NUNCHAKU_PRECISION={ToBashSingleQuoted(precision)}; " +
@@ -5226,8 +5229,10 @@ meta:
             "export HF_HUB_DISABLE_XET=1; " +
             "export HF_HUB_DISABLE_PROGRESS_BARS=1; " +
             tokenExport +
-            "if [[ ! -x \"$NYMPHS3D_Z_IMAGE_DIR/.venv-nunchaku/bin/python\" ]]; then echo 'Z-Image Nunchaku runtime is missing. Install or repair Z-Image first.' >&2; exit 1; fi; " +
-            "if [[ ! -f \"$NYMPHS3D_Z_IMAGE_DIR/scripts/prefetch_model.py\" ]]; then echo 'Z-Image prefetch script is missing. Install or repair Z-Image first.' >&2; exit 1; fi; " +
+            $"if [[ ! -x {ToBashSingleQuoted(zimagePython)} ]]; then echo {ToBashSingleQuoted($"Z-Image Nunchaku runtime is missing in WSL distro '{settings.DistroName}': {zimagePython}. Install or repair Z-Image first.")} >&2; exit 1; fi; " +
+            $"if [[ ! -f {ToBashSingleQuoted(zimagePrefetchModelScript)} ]]; then echo {ToBashSingleQuoted($"Z-Image prefetch script is missing in WSL distro '{settings.DistroName}': {zimagePrefetchModelScript}. Install or repair Z-Image first.")} >&2; exit 1; fi; " +
+            $"echo target_distro={ToBashSingleQuoted(settings.DistroName)}; " +
+            $"echo zimage_python={ToBashSingleQuoted(zimagePython)}; " +
             $"echo staged_prefetch_script={ToBashSingleQuoted(stagedPrefetchScript)}; " +
             "echo zimage_model=Tongyi-MAI/Z-Image-Turbo; " +
             $"echo nunchaku_weight_repo={ToBashSingleQuoted(nunchakuWeightRepo)}; " +
