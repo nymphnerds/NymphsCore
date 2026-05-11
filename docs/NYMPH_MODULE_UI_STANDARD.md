@@ -52,6 +52,7 @@ These rules came from the Z-Image module UI performance proof. Keep them intact 
 For `local_html`:
 
 - Copy the installed module UI into the Manager's local module UI cache under `%LOCALAPPDATA%\NymphsCore\ModuleUiCache`.
+- Refresh that cache when the installed module UI source changes. A stale cache makes module UI fixes look broken even when the module repo is correct.
 - Load the cached HTML with WebView2 `NavigateToString`, not `file://`.
 - Allow WebView2's internal `data:` navigation. `NavigateToString` becomes a `data:` navigation internally; blocking `data:` makes the page appear stuck on a blank surface.
 - Keep `nymphs-module-action://` interception for module actions.
@@ -64,7 +65,7 @@ For the WebView2 host:
 - Prewarm the actual visible module UI `WebView2` control, not a separate throwaway hidden browser.
 - When opening a module UI, switch the shell to the module UI page before setting `ModuleUiSource`.
 - Queue module UI navigation at high dispatcher priority. Do not queue the first real navigation at idle/background priority; it can sit behind shell/status refresh work for many seconds.
-- Skip repeated navigation to the same cached module UI source.
+- Skip repeated navigation only when the cached module UI source path, last-write time, and file size are unchanged.
 - Background status refresh must not reopen or reload the current module UI page.
 
 Timing logs belong in `%LOCALAPPDATA%\NymphsCore\manager-app.log` with the `module-ui-host` prefix. When debugging load performance, compare:

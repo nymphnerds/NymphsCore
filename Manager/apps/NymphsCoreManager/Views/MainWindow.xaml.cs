@@ -1,6 +1,7 @@
 using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Net;
 using System.Runtime.InteropServices;
@@ -37,7 +38,7 @@ public partial class MainWindow : Window
     private bool _shutdownInProgress;
     private bool _moduleUiWebMessageAttached;
     private Task<CoreWebView2Environment>? _moduleUiEnvironmentTask;
-    private string _lastModuleUiSource = string.Empty;
+    private string _lastModuleUiNavigationKey = string.Empty;
 
     public MainWindow()
     {
@@ -106,7 +107,7 @@ public partial class MainWindow : Window
             ModuleUiBrowser.Visibility = Visibility.Collapsed;
         }
 
-        _lastModuleUiSource = string.Empty;
+        _lastModuleUiNavigationKey = string.Empty;
     }
 
     protected override void OnClosed(EventArgs e)
@@ -295,7 +296,7 @@ public partial class MainWindow : Window
                 ModuleUiBrowser.CoreWebView2?.Navigate("about:blank");
             }
 
-            _lastModuleUiSource = string.Empty;
+            _lastModuleUiNavigationKey = string.Empty;
             return;
         }
 
@@ -308,12 +309,16 @@ public partial class MainWindow : Window
             if (File.Exists(source))
             {
                 var fullPath = Path.GetFullPath(source);
-                if (string.Equals(_lastModuleUiSource, fullPath, StringComparison.OrdinalIgnoreCase))
+                var sourceInfo = new FileInfo(fullPath);
+                var navigationKey = string.Create(
+                    CultureInfo.InvariantCulture,
+                    $"{fullPath}|{sourceInfo.LastWriteTimeUtc.Ticks}|{sourceInfo.Length}");
+                if (string.Equals(_lastModuleUiNavigationKey, navigationKey, StringComparison.OrdinalIgnoreCase))
                 {
                     return;
                 }
 
-                _lastModuleUiSource = fullPath;
+                _lastModuleUiNavigationKey = navigationKey;
                 var uiType = _viewModel.DisplayedModule?.InstalledModuleUiInfo?.Type ?? string.Empty;
                 if (string.Equals(uiType, "local_html", StringComparison.OrdinalIgnoreCase))
                 {

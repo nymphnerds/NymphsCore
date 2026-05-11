@@ -192,7 +192,7 @@ Current shell:
 
 Module cards open a detail page first. Install is a deliberate action from the detail page.
 
-Module UI performance rule: do not move first-load navigation, WebView2 profile setup, cache loading, or navigation filtering without timing the result. The Z-Image UI proof found that Dispatcher priority, `NavigateToString`, `data:` navigation allowance, local WebView2 user-data folders, and avoiding background-status reloads are all load-time critical.
+Module UI performance rule: do not move first-load navigation, WebView2 profile setup, cache refresh, or navigation filtering without timing the result. The Z-Image UI proof found that Dispatcher priority, `NavigateToString`, `data:` navigation allowance, local WebView2 user-data folders, content-aware cache reloads, and avoiding background-status reloads are all load-time critical.
 
 ---
 

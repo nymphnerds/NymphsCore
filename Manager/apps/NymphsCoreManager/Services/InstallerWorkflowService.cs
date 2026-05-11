@@ -4556,18 +4556,16 @@ meta:
                 cacheRoot,
                 uiInfo.Entrypoint.Replace('/', Path.DirectorySeparatorChar));
 
-            if (File.Exists(cachedEntrypoint))
-            {
-                return uiInfo with { WindowsPath = cachedEntrypoint };
-            }
-
             Directory.CreateDirectory(cacheRoot);
-            if (Directory.Exists(cacheCopyRoot))
+            if (!File.Exists(cachedEntrypoint) || ModuleUiCacheNeedsRefresh(sourceRoot, cacheCopyRoot))
             {
-                Directory.Delete(cacheCopyRoot, recursive: true);
-            }
+                if (Directory.Exists(cacheCopyRoot))
+                {
+                    Directory.Delete(cacheCopyRoot, recursive: true);
+                }
 
-            CopyDirectory(sourceRoot, cacheCopyRoot);
+                CopyDirectory(sourceRoot, cacheCopyRoot);
+            }
 
             return File.Exists(cachedEntrypoint)
                 ? uiInfo with { WindowsPath = cachedEntrypoint }
@@ -4585,6 +4583,34 @@ meta:
         return entrypointParts.Count <= 1
             ? sourceDirectory
             : Path.Combine(GetAncestorDirectory(sourceDirectory, entrypointParts.Count - 1), entrypointParts[0]);
+    }
+
+    private static bool ModuleUiCacheNeedsRefresh(string sourceRoot, string cacheCopyRoot)
+    {
+        if (!Directory.Exists(cacheCopyRoot))
+        {
+            return true;
+        }
+
+        foreach (var sourceFile in Directory.EnumerateFiles(sourceRoot, "*", SearchOption.AllDirectories))
+        {
+            var relativePath = Path.GetRelativePath(sourceRoot, sourceFile);
+            var cachedFile = Path.Combine(cacheCopyRoot, relativePath);
+            if (!File.Exists(cachedFile))
+            {
+                return true;
+            }
+
+            var sourceInfo = new FileInfo(sourceFile);
+            var cachedInfo = new FileInfo(cachedFile);
+            if (sourceInfo.Length != cachedInfo.Length ||
+                sourceInfo.LastWriteTimeUtc > cachedInfo.LastWriteTimeUtc)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static string GetAncestorDirectory(string path, int levels)
