@@ -1921,12 +1921,17 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
         try
         {
+            var liveProgress = new Progress<string>(line =>
+            {
+                AppendActivity(line);
+                ModuleUiStatus = BuildModuleActionFeedbackDetail(line);
+            });
             var output = await _workflowService.RunNymphModuleActionAsync(
                 _settings,
                 module.Id,
                 action,
                 args,
-                new Progress<string>(AppendActivity),
+                liveProgress,
                 CancellationToken.None).ConfigureAwait(true);
 
             AppendModuleActionOutput(module, action, output);

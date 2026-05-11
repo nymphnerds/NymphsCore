@@ -40,6 +40,7 @@ public sealed class InstallerWorkflowService
     private static readonly Regex TrainerYamlMaxSavesRegex = new(@"^\s*max_step_saves_to_keep:\s*(?<value>\d+)\s*$", RegexOptions.Compiled | RegexOptions.Multiline);
     private static readonly Regex TrainerYamlAdapterPathRegex = new(@"^\s*assistant_lora_path:\s*[""']?(?<value>[^""'\r\n#]+)", RegexOptions.Compiled | RegexOptions.Multiline);
     private static readonly Regex TrainerYamlSamplePromptRegex = new(@"^\s*-\s*prompt:\s*(?<value>.+?)\s*$", RegexOptions.Compiled | RegexOptions.Multiline);
+    private sealed record TrustedModuleSourceInfo(string RepositoryUrl, string Branch);
 
     public InstallerWorkflowService()
     {
@@ -4312,6 +4313,113 @@ meta:
         return $"https://github.com/{parts[0]}/{parts[1]}";
     }
 
+    private async Task<TrustedModuleSourceInfo?> TryGetTrustedNymphModuleSourceInfoAsync(
+        string moduleId,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            using var registryDocument = await FetchJsonDocumentAsync(NymphModuleRegistryUrl, cancellationToken).ConfigureAwait(false);
+            foreach (var moduleElement in registryDocument.RootElement.GetProperty("modules").EnumerateArray())
+            {
+                var registryModuleId = GetJsonString(moduleElement, "id")?.Trim().ToLowerInvariant();
+                if (!string.Equals(registryModuleId, moduleId, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                if (moduleElement.TryGetProperty("trusted", out var trustedElement) &&
+                    trustedElement.ValueKind == JsonValueKind.False)
+                {
+                    return null;
+                }
+
+                var manifestUrl = GetJsonString(moduleElement, "manifest_url")?.Trim();
+                if (string.IsNullOrWhiteSpace(manifestUrl))
+                {
+                    return null;
+                }
+
+                using var manifestDocument = await FetchJsonDocumentAsync(manifestUrl, cancellationToken).ConfigureAwait(false);
+                var repositoryUrl = ResolveNymphModuleRepositoryUrl(moduleElement, manifestDocument.RootElement, manifestUrl);
+                var branch = ResolveNymphModuleRepositoryBranch(manifestDocument.RootElement, manifestUrl);
+                return string.IsNullOrWhiteSpace(repositoryUrl) || string.IsNullOrWhiteSpace(branch)
+                    ? null
+                    : new TrustedModuleSourceInfo(repositoryUrl, branch);
+            }
+        }
+        catch
+        {
+            return null;
+        }
+
+        return null;
+    }
+
+    private static string ResolveNymphModuleRepositoryUrl(
+        JsonElement registryElement,
+        JsonElement manifestRoot,
+        string manifestUrl)
+    {
+        var repositoryUrl = "";
+        if (manifestRoot.TryGetProperty("source", out var sourceElement) && sourceElement.ValueKind == JsonValueKind.Object)
+        {
+            repositoryUrl = GetJsonString(sourceElement, "repo")
+                ?? GetJsonString(sourceElement, "repository")
+                ?? "";
+        }
+
+        if (string.IsNullOrWhiteSpace(repositoryUrl) &&
+            manifestRoot.TryGetProperty("repo", out var repositoryElement) &&
+            repositoryElement.ValueKind == JsonValueKind.Object)
+        {
+            repositoryUrl = GetJsonString(repositoryElement, "url") ?? "";
+        }
+
+        if (string.IsNullOrWhiteSpace(repositoryUrl))
+        {
+            repositoryUrl = GetJsonString(registryElement, "repo_url")
+                ?? GetJsonString(registryElement, "repository_url")
+                ?? BuildGitHubRepositoryUrlFromManifestUrl(manifestUrl);
+        }
+
+        return repositoryUrl.Trim();
+    }
+
+    private static string ResolveNymphModuleRepositoryBranch(JsonElement manifestRoot, string manifestUrl)
+    {
+        var branch = "";
+        if (manifestRoot.TryGetProperty("source", out var sourceElement) && sourceElement.ValueKind == JsonValueKind.Object)
+        {
+            branch = GetJsonString(sourceElement, "ref") ?? "";
+        }
+
+        if (string.IsNullOrWhiteSpace(branch) &&
+            manifestRoot.TryGetProperty("repo", out var repoElement) &&
+            repoElement.ValueKind == JsonValueKind.Object)
+        {
+            branch = GetJsonString(repoElement, "branch") ?? GetJsonString(repoElement, "ref") ?? "";
+        }
+
+        if (string.IsNullOrWhiteSpace(branch) &&
+            Uri.TryCreate(manifestUrl, UriKind.Absolute, out var uri) &&
+            string.Equals(uri.Host, "raw.githubusercontent.com", StringComparison.OrdinalIgnoreCase))
+        {
+            var parts = uri.AbsolutePath
+                .Trim('/')
+                .Split('/', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            if (parts.Length >= 3)
+            {
+                branch = parts[2];
+            }
+        }
+
+        branch = branch.Trim();
+        return Regex.IsMatch(branch, "^[A-Za-z0-9][A-Za-z0-9._/-]{0,119}$", RegexOptions.CultureInvariant)
+            ? branch
+            : "";
+    }
+
     private static IReadOnlyList<string> ReadObjectPropertyNames(JsonElement root, string propertyName)
     {
         if (!root.TryGetProperty(propertyName, out var element) || element.ValueKind != JsonValueKind.Object)
@@ -4677,6 +4785,43 @@ meta:
         return normalized;
     }
 
+    private static bool HasSafeModuleActionEntrypoint(
+        InstallSettings settings,
+        string manifestLinuxPath,
+        string action)
+    {
+        try
+        {
+            var manifestWindowsPath = ToWindowsWslPath(settings, manifestLinuxPath);
+            if (!File.Exists(manifestWindowsPath))
+            {
+                return false;
+            }
+
+            using var document = JsonDocument.Parse(File.ReadAllText(manifestWindowsPath));
+            var root = document.RootElement;
+            var entrypoint = "";
+            if (root.TryGetProperty("entrypoints", out var entrypointsElement) &&
+                entrypointsElement.ValueKind == JsonValueKind.Object)
+            {
+                entrypoint = GetJsonString(entrypointsElement, action) ?? "";
+            }
+
+            if (string.IsNullOrWhiteSpace(entrypoint) &&
+                root.TryGetProperty("manager", out var managerElement) &&
+                managerElement.ValueKind == JsonValueKind.Object)
+            {
+                entrypoint = GetJsonString(managerElement, action) ?? "";
+            }
+
+            return !string.IsNullOrWhiteSpace(NormalizeSafeRelativeModulePath(entrypoint));
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
     private async Task<CommandResult> RunPackagedManagerScriptAsync(
         InstallSettings settings,
         string scriptName,
@@ -4850,7 +4995,6 @@ meta:
         var cacheRepo = $"{homePath}/.cache/nymphs-modules/repos/{normalizedModuleId}";
         var moduleWorkRoot = $"{homePath}/.cache/nymphs-modules";
         var manifestPath = $"{cacheRepo}/nymph.json";
-        var registryPath = $"{moduleWorkRoot}/registry.json";
         var installedManifestPath = $"{installRoot}/nymph.json";
         var versionMarkerPath = $"{installRoot}/.nymph-module-version";
         var localBinEntrypoint = $"{homePath}/.local/bin/{normalizedModuleId}-{normalizedAction}";
@@ -4859,6 +5003,14 @@ meta:
         var commandTimeoutPrefix = isStatusAction ? "timeout 6s " : string.Empty;
         var unavailableStatus =
             $"echo id={ToBashSingleQuoted(normalizedModuleId)}; echo installed=false; echo running=false; echo version=not-installed; echo state=available; echo health=unknown; echo install_root={ToBashSingleQuoted(installRoot)}; echo detail={ToBashSingleQuoted("Module is available from the registry, but is not installed yet.")}; exit 0; ";
+        var hasLocalActionEntrypoint = !isStatusAction &&
+            (HasSafeModuleActionEntrypoint(settings, installedManifestPath, normalizedAction) ||
+             HasSafeModuleActionEntrypoint(settings, manifestPath, normalizedAction));
+        var trustedModuleSource = isStatusAction || hasLocalActionEntrypoint
+            ? null
+            : await TryGetTrustedNymphModuleSourceInfoAsync(normalizedModuleId, cancellationToken).ConfigureAwait(false);
+        var trustedRepoUrl = trustedModuleSource?.RepositoryUrl ?? "";
+        var trustedRepoBranch = trustedModuleSource?.Branch ?? "";
 
         if (isStatusAction)
         {
@@ -4905,29 +5057,21 @@ meta:
             (!isStatusAction
                 ? "if [[ -z \"$ENTRYPOINT\" ]]; then " +
                   $"  mkdir -p {ToBashSingleQuoted(moduleWorkRoot)}/repos; " +
-                  "  if command -v curl >/dev/null 2>&1 && command -v git >/dev/null 2>&1 && command -v python3 >/dev/null 2>&1; then " +
-                  $"    if curl -fsSL {ToBashSingleQuoted(NymphModuleRegistryUrl)} -o {ToBashSingleQuoted(registryPath)}; then " +
-                  $"      MANIFEST_URL=$(python3 - {ToBashSingleQuoted(registryPath)} {ToBashSingleQuoted(normalizedModuleId)} <<'PY'\n" +
-                  "import json, sys\n" +
-                  "registry_path, module_id = sys.argv[1], sys.argv[2]\n" +
-                  "with open(registry_path, 'r', encoding='utf-8') as handle:\n" +
-                  "    registry = json.load(handle)\n" +
-                  "for module in registry.get('modules', []):\n" +
-                  "    if str(module.get('id', '')).lower() == module_id and module.get('trusted', False):\n" +
-                  "        print(str(module.get('manifest_url', '')).strip())\n" +
-                  "        break\n" +
-                  "PY\n" +
-                  "      ); " +
-                  "      if [[ \"$MANIFEST_URL\" =~ ^https://raw\\.githubusercontent\\.com/nymphnerds/([^/]+)/([^/]+)/nymph\\.json$ ]]; then " +
-                  "        REPO_URL=\"https://github.com/nymphnerds/${BASH_REMATCH[1]}.git\"; " +
-                  "        REPO_BRANCH=\"${BASH_REMATCH[2]}\"; " +
+                  $"  REPO_URL={ToBashSingleQuoted(trustedRepoUrl)}; " +
+                  $"  REPO_BRANCH={ToBashSingleQuoted(trustedRepoBranch)}; " +
+                  "  if [[ -n \"$REPO_URL\" && -n \"$REPO_BRANCH\" ]]; then " +
+                  "    if command -v git >/dev/null 2>&1; then " +
                   $"        if [[ -d {ToBashSingleQuoted(cacheRepo)}/.git ]]; then " +
-                  $"          git -C {ToBashSingleQuoted(cacheRepo)} fetch --depth 1 origin \"$REPO_BRANCH\" >/dev/null 2>&1 && git -C {ToBashSingleQuoted(cacheRepo)} checkout -q FETCH_HEAD >/dev/null 2>&1 || true; " +
+                  $"          git -C {ToBashSingleQuoted(cacheRepo)} remote set-url origin \"$REPO_URL\" >/dev/null 2>&1 || true; " +
+                  $"          git -C {ToBashSingleQuoted(cacheRepo)} fetch --depth 1 origin \"$REPO_BRANCH\" >/dev/null 2>&1 && git -C {ToBashSingleQuoted(cacheRepo)} checkout -q FETCH_HEAD >/dev/null 2>&1 || echo module_action_repo_refresh_failed={ToBashSingleQuoted(cacheRepo)} >&2; " +
                   "        else " +
-                  $"          rm -rf {ToBashSingleQuoted(cacheRepo)}; git clone --depth 1 --branch \"$REPO_BRANCH\" \"$REPO_URL\" {ToBashSingleQuoted(cacheRepo)} >/dev/null 2>&1 || true; " +
+                  $"          rm -rf {ToBashSingleQuoted(cacheRepo)}; git clone --depth 1 --branch \"$REPO_BRANCH\" \"$REPO_URL\" {ToBashSingleQuoted(cacheRepo)} >/dev/null 2>&1 || echo module_action_repo_clone_failed={ToBashSingleQuoted(cacheRepo)} >&2; " +
                   "        fi; " +
-                  "      fi; " +
+                  "    else " +
+                  "      echo module_action_refresh_tools_missing >&2; " +
                   "    fi; " +
+                  "  else " +
+                  "    echo module_action_source_unresolved >&2; " +
                   "  fi; " +
                   $"  if [[ -f {ToBashSingleQuoted(manifestPath)} ]]; then " +
                   $"    ENTRYPOINT=$(MODULE_ACTION={ToBashSingleQuoted(normalizedAction)} python3 -c {ToBashSingleQuoted(entrypointReader)} {ToBashSingleQuoted(manifestPath)} 2>/dev/null || true); " +
@@ -4945,7 +5089,11 @@ meta:
             "else " +
             (isStatusAction
                 ? $"  {unavailableStatus}"
-                : $"  echo {ToBashSingleQuoted($"Module action is not available: {normalizedModuleId}/{normalizedAction}")} >&2; exit 5; ") +
+                : $"  echo {ToBashSingleQuoted($"Module action is not available: {normalizedModuleId}/{normalizedAction}")} >&2; " +
+                  $"  echo checked_installed_manifest={ToBashSingleQuoted(installedManifestPath)} >&2; " +
+                  $"  echo checked_cached_manifest={ToBashSingleQuoted(manifestPath)} >&2; " +
+                  $"  echo checked_cache_repo={ToBashSingleQuoted(cacheRepo)} >&2; " +
+                  "  exit 5; ") +
             "fi";
 
         progress.Report($"Running module action '{normalizedAction}' for '{normalizedModuleId}'...");

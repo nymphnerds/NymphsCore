@@ -374,6 +374,7 @@ The module owns the web UI label and behavior:
 - Set `ui.manager_ui.title` to the user-facing action label, such as `Fetch Models`.
 - Add every callable HTML action to `entrypoints`, such as `fetch_models`.
 - Keep the HTML lightweight; trigger model downloads, backend starts, scans, and other expensive work through explicit `nymphs-module-action://` links.
+- Long actions should print useful progress lines. The Manager keeps the hosted page open and streams stdout, stderr, and carriage-return progress into its standard module UI status strip.
 - The Manager may refresh the trusted module repo cache to find a newly declared action, but the action still belongs to the module manifest and script.
 
 ## Security And Safety Rules

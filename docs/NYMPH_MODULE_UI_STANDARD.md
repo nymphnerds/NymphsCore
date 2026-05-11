@@ -163,6 +163,8 @@ The Manager does not run arbitrary shell from HTML.
 
 If an older installed manifest is missing a requested action, the Manager may refresh the trusted registry repo cache and resolve the action from the current module manifest before reporting it unavailable. This keeps action routing generic while letting modules add buttons such as model fetchers without Manager code changes.
 
+While an action is running, the Manager keeps the hosted module page open and shows a standard status strip below the WebView. Stdout, stderr, and carriage-return progress from the module script stream into that status area and the Manager activity log. Module UI pages should therefore trigger long jobs with `nymphs-module-action://` and let the module script print useful progress instead of trying to run downloads during page load.
+
 ## Z-Image Example
 
 `nymphnerds/zimage` declares `ui.manager_ui.entrypoint` as `ui/manager.html`. That file lives in the module repo and is copied into the installed module root by the module installer.
