@@ -34,7 +34,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Content Include="AppAssets/SidebarPortraits/*.png">
+    <Content Include="AppAssets/SidebarPortraits/NymphMycelium1.png">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="../../scripts/bootstrap_fresh_distro_root.sh;
