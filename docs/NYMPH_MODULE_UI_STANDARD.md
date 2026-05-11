@@ -165,8 +165,33 @@ If an older installed manifest is missing a requested action, the Manager may re
 
 When a module UI action starts, the Manager switches to the standard Logs page and streams stdout, stderr, and carriage-return progress there. Module UI pages should therefore trigger long jobs with `nymphs-module-action://` and let the module script print useful progress instead of trying to run downloads during page load.
 
+## Shared Secrets
+
+Module UI pages must not print secrets into logs or bake them into installed
+HTML. For the current Z-Image fetch proof, the Manager supports a temporary
+shared Hugging Face token path:
+
+```text
+%LOCALAPPDATA%\NymphsCore\shared-secrets.json
+```
+
+The installed module UI can expose an `HF Token` password field and pass it to:
+
+```text
+nymphs-module-action://fetch_models?hf_token=<token>
+```
+
+The Manager saves that token and passes it into the download environment as
+`NYMPHS3D_HF_TOKEN`. The token itself must not be logged. Future modules should
+use a declared secret field contract instead of adding module-specific Manager
+code.
+
 ## Z-Image Example
 
 `nymphnerds/zimage` declares `ui.manager_ui.entrypoint` as `ui/manager.html`. That file lives in the module repo and is copied into the installed module root by the module installer.
 
 The Manager only hosts that local file after Z-Image is installed.
+
+The Z-Image Fetch Models UI currently offers all published Nunchaku Turbo
+weights: INT4 r32/r128/r256 and FP4 r32/r128. Auto is limited to r32/r128 because
+r256 is INT4-only. These are generation weights, not LoRA training precision.

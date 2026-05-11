@@ -8,6 +8,42 @@ This file focuses on user-facing and system-level changes rather than package-by
 
 Newest entries first.
 
+### 2026-05-11 late Z-Image fetch models, live logs, and persistent HF token
+Source: live modular Manager testing against Z-Image Fetch Models from the published Win x64 build.
+
+Changed in source:
+
+- fixed the Z-Image module UI cold-open regression; the hosted `local_html` page now opens instantly again in the tested build
+- rebuilt and pushed the modular Manager release artifact at `Manager/apps/NymphsCoreManager/publish/NymphsCoreManager-win-x64.zip`
+- expanded the Z-Image Fetch Models page to expose all published Nunchaku Turbo weight choices:
+  - INT4 r32/r128/r256
+  - FP4 r32/r128
+  - Auto r32/r128 only, because r256 is INT4-only
+- clarified the Z-Image UI copy: these are Nunchaku generation weights, not LoRA training precision; LoRA training BF16 is separate
+- changed long module UI actions to switch to the standard Logs page so download progress is visible instead of hidden under a custom HTML panel
+- kept the log stream pinned to the latest line while model downloads print progress
+- made Z-Image model download status explicit, including cache size, bytes downloaded during the step, and active partial files
+- added a persistent Hugging Face token field for model fetch:
+  - the token is entered on the Fetch Models page
+  - the Manager saves it under `%LOCALAPPDATA%\NymphsCore\shared-secrets.json`
+  - the token is passed to the fetch action through `NYMPHS3D_HF_TOKEN`
+  - the token itself is not printed to Manager logs
+- added Manager-side hydration for cached/installed fetch-model pages so an already installed Z-Image page can show the token field without requiring a reinstall
+
+Validated locally:
+
+- `dotnet build Manager/apps/NymphsCoreManager/NymphsCoreManager.csproj -c Release -p:EnableWindowsTargeting=true`
+- `dotnet publish ... -r win-x64`
+- zip integrity check passed for `NymphsCoreManager-win-x64.zip`
+- pushed `nymphnerds/NymphsCore` modular commit `b48b6f8 Add persistent HF token for model fetch`
+- pushed `nymphnerds/zimage` main commit `9d59781 Add HF token field to model fetch UI`
+
+Current caveats:
+
+- the HF token field is now reliable enough for Z-Image fetch testing, but a future module-secret contract should replace the temporary Manager-side fetch-model compatibility shim
+- Brain, LoRA, and TRELLIS still need the same start/stop/logs/install/uninstall proof pass as Z-Image and WORBI
+- the Blender addon still needs a smoke test against the modular runtime layout before promotion
+
 ### 2026-05-11 Z-Image modular proof, marker recovery, and WebView2 follow-up
 Source: live modular Manager testing against the managed `NymphsCore` WSL runtime and the new Z-Image module path.
 
@@ -51,12 +87,9 @@ Validated locally:
 - Z-Image install reached `installed_module_version=0.1.2`
 - Manager detected Z-Image as installed from the marker
 
-Current caveats:
+Current caveats as of the first 2026-05-11 pass:
 
-- do not push remote `modular` until the user confirms the local `0.9.13` build behaves correctly
 - do not create extra local branches for this proof work
-- Z-Image `status` currently contradicts the marker by failing or reporting not-installed even though the marker exists; fix the Z-Image module status script/manifest path next
-- module UI is now on WebView2 locally, but load latency still needs user-confirmed testing; do not declare the host-performance issue solved until the local EXE feels acceptable
 - startup/status should remain snappy but honest: show roster/cards quickly, update live status afterward, keep probes bounded, and avoid parallel WSL hammering until proven safe
 - `Manager/scripts/legacy` remains packaged for now as migration reference, but should be removed from release packaging after official modules are fully migrated and tested
 

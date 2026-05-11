@@ -165,6 +165,15 @@ With prefetch off:
 
 The optional Hugging Face token box is only for downloads that need your Hugging Face account access. The Manager saves it in your Windows user profile so future Manager downloads and addon-launched local runtimes can reuse it; it is not written permanently into the WSL distro.
 
+On the modular Manager, installed module pages such as Z-Image Fetch Models can
+also show an `HF Token` field. It uses the same saved token file:
+
+```text
+%LOCALAPPDATA%\NymphsCore\shared-secrets.json
+```
+
+The token is used for Hugging Face downloads and should not appear in Manager logs.
+
 ### Experimental Nymphs-Brain
 
 `Nymphs-Brain` is an optional experimental local LLM stack. It is not required for the Blender backend and can be skipped safely.
@@ -241,6 +250,11 @@ Status checks are quick.
 Smoke tests are slower because they start a backend and wait for the local API to answer.
 
 Use `Fetch Models Now` if you skipped prefetch or if a model download was interrupted.
+
+For Z-Image Turbo, open the installed module page and use `Fetch Models`. The
+Manager switches to `Logs` while the action runs. Healthy downloads should print
+periodic `MODEL DOWNLOAD STATUS` lines showing cache size, downloaded bytes for
+the current step, and active partial files.
 
 If `Nymphs-Brain` was installed, use the dedicated `Brain` page to:
 

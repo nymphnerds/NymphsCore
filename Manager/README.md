@@ -110,6 +110,15 @@ Installed modules may expose a local Manager UI from their installed `nymph.json
 
 Current support is installed `local_html` hosted by WebView2. The Manager owns the shell and Back bar; the module owns the content inside the hosted surface.
 
+Long-running module UI actions, such as model downloads, should switch to the
+standard Logs page and stream stdout/stderr there. This keeps progress visible
+and avoids hiding downloads inside a cramped module panel.
+
+Model-download pages may request a Hugging Face token. The current Manager saves
+the shared token under `%LOCALAPPDATA%\NymphsCore\shared-secrets.json`, hydrates
+the field when the page opens again, and passes it to download actions without
+printing the secret to logs.
+
 For UI rules and the Z-Image fast-load lessons, read:
 
 ```text

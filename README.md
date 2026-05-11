@@ -50,8 +50,9 @@ What works now:
 - The old hardcoded module surfaces have been removed from the active shell.
 - Module status is parsed through generic `key=value` snapshots.
 - WORBI is the first live proof module for the new lifecycle contract.
-- Z-Image is the current heavy-runtime proof path for installed module state, model actions, and custom module UI.
+- Z-Image is the current heavy-runtime proof path for installed module state, model actions, custom module UI, and visible model-download progress.
 - Installed modules can expose `ui.manager_ui` from their installed `nymph.json`; the Manager hosts current `local_html` pages through WebView2 while keeping the standard shell and Back bar.
+- Z-Image Fetch Models now supports all published Nunchaku Turbo weights, keeps long download output on the standard Logs page, and can persist an optional Hugging Face token under the Windows user profile.
 - The packaged Manager release is rebuilt under:
 
 ```text
@@ -62,7 +63,7 @@ Manager/apps/NymphsCoreManager/publish/NymphsCoreManager-win-x64.zip
 Still in proof phase:
 
 - Brain, LoRA, and TRELLIS still need the full install/status/start/stop/open/logs/uninstall validation loop under the new module contract.
-- Z-Image has been live-tested far enough to prove installed-state recovery and the WebView2 module UI path, but its status/action scripts still need the same abuse pass as the rest of the official modules.
+- Z-Image has been live-tested far enough to prove installed-state recovery, the WebView2 module UI path, and model fetching through the legacy-prefetch bridge. It still needs the same full abuse pass as the rest of the official modules.
 - Current custom module UI support is intentionally narrow: installed `local_html` only. `local_web_app`, `served_web_app`, and external browser flows are planned but should not be promoted before they are timed and visually verified.
 - `Delete Module + Data` remains conservative until each module declares safe purge scopes.
 
@@ -200,6 +201,17 @@ flow from the `main` Manager. Do not route this through registry repo cloning or
 manifest fallback logic; that path was slower to diagnose and did not match the
 tested monolith behavior.
 
+Z-Image Fetch Models currently offers:
+
+- INT4 r32/r128/r256
+- FP4 r32/r128
+- Auto r32/r128 only
+
+Those options are Nunchaku generation weights for Z-Image Turbo. They are not
+LoRA training precision; LoRA training uses BF16 separately. The optional HF
+Token field is saved to `%LOCALAPPDATA%\NymphsCore\shared-secrets.json` and
+passed to model downloads without printing the token to logs.
+
 ---
 
 ## Official Modules
@@ -272,3 +284,10 @@ Module logs should be standardized through module manifests and status output. T
 This branch is useful for testing the new Manager shell and module lifecycle contract.
 
 It should not be treated as the final stable public installer until the official modules have each passed the same install/status/start/stop/open/logs/uninstall loop from registry cards.
+
+Latest pushed checkpoint:
+
+```text
+NymphsCore modular: b48b6f8 Add persistent HF token for model fetch
+Z-Image module:     9d59781 Add HF token field to model fetch UI
+```

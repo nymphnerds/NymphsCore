@@ -50,6 +50,8 @@ NymphsCoreManager-win-x64/
 - If an existing `NymphsCore` install is already present, the manager can reuse it for Base Runtime repair and module lifecycle actions.
 - Module installed state is based on `.nymph-module-version`, not just whether an install folder exists.
 - Installed modules may expose custom Manager UI through `ui.manager_ui`; current support is WebView2-hosted `local_html`.
+- Long module UI actions should route to the Manager Logs page so stdout, stderr, and download progress stay visible.
+- The Fetch Models HF token field is persisted in `%LOCALAPPDATA%\NymphsCore\shared-secrets.json` and is not echoed to logs.
 - Keep future module UI work aligned with [Nymph Module UI Standard](../../../docs/NYMPH_MODULE_UI_STANDARD.md).
 
 ## If Something Fails

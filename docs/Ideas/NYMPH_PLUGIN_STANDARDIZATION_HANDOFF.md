@@ -154,6 +154,41 @@ WebView2 prewarm is attempted offscreen during app startup while runtime/module 
 
 ## Tomorrow Starts Here
 
+End-of-day checkpoint, 2026-05-11:
+
+```text
+NymphsCore modular pushed: b48b6f8 Add persistent HF token for model fetch
+Z-Image module pushed:     9d59781 Add HF token field to model fetch UI
+Manager build marker:      zimage-fetch-hf-token-field-20260511-2125
+Release exe:               Manager/apps/NymphsCoreManager/publish/win-x64/NymphsCoreManager.exe
+Release zip:               Manager/apps/NymphsCoreManager/publish/NymphsCoreManager-win-x64.zip
+```
+
+What is now working from the Z-Image proof:
+
+```text
+Module UI opens instantly again in the tested Win x64 build.
+Z-Image Fetch Models exposes INT4 r32/r128/r256 and FP4 r32/r128.
+Auto is r32/r128 only because r256 is INT4-only.
+Fetch Models runs through the tested legacy prefetch path, not registry guessing.
+Long fetch jobs switch to Logs.
+Logs stay pinned to the latest line while download status prints.
+MODEL DOWNLOAD STATUS lines show cache size, downloaded bytes for the step, and active partial files.
+The Fetch Models HF Token field persists to %LOCALAPPDATA%\NymphsCore\shared-secrets.json.
+The token is passed as NYMPHS3D_HF_TOKEN and must not be printed.
+```
+
+Tomorrow should start by testing, not redesigning:
+
+```text
+1. Launch the pushed Manager EXE from publish/win-x64.
+2. Open Z-Image Fetch Models and confirm the HF Token field appears.
+3. Run a small fetch path with token populated if needed.
+4. Confirm Logs switches automatically and stays at the latest line.
+5. Smoke-test the Blender addon against the modular runtime layout.
+6. Then continue module-by-module proof: LoRA, Brain, TRELLIS.
+```
+
 The next session should not start by redesigning the shell again. The shell is now good enough to begin the proof phase.
 
 Recommended prompt for the next session:
@@ -858,6 +893,8 @@ old `legacy/prefetch_models.sh --backend zimage` path, with `legacy/common_paths
 staged beside it inside WSL at runtime. This keeps the modular Manager using the
 known-good monolith prefetch behavior while the real module-owned fetch surface is
 being designed. Do not replace this with registry cloning or manifest guessing.
+The current fetch bridge also passes `NYMPHS3D_HF_TOKEN` from the shared Manager
+secrets file when the Fetch Models UI provides an HF token.
 After WORBI, Z-Image, LoRA, Brain, and TRELLIS are all tested from their module
 repos, delete whatever is left in Manager/scripts/legacy.
 ```
