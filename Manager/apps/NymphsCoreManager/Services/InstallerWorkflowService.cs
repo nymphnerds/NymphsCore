@@ -5002,6 +5002,7 @@ meta:
         var versionMarkerPath = $"{installRoot}/.nymph-module-version";
         var localBinEntrypoint = $"{homePath}/.local/bin/{normalizedModuleId}-{normalizedAction}";
         var installRootBinEntrypoint = $"{installRoot}/bin/{normalizedModuleId}-{normalizedAction}";
+        var conventionalEntrypoint = $"scripts/{normalizedModuleId.Replace('-', '_')}_{normalizedAction}.sh";
         var isStatusAction = string.Equals(normalizedAction, "status", StringComparison.OrdinalIgnoreCase);
         var commandTimeoutPrefix = isStatusAction ? "timeout 6s " : string.Empty;
         var unavailableStatus =
@@ -5066,6 +5067,9 @@ meta:
             $"if [[ -z \"$ENTRYPOINT\" && -f {ToBashSingleQuoted(manifestPath)} ]]; then " +
             $"ENTRYPOINT=$(MODULE_ACTION={ToBashSingleQuoted(normalizedAction)} python3 -c {ToBashSingleQuoted(entrypointReader)} {ToBashSingleQuoted(manifestPath)} 2>/dev/null || true); " +
             "fi; " +
+            $"if [[ -z \"$ENTRYPOINT\" && -f {ToBashSingleQuoted(cacheRepo)}/{ToBashSingleQuoted(conventionalEntrypoint)} ]]; then " +
+            $"ENTRYPOINT={ToBashSingleQuoted(conventionalEntrypoint)}; " +
+            "fi; " +
             (!isStatusAction
                 ? "if [[ -z \"$ENTRYPOINT\" ]]; then " +
                   $"  mkdir -p {ToBashSingleQuoted(moduleWorkRoot)}/repos; " +
@@ -5077,6 +5081,9 @@ meta:
                   "  fi; " +
                   $"  if [[ -f {ToBashSingleQuoted(manifestPath)} ]]; then " +
                   $"    ENTRYPOINT=$(MODULE_ACTION={ToBashSingleQuoted(normalizedAction)} python3 -c {ToBashSingleQuoted(entrypointReader)} {ToBashSingleQuoted(manifestPath)} 2>/dev/null || true); " +
+                  "  fi; " +
+                  $"  if [[ -z \"$ENTRYPOINT\" && -f {ToBashSingleQuoted(cacheRepo)}/{ToBashSingleQuoted(conventionalEntrypoint)} ]]; then " +
+                  $"    ENTRYPOINT={ToBashSingleQuoted(conventionalEntrypoint)}; " +
                   "  fi; " +
                   "fi; "
                 : string.Empty) +
