@@ -12,9 +12,9 @@ This repository contains the Windows Manager, WSL runtime scripts, Blender addon
 
 Branch: `modular`
 
-Manager build: `v0.9.3`
+Manager build: `v0.9.13`
 
-This branch is an active plugin/module standardization checkpoint.
+This branch is an active module-standardization checkpoint. It is the current place to test the registry-driven Manager, Base Runtime separation, module lifecycle contract, and installed-module UI hosting.
 
 ### Branch Promotion Notes
 
@@ -50,6 +50,8 @@ What works now:
 - The old hardcoded module surfaces have been removed from the active shell.
 - Module status is parsed through generic `key=value` snapshots.
 - WORBI is the first live proof module for the new lifecycle contract.
+- Z-Image is the current heavy-runtime proof path for installed module state, model actions, and custom module UI.
+- Installed modules can expose `ui.manager_ui` from their installed `nymph.json`; the Manager hosts current `local_html` pages through WebView2 while keeping the standard shell and Back bar.
 - The packaged Manager release is rebuilt under:
 
 ```text
@@ -59,8 +61,9 @@ Manager/apps/NymphsCoreManager/publish/NymphsCoreManager-win-x64.zip
 
 Still in proof phase:
 
-- Brain, Z-Image, LoRA, and TRELLIS still need full install/status/start/stop/open/logs/uninstall validation under the new module contract.
-- Module-owned UI surfaces are not finished yet.
+- Brain, LoRA, and TRELLIS still need the full install/status/start/stop/open/logs/uninstall validation loop under the new module contract.
+- Z-Image has been live-tested far enough to prove installed-state recovery and the WebView2 module UI path, but its status/action scripts still need the same abuse pass as the rest of the official modules.
+- Current custom module UI support is intentionally narrow: installed `local_html` only. `local_web_app`, `served_web_app`, and external browser flows are planned but should not be promoted before they are timed and visually verified.
 - `Delete Module + Data` remains conservative until each module declares safe purge scopes.
 
 Cleaned repo layout:
@@ -73,6 +76,10 @@ Cleaned repo layout:
 The live handoff for this work is:
 
 [Nymph Plugin Standardization Handoff](docs/Ideas/NYMPH_PLUGIN_STANDARDIZATION_HANDOFF.md)
+
+For future Manager/module UI work, read this first:
+
+[Nymph Module UI Standard](docs/NYMPH_MODULE_UI_STANDARD.md)
 
 ---
 
@@ -177,11 +184,15 @@ Current shell:
 
 - `Home`: system overview and registry-provided module cards
 - `Base Runtime`: Windows WSL readiness, managed runtime install, progress, current state, and unregister
+- module detail pages: registry/manifest facts, lifecycle actions, logs, install/update/uninstall controls, and module-owned UI entry when available
+- module UI host: standard Manager sidebar plus a standard Back bar above the installed module's WebView2 content
 - `Logs`: selectable Manager log stream
 - `Guide`: lightweight user guidance
 - compact monitor mode: sidebar-only runtime monitor with optional always-on-top behavior
 
 Module cards open a detail page first. Install is a deliberate action from the detail page.
+
+Module UI performance rule: do not move first-load navigation, WebView2 profile setup, cache loading, or navigation filtering without timing the result. The Z-Image UI proof found that Dispatcher priority, `NavigateToString`, `data:` navigation allowance, local WebView2 user-data folders, and avoiding background-status reloads are all load-time critical.
 
 ---
 
@@ -201,7 +212,7 @@ Proof order:
 WORBI -> Z-Image -> LoRA -> Brain -> TRELLIS
 ```
 
-WORBI is currently the most standardized live module. Its installer has been hardened to stage installs, write the version marker last, and avoid backup clutter.
+WORBI is currently the cleanest lifecycle-contract proof. Z-Image is the current heavy-runtime and custom-UI proof. The remaining official modules should follow the same marker, staging, bounded-status, and manifest-owned UI rules before this branch is promoted.
 
 ---
 
@@ -243,6 +254,8 @@ Module logs should be standardized through module manifests and status output. T
 ## Important Docs
 
 - [Nymph Plugin Standardization Handoff](docs/Ideas/NYMPH_PLUGIN_STANDARDIZATION_HANDOFF.md)
+- [Nymph Module UI Standard](docs/NYMPH_MODULE_UI_STANDARD.md)
+- [Nymph Module Making Guide](docs/NYMPHS_MODULE_MAKING_GUIDE.md)
 - [Plugin Manager Implementation Plan](docs/Ideas/NYMPH_PLUGIN_MANAGER_IMPLEMENTATION_PLAN.md)
 - [Install Disk And Model Footprint](docs/FOOTPRINT.md)
 

@@ -1,18 +1,22 @@
 # NymphsCore Manager
 
-NymphsCore Manager is the Windows setup and repair app for the local backend runtime used by the Nymphs Blender addon.
+NymphsCore Manager is the Windows shell for creating the local `NymphsCore` WSL runtime and managing optional Nymph modules from the registry.
 
-Use it when you want the Nymphs backend on your own Windows PC, without manually building WSL, CUDA, Python environments, or model caches.
+Use it when you want Nymphs tools on your own Windows PC without manually building WSL, CUDA, Python environments, module repos, or model caches.
 
 ## What It Installs
 
-The manager imports and maintains a dedicated WSL distro named `NymphsCore`.
+The manager creates and maintains a dedicated WSL distro named `NymphsCore`.
 
-Inside that distro, it prepares the supported local backend stack:
+Base Runtime prepares the managed Linux environment. Optional modules are installed later from registry cards:
 
-- `TRELLIS.2` for single-image image-to-3D and texture/retexture workflows
-- `Z-Image` / Nunchaku for local image generation
-- CUDA 13.0, Python environments, helper scripts, and runtime checks
+- `Brain`
+- `Z-Image Turbo`
+- `LoRA`
+- `TRELLIS.2`
+- `WORBI`
+
+Modules own their install/start/stop/status/log actions through their manifests and entrypoint scripts. Installed modules may also expose a custom Manager UI through `ui.manager_ui`.
 
 The managed Linux user inside the distro is:
 
@@ -53,8 +57,9 @@ Do not run the manager from inside the zip. Extract it first.
 2. Extract it to a normal folder on Windows.
 3. Run `NymphsCoreManager.exe`.
 4. Approve the Windows administrator prompt.
-5. Leave model prefetch turned on unless you need a shorter first install.
-6. Use `Runtime Tools` after install to check backend readiness or run smoke tests.
+5. Open `Base Runtime` and install or repair the managed runtime.
+6. Return Home and install modules from their cards.
+7. Open an installed module page for lifecycle actions, logs, and module-owned UI when the module provides it.
 
 The manager build is currently unsigned. If Windows SmartScreen appears, choose `More info`, then `Run anyway`.
 
@@ -66,10 +71,9 @@ Recommended baseline:
 - NVIDIA GPU with current drivers
 - WSL available on the machine
 - reliable internet connection
-- about `120 GB` free before install
-- `150 GB` free if you want comfortable headroom
+- enough free disk space for the base runtime plus the modules and model weights you choose
 
-The ready-to-run backend footprint is currently about `92 GB` installed. The model prefetch stage can download about `72 GB` of required model and helper files.
+Disk usage is now module-dependent. Heavy AI modules and their model caches can still consume many tens of gigabytes.
 
 For the detailed disk story, read:
 
@@ -77,82 +81,52 @@ For the detailed disk story, read:
 
 ## Manager Flow
 
-The manager walks through these steps:
+The current modular Manager surfaces are:
 
-- `Welcome`: explains the local runtime and links to docs
-- `System Check`: checks administrator access, WSL, NVIDIA visibility, drive space, and existing distros
-- `Install Location`: chooses the Windows drive/folder for the managed distro
-- `WSL Resources And Models`: chooses WSL resource settings, model prefetch, and optional experimental modules
-- `Installation Progress`: imports the distro and prepares runtime environments
-- `Finish`: summarizes the install
-- `Runtime Tools`: checks backend status, fetches missing models, and runs smoke tests
+- `Home`: system overview and registry-provided module cards
+- `Base Runtime`: WSL readiness, managed runtime install/repair, progress, current state, and unregister
+- module detail pages: lifecycle actions, status, logs, source facts, and custom module UI entry when available
+- `Logs`: selectable Manager log stream
+- `Guide`: lightweight guidance linked to repo docs
+- compact monitor mode: sidebar-only runtime monitor with optional always-on-top behavior
 
-Model prefetch is recommended for non-technical users. Turning it off only skips the large model downloads; the manager still prepares the runtime stack. Missing models can be fetched later from `Runtime Tools` or during first real use from the addon.
+Module cards open detail pages first. Installing, updating, uninstalling, starting, stopping, opening logs, and opening module UI should all happen through the module page.
 
-The installer can also offer an experimental optional `Nymphs-Brain` local LLM stack. It installs under `/home/nymph/Nymphs-Brain` inside WSL when selected, is not required for the Blender backend, and can be skipped safely.
+## Module UI
 
-If selected, `Nymphs-Brain` now includes:
+Installed modules may expose a local Manager UI from their installed `nymph.json`:
 
-- LM Studio CLI model management
-- a CUDA-accelerated `llama-server` local LLM runtime on `http://localhost:8000/v1`
-- an Open WebUI install that opens on `http://localhost:8081`
-- a local MCP gateway for Cline/Open WebUI tool access
-- helper commands under `/home/nymph/Nymphs-Brain/bin`
-
-The installer and runtime wrappers use LM Studio's standard CLI flow for model download and management, then serve the selected GGUF model through `llama-server`. No separate manual daemon bootstrap step should be needed.
-
-For the full optional Brain stack guide, see:
-
-```text
-../docs/NYMPHS_BRAIN_GUIDE.md
+```json
+{
+  "ui": {
+    "manager_ui": {
+      "type": "local_html",
+      "entrypoint": "ui/manager.html",
+      "title": "Module Controls"
+    }
+  }
+}
 ```
 
-Useful Brain commands:
+Current support is installed `local_html` hosted by WebView2. The Manager owns the shell and Back bar; the module owns the content inside the hosted surface.
+
+For UI rules and the Z-Image fast-load lessons, read:
 
 ```text
-/home/nymph/Nymphs-Brain/bin/lms-start
-/home/nymph/Nymphs-Brain/bin/lms-model
-/home/nymph/Nymphs-Brain/bin/lms-status
-/home/nymph/Nymphs-Brain/bin/lms-stop
-/home/nymph/Nymphs-Brain/bin/mcp-start
-/home/nymph/Nymphs-Brain/bin/open-webui-start
-/home/nymph/Nymphs-Brain/bin/brain-status
+../docs/NYMPH_MODULE_UI_STANDARD.md
 ```
 
-The current Brain stack supports:
+## Official Modules
 
-- one configured local GGUF model served by `llama-server`
-- a selected context length for that local model
-- an optional remote `llm-wrapper` model for OpenRouter-backed delegation
-- keeping additional client roles external if your workflow uses an online model
-- refreshing installed Brain wrapper scripts from the Brain page `Update Stack` action
+Registry cards currently cover:
 
-## Runtime Tools
+- Brain
+- Z-Image Turbo
+- LoRA
+- TRELLIS.2
+- WORBI
 
-Use `Runtime Tools` to:
-
-- check whether `Z-Image` and `TRELLIS.2` are ready
-- fetch missing model files into an existing install
-- run backend smoke tests
-- confirm the local API can start
-- check whether the optional Brain module is installed
-
-Smoke tests are slower than normal status checks because they actually start a backend and wait for a response.
-
-## Brain
-
-Use the dedicated `Brain` page to:
-
-- check Brain `LLM`, `MCP`, `Open WebUI`, and model status
-- start or stop the Brain stack
-- start or stop Open WebUI
-- open the `Manage Models` terminal flow
-- update the Linux-side Brain stack components
-- inspect the Brain activity log
-
-The primary Brain action becomes `Stop Brain` whenever any Brain service is running, even if only WebUI or MCP is active. This gives the page a reliable all-stop path for partial service states.
-
-The Brain page is optional. If the module was not selected during install, the main backend setup still works normally without it.
+WORBI is the cleanest lifecycle-contract proof. Z-Image is the current heavy-runtime and custom-UI proof. Brain, LoRA, and TRELLIS still need the same full validation pass.
 
 ## Logs And Troubleshooting
 
@@ -171,9 +145,10 @@ Common causes:
 - not enough free disk space
 - WSL is disabled or unhealthy
 - NVIDIA is not visible inside WSL
-- the model download is still running or was interrupted
+- a module download/install is still running or was interrupted
+- a module status script failed even though the install marker exists
 
-Rerunning the latest manager is the intended repair path for interrupted installs, missing packages, missing models, or refreshed runtime scripts. The optional Nymphs-Brain install should not require a separate LM Studio initialization step outside the manager.
+Rerunning the latest manager is the intended repair path for Base Runtime problems. Module problems should be handled from the module page first.
 
 ## After Install
 
@@ -189,7 +164,8 @@ Useful docs:
 - [Absolute Beginner Local Backend Install Guide](../docs/ABSOLUTE_BEGINNER_INSTALL_GUIDE.md)
 - [Install Disk And Model Footprint](../docs/FOOTPRINT.md)
 - [Blender Addon User Guide](../docs/BLENDER_ADDON_USER_GUIDE.md)
-- [Nymphs-Brain Guide](../docs/NYMPHS_BRAIN_GUIDE.md)
+- [Nymph Module UI Standard](../docs/NYMPH_MODULE_UI_STANDARD.md)
+- [Nymph Module Making Guide](../docs/NYMPHS_MODULE_MAKING_GUIDE.md)
 
 ## Developer Notes
 

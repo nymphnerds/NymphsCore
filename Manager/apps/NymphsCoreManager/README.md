@@ -1,6 +1,6 @@
 # NymphsCore Manager
 
-This folder contains the Windows manager app for the lean `NymphsCore` WSL runtime.
+This folder contains the Windows Manager app for the modular `NymphsCore` runtime.
 
 ## What To Download
 
@@ -12,7 +12,7 @@ Current manager download:
 
 - [NymphsCoreManager-win-x64.zip](https://github.com/nymphnerds/NymphsCore/raw/modular/Manager/apps/NymphsCoreManager/publish/NymphsCoreManager-win-x64.zip)
 
-The manager bootstraps a fresh Ubuntu WSL base locally. A prebuilt distro package is not required.
+The manager bootstraps a fresh Ubuntu WSL base locally for Base Runtime. Optional modules are installed later from registry cards.
 
 Optional maintainer shortcut: if you already have a compatible `NymphsCore.tar`, place it in the extracted manager folder next to `NymphsCoreManager.exe` to use the faster prebuilt path.
 
@@ -21,7 +21,8 @@ Optional maintainer shortcut: if you already have a compatible `NymphsCore.tar`,
 1. Download `NymphsCoreManager-win-x64.zip`.
 2. Extract the zip to a normal folder on Windows.
 3. Run `NymphsCoreManager.exe`.
-4. Let the manager create or reuse the dedicated `NymphsCore` WSL distro.
+4. Open `Base Runtime` and let the manager create or reuse the dedicated `NymphsCore` WSL distro.
+5. Return Home and install modules from their cards.
 
 Your folder should look like this:
 
@@ -36,12 +37,9 @@ NymphsCoreManager-win-x64/
 
 1. Double-click `NymphsCoreManager.exe`.
 2. If Windows asks for administrator permission, click `Yes`.
-3. Run the system checks.
-4. Continue through the install steps.
-5. After a successful install, use the finish page to:
-   - fetch models later without reinstalling
-   - run smoke tests for `Z-Image` and `TRELLIS.2`
-6. To repair, refresh, or install optional experimental modules later, rerun the latest `NymphsCore Manager`.
+3. Use `Base Runtime` for WSL readiness, install/repair, current state, and unregister.
+4. Use module cards for install/update/uninstall/start/stop/open/logs.
+5. Use `Open Module UI` on installed modules that provide `ui.manager_ui`.
 
 ## Important Notes
 
@@ -49,22 +47,10 @@ NymphsCoreManager-win-x64/
 - Extract it first.
 - `NymphsCore.tar` is optional and is not shown as a required system check.
 - If the tar is missing, the app bootstraps a fresh Ubuntu base locally.
-- If an existing `NymphsCore` install is already present, the manager can reuse it for:
-  - update checks
-  - model downloads
-  - smoke tests
-  - repair / refresh reruns
-- `Nymphs-Brain` is optional and experimental. If selected, it installs inside WSL at `/home/nymph/Nymphs-Brain`; it is not required for the Blender backend.
-- if `Nymphs-Brain` is selected, the Manager exposes a dedicated Brain page with:
-  - `Start Brain`
-  - `Stop Brain`
-  - `Start/Stop WebUI`
-  - `Manage Models`
-  - `Update Stack`
-- Brain local model selection is handled by `lms-model`; optional remote llm-wrapper configuration is handled from the Brain page.
-- `Update Stack` refreshes the installed Brain wrapper scripts before updating llama-server, LM Studio model management, and Open WebUI packages.
-- the Brain install and Brain page actions use LM Studio CLI for model fetch/management, then launch `llama-server` on `http://localhost:8000/v1` for inference
-- Open WebUI is intended to open on `http://localhost:8081`
+- If an existing `NymphsCore` install is already present, the manager can reuse it for Base Runtime repair and module lifecycle actions.
+- Module installed state is based on `.nymph-module-version`, not just whether an install folder exists.
+- Installed modules may expose custom Manager UI through `ui.manager_ui`; current support is WebView2-hosted `local_html`.
+- Keep future module UI work aligned with [Nymph Module UI Standard](../../../docs/NYMPH_MODULE_UI_STANDARD.md).
 
 ## If Something Fails
 
