@@ -117,12 +117,12 @@ print_hf_download_progress() {
     cache_delta=0
   fi
 
-  echo "${label}: still downloading ${repo_id}..."
+  echo "MODEL DOWNLOAD STATUS: phase=${label} repo=${repo_id} status=downloading"
   if [[ -n "${NYMPHS3D_PREFETCH_COMPONENT_HINT:-}" ]]; then
-    echo "- waiting on: ${NYMPHS3D_PREFETCH_COMPONENT_HINT}"
+    echo "MODEL DOWNLOAD STATUS: waiting_on=${NYMPHS3D_PREFETCH_COMPONENT_HINT}"
   fi
-  echo "- shared HF cache: $(format_bytes "${current_cache_bytes}") (+$(format_bytes "${cache_delta}") during this step)"
-  echo "- repo cache blobs: $(format_bytes "${repo_bytes}") (${incomplete_count} active partial files)"
+  echo "MODEL DOWNLOAD STATUS: cache_dir=${HF_CACHE_DIR} shared_cache=$(format_bytes "${current_cache_bytes}") downloaded_this_step=$(format_bytes "${cache_delta}")"
+  echo "MODEL DOWNLOAD STATUS: repo_cache_blobs=$(format_bytes "${repo_bytes}") active_partial_files=${incomplete_count}"
 }
 
 run_with_hf_download_progress() {
@@ -144,7 +144,7 @@ run_with_hf_download_progress() {
   marker="$(mktemp "${TMPDIR:-/tmp}/nymphscore-prefetch.XXXXXX.status")"
   rm -f "${marker}"
 
-  echo "${label}: download started. Progress will update every ${interval}s while Hugging Face is busy."
+  echo "MODEL DOWNLOAD STARTED: phase=${label} repo=${repo_id} cache_dir=${HF_CACHE_DIR} progress_interval=${interval}s"
   (
     set +e
     "$@"
@@ -168,9 +168,9 @@ run_with_hf_download_progress() {
 
   if [[ "${status}" -eq 0 ]]; then
     print_hf_download_progress "${label}" "${repo_id}" "${start_cache_bytes}"
-    echo "${label}: download step complete."
+    echo "MODEL DOWNLOAD COMPLETE: phase=${label} repo=${repo_id}"
   else
-    echo "${label}: download step failed with status ${status}."
+    echo "MODEL DOWNLOAD FAILED: phase=${label} repo=${repo_id} exit_status=${status}"
   fi
 
   return "${status}"
