@@ -4993,6 +4993,16 @@ meta:
             ? string.Empty
             : " " + string.Join(" ", normalizedActionArguments.Select(ToBashSingleQuoted));
         var normalizedModuleId = moduleId.Trim().ToLowerInvariant();
+        if (string.Equals(normalizedModuleId, "zimage", StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(normalizedAction, "fetch_models", StringComparison.OrdinalIgnoreCase))
+        {
+            return await RunZImageFetchModelsActionAsync(
+                settings,
+                normalizedActionArguments,
+                progress,
+                cancellationToken).ConfigureAwait(false);
+        }
+
         var homePath = $"/home/{settings.LinuxUser}";
         var installRoot = GetNymphModuleInstallRoot(settings, normalizedModuleId);
         var cacheRepo = $"{homePath}/.cache/nymphs-modules/repos/{normalizedModuleId}";
@@ -5118,6 +5128,127 @@ meta:
             var detail = string.IsNullOrWhiteSpace(result.CombinedOutput)
                 ? $"Module action '{normalizedAction}' failed for '{normalizedModuleId}' with exit code {result.ExitCode}."
                 : $"Module action '{normalizedAction}' failed for '{normalizedModuleId}' with exit code {result.ExitCode}.\n\n{result.CombinedOutput.Trim()}";
+            throw new InvalidOperationException(detail);
+        }
+
+        return result.CombinedOutput.Trim();
+    }
+
+    private async Task<string> RunZImageFetchModelsActionAsync(
+        InstallSettings settings,
+        IReadOnlyList<string> actionArguments,
+        IProgress<string> progress,
+        CancellationToken cancellationToken)
+    {
+        var precision = "auto";
+        var rank = "32";
+        for (var index = 0; index < actionArguments.Count; index++)
+        {
+            var argument = actionArguments[index];
+            if (string.Equals(argument, "--precision", StringComparison.OrdinalIgnoreCase) &&
+                index + 1 < actionArguments.Count)
+            {
+                precision = actionArguments[++index].Trim().ToLowerInvariant();
+                continue;
+            }
+
+            if (argument.StartsWith("--precision=", StringComparison.OrdinalIgnoreCase))
+            {
+                precision = argument["--precision=".Length..].Trim().ToLowerInvariant();
+                continue;
+            }
+
+            if (string.Equals(argument, "--rank", StringComparison.OrdinalIgnoreCase) &&
+                index + 1 < actionArguments.Count)
+            {
+                rank = actionArguments[++index].Trim();
+                continue;
+            }
+
+            if (argument.StartsWith("--rank=", StringComparison.OrdinalIgnoreCase))
+            {
+                rank = argument["--rank=".Length..].Trim();
+            }
+        }
+
+        if (precision is not ("auto" or "int4" or "fp4"))
+        {
+            throw new ArgumentException($"Unsupported Z-Image precision: {precision}");
+        }
+
+        if (!Regex.IsMatch(rank, "^[0-9]+$", RegexOptions.CultureInvariant))
+        {
+            throw new ArgumentException($"Unsupported Z-Image rank: {rank}");
+        }
+
+        var allowedWeight = $"{precision}:{rank}" is "auto:32" or "auto:128" or
+            "int4:32" or "int4:128" or "int4:256" or
+            "fp4:32" or "fp4:128";
+        if (!allowedWeight)
+        {
+            throw new ArgumentException($"Unsupported Z-Image Nunchaku weight: {precision} r{rank}");
+        }
+
+        var homePath = $"/home/{settings.LinuxUser}";
+        var zimageRoot = $"{homePath}/Z-Image";
+        var tokenExport = string.IsNullOrWhiteSpace(settings.HuggingFaceToken)
+            ? string.Empty
+            : $"export NYMPHS3D_HF_TOKEN={ToBashSingleQuoted(settings.HuggingFaceToken.Trim())}; ";
+        var precisionExport = $"export Z_IMAGE_NUNCHAKU_PRECISION={ToBashSingleQuoted(precision)}; ";
+        var rankExport = $"export Z_IMAGE_NUNCHAKU_RANK={ToBashSingleQuoted(rank)}; ";
+        var bashCommand =
+            "set -euo pipefail; " +
+            $"export HOME={ToBashSingleQuoted(homePath)}; " +
+            $"export USER={ToBashSingleQuoted(settings.LinuxUser)}; " +
+            $"export LOGNAME={ToBashSingleQuoted(settings.LinuxUser)}; " +
+            "export NYMPHS3D_RUNTIME_ROOT=\"$HOME\"; " +
+            "export NYMPHS3D_Z_IMAGE_DIR=\"$HOME/Z-Image\"; " +
+            "export NYMPHS3D_N2D2_DIR=\"$NYMPHS3D_Z_IMAGE_DIR\"; " +
+            "export NYMPHS3D_CACHE_ROOT=\"${NYMPHS3D_CACHE_ROOT:-$HOME/.cache}\"; " +
+            "export NYMPHS3D_HF_HOME=\"${NYMPHS3D_HF_HOME:-$NYMPHS3D_CACHE_ROOT/huggingface}\"; " +
+            "export NYMPHS3D_HF_CACHE_DIR=\"${NYMPHS3D_HF_CACHE_DIR:-$NYMPHS3D_HF_HOME/hub}\"; " +
+            "export HF_HOME=\"$NYMPHS3D_HF_HOME\"; " +
+            "export HF_HUB_CACHE=\"$NYMPHS3D_HF_CACHE_DIR\"; " +
+            "export HF_HUB_DISABLE_XET=1; " +
+            "export HF_HUB_DISABLE_PROGRESS_BARS=1; " +
+            tokenExport +
+            "if [[ -n \"${NYMPHS3D_HF_TOKEN:-}\" ]]; then export HF_TOKEN=\"$NYMPHS3D_HF_TOKEN\"; fi; " +
+            precisionExport +
+            rankExport +
+            "export Z_IMAGE_RUNTIME=nunchaku; " +
+            "export Z_IMAGE_NUNCHAKU_MODEL_REPO=\"${Z_IMAGE_NUNCHAKU_MODEL_REPO:-nunchaku-ai/nunchaku-z-image-turbo}\"; " +
+            $"if [[ ! -x {ToBashSingleQuoted($"{zimageRoot}/.venv-nunchaku/bin/python")} ]]; then echo 'Z-Image Nunchaku runtime is missing. Install or repair Z-Image first.' >&2; exit 1; fi; " +
+            $"if [[ ! -f {ToBashSingleQuoted($"{zimageRoot}/scripts/prefetch_model.py")} ]]; then echo 'Z-Image prefetch script is missing. Install or repair Z-Image first.' >&2; exit 1; fi; " +
+            $"cd {ToBashSingleQuoted(zimageRoot)}; " +
+            "source .venv-nunchaku/bin/activate; " +
+            "echo zimage_model=Tongyi-MAI/Z-Image-Turbo; " +
+            "echo nunchaku_weight_repo=\"$Z_IMAGE_NUNCHAKU_MODEL_REPO\"; " +
+            "echo nunchaku_precision=\"$Z_IMAGE_NUNCHAKU_PRECISION\"; " +
+            "echo nunchaku_rank=\"$Z_IMAGE_NUNCHAKU_RANK\"; " +
+            "python scripts/prefetch_model.py; " +
+            "python - <<'PY'\n" +
+            "import os\n" +
+            "from huggingface_hub import hf_hub_download\n" +
+            "repo_id = os.getenv('Z_IMAGE_NUNCHAKU_MODEL_REPO') or 'nunchaku-ai/nunchaku-z-image-turbo'\n" +
+            "rank = os.getenv('Z_IMAGE_NUNCHAKU_RANK') or '32'\n" +
+            "precision = (os.getenv('Z_IMAGE_NUNCHAKU_PRECISION') or 'auto').strip().lower()\n" +
+            "precisions = ['int4', 'fp4'] if precision == 'auto' else [precision]\n" +
+            "cache_dir = os.getenv('NYMPHS3D_HF_CACHE_DIR') or None\n" +
+            "token = os.getenv('NYMPHS3D_HF_TOKEN') or None\n" +
+            "for item in precisions:\n" +
+            "    filename = f'svdq-{item}_r{rank}-z-image-turbo.safetensors'\n" +
+            "    print(f'Z-Image Turbo Nunchaku weight prefetch: {repo_id}/{filename}', flush=True)\n" +
+            "    path = hf_hub_download(repo_id=repo_id, filename=filename, cache_dir=cache_dir, token=token)\n" +
+            "    print(f'Z-Image Turbo Nunchaku weight ready: {path}', flush=True)\n" +
+            "PY\n";
+
+        progress.Report($"Running tested Z-Image model fetch path: precision={precision} rank={rank}.");
+        var result = await RunWslBashAsync(settings, bashCommand, progress, cancellationToken).ConfigureAwait(false);
+        if (result.ExitCode != 0)
+        {
+            var detail = string.IsNullOrWhiteSpace(result.CombinedOutput)
+                ? $"Z-Image model fetch failed with exit code {result.ExitCode}."
+                : $"Z-Image model fetch failed with exit code {result.ExitCode}.\n\n{result.CombinedOutput.Trim()}";
             throw new InvalidOperationException(detail);
         }
 
