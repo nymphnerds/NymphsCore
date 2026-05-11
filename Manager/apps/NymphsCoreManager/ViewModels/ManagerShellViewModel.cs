@@ -1531,6 +1531,18 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
     private void RefreshInstalledModuleUiInfo(NymphModuleViewModel module)
     {
+        if (!module.IsInstalled)
+        {
+            module.ApplyInstalledModuleUi(null);
+            if (DisplayedModule is not null && string.Equals(DisplayedModule.Id, module.Id, StringComparison.OrdinalIgnoreCase))
+            {
+                OnPropertyChanged(nameof(ShowModuleUiAction));
+                _openModuleUiCommand.RaiseCanExecuteChanged();
+            }
+
+            return;
+        }
+
         try
         {
             module.ApplyInstalledModuleUi(_workflowService.GetCachedInstalledNymphModuleUiInfo(_settings, module.Id));
