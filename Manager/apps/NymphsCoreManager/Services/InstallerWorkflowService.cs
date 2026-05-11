@@ -5110,6 +5110,11 @@ meta:
                   "  exit 5; ") +
             "fi";
 
+        if (!isStatusAction && !hasLocalActionEntrypoint)
+        {
+            progress.Report($"Module action source '{normalizedModuleId}' -> {trustedRepoUrl}#{trustedRepoBranch}");
+        }
+
         progress.Report($"Running module action '{normalizedAction}' for '{normalizedModuleId}'...");
 
         var result = await RunWslBashAsync(settings, bashCommand, progress, cancellationToken).ConfigureAwait(false);

@@ -8,6 +8,8 @@ namespace NymphsCoreManager;
 
 public partial class App : Application
 {
+    private const string BuildMarker = "module-action-default-source-20260511-1914";
+
     private static readonly string LogDirectory = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "NymphsCore");
@@ -24,6 +26,7 @@ public partial class App : Application
     {
         EnsureLogDirectory();
         LogLine("Application starting.");
+        LogLine($"BuildMarker: {BuildMarker}");
         LogLine($"BaseDirectory: {AppContext.BaseDirectory}");
         LogLine($"CurrentDirectory: {Environment.CurrentDirectory}");
 
