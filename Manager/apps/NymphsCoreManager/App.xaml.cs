@@ -8,7 +8,7 @@ namespace NymphsCoreManager;
 
 public partial class App : Application
 {
-    private const string BuildMarker = "module-action-default-source-20260511-1914";
+    private const string BuildMarker = "module-action-no-unresolved-20260511-1916";
 
     private static readonly string LogDirectory = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),

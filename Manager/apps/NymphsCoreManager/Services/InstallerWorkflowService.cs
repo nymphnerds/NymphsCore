@@ -5073,8 +5073,7 @@ meta:
                   $"  REPO_BRANCH={ToBashSingleQuoted(trustedRepoBranch)}; " +
                   $"  if [[ -z \"$REPO_URL\" ]]; then REPO_URL={ToBashSingleQuoted($"https://github.com/nymphnerds/{normalizedModuleId}.git")}; fi; " +
                   "  if [[ -z \"$REPO_BRANCH\" ]]; then REPO_BRANCH=main; fi; " +
-                  "  if [[ -n \"$REPO_URL\" && -n \"$REPO_BRANCH\" ]]; then " +
-                  "    if command -v git >/dev/null 2>&1; then " +
+                  "  if command -v git >/dev/null 2>&1; then " +
                   $"        if [[ -d {ToBashSingleQuoted(cacheRepo)}/.git ]]; then " +
                   $"          git -C {ToBashSingleQuoted(cacheRepo)} remote set-url origin \"$REPO_URL\" >/dev/null 2>&1 || true; " +
                   $"          git -C {ToBashSingleQuoted(cacheRepo)} fetch --depth 1 origin \"$REPO_BRANCH\" >/dev/null 2>&1 && git -C {ToBashSingleQuoted(cacheRepo)} checkout -q FETCH_HEAD >/dev/null 2>&1 || echo module_action_repo_refresh_failed={ToBashSingleQuoted(cacheRepo)} >&2; " +
@@ -5083,9 +5082,6 @@ meta:
                   "        fi; " +
                   "    else " +
                   "      echo module_action_refresh_tools_missing >&2; " +
-                  "    fi; " +
-                  "  else " +
-                  "    echo module_action_source_unresolved >&2; " +
                   "  fi; " +
                   $"  if [[ -f {ToBashSingleQuoted(manifestPath)} ]]; then " +
                   $"    ENTRYPOINT=$(MODULE_ACTION={ToBashSingleQuoted(normalizedAction)} python3 -c {ToBashSingleQuoted(entrypointReader)} {ToBashSingleQuoted(manifestPath)} 2>/dev/null || true); " +
