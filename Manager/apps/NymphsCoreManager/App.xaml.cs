@@ -8,7 +8,7 @@ namespace NymphsCoreManager;
 
 public partial class App : Application
 {
-    private const string BuildMarker = "zimage-explicit-python-prefetch-20260511-1940";
+    private const string BuildMarker = "zimage-legacy-prefetch-script-20260511-1955";
 
     private static readonly string LogDirectory = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),

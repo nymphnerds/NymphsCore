@@ -853,6 +853,11 @@ Keep that folder for now as migration/reference material while each official
 module is tested and moved into its own module repo.
 
 Do not package or call Manager/scripts/legacy from the generic Manager shell.
+Temporary exception: Z-Image `fetch_models` is currently bridged through the
+old `legacy/prefetch_models.sh --backend zimage` path, with `legacy/common_paths.sh`
+staged beside it inside WSL at runtime. This keeps the modular Manager using the
+known-good monolith prefetch behavior while the real module-owned fetch surface is
+being designed. Do not replace this with registry cloning or manifest guessing.
 After WORBI, Z-Image, LoRA, Brain, and TRELLIS are all tested from their module
 repos, delete whatever is left in Manager/scripts/legacy.
 ```

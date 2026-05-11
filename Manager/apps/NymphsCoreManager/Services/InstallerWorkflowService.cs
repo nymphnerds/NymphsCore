@@ -5190,64 +5190,51 @@ meta:
         }
 
         var homePath = $"/home/{settings.LinuxUser}";
-        var zimageRoot = $"{homePath}/Z-Image";
-        var zimagePython = $"{zimageRoot}/.venv-nunchaku/bin/python";
+        var stageRoot = $"{homePath}/.cache/nymphs-manager/zimage-prefetch";
+        var stagedPrefetchScript = $"{stageRoot}/scripts/prefetch_models.sh";
+        var stagedCommonPathsScript = $"{stageRoot}/scripts/common_paths.sh";
+        var localPrefetchScript = RequireScript(Path.Combine("legacy", "prefetch_models.sh"));
+        var localCommonPathsScript = RequireScript(Path.Combine("legacy", "common_paths.sh"));
+        var encodedPrefetchScript = Convert.ToBase64String(File.ReadAllBytes(localPrefetchScript));
+        var encodedCommonPathsScript = Convert.ToBase64String(File.ReadAllBytes(localCommonPathsScript));
         var nunchakuWeightRepo = "nunchaku-ai/nunchaku-z-image-turbo";
         var tokenExport = string.IsNullOrWhiteSpace(settings.HuggingFaceToken)
             ? string.Empty
             : $"export NYMPHS3D_HF_TOKEN={ToBashSingleQuoted(settings.HuggingFaceToken.Trim())}; ";
-        var zimagePythonEnv =
-            $"Z_IMAGE_RUNTIME=nunchaku " +
-            $"Z_IMAGE_NUNCHAKU_MODEL_REPO={ToBashSingleQuoted(nunchakuWeightRepo)} " +
-            $"Z_IMAGE_NUNCHAKU_PRECISION={ToBashSingleQuoted(precision)} " +
-            $"Z_IMAGE_NUNCHAKU_RANK={ToBashSingleQuoted(rank)} " +
-            $"NYMPHS3D_HF_CACHE_DIR=\"$NYMPHS3D_HF_CACHE_DIR\" " +
-            $"HF_HOME=\"$HF_HOME\" " +
-            $"HF_HUB_CACHE=\"$HF_HUB_CACHE\" " +
-            $"HF_HUB_DISABLE_XET=1 " +
-            $"HF_HUB_DISABLE_PROGRESS_BARS=1 ";
         var bashCommand =
             "set -euo pipefail; " +
             $"export HOME={ToBashSingleQuoted(homePath)}; " +
             $"export USER={ToBashSingleQuoted(settings.LinuxUser)}; " +
             $"export LOGNAME={ToBashSingleQuoted(settings.LinuxUser)}; " +
+            $"STAGE_ROOT={ToBashSingleQuoted(stageRoot)}; " +
+            "rm -rf \"$STAGE_ROOT\"; " +
+            "mkdir -p \"$STAGE_ROOT/scripts\"; " +
+            "trap 'rm -rf \"$STAGE_ROOT\"' EXIT; " +
+            $"printf %s {ToBashSingleQuoted(encodedPrefetchScript)} | base64 -d > {ToBashSingleQuoted(stagedPrefetchScript)}; " +
+            $"printf %s {ToBashSingleQuoted(encodedCommonPathsScript)} | base64 -d > {ToBashSingleQuoted(stagedCommonPathsScript)}; " +
+            $"chmod +x {ToBashSingleQuoted(stagedPrefetchScript)} {ToBashSingleQuoted(stagedCommonPathsScript)}; " +
             "export NYMPHS3D_RUNTIME_ROOT=\"$HOME\"; " +
             "export NYMPHS3D_Z_IMAGE_DIR=\"$HOME/Z-Image\"; " +
             "export NYMPHS3D_N2D2_DIR=\"$NYMPHS3D_Z_IMAGE_DIR\"; " +
-            "export NYMPHS3D_CACHE_ROOT=\"${NYMPHS3D_CACHE_ROOT:-$HOME/.cache}\"; " +
-            "export NYMPHS3D_HF_HOME=\"${NYMPHS3D_HF_HOME:-$NYMPHS3D_CACHE_ROOT/huggingface}\"; " +
-            "export NYMPHS3D_HF_CACHE_DIR=\"${NYMPHS3D_HF_CACHE_DIR:-$NYMPHS3D_HF_HOME/hub}\"; " +
-            "export HF_HOME=\"$NYMPHS3D_HF_HOME\"; " +
-            "export HF_HUB_CACHE=\"$NYMPHS3D_HF_CACHE_DIR\"; " +
+            "export NYMPHS3D_TRELLIS_DIR=\"$HOME/TRELLIS.2\"; " +
+            "export PATH=\"$NYMPHS3D_Z_IMAGE_DIR/.venv-nunchaku/bin:$PATH\"; " +
+            "export Z_IMAGE_RUNTIME=nunchaku; " +
+            $"export Z_IMAGE_NUNCHAKU_MODEL_REPO={ToBashSingleQuoted(nunchakuWeightRepo)}; " +
+            $"export Z_IMAGE_NUNCHAKU_PRECISION={ToBashSingleQuoted(precision)}; " +
+            $"export Z_IMAGE_NUNCHAKU_RANK={ToBashSingleQuoted(rank)}; " +
+            "export NYMPHS3D_PREFETCH_PROGRESS_INTERVAL=5; " +
             "export HF_HUB_DISABLE_XET=1; " +
             "export HF_HUB_DISABLE_PROGRESS_BARS=1; " +
             tokenExport +
-            "if [[ -n \"${NYMPHS3D_HF_TOKEN:-}\" ]]; then export HF_TOKEN=\"$NYMPHS3D_HF_TOKEN\"; fi; " +
-            $"if [[ ! -x {ToBashSingleQuoted(zimagePython)} ]]; then echo 'Z-Image Nunchaku runtime is missing. Install or repair Z-Image first.' >&2; exit 1; fi; " +
-            $"if [[ ! -f {ToBashSingleQuoted($"{zimageRoot}/scripts/prefetch_model.py")} ]]; then echo 'Z-Image prefetch script is missing. Install or repair Z-Image first.' >&2; exit 1; fi; " +
-            $"cd {ToBashSingleQuoted(zimageRoot)}; " +
+            "if [[ ! -x \"$NYMPHS3D_Z_IMAGE_DIR/.venv-nunchaku/bin/python\" ]]; then echo 'Z-Image Nunchaku runtime is missing. Install or repair Z-Image first.' >&2; exit 1; fi; " +
+            "if [[ ! -f \"$NYMPHS3D_Z_IMAGE_DIR/scripts/prefetch_model.py\" ]]; then echo 'Z-Image prefetch script is missing. Install or repair Z-Image first.' >&2; exit 1; fi; " +
             "echo zimage_model=Tongyi-MAI/Z-Image-Turbo; " +
             $"echo nunchaku_weight_repo={ToBashSingleQuoted(nunchakuWeightRepo)}; " +
             $"echo nunchaku_precision={ToBashSingleQuoted(precision)}; " +
             $"echo nunchaku_rank={ToBashSingleQuoted(rank)}; " +
-            $"{zimagePythonEnv}{ToBashSingleQuoted(zimagePython)} scripts/prefetch_model.py; " +
-            $"{zimagePythonEnv}{ToBashSingleQuoted(zimagePython)} - <<'PY'\n" +
-            "import os\n" +
-            "from huggingface_hub import hf_hub_download\n" +
-            "repo_id = os.getenv('Z_IMAGE_NUNCHAKU_MODEL_REPO') or 'nunchaku-ai/nunchaku-z-image-turbo'\n" +
-            "rank = os.getenv('Z_IMAGE_NUNCHAKU_RANK') or '32'\n" +
-            "precision = (os.getenv('Z_IMAGE_NUNCHAKU_PRECISION') or 'auto').strip().lower()\n" +
-            "precisions = ['int4', 'fp4'] if precision == 'auto' else [precision]\n" +
-            "cache_dir = os.getenv('NYMPHS3D_HF_CACHE_DIR') or None\n" +
-            "token = os.getenv('NYMPHS3D_HF_TOKEN') or None\n" +
-            "for item in precisions:\n" +
-            "    filename = f'svdq-{item}_r{rank}-z-image-turbo.safetensors'\n" +
-            "    print(f'Z-Image Turbo Nunchaku weight prefetch: {repo_id}/{filename}', flush=True)\n" +
-            "    path = hf_hub_download(repo_id=repo_id, filename=filename, cache_dir=cache_dir, token=token)\n" +
-            "    print(f'Z-Image Turbo Nunchaku weight ready: {path}', flush=True)\n" +
-            "PY\n";
+            $"bash {ToBashSingleQuoted(stagedPrefetchScript)} --backend zimage";
 
-        progress.Report($"Running tested Z-Image model fetch path: precision={precision} rank={rank}.");
+        progress.Report($"Running legacy Z-Image model prefetch: precision={precision} rank={rank}.");
         var result = await RunWslBashAsync(settings, bashCommand, progress, cancellationToken).ConfigureAwait(false);
         if (result.ExitCode != 0)
         {

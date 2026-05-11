@@ -194,6 +194,12 @@ Module cards open a detail page first. Install is a deliberate action from the d
 
 Module UI performance rule: do not move first-load navigation, WebView2 profile setup, cache refresh, or navigation filtering without timing the result. The Z-Image UI proof found that Dispatcher priority, `NavigateToString`, `data:` navigation allowance, local WebView2 user-data folders, preserving newer cached HTML over older installed source files, content-aware navigation reloads, and avoiding background-status reloads are all load-time critical.
 
+Z-Image model fetch rule: until Z-Image owns a proper module-side fetch surface,
+the modular Manager intentionally runs the old `legacy/prefetch_models.sh --backend zimage`
+flow from the `main` Manager. Do not route this through registry repo cloning or
+manifest fallback logic; that path was slower to diagnose and did not match the
+tested monolith behavior.
+
 ---
 
 ## Official Modules
