@@ -43,6 +43,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
     private readonly RelayCommand _toggleDeveloperModeCommand;
     private readonly RelayCommand<NymphModuleViewModel> _uninstallModuleCommand;
     private readonly RelayCommand<NymphModuleViewModel> _deleteModuleCommand;
+    private DriveChoice? _selectedBaseRuntimeDrive;
     private ShellNavigationItemViewModel? _selectedNavigationItem;
     private NymphModuleViewModel? _selectedModule;
     private NymphModuleViewModel? _displayedModule;
@@ -116,6 +117,14 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         InstalledModules = [];
         AvailableModules = [];
         SystemChecks = [];
+        BaseRuntimeDrives = new ObservableCollection<DriveChoice>(_workflowService.GetAvailableDrives());
+        _selectedBaseRuntimeDrive = BaseRuntimeDrives
+            .OrderByDescending(drive => drive.FreeBytes)
+            .FirstOrDefault();
+        if (_selectedBaseRuntimeDrive is not null)
+        {
+            _settings.InstallLocation = _selectedBaseRuntimeDrive.InstallPath;
+        }
         ActivityLines = [];
         RecentLogLines = [];
         UnifiedLogLines = [];
@@ -170,6 +179,8 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
     public ObservableCollection<NymphModuleViewModel> AvailableModules { get; }
 
     public ObservableCollection<SystemCheckItem> SystemChecks { get; }
+
+    public ObservableCollection<DriveChoice> BaseRuntimeDrives { get; }
 
     public ObservableCollection<string> ActivityLines { get; }
 
@@ -319,6 +330,26 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
     public bool ShowModuleUiAction => DisplayedModule?.HasInstalledModuleUi == true;
 
+    public IReadOnlyList<string> DisplayedModuleContractActions
+    {
+        get
+        {
+            if (DisplayedModule is null)
+            {
+                return Array.Empty<string>();
+            }
+
+            if (ShouldShowExternalBrowserAction(DisplayedModule))
+            {
+                return DisplayedModule.Capabilities
+                    .Concat(["browser"])
+                    .ToArray();
+            }
+
+            return DisplayedModule.Capabilities;
+        }
+    }
+
     public string DeveloperModeLabel => IsDeveloperMode ? "Dev Mode On" : "Dev Mode Off";
 
     public string DeveloperModeBrush => IsDeveloperMode ? "#97DF48" : "#445A5C";
@@ -330,7 +361,13 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         get => _selectedNavigationItem;
         set
         {
-            if (!SetProperty(ref _selectedNavigationItem, value) || value is null)
+            var changed = SetProperty(ref _selectedNavigationItem, value);
+            if (value is null)
+            {
+                return;
+            }
+
+            if (!changed && CurrentPageKind == value.PageKind)
             {
                 return;
             }
@@ -338,6 +375,10 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             CurrentPageKind = value.PageKind;
             SelectedModule = value.Module;
             DisplayedModule = value.PageKind == ManagerPageKind.Module ? value.Module : null;
+            if (value.PageKind != ManagerPageKind.ModuleUi)
+            {
+                ModuleUiSource = string.Empty;
+            }
 
             switch (value.PageKind)
             {
@@ -398,6 +439,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                 OnPropertyChanged(nameof(ShowInstallModuleAction));
                 OnPropertyChanged(nameof(ShowInstalledModuleActions));
                 OnPropertyChanged(nameof(ShowModuleUiAction));
+                OnPropertyChanged(nameof(DisplayedModuleContractActions));
                 _repairModuleCommand.RaiseCanExecuteChanged();
                 _updateModuleCommand.RaiseCanExecuteChanged();
                 _runModuleActionCommand.RaiseCanExecuteChanged();
@@ -616,6 +658,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             {
                 OnPropertyChanged(nameof(BaseRuntimeStatusLabel));
                 OnPropertyChanged(nameof(BaseRuntimeStatusBrush));
+                OnPropertyChanged(nameof(CanChooseBaseRuntimeDrive));
                 _setupBaseRuntimeCommand.RaiseCanExecuteChanged();
                 _uninstallBaseRuntimeCommand.RaiseCanExecuteChanged();
             }
@@ -625,6 +668,41 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
     public string BaseRuntimeStatusLabel => ManagedDistroDetected ? "Ready" : "Not installed";
 
     public string BaseRuntimeStatusBrush => ManagedDistroDetected ? "#97DF48" : "#D9B36B";
+
+    public DriveChoice? SelectedBaseRuntimeDrive
+    {
+        get => _selectedBaseRuntimeDrive;
+        set
+        {
+            if (!SetProperty(ref _selectedBaseRuntimeDrive, value))
+            {
+                return;
+            }
+
+            if (value is not null && !ManagedDistroDetected)
+            {
+                _settings.InstallLocation = value.InstallPath;
+            }
+
+            OnPropertyChanged(nameof(BaseRuntimeInstallPath));
+            OnPropertyChanged(nameof(BaseRuntimeDriveSummary));
+            _setupBaseRuntimeCommand.RaiseCanExecuteChanged();
+        }
+    }
+
+    public string BaseRuntimeInstallPath =>
+        ManagedDistroDetected
+            ? _settings.InstallLocation
+            : SelectedBaseRuntimeDrive?.InstallPath ?? _settings.InstallLocation;
+
+    public string BaseRuntimeDriveSummary =>
+        ManagedDistroDetected
+            ? "Existing managed distro detected. Repairs reuse its current Windows location."
+            : SelectedBaseRuntimeDrive is null
+                ? "No fixed Windows drive is available for the managed distro."
+                : $"Fresh install target: {SelectedBaseRuntimeDrive.InstallPath}";
+
+    public bool CanChooseBaseRuntimeDrive => !ManagedDistroDetected && !IsBusy;
 
     public string WindowsWslStatusLabel => WindowsWslReady ? "Ready" : "Missing / not ready";
 
@@ -696,6 +774,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             _runModuleActionCommand.RaiseCanExecuteChanged();
             _uninstallModuleCommand.RaiseCanExecuteChanged();
             _deleteModuleCommand.RaiseCanExecuteChanged();
+            OnPropertyChanged(nameof(CanChooseBaseRuntimeDrive));
         }
     }
 
@@ -957,7 +1036,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
     private bool CanSetupBaseRuntime()
     {
-        return !IsBusy && WindowsWslReady;
+        return !IsBusy && WindowsWslReady && (ManagedDistroDetected || SelectedBaseRuntimeDrive is not null);
     }
 
     private bool CanSetupWindowsWsl()
@@ -1187,6 +1266,9 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             if (ManagedDistroDetected)
             {
                 _settings.DistroName = existingDistroName!;
+                _settings.InstallLocation = _workflowService.GetExistingManagedDistroInstallLocation(existingDistroName) ?? _settings.InstallLocation;
+                OnPropertyChanged(nameof(BaseRuntimeInstallPath));
+                OnPropertyChanged(nameof(BaseRuntimeDriveSummary));
                 BaseRuntimeActionText = "Repair Base Runtime";
                 BaseRuntimeSummary = $"{existingDistroName} managed WSL shell detected.";
                 BaseRuntimeDetail = "Base runtime is present. Modules remain registry-managed and optional.";
@@ -1198,7 +1280,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             {
                 BaseRuntimeActionText = "Install Base Runtime";
                 BaseRuntimeSummary = "No NymphsCore managed WSL shell detected.";
-                var installTarget = $"Install target: {_settings.InstallLocation}.";
+                var installTarget = $"Install target: {BaseRuntimeInstallPath}.";
                 BaseRuntimeDetail = _workflowService.BaseTarAvailable
                     ? $"Ready to import from {_workflowService.BaseTarPath}. {installTarget}"
                     : $"Ready to bootstrap a fresh Ubuntu base locally. {installTarget}";
@@ -1330,7 +1412,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             _allModules.Add(CreateModuleViewModel(manifest, index++));
         }
 
-        PrimeModulePresence();
+        await PrimeModulePresenceAsync(manifests).ConfigureAwait(true);
         RebuildModuleCollections();
         RebuildModuleNavigation();
 
@@ -1393,7 +1475,10 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                 statusTimeout.Token).ConfigureAwait(true);
 
             var snapshot = NymphStatusSnapshot.FromStatusOutput(module.Id, output);
-            var markerVersion = _workflowService.GetInstalledNymphModuleMarkerVersion(_settings, module.Id);
+            var markerVersion = await _workflowService.GetInstalledNymphModuleMarkerVersionAsync(
+                _settings,
+                module.Id,
+                statusTimeout.Token).ConfigureAwait(true);
             if (!snapshot.IsInstalled && !string.IsNullOrWhiteSpace(markerVersion))
             {
                 return new NymphStatusSnapshot(
@@ -1416,7 +1501,10 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         catch (OperationCanceledException)
         {
             AppendActivity($"{module.Name} status timed out; keeping Manager responsive.");
-            var markerVersion = _workflowService.GetInstalledNymphModuleMarkerVersion(_settings, module.Id);
+            var markerVersion = await _workflowService.GetInstalledNymphModuleMarkerVersionAsync(
+                _settings,
+                module.Id,
+                CancellationToken.None).ConfigureAwait(true);
             if (!string.IsNullOrWhiteSpace(markerVersion))
             {
                 return new NymphStatusSnapshot(
@@ -1450,22 +1538,11 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         }
         catch (Exception ex)
         {
-            if (IsNormalUnavailableModuleStatus(ex.Message))
-            {
-                return new NymphStatusSnapshot(
-                    module.Id,
-                    IsInstalled: false,
-                    IsRunning: false,
-                    Version: "not-installed",
-                    State: "available",
-                    Detail: $"{module.Name} is available from the registry, but is not installed yet.",
-                    InstallRoot: module.InstallPath,
-                    Health: "unknown",
-                    Values: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase));
-            }
-
             AppendActivity($"{module.Name} status warning: {FirstNonEmptyLine(ex.Message)}");
-            var markerVersion = _workflowService.GetInstalledNymphModuleMarkerVersion(_settings, module.Id);
+            var markerVersion = await _workflowService.GetInstalledNymphModuleMarkerVersionAsync(
+                _settings,
+                module.Id,
+                CancellationToken.None).ConfigureAwait(true);
             if (!string.IsNullOrWhiteSpace(markerVersion))
             {
                 return new NymphStatusSnapshot(
@@ -1481,6 +1558,20 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                     {
                         ["status_error"] = ex.Message,
                     });
+            }
+
+            if (IsNormalUnavailableModuleStatus(ex.Message))
+            {
+                return new NymphStatusSnapshot(
+                    module.Id,
+                    IsInstalled: false,
+                    IsRunning: false,
+                    Version: "not-installed",
+                    State: "available",
+                    Detail: $"{module.Name} is available from the registry, but is not installed yet.",
+                    InstallRoot: module.InstallPath,
+                    Health: "unknown",
+                    Values: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase));
             }
 
             return new NymphStatusSnapshot(
@@ -1651,6 +1742,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             if (DisplayedModule is not null && string.Equals(DisplayedModule.Id, module.Id, StringComparison.OrdinalIgnoreCase))
             {
                 OnPropertyChanged(nameof(ShowModuleUiAction));
+                OnPropertyChanged(nameof(DisplayedModuleContractActions));
                 _openModuleUiCommand.RaiseCanExecuteChanged();
             }
 
@@ -1670,22 +1762,71 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         if (DisplayedModule is not null && string.Equals(DisplayedModule.Id, module.Id, StringComparison.OrdinalIgnoreCase))
         {
             OnPropertyChanged(nameof(ShowModuleUiAction));
+            OnPropertyChanged(nameof(DisplayedModuleContractActions));
             _openModuleUiCommand.RaiseCanExecuteChanged();
         }
     }
 
-    private void PrimeModulePresence()
+    private async Task PrimeModulePresenceAsync(IReadOnlyList<NymphModuleManifestInfo> manifests)
     {
+        IReadOnlyDictionary<string, NymphModuleMarkerProbe> markerProbes;
+        try
+        {
+            using var markerTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(3));
+            markerProbes = ManagedDistroDetected
+                ? await _workflowService.GetInstalledNymphModuleMarkerProbesAsync(
+                    _settings,
+                    manifests,
+                    markerTimeout.Token).ConfigureAwait(true)
+                : new Dictionary<string, NymphModuleMarkerProbe>(StringComparer.OrdinalIgnoreCase);
+        }
+        catch (Exception ex)
+        {
+            AppendActivity($"Fast module marker scan warning: {FirstNonEmptyLine(ex.Message)}");
+            markerProbes = new Dictionary<string, NymphModuleMarkerProbe>(StringComparer.OrdinalIgnoreCase);
+        }
+
+        var markerCount = markerProbes.Values.Count(probe => probe.MarkerPresent);
+        var repairCount = markerProbes.Values.Count(probe => probe.RepairCandidatePresent);
+        AppendActivity($"Fast module marker scan found {markerCount} installed marker(s), {repairCount} repair candidate(s).");
+
         foreach (var module in _allModules)
         {
+            if (markerProbes.TryGetValue(module.Id, out var probe) && probe.MarkerPresent)
+            {
+                module.ApplyState(
+                    isInstalled: true,
+                    isRunning: false,
+                    versionLabel: ValueOrFallback(probe.Version, "unknown"),
+                    stateLabel: "Installed",
+                    statusBrush: "#4CD0C1",
+                    detail: $"{module.Name} is installed. Runtime health will refresh in the background.",
+                    secondaryDetail: $"Startup detection used the standard module marker: {probe.InstallRoot}/.nymph-module-version");
+                RefreshInstalledModuleUiInfo(module);
+                continue;
+            }
+
+            if (markerProbes.TryGetValue(module.Id, out probe) && probe.RepairCandidatePresent)
+            {
+                module.ApplyState(
+                    isInstalled: false,
+                    isRunning: false,
+                    versionLabel: "Not installed",
+                    stateLabel: "Repair needed",
+                    statusBrush: "#D49A2A",
+                    detail: $"{module.Name} has files in the expected install folder, but the standard module marker is missing.",
+                    secondaryDetail: "Use Repair Module to refresh module-owned scripts and write the install marker.");
+                continue;
+            }
+
             module.ApplyState(
                 isInstalled: false,
                 isRunning: false,
-                versionLabel: "Not checked",
-                stateLabel: "Checking",
+                versionLabel: "Not installed",
+                stateLabel: "Available",
                 statusBrush: "#6E745A",
-                detail: $"{module.Name} status has not been refreshed yet.",
-                secondaryDetail: "The shell will ask the module-owned status entrypoint for runtime truth.");
+                detail: $"{module.Name} is available from the registry, but is not installed yet.",
+                secondaryDetail: "Install state came from the fast standard module marker scan.");
         }
     }
 
@@ -1992,6 +2133,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             return;
         }
 
+        SelectedNavigationItem = null;
         SelectedModule = module;
         DisplayedModule = module;
         CurrentPageTitle = module.Name;
@@ -2532,13 +2674,21 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
     private bool CanRunSelectedModuleAction(string? action)
     {
-        if (IsBusy || DisplayedModule is null || string.IsNullOrWhiteSpace(action))
+        if (DisplayedModule is null || string.IsNullOrWhiteSpace(action))
         {
             return false;
         }
 
         var normalizedAction = action.Trim().ToLowerInvariant();
-        if (!DisplayedModule.Capabilities.Any(capability => string.Equals(capability, normalizedAction, StringComparison.OrdinalIgnoreCase)))
+        if (IsBusy && normalizedAction is not "stop" and not "logs")
+        {
+            return false;
+        }
+
+        var isExternalBrowserAction = string.Equals(normalizedAction, "browser", StringComparison.OrdinalIgnoreCase) &&
+                                      ShouldShowExternalBrowserAction(DisplayedModule);
+        if (!isExternalBrowserAction &&
+            !DisplayedModule.Capabilities.Any(capability => string.Equals(capability, normalizedAction, StringComparison.OrdinalIgnoreCase)))
         {
             return false;
         }
@@ -2591,19 +2741,28 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
     private async Task RunSelectedModuleActionAsync(string? action)
     {
         var module = DisplayedModule;
-        if (module is null || string.IsNullOrWhiteSpace(action) || IsBusy)
+        if (module is null || string.IsNullOrWhiteSpace(action))
         {
             return;
         }
 
         var normalizedAction = action.Trim().ToLowerInvariant();
+        var canRunWhileBusy = normalizedAction is "stop" or "logs";
+        if (IsBusy && !canRunWhileBusy)
+        {
+            return;
+        }
 
         if (!module.IsInstalled)
         {
             return;
         }
 
-        IsBusy = true;
+        var ownsBusyState = !IsBusy;
+        if (ownsBusyState)
+        {
+            IsBusy = true;
+        }
         StatusMessage = $"Running {module.Name} {normalizedAction}...";
         if (!string.Equals(normalizedAction, "logs", StringComparison.OrdinalIgnoreCase))
         {
@@ -2616,6 +2775,36 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
         try
         {
+            if (string.Equals(normalizedAction, "browser", StringComparison.OrdinalIgnoreCase) &&
+                ShouldShowExternalBrowserAction(module))
+            {
+                var startOutput = await _workflowService.RunNymphModuleActionAsync(
+                    _settings,
+                    module.Id,
+                    "start",
+                    new Progress<string>(AppendActivity),
+                    CancellationToken.None).ConfigureAwait(true);
+
+                AppendModuleActionOutput(module, "start", startOutput);
+                if (!OpenFirstUrlFromOutput(module, startOutput, forceExternalBrowser: true, quietWhenMissing: true) &&
+                    module.Capabilities.Any(capability => string.Equals(capability, "open", StringComparison.OrdinalIgnoreCase)))
+                {
+                    var openOutput = await _workflowService.RunNymphModuleActionAsync(
+                        _settings,
+                        module.Id,
+                        "open",
+                        new Progress<string>(AppendActivity),
+                        CancellationToken.None).ConfigureAwait(true);
+
+                    AppendModuleActionOutput(module, "open", openOutput);
+                    OpenFirstUrlFromOutput(module, openOutput, forceExternalBrowser: true);
+                }
+
+                await RefreshModuleStateAsync().ConfigureAwait(true);
+                StatusMessage = $"{module.Name} browser finished.";
+                return;
+            }
+
             var output = await _workflowService.RunNymphModuleActionAsync(
                 _settings,
                 module.Id,
@@ -2641,6 +2830,14 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             if (string.Equals(normalizedAction, "open", StringComparison.OrdinalIgnoreCase))
             {
                 OpenFirstUrlFromOutput(module, output);
+            }
+
+            if (string.Equals(normalizedAction, "stop", StringComparison.OrdinalIgnoreCase) &&
+                CurrentPageKind == ManagerPageKind.ModuleUi &&
+                DisplayedModule is not null &&
+                string.Equals(DisplayedModule.Id, module.Id, StringComparison.OrdinalIgnoreCase))
+            {
+                ShowModulePage(module);
             }
 
             if (string.Equals(normalizedAction, "start", StringComparison.OrdinalIgnoreCase) &&
@@ -2688,7 +2885,10 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         }
         finally
         {
-            IsBusy = false;
+            if (ownsBusyState)
+            {
+                IsBusy = false;
+            }
         }
     }
 
@@ -2872,7 +3072,11 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                line.Contains("install_root=/home/nymph/TRELLIS.2", StringComparison.OrdinalIgnoreCase);
     }
 
-    private bool OpenFirstUrlFromOutput(NymphModuleViewModel module, string output, bool quietWhenMissing = false)
+    private bool OpenFirstUrlFromOutput(
+        NymphModuleViewModel module,
+        string output,
+        bool forceExternalBrowser = false,
+        bool quietWhenMissing = false)
     {
         var match = Regex.Match(output, @"https?://[^\s]+", RegexOptions.IgnoreCase);
         if (!match.Success)
@@ -2891,6 +3095,21 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         var url = match.Value.TrimEnd('.', ',', ';');
         try
         {
+            if (module.HasInstalledModuleUi && !forceExternalBrowser)
+            {
+                SelectedNavigationItem = null;
+                SelectedModule = module;
+                DisplayedModule = module;
+                CurrentPageTitle = module.Name;
+                CurrentPageSubtitle = module.Description;
+                ModuleUiTitle = module.ModuleUiTitle;
+                ModuleUiStatus = url;
+                CurrentPageKind = ManagerPageKind.ModuleUi;
+                ModuleUiSource = url;
+                AppendActivity($"{module.Name} opened in Manager at {url}.");
+                return true;
+            }
+
             Process.Start(new ProcessStartInfo
             {
                 FileName = url,
@@ -2910,6 +3129,13 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                 ex.Message);
             return false;
         }
+    }
+
+    private static bool ShouldShowExternalBrowserAction(NymphModuleViewModel module)
+    {
+        return module.HasInstalledModuleUi &&
+               string.Equals(module.InstalledModuleUiInfo?.Type, "local_url", StringComparison.OrdinalIgnoreCase) &&
+               module.Capabilities.Any(capability => string.Equals(capability, "start", StringComparison.OrdinalIgnoreCase));
     }
 
     private void UninstallModule(NymphModuleViewModel? module)
@@ -3311,7 +3537,9 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         var settings = CreateDefaultInstallSettings();
         settings.DistroName = existingDistroName ?? InstallerWorkflowService.ManagedDistroName;
         settings.TarPath = _workflowService.BaseTarPath;
-        settings.InstallLocation = _settings.InstallLocation;
+        settings.InstallLocation = string.IsNullOrWhiteSpace(existingDistroName)
+            ? SelectedBaseRuntimeDrive?.InstallPath ?? _settings.InstallLocation
+            : _workflowService.GetExistingManagedDistroInstallLocation(existingDistroName) ?? _settings.InstallLocation;
         settings.LinuxUser = InstallerWorkflowService.ManagedLinuxUser;
         settings.RepairExistingDistro = !string.IsNullOrWhiteSpace(existingDistroName);
         settings.PrefetchModelsNow = false;

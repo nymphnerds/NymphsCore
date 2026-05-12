@@ -4120,6 +4120,121 @@ meta:
         return null;
     }
 
+    public async Task<string?> GetInstalledNymphModuleMarkerVersionAsync(
+        InstallSettings settings,
+        string moduleId,
+        CancellationToken cancellationToken)
+    {
+        var directMarkerVersion = GetInstalledNymphModuleMarkerVersion(settings, moduleId);
+        if (!string.IsNullOrWhiteSpace(directMarkerVersion))
+        {
+            return directMarkerVersion;
+        }
+
+        var normalizedModuleId = moduleId.Trim().ToLowerInvariant();
+        var installRoot = GetNymphModuleInstallRoot(settings, normalizedModuleId);
+        var fallbackRoot = $"/home/{settings.LinuxUser}/{normalizedModuleId}";
+        var bashCommand =
+            "set -euo pipefail; " +
+            "for marker in " +
+            $"{ToBashSingleQuoted($"{installRoot}/.nymph-module-version")} " +
+            $"{ToBashSingleQuoted($"{fallbackRoot}/.nymph-module-version")}; do " +
+            "  if [[ -f \"$marker\" ]]; then head -n 1 \"$marker\"; exit 0; fi; " +
+            "done; " +
+            "exit 0";
+
+        var result = await RunWslBashAsync(settings, bashCommand, progress: null, cancellationToken).ConfigureAwait(false);
+        if (result.ExitCode != 0)
+        {
+            return null;
+        }
+
+        var markerVersion = result.CombinedOutput
+            .Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .FirstOrDefault();
+        return string.IsNullOrWhiteSpace(markerVersion) ? null : markerVersion.Trim();
+    }
+
+    public async Task<IReadOnlyDictionary<string, NymphModuleMarkerProbe>> GetInstalledNymphModuleMarkerProbesAsync(
+        InstallSettings settings,
+        IEnumerable<NymphModuleManifestInfo> modules,
+        CancellationToken cancellationToken)
+    {
+        var probeTargets = modules
+            .Where(module => !string.IsNullOrWhiteSpace(module.Id))
+            .Select(module =>
+            {
+                var normalizedModuleId = module.Id.Trim().ToLowerInvariant();
+                return new
+                {
+                    ModuleId = normalizedModuleId,
+                    InstallRoot = ResolveNymphModuleInstallRoot(settings, normalizedModuleId, module.InstallRoot),
+                };
+            })
+            .GroupBy(module => module.ModuleId, StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.First())
+            .ToList();
+
+        if (probeTargets.Count == 0)
+        {
+            return new Dictionary<string, NymphModuleMarkerProbe>(StringComparer.OrdinalIgnoreCase);
+        }
+
+        var targetLines = string.Join("\n", probeTargets.Select(target => $"{target.ModuleId}\t{target.InstallRoot}"));
+        var bashCommand =
+            "set -euo pipefail\n" +
+            "while IFS=$'\\t' read -r module root; do\n" +
+            "  [[ -n \"$module\" && -n \"$root\" ]] || continue\n" +
+            "  marker=\"$root/.nymph-module-version\"\n" +
+            "  marker_present=false\n" +
+            "  root_present=false\n" +
+            "  repair_present=false\n" +
+            "  version=not-installed\n" +
+            "  [[ -e \"$root\" ]] && root_present=true\n" +
+            "  if [[ -f \"$root/nymph.json\" || -d \"$root/bin\" || -f \"$root/package.json\" || -d \"$root/.venv\" || -d \"$root/.venv-nunchaku\" || -d \"$root/dist\" || -d \"$root/server\" ]]; then\n" +
+            "    repair_present=true\n" +
+            "  fi\n" +
+            "  if [[ -f \"$marker\" ]]; then\n" +
+            "    marker_present=true\n" +
+            "    repair_present=false\n" +
+            "    version=\"$(head -n 1 \"$marker\" 2>/dev/null | tr -d '\\r' | awk '{$1=$1; print}' || true)\"\n" +
+            "    [[ -n \"$version\" ]] || version=unknown\n" +
+            "  fi\n" +
+            "  printf 'id=%s marker_present=%s root_present=%s repair_present=%s version=%s install_root=%s\\n' \"$module\" \"$marker_present\" \"$root_present\" \"$repair_present\" \"$version\" \"$root\"\n" +
+            "done <<'NYMPH_MODULE_MARKERS'\n" +
+            targetLines + "\n" +
+            "NYMPH_MODULE_MARKERS";
+
+        var result = await RunWslBashAsync(settings, bashCommand, progress: null, cancellationToken).ConfigureAwait(false);
+        var probes = new Dictionary<string, NymphModuleMarkerProbe>(StringComparer.OrdinalIgnoreCase);
+        if (result.ExitCode != 0)
+        {
+            var detail = string.IsNullOrWhiteSpace(result.CombinedOutput)
+                ? $"Fast module marker scan failed with exit code {result.ExitCode}."
+                : $"Fast module marker scan failed with exit code {result.ExitCode}: {result.CombinedOutput.Trim()}";
+            throw new InvalidOperationException(detail);
+        }
+
+        foreach (var line in result.CombinedOutput.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            var values = ParseKeyValueStatusLine(line);
+            if (!values.TryGetValue("id", out var moduleId) || string.IsNullOrWhiteSpace(moduleId))
+            {
+                continue;
+            }
+
+            probes[moduleId] = new NymphModuleMarkerProbe(
+                ModuleId: moduleId,
+                MarkerPresent: values.TryGetValue("marker_present", out var markerPresent) && string.Equals(markerPresent, "true", StringComparison.OrdinalIgnoreCase),
+                InstallRootPresent: values.TryGetValue("root_present", out var rootPresent) && string.Equals(rootPresent, "true", StringComparison.OrdinalIgnoreCase),
+                RepairCandidatePresent: values.TryGetValue("repair_present", out var repairPresent) && string.Equals(repairPresent, "true", StringComparison.OrdinalIgnoreCase),
+                Version: values.TryGetValue("version", out var version) && !string.IsNullOrWhiteSpace(version) ? version : "unknown",
+                InstallRoot: values.TryGetValue("install_root", out var installRoot) ? installRoot : "");
+        }
+
+        return probes;
+    }
+
     public async Task<NymphModuleManifestInfo?> GetNymphModuleManifestInfoAsync(
         string moduleId,
         CancellationToken cancellationToken)
@@ -4280,6 +4395,7 @@ meta:
             Kind: kind,
             Version: GetJsonString(manifestRoot, "version") ?? "",
             Description: GetJsonString(manifestRoot, "description") ?? GetJsonString(registryElement, "summary") ?? "",
+            OverviewDetail: BuildNymphModuleOverviewDetail(manifestRoot, registryElement),
             ManifestUrl: manifestUrl,
             RepositoryUrl: repositoryUrl,
             SourceSummary: sourceSummary,
@@ -4458,6 +4574,74 @@ meta:
         return ordered;
     }
 
+    private static string BuildNymphModuleOverviewDetail(JsonElement manifestRoot, JsonElement registryElement)
+    {
+        var lines = new List<string>();
+        AppendOverviewBlock(lines, manifestRoot);
+        AppendOverviewBlock(lines, registryElement);
+        return string.Join("\n", lines);
+    }
+
+    private static void AppendOverviewBlock(List<string> lines, JsonElement root)
+    {
+        if (!root.TryGetProperty("overview", out var overview) || overview.ValueKind != JsonValueKind.Object)
+        {
+            return;
+        }
+
+        var body = GetJsonString(overview, "body")
+            ?? GetJsonString(overview, "details")
+            ?? GetJsonString(overview, "description");
+        if (!string.IsNullOrWhiteSpace(body))
+        {
+            lines.Add(body.Trim());
+        }
+
+        AppendStringArrayOverviewLine(lines, overview, "works_with", "Works with");
+        AppendStringArrayOverviewLine(lines, overview, "requirements", "Requirements");
+        AppendStringArrayOverviewLine(lines, overview, "compatibility", "Compatibility");
+
+        if (!overview.TryGetProperty("links", out var linksElement) ||
+            linksElement.ValueKind != JsonValueKind.Array)
+        {
+            return;
+        }
+
+        foreach (var linkElement in linksElement.EnumerateArray())
+        {
+            if (linkElement.ValueKind != JsonValueKind.Object)
+            {
+                continue;
+            }
+
+            var label = GetJsonString(linkElement, "label") ?? GetJsonString(linkElement, "name") ?? "Link";
+            var url = GetJsonString(linkElement, "url") ?? GetJsonString(linkElement, "href") ?? "";
+            if (!string.IsNullOrWhiteSpace(url))
+            {
+                lines.Add($"{label}: {url}");
+            }
+        }
+    }
+
+    private static void AppendStringArrayOverviewLine(List<string> lines, JsonElement overview, string propertyName, string label)
+    {
+        if (!overview.TryGetProperty(propertyName, out var arrayElement) ||
+            arrayElement.ValueKind != JsonValueKind.Array)
+        {
+            return;
+        }
+
+        var values = arrayElement.EnumerateArray()
+            .Where(item => item.ValueKind == JsonValueKind.String)
+            .Select(item => item.GetString()?.Trim())
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .ToList();
+        if (values.Count > 0)
+        {
+            lines.Add($"{label}: {string.Join(", ", values)}");
+        }
+    }
+
     private static string BuildShortName(string id, string name)
     {
         var source = string.IsNullOrWhiteSpace(id) ? name : id;
@@ -4539,6 +4723,41 @@ meta:
         };
     }
 
+    private static string ResolveNymphModuleInstallRoot(InstallSettings settings, string normalizedModuleId, string? manifestInstallRoot)
+    {
+        var homePath = $"/home/{settings.LinuxUser}";
+        var normalized = string.IsNullOrWhiteSpace(manifestInstallRoot)
+            ? GetNymphModuleInstallRoot(settings, normalizedModuleId)
+            : manifestInstallRoot.Trim();
+
+        if (normalized.StartsWith("$HOME/", StringComparison.Ordinal))
+        {
+            return $"{homePath}/{normalized["$HOME/".Length..]}";
+        }
+
+        if (normalized.Equals("$HOME", StringComparison.Ordinal))
+        {
+            return homePath;
+        }
+
+        if (normalized.StartsWith("~/", StringComparison.Ordinal))
+        {
+            return $"{homePath}/{normalized[2..]}";
+        }
+
+        if (normalized.Equals("~", StringComparison.Ordinal))
+        {
+            return homePath;
+        }
+
+        if (!normalized.StartsWith("/", StringComparison.Ordinal))
+        {
+            return $"{homePath}/{normalized.TrimStart('/')}";
+        }
+
+        return normalized;
+    }
+
     private async Task<bool> WslPathExistsAsync(
         InstallSettings settings,
         string linuxPath,
@@ -4605,22 +4824,79 @@ meta:
         var manifestPath = Path.Combine(installRootWindowsPath, "nymph.json");
         var versionMarkerPath = Path.Combine(installRootWindowsPath, ".nymph-module-version");
 
-        if (!File.Exists(versionMarkerPath) || !File.Exists(manifestPath))
+        if (!File.Exists(versionMarkerPath))
         {
             return null;
         }
 
-        using var document = JsonDocument.Parse(File.ReadAllText(manifestPath));
-        var root = document.RootElement;
-        if (!root.TryGetProperty("ui", out var uiElement) ||
-            uiElement.ValueKind != JsonValueKind.Object ||
-            !uiElement.TryGetProperty("manager_ui", out var managerUiElement) ||
-            managerUiElement.ValueKind != JsonValueKind.Object)
+        var manifestSourcePath = manifestPath;
+        if (!File.Exists(manifestSourcePath))
         {
-            return null;
+            var cachedManifestPath = ToWindowsWslPath(
+                settings,
+                $"/home/{settings.LinuxUser}/.cache/nymphs-modules/{normalizedModuleId}.nymph.json");
+            if (!File.Exists(cachedManifestPath))
+            {
+                return null;
+            }
+
+            manifestSourcePath = cachedManifestPath;
+        }
+
+        using var document = JsonDocument.Parse(File.ReadAllText(manifestSourcePath));
+        var root = document.RootElement;
+        JsonElement managerUiElement = default;
+        var hasManagerUi = root.TryGetProperty("ui", out var uiElement) &&
+                           uiElement.ValueKind == JsonValueKind.Object &&
+                           uiElement.TryGetProperty("manager_ui", out managerUiElement) &&
+                           managerUiElement.ValueKind == JsonValueKind.Object;
+        if (!hasManagerUi)
+        {
+            if (!root.TryGetProperty("runtime", out var runtimeElement) ||
+                runtimeElement.ValueKind != JsonValueKind.Object)
+            {
+                return null;
+            }
+
+            var runtimeUrl = GetJsonString(runtimeElement, "frontend_url") ?? "";
+            if (!Uri.TryCreate(runtimeUrl, UriKind.Absolute, out var runtimeUri) ||
+                (!string.Equals(runtimeUri.Scheme, Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase) &&
+                 !string.Equals(runtimeUri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase)))
+            {
+                return null;
+            }
+
+            return new InstalledNymphModuleUiInfo(
+                normalizedModuleId,
+                "local_url",
+                GetJsonString(root, "name") ?? "Module UI",
+                runtimeUrl,
+                runtimeUrl);
         }
 
         var type = GetJsonString(managerUiElement, "type") ?? "";
+        if (string.Equals(type, "local_url", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(type, "url", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(type, "local_web_url", StringComparison.OrdinalIgnoreCase))
+        {
+            var url = GetJsonString(managerUiElement, "url")
+                ?? GetJsonString(managerUiElement, "href")
+                ?? "";
+            if (Uri.TryCreate(url, UriKind.Absolute, out var uiUri) &&
+                (string.Equals(uiUri.Scheme, Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(uiUri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase)))
+            {
+                return new InstalledNymphModuleUiInfo(
+                    normalizedModuleId,
+                    "local_url",
+                    GetJsonString(managerUiElement, "title") ?? "Module UI",
+                    url,
+                    url);
+            }
+
+            return null;
+        }
+
         if (!string.Equals(type, "local_html", StringComparison.OrdinalIgnoreCase) &&
             !string.Equals(type, "local_web_app", StringComparison.OrdinalIgnoreCase))
         {
@@ -4657,6 +4933,11 @@ meta:
         if (uiInfo is null)
         {
             return null;
+        }
+
+        if (string.Equals(uiInfo.Type, "local_url", StringComparison.OrdinalIgnoreCase))
+        {
+            return uiInfo;
         }
 
         try
@@ -5533,6 +5814,39 @@ meta:
         return FindManagedDistroName(distros);
     }
 
+    public string? GetExistingManagedDistroInstallLocation(string? distroName = null)
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return null;
+        }
+
+        var normalizedDistroName = string.IsNullOrWhiteSpace(distroName)
+            ? ManagedDistroName
+            : distroName.Trim();
+
+        using var lxssKey = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Lxss");
+        if (lxssKey is null)
+        {
+            return null;
+        }
+
+        foreach (var subKeyName in lxssKey.GetSubKeyNames())
+        {
+            using var distroKey = lxssKey.OpenSubKey(subKeyName);
+            var distributionName = distroKey?.GetValue("DistributionName") as string;
+            if (!string.Equals(distributionName, normalizedDistroName, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            var basePath = distroKey?.GetValue("BasePath") as string;
+            return string.IsNullOrWhiteSpace(basePath) ? null : basePath;
+        }
+
+        return null;
+    }
+
     public void OpenLogFolder()
     {
         Directory.CreateDirectory(LogFolderPath);
@@ -6093,6 +6407,7 @@ meta:
 
         return result.CombinedOutput
             .Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(name => name.Replace("\0", "").Trim())
             .Where(name => !string.IsNullOrWhiteSpace(name))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
@@ -6223,6 +6538,21 @@ meta:
     private static string ToBashSingleQuoted(string value)
     {
         return "'" + value.Replace("'", "'\\''") + "'";
+    }
+
+    private static Dictionary<string, string> ParseKeyValueStatusLine(string line)
+    {
+        var values = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var part in line.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            var pieces = part.Split('=', 2, StringSplitOptions.TrimEntries);
+            if (pieces.Length == 2 && !string.IsNullOrWhiteSpace(pieces[0]))
+            {
+                values[pieces[0]] = pieces[1];
+            }
+        }
+
+        return values;
     }
 
     private static string QuoteWindowsCommandArgument(string value)

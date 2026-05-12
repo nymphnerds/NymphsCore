@@ -234,7 +234,10 @@ public sealed class NymphModuleViewModel : ViewModelBase
             ? manifest.ManifestUrl
             : manifest.SourceSummary;
         RepositoryUrl = manifest.RepositoryUrl;
-        var manifestDetail = $"Registry manifest: {manifest.ManifestUrl}\nSource: {sourceLine}";
+        var overviewDetail = string.IsNullOrWhiteSpace(manifest.OverviewDetail)
+            ? ""
+            : $"{manifest.OverviewDetail}\n\n";
+        var manifestDetail = $"{overviewDetail}Registry manifest: {manifest.ManifestUrl}\nSource: {sourceLine}";
         SecondaryDetail = IsInstalled &&
                           !string.IsNullOrWhiteSpace(SecondaryDetail) &&
                           !SecondaryDetail.Contains("Registry manifest:", StringComparison.OrdinalIgnoreCase)

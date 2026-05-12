@@ -8,6 +8,34 @@ This file focuses on user-facing and system-level changes rather than package-by
 
 Newest entries first.
 
+### 2026-05-12 Manager UI-mode split, WORBI WebView proof, and module marker hardening
+Source: live modular Manager testing in the `NymphsCore` WSL distro with WORBI as the fast reference module.
+
+Changed in source:
+
+- added fast installed-module marker probing so installed cards can appear before slow deep status checks finish
+- kept marker-installed modules installed when status fails, instead of demoting them to Available
+- added support for module-owned Manager UI metadata from manifests
+- added embedded `local_url` WebView2 hosting for installed module UIs
+- made WORBI `start` open its local web UI inside the Manager and added a `browser` contract action for opening it externally
+- kept normal module details and custom module UI as two separate modes:
+  - details mode shows the right-side `// MANAGE` rail and full contract sections
+  - UI mode keeps the compact top `// manage` menu and compact contract strip
+- kept update check in the gear menu
+- restored module facts to the right rail in details mode while keeping them tucked away for UI mode
+- made the module monogram square collapse/restore the left sidebar for more UI space
+- rebuilt the Win x64 release EXE and ZIP
+
+Validated locally:
+
+- `powershell.exe -ExecutionPolicy Bypass -File '\\wsl.localhost\NymphsCore\home\nymph\NymphsDev\NymphsCore\Manager\apps\NymphsCoreManager\build-release.ps1'`
+- WORBI installed, started, and rendered its web UI inside the Manager during live testing
+
+Current caveats:
+
+- Z-Image still needs the next full test pass after this UI/contract checkpoint
+- module UI mode is promising, but WebView2 behavior should still be tested against Z-Image and future module UIs before treating the host contract as final
+
 ### 2026-05-11 late Z-Image fetch models, live logs, and persistent HF token
 Source: live modular Manager testing against Z-Image Fetch Models from the published Win x64 build.
 

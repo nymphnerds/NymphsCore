@@ -112,12 +112,18 @@
 
     <Style TargetType="Button" x:Key="ModuleActionButtonStyle" BasedOn="{StaticResource ShellButtonStyle}">
       <Setter Property="Margin" Value="0" />
-      <Setter Property="Padding" Value="8,5" />
-      <Setter Property="FontSize" Value="11" />
+      <Setter Property="Padding" Value="6,4" />
+      <Setter Property="FontSize" Value="10.5" />
       <Setter Property="Background" Value="#101B1D" />
       <Setter Property="BorderBrush" Value="#284446" />
       <Setter Property="Foreground" Value="#EFF8F6" />
-      <Setter Property="MinHeight" Value="28" />
+      <Setter Property="MinHeight" Value="24" />
+    </Style>
+
+    <Style TargetType="Button" x:Key="ContractLinkButtonStyle" BasedOn="{StaticResource ModuleActionButtonStyle}">
+      <Setter Property="Padding" Value="7,3" />
+      <Setter Property="MinHeight" Value="22" />
+      <Setter Property="Margin" Value="0,0,5,4" />
     </Style>
 
     <Style TargetType="Button" x:Key="ModuleEllipsisButtonStyle" BasedOn="{StaticResource ModuleActionButtonStyle}">
@@ -142,6 +148,60 @@
       <Setter Property="Background" Value="#0C1719" />
       <Setter Property="BorderBrush" Value="#203B3D" />
       <Setter Property="Foreground" Value="#A7BBB7" />
+    </Style>
+
+    <Style TargetType="Button" x:Key="ManageLinkButtonStyle">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="Padding" Value="0,3" />
+      <Setter Property="Margin" Value="0,0,0,3" />
+      <Setter Property="HorizontalContentAlignment" Value="Right" />
+      <Setter Property="HorizontalAlignment" Value="Right" />
+      <Setter Property="Foreground" Value="#E4F2EF" />
+      <Setter Property="FontFamily" Value="Bahnschrift" />
+      <Setter Property="FontSize" Value="12" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Cursor" Value="Hand" />
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <Border x:Name="ButtonChrome"
+                    Background="{TemplateBinding Background}"
+                    CornerRadius="3"
+                    Padding="{TemplateBinding Padding}">
+              <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                VerticalAlignment="Center" />
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="ButtonChrome" Property="Background" Value="#102022" />
+                <Setter Property="Foreground" Value="{StaticResource AccentBrush}" />
+              </Trigger>
+              <Trigger Property="IsPressed" Value="True">
+                <Setter TargetName="ButtonChrome" Property="Background" Value="#081314" />
+              </Trigger>
+              <Trigger Property="IsEnabled" Value="False">
+                <Setter Property="Foreground" Value="#4D6461" />
+                <Setter Property="Opacity" Value="0.72" />
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+
+    <Style TargetType="TextBlock" x:Key="RightFactTextStyle">
+      <Setter Property="Foreground" Value="#9AB8B4" />
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="TextWrapping" Value="Wrap" />
+      <Setter Property="TextAlignment" Value="Right" />
+    </Style>
+
+    <Style TargetType="Border" x:Key="RightRailFactsBorderStyle" BasedOn="{StaticResource PanelBorderStyle}">
+      <Setter Property="Padding" Value="12" />
+      <Setter Property="Width" Value="190" />
+      <Setter Property="HorizontalAlignment" Value="Right" />
+      <Setter Property="Background" Value="#081314" />
     </Style>
 
     <Style TargetType="Button" x:Key="OverviewTileButtonStyle">
@@ -518,6 +578,28 @@
       </Setter>
     </Style>
 
+    <Style TargetType="Button" x:Key="PlainManageTextButtonStyle">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="Margin" Value="0,0,12,0" />
+      <Setter Property="Foreground" Value="#97DF48" />
+      <Setter Property="Cursor" Value="Hand" />
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <ContentPresenter HorizontalAlignment="Center"
+                              VerticalAlignment="Center" />
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter Property="Foreground" Value="#23E7DB" />
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+
     <Style TargetType="ListBoxItem" x:Key="NavigationListBoxItemStyle">
       <Setter Property="Padding" Value="0" />
       <Setter Property="Margin" Value="0,0,0,12" />
@@ -653,7 +735,7 @@
 	    <Grid>
 	      <Grid.ColumnDefinitions>
 	      <ColumnDefinition x:Name="SidebarColumn" Width="232" />
-	      <ColumnDefinition x:Name="ShellGutterColumn" Width="8" />
+	      <ColumnDefinition x:Name="ShellGutterColumn" Width="0" />
 	      <ColumnDefinition x:Name="MainContentColumn" Width="*" />
 	    </Grid.ColumnDefinitions>
 
@@ -885,8 +967,11 @@
           Grid.Column="2">
       <Grid.Style>
         <Style TargetType="Grid">
-          <Setter Property="Margin" Value="22,0,22,0" />
+          <Setter Property="Margin" Value="8,0,8,0" />
           <Style.Triggers>
+            <DataTrigger Binding="{Binding IsModulePage}" Value="True">
+              <Setter Property="Margin" Value="14,0,14,0" />
+            </DataTrigger>
             <DataTrigger Binding="{Binding IsModuleUiPage}" Value="True">
               <Setter Property="Margin" Value="0" />
             </DataTrigger>
@@ -900,41 +985,127 @@
       </Grid.RowDefinitions>
 
       <Grid Grid.Row="0"
-            Margin="0,24,0,10"
-            Visibility="{Binding IsStandardContentPage, Converter={StaticResource BoolToVisibilityConverter}}">
+            Margin="0,8,0,2">
         <Grid.ColumnDefinitions>
           <ColumnDefinition Width="*" />
           <ColumnDefinition Width="Auto" />
         </Grid.ColumnDefinitions>
 
-        <Grid Height="78">
-          <TextBlock Text="{Binding CurrentPageTitle}"
-                     Margin="0,2,0,0"
-                     VerticalAlignment="Top"
-                     Style="{StaticResource PageTitleStyle}" />
-          <TextBlock Text="{Binding CurrentPageSubtitle, StringFormat=// {0}}"
-                     Margin="0,45,0,0"
-                     VerticalAlignment="Top"
-                     Style="{StaticResource PageSubtitleStyle}" />
+        <Grid>
+          <Grid.Style>
+            <Style TargetType="Grid">
+              <Setter Property="Height" Value="72" />
+              <Style.Triggers>
+                <DataTrigger Binding="{Binding HasSelectedModule}" Value="True">
+                  <Setter Property="Height" Value="78" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding IsModuleUiPage}" Value="True">
+                  <Setter Property="Height" Value="44" />
+                </DataTrigger>
+              </Style.Triggers>
+            </Style>
+          </Grid.Style>
+          <Grid Visibility="{Binding HasSelectedModule, Converter={StaticResource BoolToVisibilityConverter}}">
+            <Grid>
+              <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+              </Grid.RowDefinitions>
+              <DockPanel Grid.Row="0"
+                         LastChildFill="True">
+              <Border CornerRadius="10"
+                      Background="#0A1717"
+                      BorderBrush="{Binding DisplayedModule.AccentBrush}"
+                      BorderThickness="1"
+                      Margin="0,0,10,0"
+                      VerticalAlignment="Top"
+                      Cursor="Hand"
+                      MouseLeftButtonUp="ModuleLogoCollapseButton_MouseLeftButtonUp">
+                <Border.Style>
+                  <Style TargetType="Border">
+                    <Setter Property="Width" Value="48" />
+                    <Setter Property="Height" Value="48" />
+                    <Style.Triggers>
+                      <DataTrigger Binding="{Binding IsModuleUiPage}" Value="True">
+                        <Setter Property="Width" Value="38" />
+                        <Setter Property="Height" Value="38" />
+                      </DataTrigger>
+                    </Style.Triggers>
+                  </Style>
+                </Border.Style>
+                <TextBlock Text="{Binding DisplayedModule.Monogram}"
+                           HorizontalAlignment="Center"
+                           VerticalAlignment="Center"
+                           FontFamily="Cascadia Mono"
+                           FontWeight="Bold"
+                           Foreground="{Binding DisplayedModule.AccentBrush}">
+                  <TextBlock.Style>
+                    <Style TargetType="TextBlock">
+                      <Setter Property="FontSize" Value="13" />
+                      <Style.Triggers>
+                        <DataTrigger Binding="{Binding IsModuleUiPage}" Value="True">
+                          <Setter Property="FontSize" Value="12" />
+                        </DataTrigger>
+                      </Style.Triggers>
+                    </Style>
+                  </TextBlock.Style>
+                </TextBlock>
+              </Border>
+              <StackPanel VerticalAlignment="Top">
+                <TextBlock Text="{Binding DisplayedModule.Name}">
+                  <TextBlock.Style>
+                    <Style TargetType="TextBlock" BasedOn="{StaticResource PageTitleStyle}">
+                      <Setter Property="FontSize" Value="27" />
+                      <Style.Triggers>
+                        <DataTrigger Binding="{Binding IsModuleUiPage}" Value="True">
+                          <Setter Property="FontSize" Value="21" />
+                        </DataTrigger>
+                      </Style.Triggers>
+                    </Style>
+                  </TextBlock.Style>
+                </TextBlock>
+              </StackPanel>
+              </DockPanel>
+              <TextBlock Grid.Row="1"
+                         Text="{Binding DisplayedModule.Description, StringFormat=// {0}}"
+                         Margin="58,2,0,0"
+                         Style="{StaticResource PageSubtitleStyle}"
+                         TextTrimming="CharacterEllipsis" />
+            </Grid>
+          </Grid>
+          <StackPanel>
+            <StackPanel.Style>
+              <Style TargetType="StackPanel">
+                <Setter Property="Visibility" Value="Visible" />
+                <Style.Triggers>
+                  <DataTrigger Binding="{Binding HasSelectedModule}" Value="True">
+                    <Setter Property="Visibility" Value="Collapsed" />
+                  </DataTrigger>
+                </Style.Triggers>
+              </Style>
+            </StackPanel.Style>
+            <TextBlock Text="{Binding CurrentPageTitle}"
+                       Margin="0,2,0,0"
+                       Style="{StaticResource PageTitleStyle}" />
+            <TextBlock Text="{Binding CurrentPageSubtitle, StringFormat=// {0}}"
+                       Margin="0,8,0,0"
+                       Style="{StaticResource PageSubtitleStyle}" />
+          </StackPanel>
         </Grid>
 
         <StackPanel Grid.Column="1"
                     Orientation="Horizontal"
                     VerticalAlignment="Top">
-          <Button Style="{StaticResource TopBarButtonStyle}"
-                  Command="{Binding CheckForUpdatesCommand}"
-                  MinWidth="144"
-                  Height="36">
-            <StackPanel Orientation="Horizontal">
-              <TextBlock Text="&#xE895;"
-                         FontFamily="Segoe Fluent Icons"
-                         FontSize="14"
-                         Margin="0,0,7,0"
-                         VerticalAlignment="Center" />
-              <TextBlock Text="Check for Updates"
-                         VerticalAlignment="Center" />
-            </StackPanel>
-          </Button>
+	          <TextBlock x:Name="ManageButton"
+	                     Text="// manage"
+	                     Margin="0,8,12,0"
+	                     Cursor="Hand"
+	                     Foreground="#97DF48"
+	                     FontFamily="Cascadia Mono"
+	                     FontSize="12"
+	                     FontWeight="Bold"
+	                     MouseLeftButtonUp="ManageButton_MouseLeftButtonUp"
+	                     Visibility="{Binding IsModuleUiPage, Converter={StaticResource BoolToVisibilityConverter}}" />
           <Button x:Name="SettingsButton"
                   Style="{StaticResource TopBarIconButtonStyle}"
                   BorderBrush="{Binding DeveloperModeBrush}"
@@ -948,6 +1119,50 @@
           </Button>
         </StackPanel>
 
+        <Popup x:Name="ManagePopup"
+               Grid.Column="1"
+               PlacementTarget="{Binding ElementName=ManageButton}"
+               Placement="Bottom"
+               AllowsTransparency="True"
+               StaysOpen="False">
+          <Border Margin="0,6,0,0"
+                  Width="150"
+                  Padding="10"
+                  CornerRadius="6"
+                  Background="#0A1415"
+                  BorderBrush="#284446"
+                  BorderThickness="1">
+            <StackPanel>
+              <TextBlock Text="// MANAGE"
+                         Style="{StaticResource MonoLabelStyle}"
+                         Foreground="{StaticResource LimeBrush}"
+                         FontSize="12" />
+              <Button Style="{StaticResource ManageLinkButtonStyle}"
+                      Command="{Binding OpenGuideCommand}"
+                      Content="Guide" />
+              <Button Style="{StaticResource ManageLinkButtonStyle}"
+                      Command="{Binding InstallModuleCommand}"
+                      CommandParameter="{Binding DisplayedModule}"
+                      Content="Install" />
+              <Button Style="{StaticResource ManageLinkButtonStyle}"
+                      Command="{Binding RepairModuleCommand}"
+                      CommandParameter="{Binding DisplayedModule}"
+                      Content="Repair" />
+              <Button Style="{StaticResource ManageLinkButtonStyle}"
+                      IsEnabled="False"
+                      Content="Storage" />
+              <Button Style="{StaticResource ManageLinkButtonStyle}"
+                      Command="{Binding UninstallModuleCommand}"
+                      CommandParameter="{Binding DisplayedModule}"
+                      Content="Uninstall" />
+              <Button Style="{StaticResource ManageLinkButtonStyle}"
+                      Command="{Binding OpenModuleInstallPathCommand}"
+                      CommandParameter="{Binding DisplayedModule}"
+                      Content="Dir" />
+            </StackPanel>
+          </Border>
+        </Popup>
+
         <Popup x:Name="SettingsPopup"
                Grid.Column="1"
                PlacementTarget="{Binding ElementName=SettingsButton}"
@@ -955,7 +1170,7 @@
                AllowsTransparency="True"
                StaysOpen="False">
           <Border Margin="0,6,0,0"
-                  Width="190"
+                  Width="260"
                   Padding="10"
                   CornerRadius="6"
                   Background="#0A1415"
@@ -972,6 +1187,59 @@
                         FontFamily="Segoe UI Semibold"
                         FontSize="12"
                         Content="Developer Mode" />
+              <Button Margin="0,12,0,0"
+                      Style="{StaticResource ModuleActionButtonStyle}"
+                      Command="{Binding CheckForUpdatesCommand}">
+                <TextBlock Text="// check updates"
+                           Foreground="#23E7DB"
+                           FontFamily="Cascadia Mono"
+                           FontSize="11" />
+              </Button>
+              <StackPanel Margin="0,14,0,0"
+                          Visibility="{Binding HasSelectedModule, Converter={StaticResource BoolToVisibilityConverter}}">
+                <TextBlock Text="// MODULE FACTS"
+                           Style="{StaticResource MonoLabelStyle}"
+                           Foreground="{StaticResource LimeBrush}"
+                           FontSize="12" />
+                <TextBlock Margin="0,8,0,0"
+                           Text="{Binding DisplayedModule.Category, StringFormat=Category: {0}}"
+                           Foreground="#D8EAE6"
+                           FontSize="11"
+                           TextWrapping="Wrap" />
+                <TextBlock Margin="0,4,0,0"
+                           Text="{Binding DisplayedModule.Kind, StringFormat=Packaging: {0}}"
+                           Foreground="#D8EAE6"
+                           FontSize="11"
+                           TextWrapping="Wrap" />
+                <TextBlock Margin="0,4,0,0"
+                           Text="{Binding DisplayedModule.VersionLabel, StringFormat=Installed: {0}}"
+                           Foreground="#D8EAE6"
+                           FontSize="11"
+                           TextWrapping="Wrap" />
+                <TextBlock Margin="0,4,0,0"
+                           Text="{Binding DisplayedModule.RemoteVersionLabel, StringFormat=Remote: {0}}"
+                           Foreground="#9AB8B4"
+                           FontSize="11"
+                           TextWrapping="Wrap" />
+                <TextBlock Margin="0,4,0,0"
+                           Text="{Binding DisplayedModule.InstallPathLabel, StringFormat=Install path: {0}}"
+                           Foreground="#9AB8B4"
+                           FontSize="11"
+                           TextWrapping="Wrap" />
+                <TextBlock Margin="0,6,0,0"
+                           Foreground="#9AB8B4"
+                           FontSize="11"
+                           TextWrapping="Wrap"
+                           Visibility="{Binding DisplayedModule.HasRepositoryUrl, Converter={StaticResource BoolToVisibilityConverter}}">
+                  <Run Text="Source: " />
+                  <Hyperlink Command="{Binding OpenModuleSourceCommand}"
+                             CommandParameter="{Binding DisplayedModule}"
+                             Foreground="{StaticResource AccentBrush}"
+                             TextDecorations="{x:Null}">
+                    <Run Text="GitHub" />
+                  </Hyperlink>
+                </TextBlock>
+              </StackPanel>
             </StackPanel>
           </Border>
         </Popup>
@@ -1124,8 +1392,8 @@
             <Grid>
               <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="18" />
-                <ColumnDefinition Width="232" />
+                <ColumnDefinition Width="2" />
+                <ColumnDefinition Width="92" />
               </Grid.ColumnDefinitions>
 
               <Grid Grid.Column="0">
@@ -1313,6 +1581,27 @@
                 <TextBlock Text="// ACTIONS"
                            Style="{StaticResource MonoLabelStyle}"
                            Foreground="{StaticResource LimeBrush}" />
+                <Border Margin="0,10,0,8"
+                        Style="{StaticResource PanelBorderStyle}"
+                        Padding="10"
+                        Background="#081314">
+                  <StackPanel>
+                    <TextBlock Text="// INSTALL DRIVE"
+                               Style="{StaticResource MonoLabelStyle}"
+                               Foreground="{StaticResource LimeBrush}" />
+                    <ComboBox Margin="0,8,0,0"
+                              ItemsSource="{Binding BaseRuntimeDrives}"
+                              SelectedItem="{Binding SelectedBaseRuntimeDrive}"
+                              DisplayMemberPath="DisplayLabel"
+                              IsEnabled="{Binding CanChooseBaseRuntimeDrive}"
+                              MinHeight="32" />
+                    <TextBlock Margin="0,7,0,0"
+                               Text="{Binding BaseRuntimeDriveSummary}"
+                               Foreground="#9AB8B4"
+                               FontSize="11"
+                               TextWrapping="Wrap" />
+                  </StackPanel>
+                </Border>
                 <Button Margin="0,10,0,6"
                         Style="{StaticResource ShellButtonStyle}"
                         Command="{Binding SetupWindowsWslCommand}"
@@ -1350,6 +1639,11 @@
                                Text="{Binding BaseRuntimeCardSubtitle, StringFormat=Base runtime: {0}}"
                                Foreground="#D8EAE6"
                                FontSize="12"
+                               TextWrapping="Wrap" />
+                    <TextBlock Margin="0,5,0,0"
+                               Text="{Binding BaseRuntimeInstallPath, StringFormat=Install path: {0}}"
+                               Foreground="#9AB8B4"
+                               FontSize="11"
                                TextWrapping="Wrap" />
                     <TextBlock Margin="0,5,0,0"
                                Text="{Binding RuntimePanelSummary}"
@@ -1576,112 +1870,69 @@
 
           <Grid Visibility="{Binding IsModulePage, Converter={StaticResource BoolToVisibilityConverter}}">
             <Grid Visibility="{Binding HasSelectedModule, Converter={StaticResource BoolToVisibilityConverter}}">
-              <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="18" />
-                <ColumnDefinition Width="232" />
-              </Grid.ColumnDefinitions>
+	              <Grid.ColumnDefinitions>
+	                <ColumnDefinition Width="*" />
+		                <ColumnDefinition Width="16" />
+		                <ColumnDefinition Width="190" />
+	              </Grid.ColumnDefinitions>
 
-              <StackPanel Grid.Column="0">
-                <DockPanel LastChildFill="False">
-                  <Border Width="56"
-                          Height="56"
-                          CornerRadius="16"
-                          Background="#0A1717"
-                          BorderBrush="{Binding DisplayedModule.AccentBrush}"
-                          BorderThickness="1"
-                          Margin="0,0,14,0">
-                    <TextBlock Text="{Binding DisplayedModule.Monogram}"
-                               HorizontalAlignment="Center"
-                               VerticalAlignment="Center"
-                               FontFamily="Cascadia Mono"
-                               FontSize="16"
-                               FontWeight="Bold"
-                               Foreground="{Binding DisplayedModule.AccentBrush}" />
-                  </Border>
-                  <StackPanel>
-                    <TextBlock Text="{Binding DisplayedModule.Name}"
-                               FontFamily="Bahnschrift SemiBold"
-                               FontSize="38"
-                               Foreground="#F2FBF9" />
-                    <TextBlock Text="{Binding DisplayedModule.DisplayStateLabel}"
-                               Foreground="{Binding DisplayedModule.DisplayStatusBrush}"
-                               FontWeight="Bold"
-                               FontSize="18" />
-                  </StackPanel>
-                </DockPanel>
+	              <Grid Grid.Column="0"
+	                    Margin="0"
+	                    Height="{Binding ActualHeight, ElementName=MainContentScrollViewer}">
+                <Grid.RowDefinitions>
+                  <RowDefinition Height="*" />
+                  <RowDefinition Height="Auto" />
+                  <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
 
-                <TextBlock Margin="0,18,0,0"
-                           Text="{Binding DisplayedModule.Description}"
-                           Foreground="#B1C9C5"
-                           FontSize="16"
-                           TextWrapping="Wrap" />
-
-                <Border Margin="0,18,0,0"
+                <Border Grid.Row="0"
+                        Margin="0"
                         Style="{StaticResource PanelBorderStyle}"
-                        Padding="16"
+                        Padding="18"
                         Background="#0A1415"
-                        Height="170">
+                        MinHeight="260"
+                        VerticalAlignment="Stretch">
                   <Grid>
                     <Grid.RowDefinitions>
                       <RowDefinition Height="Auto" />
                       <RowDefinition Height="Auto" />
                       <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
-                    <TextBlock Text="// LIVE DETAIL"
+                    <TextBlock Text="// DETAILS"
                                Style="{StaticResource MonoLabelStyle}"
                                Foreground="{StaticResource LimeBrush}" />
-                    <TextBlock Grid.Row="1"
-                               Margin="0,10,0,0"
-                               Text="{Binding ModuleActionFeedbackTitle}"
-                               Foreground="#D8EAE6"
-                               FontWeight="SemiBold"
-                               TextWrapping="Wrap" />
-                    <ScrollViewer Grid.Row="2"
-                                  Margin="0,8,0,0"
-                                  VerticalScrollBarVisibility="Hidden"
-                                  HorizontalScrollBarVisibility="Disabled"
-                                  CanContentScroll="False">
-                      <TextBlock Text="{Binding ModuleActionFeedbackDetail}"
-                                 Foreground="#9AB8B4"
-                                 FontSize="12"
-                                 TextWrapping="Wrap" />
-                    </ScrollViewer>
+	                    <TextBlock Grid.Row="1"
+	                               Margin="0,10,0,0"
+	                               Text="{Binding ModuleActionFeedbackTitle}"
+	                               Foreground="#D8EAE6"
+	                               FontSize="15"
+	                               FontWeight="SemiBold"
+	                               TextWrapping="Wrap" />
+	                    <ScrollViewer Grid.Row="2"
+	                                  Margin="0,12,0,0"
+	                                  VerticalScrollBarVisibility="Auto"
+	                                  HorizontalScrollBarVisibility="Disabled"
+	                                  CanContentScroll="False">
+                          <ScrollViewer.Resources>
+                            <Style TargetType="ScrollBar"
+                                   BasedOn="{StaticResource LogScrollBarStyle}" />
+                          </ScrollViewer.Resources>
+	                      <TextBlock Text="{Binding ModuleActionFeedbackDetail}"
+	                                 Foreground="#B6D3CE"
+	                                 FontSize="14"
+	                                 LineHeight="22"
+	                                 TextWrapping="Wrap" />
+	                    </ScrollViewer>
                   </Grid>
                 </Border>
 
-                <TextBlock Margin="0,16,0,10"
-                           Text="// MANAGER CONTRACT"
-                           Style="{StaticResource MonoLabelStyle}"
-                           Foreground="{StaticResource LimeBrush}" />
-                <ItemsControl ItemsSource="{Binding DisplayedModule.Capabilities}">
-                  <ItemsControl.ItemsPanel>
-                    <ItemsPanelTemplate>
-                      <WrapPanel />
-                    </ItemsPanelTemplate>
-                  </ItemsControl.ItemsPanel>
-                  <ItemsControl.ItemTemplate>
-                    <DataTemplate>
-                      <Button Margin="0,0,10,10"
-                              Style="{StaticResource ModuleActionButtonStyle}"
-                              Command="{Binding DataContext.RunModuleActionCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                              CommandParameter="{Binding}">
-                        <TextBlock Text="{Binding StringFormat=// {0}}"
-                                   Foreground="#23E7DB"
-                                   FontFamily="Cascadia Mono"
-                                   FontSize="12" />
-                      </Button>
-                    </DataTemplate>
-                  </ItemsControl.ItemTemplate>
-                </ItemsControl>
-
-                <StackPanel Margin="0,14,0,0"
-                            Visibility="{Binding ShowDevContract, Converter={StaticResource BoolToVisibilityConverter}}">
-                  <TextBlock Margin="0,0,0,10"
-                             Text="// DEV CONTRACT"
+                <StackPanel Grid.Row="2"
+                            Margin="0,14,0,0">
+                  <TextBlock Text="// MANAGER CONTRACT"
                              Style="{StaticResource MonoLabelStyle}"
                              Foreground="{StaticResource LimeBrush}" />
-                  <ItemsControl ItemsSource="{Binding DisplayedModule.DevCapabilities}">
+                  <ItemsControl Margin="0,8,0,0"
+                                ItemsSource="{Binding DisplayedModuleContractActions}">
                     <ItemsControl.ItemsPanel>
                       <ItemsPanelTemplate>
                         <WrapPanel />
@@ -1689,21 +1940,52 @@
                     </ItemsControl.ItemsPanel>
                     <ItemsControl.ItemTemplate>
                       <DataTemplate>
-                        <Button Margin="0,0,10,10"
-                                Style="{StaticResource ModuleActionButtonStyle}"
-                                Command="{Binding DataContext.RunModuleDevActionCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                        <Button Style="{StaticResource ModuleActionButtonStyle}"
+                                Margin="0,0,7,7"
+                                Command="{Binding DataContext.RunModuleActionCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                 CommandParameter="{Binding}">
                           <TextBlock Text="{Binding StringFormat=// {0}}"
-                                     Foreground="#97DF48"
+                                     Foreground="#23E7DB"
                                      FontFamily="Cascadia Mono"
-                                     FontSize="12" />
+                                     FontWeight="SemiBold"
+                                     FontSize="10.5" />
                         </Button>
                       </DataTemplate>
                     </ItemsControl.ItemTemplate>
                   </ItemsControl>
+
+                  <StackPanel Margin="0,14,0,0"
+                              Visibility="{Binding ShowDevContract, Converter={StaticResource BoolToVisibilityConverter}}">
+                    <TextBlock Text="// DEV CONTRACT"
+                               Style="{StaticResource MonoLabelStyle}"
+                               Foreground="{StaticResource LimeBrush}" />
+                    <ItemsControl Margin="0,8,0,0"
+                                  ItemsSource="{Binding DisplayedModule.DevCapabilities}">
+                      <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                          <WrapPanel />
+                        </ItemsPanelTemplate>
+                      </ItemsControl.ItemsPanel>
+                      <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                          <Button Style="{StaticResource ModuleActionButtonStyle}"
+                                  Margin="0,0,7,7"
+                                  Command="{Binding DataContext.RunModuleDevActionCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                  CommandParameter="{Binding}">
+                            <TextBlock Text="{Binding StringFormat=// {0}}"
+                                       Foreground="#97DF48"
+                                       FontFamily="Cascadia Mono"
+                                       FontWeight="SemiBold"
+                                       FontSize="10.5" />
+                          </Button>
+                        </DataTemplate>
+                      </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                  </StackPanel>
                 </StackPanel>
 
-                <Border Margin="0,12,0,0"
+                <Border Grid.Row="1"
+                        Margin="0,12,0,0"
                         Style="{StaticResource PanelBorderStyle}"
                         Padding="16"
                         Background="#081314"
@@ -1727,133 +2009,173 @@
                                  TextWrapping="Wrap" />
                     </ScrollViewer>
                   </StackPanel>
-                </Border>
-              </StackPanel>
+	                </Border>
+	              </Grid>
 
-              <StackPanel Grid.Column="2">
-                <TextBlock Text="// ACTIONS"
-                           Style="{StaticResource MonoLabelStyle}"
-                           Foreground="{StaticResource LimeBrush}" />
-                <Button Margin="0,16,0,10"
-                        Style="{StaticResource ShellButtonStyle}"
-                        Command="{Binding InstallModuleCommand}"
-                        CommandParameter="{Binding DisplayedModule}"
-                        Visibility="{Binding ShowInstallModuleAction, Converter={StaticResource BoolToVisibilityConverter}}"
-                        Content="Install Module" />
-                <Button Margin="0,0,0,10"
-                        Style="{StaticResource ShellButtonStyle}"
-                        Command="{Binding RepairModuleCommand}"
-                        CommandParameter="{Binding DisplayedModule}"
-                        Visibility="{Binding HasSelectedModule, Converter={StaticResource BoolToVisibilityConverter}}"
-                        Content="Repair Module" />
-                <Button Margin="0,0,0,10"
-                        Style="{StaticResource ShellButtonStyle}"
-                        Command="{Binding OpenModuleInstallPathCommand}"
-                        CommandParameter="{Binding DisplayedModule}"
-                        Visibility="{Binding ShowInstalledModuleActions, Converter={StaticResource BoolToVisibilityConverter}}"
-                        Content="Open Install Folder" />
-                <Button Margin="0,0,0,10"
-                        Style="{StaticResource ShellButtonStyle}"
-                        Command="{Binding OpenModuleUiCommand}"
-                        CommandParameter="{Binding DisplayedModule}"
-                        Visibility="{Binding ShowModuleUiAction, Converter={StaticResource BoolToVisibilityConverter}}"
-                        Content="{Binding DisplayedModule.ModuleUiTitle}" />
-                <Button Margin="0,0,0,10"
-                        Style="{StaticResource ShellButtonStyle}"
-                        Command="{Binding UpdateModuleCommand}"
-                        CommandParameter="{Binding DisplayedModule}"
-                        Visibility="{Binding DisplayedModule.HasUpdate, Converter={StaticResource BoolToVisibilityConverter}}"
-                        Content="Update Module" />
-                <Button Margin="0,0,0,10"
-                        Style="{StaticResource ShellButtonStyle}"
-                        Command="{Binding UninstallModuleCommand}"
-                        CommandParameter="{Binding DisplayedModule}"
-                        Visibility="{Binding ShowInstalledModuleActions, Converter={StaticResource BoolToVisibilityConverter}}"
-                        Content="Uninstall Module" />
-                <Button Margin="0,0,0,10"
-                        Style="{StaticResource ShellButtonStyle}"
-                        Command="{Binding DeleteModuleCommand}"
-                        CommandParameter="{Binding DisplayedModule}"
-                        Visibility="{Binding ShowDeleteModuleData, Converter={StaticResource BoolToVisibilityConverter}}"
-                        Content="Delete Module + Data" />
-                <Button Margin="0"
-                        Style="{StaticResource ShellButtonStyle}"
-                        Command="{Binding ShowHomeCommand}"
-                        Content="Back To Home" />
-                <Border Margin="0,18,0,0"
-                        Style="{StaticResource PanelBorderStyle}"
-                        Padding="14"
-                        Background="#081314">
-                  <StackPanel>
-                    <TextBlock Text="// MODULE FACTS"
-                               Style="{StaticResource MonoLabelStyle}"
-                               Foreground="{StaticResource LimeBrush}" />
-                    <TextBlock Margin="0,12,0,0"
-                               Text="{Binding DisplayedModule.Category, StringFormat=Category: {0}}"
-                               Foreground="#D8EAE6"
-                               FontSize="12" />
-                    <TextBlock Margin="0,6,0,0"
-                               Text="{Binding DisplayedModule.Kind, StringFormat=Packaging: {0}}"
-                               Foreground="#D8EAE6"
-                               FontSize="12" />
-                    <TextBlock Margin="0,6,0,0"
-                               Text="{Binding DisplayedModule.VersionLabel, StringFormat=Installed: {0}}"
-                               Foreground="#D8EAE6"
-                               FontSize="12" />
-                    <TextBlock Margin="0,6,0,0"
-                               Text="{Binding DisplayedModule.RemoteVersionLabel, StringFormat=Remote: {0}}"
-                               Foreground="#9AB8B4"
-                               FontSize="11" />
-                    <TextBlock Margin="0,6,0,0"
-                               Text="{Binding DisplayedModule.InstallPathLabel, StringFormat=Install path: {0}}"
-                               Foreground="#9AB8B4"
-                               FontSize="11"
-                               TextWrapping="Wrap" />
-                    <TextBlock Margin="0,8,0,0"
-                               Foreground="#9AB8B4"
-                               FontSize="11"
-                               Visibility="{Binding DisplayedModule.HasRepositoryUrl, Converter={StaticResource BoolToVisibilityConverter}}">
-                      <Run Text="Source: " />
-                      <Hyperlink Command="{Binding OpenModuleSourceCommand}"
-                                 CommandParameter="{Binding DisplayedModule}"
-                                 Foreground="{StaticResource AccentBrush}"
-                                 TextDecorations="{x:Null}">
-                        <Run Text="GitHub" />
-                      </Hyperlink>
-                    </TextBlock>
-                  </StackPanel>
-                </Border>
-              </StackPanel>
-            </Grid>
-          </Grid>
+	              <StackPanel Grid.Column="2"
+	                          HorizontalAlignment="Right"
+	                          VerticalAlignment="Top"
+	                          Margin="0,4,0,0">
+	                <TextBlock Text="// MANAGE"
+	                           Margin="0,0,0,8"
+	                           HorizontalAlignment="Right"
+	                           Style="{StaticResource MonoLabelStyle}"
+	                           Foreground="{StaticResource LimeBrush}" />
+	                <Button Style="{StaticResource ManageLinkButtonStyle}"
+	                        FontSize="14"
+	                        Command="{Binding OpenGuideCommand}"
+	                        Content="Guide" />
+	                <Button Style="{StaticResource ManageLinkButtonStyle}"
+	                        FontSize="14"
+	                        Command="{Binding InstallModuleCommand}"
+	                        CommandParameter="{Binding DisplayedModule}"
+	                        Content="Install" />
+	                <Button Style="{StaticResource ManageLinkButtonStyle}"
+	                        FontSize="14"
+	                        Command="{Binding RepairModuleCommand}"
+	                        CommandParameter="{Binding DisplayedModule}"
+	                        Content="Repair" />
+	                <Button Style="{StaticResource ManageLinkButtonStyle}"
+	                        FontSize="14"
+	                        IsEnabled="False"
+	                        Content="Storage" />
+	                <Button Style="{StaticResource ManageLinkButtonStyle}"
+	                        FontSize="14"
+	                        Command="{Binding UninstallModuleCommand}"
+	                        CommandParameter="{Binding DisplayedModule}"
+	                        Content="Uninstall" />
+	                <Button Style="{StaticResource ManageLinkButtonStyle}"
+	                        FontSize="14"
+	                        Command="{Binding OpenModuleInstallPathCommand}"
+	                        CommandParameter="{Binding DisplayedModule}"
+	                        Content="Dir" />
+
+	                <Border Margin="0,18,0,0"
+	                        Style="{StaticResource RightRailFactsBorderStyle}">
+	                  <StackPanel>
+	                    <TextBlock Text="// MODULE FACTS"
+	                               HorizontalAlignment="Right"
+	                               Style="{StaticResource MonoLabelStyle}"
+	                               Foreground="{StaticResource LimeBrush}"
+	                               FontSize="13" />
+	                    <TextBlock Margin="0,12,0,0"
+	                               Text="{Binding DisplayedModule.Category, StringFormat=Category: {0}}"
+	                               Style="{StaticResource RightFactTextStyle}"
+	                               Foreground="#D8EAE6" />
+	                    <TextBlock Margin="0,6,0,0"
+	                               Text="{Binding DisplayedModule.Kind, StringFormat=Packaging: {0}}"
+	                               Style="{StaticResource RightFactTextStyle}"
+	                               Foreground="#D8EAE6" />
+	                    <TextBlock Margin="0,6,0,0"
+	                               Text="{Binding DisplayedModule.VersionLabel, StringFormat=Installed: {0}}"
+	                               Style="{StaticResource RightFactTextStyle}"
+	                               Foreground="#D8EAE6" />
+	                    <TextBlock Margin="0,6,0,0"
+	                               Text="{Binding DisplayedModule.RemoteVersionLabel, StringFormat=Remote: {0}}"
+	                               Style="{StaticResource RightFactTextStyle}" />
+	                    <TextBlock Margin="0,6,0,0"
+	                               Text="{Binding DisplayedModule.InstallPathLabel, StringFormat=Install path: {0}}"
+	                               Style="{StaticResource RightFactTextStyle}" />
+	                    <TextBlock Margin="0,8,0,0"
+	                               Style="{StaticResource RightFactTextStyle}"
+	                               Visibility="{Binding DisplayedModule.HasRepositoryUrl, Converter={StaticResource BoolToVisibilityConverter}}">
+	                      <Run Text="Source: " />
+	                      <Hyperlink Command="{Binding OpenModuleSourceCommand}"
+	                                 CommandParameter="{Binding DisplayedModule}"
+	                                 Foreground="{StaticResource AccentBrush}"
+	                                 TextDecorations="{x:Null}">
+	                        <Run Text="GitHub" />
+	                      </Hyperlink>
+	                    </TextBlock>
+	                  </StackPanel>
+	                </Border>
+	              </StackPanel>
+
+	            </Grid>
+	          </Grid>
         </Grid>
       </ScrollViewer>
 
-      <Grid Grid.Row="0"
-            Grid.RowSpan="3"
+      <Grid Grid.Row="1"
+            Grid.RowSpan="2"
+            Margin="0"
             Visibility="{Binding IsModuleUiPage, Converter={StaticResource BoolToVisibilityConverter}}">
         <Grid.RowDefinitions>
-          <RowDefinition Height="Auto" />
           <RowDefinition Height="*" />
+          <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
-
-        <DockPanel Grid.Row="0"
-                   Margin="0,4,0,6"
-                   LastChildFill="True">
-          <Button Style="{StaticResource ShellButtonStyle}"
-                  Command="{Binding OpenModuleCommand}"
-                  CommandParameter="{Binding DisplayedModule}"
-                  Height="28"
-                  Padding="8,2"
-                  Content="Back" />
-        </DockPanel>
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="0" />
+          <ColumnDefinition Width="0" />
+        </Grid.ColumnDefinitions>
 
         <wv2:WebView2 x:Name="ModuleUiBrowser"
-                      Grid.Row="1"
+                      Grid.Row="0"
+                      Grid.Column="0"
+                      Grid.ColumnSpan="3"
+                      Margin="0"
                       Loaded="ModuleUiBrowser_Loaded"
                       CoreWebView2InitializationCompleted="ModuleUiBrowser_CoreWebView2InitializationCompleted"
                       NavigationStarting="ModuleUiBrowser_NavigationStarting"
                       NavigationCompleted="ModuleUiBrowser_NavigationCompleted" />
+
+        <WrapPanel Grid.Row="1"
+                   Grid.Column="0"
+                   Margin="0,8,0,0">
+          <TextBlock Text="//"
+                     Margin="0,3,7,0"
+                     Style="{StaticResource MonoLabelStyle}"
+                     Foreground="{StaticResource LimeBrush}" />
+          <ItemsControl ItemsSource="{Binding DisplayedModuleContractActions}">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate>
+                <WrapPanel />
+              </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate>
+                <Button Style="{StaticResource ContractLinkButtonStyle}"
+                        Command="{Binding DataContext.RunModuleActionCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                        CommandParameter="{Binding}">
+                  <TextBlock Text="{Binding}"
+                             Foreground="#23E7DB"
+                             FontFamily="Cascadia Mono"
+                             FontSize="10.5" />
+                </Button>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+
+          <StackPanel Orientation="Horizontal"
+                      Margin="7,0,0,0"
+                      Visibility="{Binding ShowDevContract, Converter={StaticResource BoolToVisibilityConverter}}">
+            <TextBlock Text="dev:"
+                       Margin="0,3,6,0"
+                       Foreground="#97DF48"
+                       FontFamily="Cascadia Mono"
+                       FontSize="10.5" />
+            <ItemsControl ItemsSource="{Binding DisplayedModule.DevCapabilities}">
+              <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                  <WrapPanel />
+                </ItemsPanelTemplate>
+              </ItemsControl.ItemsPanel>
+              <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                  <Button Style="{StaticResource ContractLinkButtonStyle}"
+                          Command="{Binding DataContext.RunModuleDevActionCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                          CommandParameter="{Binding}">
+                    <TextBlock Text="{Binding}"
+                               Foreground="#97DF48"
+                               FontFamily="Cascadia Mono"
+                               FontSize="10.5" />
+                  </Button>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+        </WrapPanel>
       </Grid>
 
       <Border Grid.Row="2"
@@ -1866,7 +2188,7 @@
         <DockPanel LastChildFill="True">
           <TextBlock Text="{Binding DeveloperModeLabel}"
                      DockPanel.Dock="Right"
-                     Margin="12,0,0,0"
+                     Margin="12,0,8,0"
                      Foreground="{Binding DeveloperModeBrush}"
                      FontFamily="Cascadia Mono"
                      FontSize="10.5"

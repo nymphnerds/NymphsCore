@@ -8,6 +8,7 @@ public sealed record NymphModuleManifestInfo(
     string Kind,
     string Version,
     string Description,
+    string OverviewDetail,
     string ManifestUrl,
     string RepositoryUrl,
     string SourceSummary,

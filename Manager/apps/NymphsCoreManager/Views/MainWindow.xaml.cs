@@ -10,6 +10,7 @@ using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Interop;
+using System.Windows.Input;
 using System.Windows.Threading;
 using System.Windows.Media;
 using Microsoft.Web.WebView2.Core;
@@ -36,11 +37,13 @@ public partial class MainWindow : Window
     private ManagerShellViewModel? _viewModel;
     private Rect? _preMonitorModeBounds;
     private bool _isMonitorMode;
+    private bool _isSidebarCollapsed;
     private bool _shutdownComplete;
     private bool _shutdownInProgress;
     private bool _moduleUiWebMessageAttached;
     private Task<CoreWebView2Environment>? _moduleUiEnvironmentTask;
     private string _lastModuleUiNavigationKey = string.Empty;
+    private int _moduleUiNavigationVersion;
 
     public MainWindow()
     {
@@ -172,6 +175,15 @@ public partial class MainWindow : Window
         var availableNavSpace = SidebarRoot.ActualHeight - usedSidebarHeight;
         var verticallyCompact = _isMonitorMode || availableNavSpace < MinimumCleanNavSpace;
 
+        if (_isSidebarCollapsed && !sidebarOnlyMode)
+        {
+            SidebarColumn.Width = new GridLength(0);
+            ShellGutterColumn.Width = new GridLength(0);
+            MainContentColumn.Width = new GridLength(1, GridUnitType.Star);
+            MainContentShell.Visibility = Visibility.Visible;
+            return;
+        }
+
         SidebarNavHost.Visibility = verticallyCompact
             ? Visibility.Collapsed
             : Visibility.Visible;
@@ -190,7 +202,7 @@ public partial class MainWindow : Window
         }
 
         SidebarColumn.Width = new GridLength(232);
-        ShellGutterColumn.Width = new GridLength(8);
+        ShellGutterColumn.Width = new GridLength(0);
         MainContentColumn.Width = new GridLength(1, GridUnitType.Star);
         MainContentShell.Visibility = Visibility.Visible;
     }
@@ -291,6 +303,7 @@ public partial class MainWindow : Window
             return;
         }
 
+        var navigationVersion = ++_moduleUiNavigationVersion;
         var source = _viewModel.ModuleUiSource;
         if (string.IsNullOrWhiteSpace(source))
         {
@@ -312,6 +325,28 @@ public partial class MainWindow : Window
             var stopwatch = Stopwatch.StartNew();
             AppendModuleUiHostLog($"navigate_request source={source}");
             await EnsureModuleUiBrowserInitializedAsync().ConfigureAwait(true);
+            if (navigationVersion != _moduleUiNavigationVersion ||
+                !string.Equals(source, _viewModel.ModuleUiSource, StringComparison.Ordinal))
+            {
+                AppendModuleUiHostLog("navigate_skipped stale_request");
+                return;
+            }
+
+            if (Uri.TryCreate(source, UriKind.Absolute, out var sourceUri) &&
+                (string.Equals(sourceUri.Scheme, Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(sourceUri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase)))
+            {
+                var navigationKey = sourceUri.AbsoluteUri;
+                if (string.Equals(_lastModuleUiNavigationKey, navigationKey, StringComparison.OrdinalIgnoreCase))
+                {
+                    return;
+                }
+
+                _lastModuleUiNavigationKey = navigationKey;
+                ModuleUiBrowser.Source = sourceUri;
+                AppendModuleUiHostLog($"navigate_url_ms={stopwatch.ElapsedMilliseconds}");
+                return;
+            }
 
             if (File.Exists(source))
             {
@@ -399,12 +434,37 @@ public partial class MainWindow : Window
         if (string.Equals(uri.Scheme, "file", StringComparison.OrdinalIgnoreCase) ||
             string.Equals(uri.Scheme, "about", StringComparison.OrdinalIgnoreCase) ||
             string.Equals(uri.Scheme, "data", StringComparison.OrdinalIgnoreCase) ||
-            string.IsNullOrWhiteSpace(uri.Scheme))
+            string.IsNullOrWhiteSpace(uri.Scheme) ||
+            IsAllowedModuleUiHttpNavigation(uri))
         {
             return;
         }
 
         e.Cancel = true;
+    }
+
+    private bool IsAllowedModuleUiHttpNavigation(Uri uri)
+    {
+        if (!string.Equals(uri.Scheme, Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(uri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        if (!uri.IsLoopback)
+        {
+            return false;
+        }
+
+        var source = _viewModel?.ModuleUiSource;
+        if (!Uri.TryCreate(source, UriKind.Absolute, out var sourceUri))
+        {
+            return false;
+        }
+
+        return string.Equals(uri.Scheme, sourceUri.Scheme, StringComparison.OrdinalIgnoreCase) &&
+               string.Equals(uri.Host, sourceUri.Host, StringComparison.OrdinalIgnoreCase) &&
+               uri.Port == sourceUri.Port;
     }
 
     private void ModuleUiBrowser_NavigationCompleted(object sender, CoreWebView2NavigationCompletedEventArgs e)
@@ -513,6 +573,26 @@ window.addEventListener('DOMContentLoaded', function() {
     private void SettingsButton_Click(object sender, RoutedEventArgs e)
     {
         SettingsPopup.IsOpen = !SettingsPopup.IsOpen;
+    }
+
+    private void ManageButton_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        ManagePopup.IsOpen = !ManagePopup.IsOpen;
+        e.Handled = true;
+    }
+
+    private void SidebarCollapseButton_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        _isSidebarCollapsed = !_isSidebarCollapsed;
+        UpdateCompactMonitorMode();
+        e.Handled = true;
+    }
+
+    private void ModuleLogoCollapseButton_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        _isSidebarCollapsed = !_isSidebarCollapsed;
+        UpdateCompactMonitorMode();
+        e.Handled = true;
     }
 
     private void MonitorModeToggleButton_Click(object sender, RoutedEventArgs e)

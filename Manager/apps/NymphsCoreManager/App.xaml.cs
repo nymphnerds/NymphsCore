@@ -8,7 +8,7 @@ namespace NymphsCoreManager;
 
 public partial class App : Application
 {
-    private const string BuildMarker = "zimage-fetch-hf-token-field-20260511-2125";
+    private const string BuildMarker = "module-marker-fallback-20260512-0705";
 
     private static readonly string LogDirectory = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),

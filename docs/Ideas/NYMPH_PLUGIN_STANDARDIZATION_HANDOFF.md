@@ -140,15 +140,77 @@ Keep status timeouts bounded.
 The bottom status line should distinguish "shell loaded" from "live status refreshed".
 ```
 
+2026-05-12 robustness pass:
+
+```text
+WORBI is the reference module style for standardization:
+- registry manifest owns metadata and entrypoints
+- install writes install_root/.nymph-module-version
+- install may generate wrappers in install_root/bin and ~/.local/bin
+- status is lightweight and reads the marker before optional runtime health
+
+Manager startup must not use deep status as install truth.
+Startup now does one batched WSL marker scan across all registry modules.
+If marker exists, the card is Installed immediately.
+If no marker exists, the card remains Available unless real runtime artifacts suggest Repair needed.
+Deep status remains useful, but only as background/runtime health after the shell is responsive.
+
+Z-Image is the heavy-runtime proof case:
+- model cache validation can be slow and precision-dependent
+- missing models should read as "Model download needed"
+- missing models must not demote an installed module back to Available
+- module-owned fetch/delete model actions stay in the Z-Image repo
+```
+
 Module UI lesson:
 
 ```text
 The local Manager test build now uses WebView2 for installed module HTML instead of WPF WebBrowser.
 Keep this simple: no module-specific Manager frontend code, no virtual-host experiments until measured, and no visible startup WebView overlay on Home.
 The module still owns ui/manager.html; the Manager should only host it after install.
-For Z-Image, keep the simple module detail page intact and open the module-owned UI from the standard right rail.
-The current Manager-side module UI surface keeps the sidebar and uses a full-width but thin standard Back bar above the hosted UI.
+Do not require a second "open UI" button for normal use. Clicking an installed module should open its module-owned control UI in the main content area.
+When a module is not installed, the same main area should show a rich Manager-rendered overview from manifest/registry metadata: what the module is, what it works with, requirements, compatibility notes, docs, and companion/commercial addon/package links.
+When a module is installed, that overview should be replaced by the module's actual control UI. The standard shell/header/manage rail can remain around it.
+The current WebView2 approach is a working candidate, not a final doctrine. Keep testing it against real module UIs before declaring the module UI host contract final.
 WebView2 prewarm is attempted offscreen during app startup while runtime/module checks run; local testing still needs to confirm whether this makes the first module UI open acceptable.
+```
+
+2026-05-12 Manager UI checkpoint:
+
+```text
+WORBI is now the reference quick module for Manager UI-host testing.
+
+Two Manager surfaces are intentionally separate:
+
+1. Details mode
+   - shown before a module UI is opened
+   - shows registry/manifest details and action feedback
+   - uses the right-side // MANAGE rail
+   - shows Module Facts in the right rail
+   - shows full // MANAGER CONTRACT and // DEV CONTRACT button sections
+
+2. UI mode
+   - shown after a module-owned local_url UI is opened
+   - keeps the module header, gear menu, and compact top // manage menu
+   - embeds the module UI with no left/right WebView padding
+   - keeps a compact contract strip below the WebView so lifecycle controls remain visible
+
+Do not collapse these into one layout again. The compact controls are for UI mode
+only; the normal detail page needs the right rail because it is an information
+and lifecycle page, not the module app itself.
+
+Current WORBI behavior:
+- clicking the installed WORBI card opens the normal details page
+- running start opens the WORBI local web UI inside the Manager
+- the synthetic browser contract action opens the same local URL externally
+- stop/logs/status remain contract actions, not special Manager UI code
+
+Open design questions:
+- custom UI mode needs more testing before the WebView2 host is declared final
+- Z-Image should be tested next, but its model/status/fetch/delete flow should
+  stay module-owned
+- Module Facts are visible in details mode and tucked into the gear/settings
+  surface in UI mode
 ```
 
 ## Tomorrow Starts Here
@@ -195,6 +257,70 @@ auto variant.
 The Z-Image module now has a delete_models entrypoint and Fetch Models UI buttons
 for deleting the Nunchaku weight cache or all Z-Image model cache files. This is
 module-owned behavior and should stay out of Manager-specific UI code.
+```
+
+Blender addon compatibility audit, 2026-05-12:
+
+```text
+Priority/order:
+Do not start by changing the Blender addon. First finish testing and fixing the
+Z-Image module inside the modular Manager until install/status/fetch_models/
+delete_models/start/stop/logs/uninstall are boring and status-truth-driven.
+
+Immediately after the Z-Image Manager module proof is solid, make addon
+compatibility the next explicit work item. The addon cache/output/log mismatch
+below is important, but it should be fixed against a proven module contract, not
+while the module itself is still moving.
+
+The addon currently launches backends directly with `wsl -d NymphsCore -u nymph`
+instead of asking the Manager/module action layer to start them.
+
+Default addon backend paths are part of the de facto runtime contract:
+- Z-Image repo: ~/Z-Image
+- Z-Image python: ~/Z-Image/.venv-nunchaku/bin/python
+- TRELLIS repo: ~/TRELLIS.2
+- TRELLIS python: ~/TRELLIS.2/.venv/bin/python
+- Z-Image port: 8090
+- TRELLIS port: 8094
+
+Do not change these paths casually during modularization. If they change, the
+addon needs a discovery/config bridge rather than hidden Manager assumptions.
+
+Important gotcha found in source:
+- Manager/module Z-Image scripts use $HOME/NymphsData/cache/huggingface,
+  $HOME/NymphsData/outputs/zimage, and $HOME/NymphsData/logs/zimage.
+- The addon direct Z-Image launcher exports HF_HOME/HF_HUB_CACHE under
+  ~/.cache/huggingface and does not export NYMPHS2D2_OUTPUT_DIR.
+- That means Manager "Fetch Models" can verify one cache while addon-launched
+  Z-Image uses another cache. This can produce exactly the confusing state where
+  a user has downloaded models but status still says model files need downloading.
+
+Fix direction:
+1. Short term: update the addon launch env to match module-owned paths:
+   NYMPHS_DATA_ROOT=$HOME/NymphsData
+   NYMPHS3D_HF_CACHE_DIR=$HOME/NymphsData/cache/huggingface
+   HF_HOME=$HOME/NymphsData/cache/huggingface
+   HF_HUB_CACHE=$HOME/NymphsData/cache/huggingface
+   Z_IMAGE_OUTPUT_DIR=$HOME/NymphsData/outputs/zimage
+   NYMPHS2D2_OUTPUT_DIR=$HOME/NymphsData/outputs/zimage
+2. Short term: decide whether addon-launched logs should also mirror the module
+   logs path or whether `zimage_logs.sh` should include the legacy
+   ~/Z-Image/logs/api_server.log path when present.
+3. Medium term: expose a small module runtime contract/discovery file or command
+   so Blender can ask the installed module where python, repo root, ports, cache,
+   output, and log roots are. Avoid hardcoding future module layout in the addon.
+4. Long term: consider addon start/stop calling module entrypoints when installed,
+   while keeping direct launch as a developer fallback.
+
+API surface the addon expects from backends:
+- GET /server_info
+- GET /active_task
+- POST /generate
+- Z-Image /generate returns JSON with output_path and metadata_path.
+- TRELLIS /generate returns mesh bytes for shape generation.
+- /server_info identifies backend names as Z-Image or TRELLIS.2/TRELLIS.2-GGUF
+  and reports capabilities such as supported modes, LoRA support, GGUF quant,
+  available GGUF quants, and texture/retexture flags.
 ```
 
 Tomorrow should start by testing, not redesigning:
@@ -295,11 +421,33 @@ The direction should be:
 
 ```text
 module manifest declares the page/UI host
+module manifest/registry declares rich uninstalled overview metadata
 module scripts own lifecycle and status truth
-Manager renders a standard module shell + declared installed-module UI
+Manager renders a standard module shell
+uninstalled module -> Manager-rendered overview/details/links
+installed module -> declared module-owned control UI in the main area
 ```
 
 This is the key next standardization step for community modules.
+
+Desired module page behavior:
+
+```text
+Do not make users click a separate "open module UI" action after install.
+
+Available/uninstalled state:
+- show a proper overview, not only a terse description
+- explain what the module does
+- explain what host tools/addons it works with, such as Blender, Unity, or a standalone workflow
+- show requirements and compatibility notes
+- link to docs/source and any companion commercial addon or package it is designed for
+- all of this should come from registry/manifest metadata, not Manager hardcoding
+
+Installed state:
+- replace the overview area with the module-owned control UI
+- keep the universal Manager shell/header/manage rail outside/around it
+- Manager contract buttons remain useful as fallback/dev controls, but should not be the main user workflow once a good module UI exists
+```
 
 ## WebView2 Direction For Module UI
 
