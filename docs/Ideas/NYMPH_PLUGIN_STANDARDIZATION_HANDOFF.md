@@ -118,7 +118,7 @@ Current local Manager artifact:
 Version: 0.9.13
 Exe: Manager/apps/NymphsCoreManager/publish/win-x64/NymphsCoreManager.exe
 Zip: Manager/apps/NymphsCoreManager/publish/NymphsCoreManager-win-x64.zip
-Remote push: do not push until the user confirms this local build behaves correctly.
+Remote push: user requested push after the 2026-05-12 layout checkpoint.
 ```
 
 Manager-side source fix now in the local build:
@@ -211,6 +211,42 @@ Open design questions:
   stay module-owned
 - Module Facts are visible in details mode and tucked into the gear/settings
   surface in UI mode
+```
+
+2026-05-12 later Manager shell/layout checkpoint:
+
+```text
+The Manager now has two clearer shell modes:
+
+Details mode:
+- shown for module cards before the module-owned UI is opened
+- uses the normal header, details pane, bottom Manager Contract, and right
+  // MANAGE rail
+- right // MANAGE links are compact text links using the same font/size as the
+  left sidebar nav
+- header facts are compact metadata:
+  // category | packaging | installed <version> | remote <version> | GitHub
+- Update appears as a universal manage action when installed < remote
+- Source/GitHub is metadata, not a big action button
+
+UI mode:
+- shown only after a module-owned UI is opened, such as WORBI local_url
+- keeps a very tight top header: monogram, title, // manage, gear
+- WebView2 content uses the available width without left/right padding
+- Manager Contract remains visible below the module UI as fallback/dev controls
+- Module Facts remain tucked into settings/gear in UI mode
+
+Base Runtime direction:
+- Base Runtime should follow the same details-page visual language, not a
+  separate wizard layout
+- use // current state | Ready instead of a large standalone Ready label
+- use compact right-side // MANAGE text links, not large action buttons
+- Runtime Progress should sit directly under the guide, not below a blank spacer
+- Drive selection is only meaningful before the managed distro exists
+- once the managed NymphsCore distro exists, show the locked current install
+  path and explain that repair reuses it
+- choosing a different drive for an existing runtime needs an explicit future
+  Move/Reinstall Runtime flow
 ```
 
 ## Tomorrow Starts Here

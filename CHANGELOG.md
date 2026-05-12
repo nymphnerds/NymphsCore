@@ -24,17 +24,31 @@ Changed in source:
 - kept update check in the gear menu
 - restored module facts to the right rail in details mode while keeping them tucked away for UI mode
 - made the module monogram square collapse/restore the left sidebar for more UI space
+- tightened module details mode around a standard layout:
+  - module header facts now sit beside the title as `// category | packaging | installed | remote | GitHub`
+  - right-side actions are compact `// MANAGE` text links using the same typography as the main sidebar links
+  - source/GitHub is treated as module metadata, not a large action button
+  - module detail scrollbars were restyled to sit cleanly on the pane edge
+- added visible update eligibility from installed/remote version comparison and exposed `Update` in the universal manage rail
+- reworked the Base Runtime page toward the same details-page pattern:
+  - compact `// current state | Ready` header line
+  - right-side `// MANAGE` text links instead of large stacked action buttons
+  - install drive display is locked to the existing runtime path once the managed distro exists
+  - fresh install drive selection remains available only before the managed runtime exists
+  - runtime progress now sits directly below the guide instead of hiding below empty space
 - rebuilt the Win x64 release EXE and ZIP
 
 Validated locally:
 
 - `powershell.exe -ExecutionPolicy Bypass -File '\\wsl.localhost\NymphsCore\home\nymph\NymphsDev\NymphsCore\Manager\apps\NymphsCoreManager\build-release.ps1'`
 - WORBI installed, started, and rendered its web UI inside the Manager during live testing
+- `git diff --check`
 
 Current caveats:
 
 - Z-Image still needs the next full test pass after this UI/contract checkpoint
 - module UI mode is promising, but WebView2 behavior should still be tested against Z-Image and future module UIs before treating the host contract as final
+- moving an existing Base Runtime to a different Windows drive is not implemented yet; it needs an explicit migrate/reinstall flow rather than silently changing the repair target
 
 ### 2026-05-11 late Z-Image fetch models, live logs, and persistent HF token
 Source: live modular Manager testing against Z-Image Fetch Models from the published Win x64 build.

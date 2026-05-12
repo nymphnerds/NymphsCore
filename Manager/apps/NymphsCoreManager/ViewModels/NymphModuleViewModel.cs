@@ -171,6 +171,8 @@ public sealed class NymphModuleViewModel : ViewModelBase
 
     public bool CanInstall => !IsInstalled;
 
+    public bool CanUpdate => IsInstalled && (HasUpdate || IsRemoteVersionNewer(VersionLabel, RemoteVersionLabel));
+
     public void ApplyState(
         bool isInstalled,
         bool isRunning,
@@ -193,6 +195,7 @@ public sealed class NymphModuleViewModel : ViewModelBase
         OnPropertyChanged(nameof(InstallPathLabel));
         OnPropertyChanged(nameof(CanOpenInstallPath));
         OnPropertyChanged(nameof(CanInstall));
+        OnPropertyChanged(nameof(CanUpdate));
         OnPropertyChanged(nameof(DisplayStateLabel));
         OnPropertyChanged(nameof(DisplayStatusBrush));
 
@@ -243,6 +246,8 @@ public sealed class NymphModuleViewModel : ViewModelBase
                           !SecondaryDetail.Contains("Registry manifest:", StringComparison.OrdinalIgnoreCase)
             ? $"{SecondaryDetail}\n\n{manifestDetail}"
             : manifestDetail;
+
+        OnPropertyChanged(nameof(CanUpdate));
     }
 
     public void ApplyUpdateState(string? installedVersion, string? remoteVersion, bool hasUpdate, string detail)
@@ -255,6 +260,7 @@ public sealed class NymphModuleViewModel : ViewModelBase
         OnPropertyChanged(nameof(DisplayStateLabel));
         OnPropertyChanged(nameof(DisplayStatusBrush));
         OnPropertyChanged(nameof(NavigationSubtitle));
+        OnPropertyChanged(nameof(CanUpdate));
     }
 
     public void ClearUpdateState(string detail)
@@ -265,5 +271,72 @@ public sealed class NymphModuleViewModel : ViewModelBase
         OnPropertyChanged(nameof(DisplayStateLabel));
         OnPropertyChanged(nameof(DisplayStatusBrush));
         OnPropertyChanged(nameof(NavigationSubtitle));
+        OnPropertyChanged(nameof(CanUpdate));
+    }
+
+    private static bool IsRemoteVersionNewer(string? installedVersion, string? remoteVersion)
+    {
+        if (string.IsNullOrWhiteSpace(installedVersion) || string.IsNullOrWhiteSpace(remoteVersion))
+        {
+            return false;
+        }
+
+        if (IsUnknownVersion(installedVersion) || IsUnknownVersion(remoteVersion))
+        {
+            return false;
+        }
+
+        var installedParts = ParseVersionParts(installedVersion);
+        var remoteParts = ParseVersionParts(remoteVersion);
+        var length = Math.Max(installedParts.Count, remoteParts.Count);
+        for (var index = 0; index < length; index++)
+        {
+            var installedPart = index < installedParts.Count ? installedParts[index] : 0;
+            var remotePart = index < remoteParts.Count ? remoteParts[index] : 0;
+            if (remotePart > installedPart)
+            {
+                return true;
+            }
+
+            if (remotePart < installedPart)
+            {
+                return false;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool IsUnknownVersion(string version)
+    {
+        return version.Contains("unknown", StringComparison.OrdinalIgnoreCase) ||
+               version.Contains("not", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static IReadOnlyList<int> ParseVersionParts(string version)
+    {
+        var parts = new List<int>();
+        var current = "";
+        foreach (var character in version)
+        {
+            if (char.IsDigit(character))
+            {
+                current += character;
+                continue;
+            }
+
+            if (current.Length > 0)
+            {
+                parts.Add(int.Parse(current));
+                current = "";
+            }
+        }
+
+        if (current.Length > 0)
+        {
+            parts.Add(int.Parse(current));
+        }
+
+        return parts;
     }
 }

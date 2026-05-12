@@ -139,7 +139,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         _openModuleCommand = new RelayCommand<NymphModuleViewModel>(OpenModule, module => module is not null);
         _installModuleCommand = new RelayCommand<NymphModuleViewModel>(InstallModule, module => module?.IsInstalled == false && !IsBusy);
         _repairModuleCommand = new RelayCommand<NymphModuleViewModel>(RepairModule, module => module is not null && !IsBusy);
-        _updateModuleCommand = new RelayCommand<NymphModuleViewModel>(UpdateModule, module => module is { IsInstalled: true, HasUpdate: true } && !IsBusy);
+        _updateModuleCommand = new RelayCommand<NymphModuleViewModel>(UpdateModule, module => module?.CanUpdate == true && !IsBusy);
         _openModuleInstallPathCommand = new RelayCommand<NymphModuleViewModel>(OpenModuleInstallPath, module => module?.CanOpenInstallPath == true);
         _openModuleUiCommand = new RelayCommand<NymphModuleViewModel>(OpenModuleUi, module => module?.HasInstalledModuleUi == true);
         _openModuleSourceCommand = new RelayCommand<NymphModuleViewModel>(OpenModuleSource, module => module?.HasRepositoryUrl == true);
@@ -1666,6 +1666,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         }
 
         RefreshInstalledModuleUiInfo(module);
+        _updateModuleCommand.RaiseCanExecuteChanged();
     }
 
     private static bool IsNormalUnavailableModuleStatus(string? message)
@@ -2487,7 +2488,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
     private async Task UpdateModuleAsync(NymphModuleViewModel? module)
     {
-        if (module is null || !module.IsInstalled || !module.HasUpdate || IsBusy)
+        if (module is null || !module.CanUpdate || IsBusy)
         {
             return;
         }
@@ -2614,6 +2615,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             }
 
             module.ApplyManifestInfo(manifest);
+            _updateModuleCommand.RaiseCanExecuteChanged();
             CurrentPageSubtitle = module.Detail;
             SetModuleActionFeedback(
                 $"{module.Name}: {module.DisplayStateLabel}",
