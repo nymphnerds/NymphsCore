@@ -33,6 +33,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
     private readonly AsyncRelayCommand _checkForUpdatesCommand;
     private readonly RelayCommand<NymphModuleViewModel> _openModuleCommand;
     private readonly RelayCommand<NymphModuleViewModel> _installModuleCommand;
+    private readonly RelayCommand<NymphModuleViewModel> _repairModuleCommand;
     private readonly RelayCommand<NymphModuleViewModel> _updateModuleCommand;
     private readonly RelayCommand<NymphModuleViewModel> _openModuleInstallPathCommand;
     private readonly RelayCommand<NymphModuleViewModel> _openModuleUiCommand;
@@ -128,6 +129,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         _checkForUpdatesCommand = new AsyncRelayCommand(CheckForUpdatesAsync, () => !IsBusy);
         _openModuleCommand = new RelayCommand<NymphModuleViewModel>(OpenModule, module => module is not null);
         _installModuleCommand = new RelayCommand<NymphModuleViewModel>(InstallModule, module => module?.IsInstalled == false && !IsBusy);
+        _repairModuleCommand = new RelayCommand<NymphModuleViewModel>(RepairModule, module => module is not null && !IsBusy);
         _updateModuleCommand = new RelayCommand<NymphModuleViewModel>(UpdateModule, module => module is { IsInstalled: true, HasUpdate: true } && !IsBusy);
         _openModuleInstallPathCommand = new RelayCommand<NymphModuleViewModel>(OpenModuleInstallPath, module => module?.CanOpenInstallPath == true);
         _openModuleUiCommand = new RelayCommand<NymphModuleViewModel>(OpenModuleUi, module => module?.HasInstalledModuleUi == true);
@@ -194,6 +196,8 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
     public RelayCommand<NymphModuleViewModel> OpenModuleCommand => _openModuleCommand;
 
     public RelayCommand<NymphModuleViewModel> InstallModuleCommand => _installModuleCommand;
+
+    public RelayCommand<NymphModuleViewModel> RepairModuleCommand => _repairModuleCommand;
 
     public RelayCommand<NymphModuleViewModel> UpdateModuleCommand => _updateModuleCommand;
 
@@ -394,6 +398,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                 OnPropertyChanged(nameof(ShowInstallModuleAction));
                 OnPropertyChanged(nameof(ShowInstalledModuleActions));
                 OnPropertyChanged(nameof(ShowModuleUiAction));
+                _repairModuleCommand.RaiseCanExecuteChanged();
                 _updateModuleCommand.RaiseCanExecuteChanged();
                 _runModuleActionCommand.RaiseCanExecuteChanged();
                 _runModuleDevActionCommand.RaiseCanExecuteChanged();
@@ -684,6 +689,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             _checkForUpdatesCommand.RaiseCanExecuteChanged();
             _openModuleCommand.RaiseCanExecuteChanged();
             _installModuleCommand.RaiseCanExecuteChanged();
+            _repairModuleCommand.RaiseCanExecuteChanged();
             _updateModuleCommand.RaiseCanExecuteChanged();
             _openModuleInstallPathCommand.RaiseCanExecuteChanged();
             _openModuleUiCommand.RaiseCanExecuteChanged();
@@ -1495,15 +1501,36 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
     private void ApplyModuleSnapshot(NymphModuleViewModel module, NymphStatusSnapshot snapshot)
     {
-        var stateLabel = NormalizeModuleStateLabel(snapshot.State, snapshot.IsInstalled, snapshot.IsRunning);
+        var modelsReady = snapshot.Get("models_ready");
+        var modelDownloadNeeded = snapshot.IsInstalled &&
+            string.Equals(modelsReady, "false", StringComparison.OrdinalIgnoreCase);
+        var repairNeeded = !snapshot.IsInstalled &&
+            (string.Equals(snapshot.State, "repair_needed", StringComparison.OrdinalIgnoreCase) ||
+             string.Equals(snapshot.Health, "repair-needed", StringComparison.OrdinalIgnoreCase));
+        var stateLabel = modelDownloadNeeded
+            ? "Model download needed"
+            : repairNeeded
+                ? "Repair needed"
+            : NormalizeModuleStateLabel(snapshot.State, snapshot.IsInstalled, snapshot.IsRunning);
         var statusBrush = snapshot.IsRunning
             ? "#6FD96C"
             : snapshot.IsInstalled
-                ? StateNeedsAttention(snapshot.State, snapshot.Health) ? "#B7791F" : "#4CD0C1"
-                : "#6E745A";
+                ? modelDownloadNeeded ? "#D49A2A" : StateNeedsAttention(snapshot.State, snapshot.Health) ? "#B7791F" : "#4CD0C1"
+                : repairNeeded ? "#D49A2A" : "#6E745A";
 
         var secondaryParts = new List<string>();
-        if (snapshot.IsInstalled && !string.IsNullOrWhiteSpace(snapshot.Health))
+        if (modelDownloadNeeded)
+        {
+            secondaryParts.Add("Models: download needed");
+        }
+        else if (repairNeeded)
+        {
+            secondaryParts.Add("Install: repair needed");
+        }
+
+        if (snapshot.IsInstalled &&
+            !string.IsNullOrWhiteSpace(snapshot.Health) &&
+            !modelDownloadNeeded)
         {
             secondaryParts.Add($"Health: {snapshot.Health}");
         }
@@ -2005,8 +2032,8 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         }
 
         var args = ResolveModuleUiActionArguments(uri).ToList();
-        if (string.Equals(module.Id, "zimage", StringComparison.OrdinalIgnoreCase) &&
-            string.Equals(action, "fetch_models", StringComparison.OrdinalIgnoreCase))
+        if (args.Any(argument => string.Equals(argument, "--hf_token", StringComparison.OrdinalIgnoreCase) ||
+                                 string.Equals(argument, "--hf-token", StringComparison.OrdinalIgnoreCase)))
         {
             ApplyModuleHuggingFaceTokenArgument(args);
         }
@@ -2147,6 +2174,11 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         _ = InstallModuleAsync(module);
     }
 
+    private void RepairModule(NymphModuleViewModel? module)
+    {
+        _ = RepairModuleAsync(module);
+    }
+
     private void UpdateModule(NymphModuleViewModel? module)
     {
         _ = UpdateModuleAsync(module);
@@ -2223,6 +2255,86 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             SetModuleActionFeedback(
                 $"{module.Name}: install needs attention",
                 BuildModuleActionFeedbackDetail(string.Join(Environment.NewLine, installLines.Append(ex.Message))));
+        }
+        finally
+        {
+            _modulesWithActiveLifecycle.Remove(module.Id);
+            IsBusy = false;
+        }
+    }
+
+    private async Task RepairModuleAsync(NymphModuleViewModel? module)
+    {
+        if (module is null || IsBusy)
+        {
+            return;
+        }
+
+        var confirmation = MessageBox.Show(
+            $"Repair {module.Name} from the Nymphs registry?\n\nThe manager will fetch the trusted module repo again and rerun its install script inside the managed WSL distro. Module-owned installers should preserve declared outputs, logs, and model caches by default.",
+            "Repair Module",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Question);
+        if (confirmation != MessageBoxResult.Yes)
+        {
+            AppendActivity($"{module.Name} repair cancelled.");
+            return;
+        }
+
+        IsBusy = true;
+        _modulesWithActiveLifecycle.Add(module.Id);
+        StatusMessage = $"Repairing {module.Name} from the Nymphs registry...";
+        ShowModuleLogs = false;
+        var repairLines = new List<string>();
+        ApplyModuleLifecycleState(
+            module,
+            "Repairing",
+            "#D9B36B",
+            module.IsInstalled ? module.VersionLabel : "Repairing",
+            $"{module.Name} repair is running inside the managed WSL distro.",
+            "Status refresh is paused for this module until the lifecycle action finishes.");
+        SetModuleActionFeedback(
+            $"{module.Name}: repairing",
+            "Fetching the module registry entry and rerunning the module install flow...");
+
+        try
+        {
+            await _workflowService.RunNymphModuleInstallFromRegistryAsync(
+                _settings,
+                module.Id,
+                CreateModuleLiveProgress(module, "repair", repairLines),
+                _operationCancellation.Token).ConfigureAwait(true);
+            StatusMessage = $"{module.Name} repair finished.";
+            SetModuleActionFeedback(
+                $"{module.Name}: repair finished",
+                BuildModuleActionFeedbackDetail(string.Join(Environment.NewLine, repairLines)));
+
+            AppendActivity($"{module.Name} repair completed.");
+            var installedVersion = ExtractInstalledModuleVersion(repairLines) ?? module.RemoteVersionLabel;
+            ApplyImmediateModuleInstallResult(module, isInstalled: true, "Repair completed. Live status verification will refresh next.", installedVersion);
+            ClearModuleUpdateAfterSuccessfulInstall(module, installedVersion);
+            _modulesWithActiveLifecycle.Remove(module.Id);
+
+            try
+            {
+                await RefreshModuleStateAsync().ConfigureAwait(true);
+                ClearModuleUpdateAfterSuccessfulInstall(module, installedVersion);
+            }
+            catch (Exception refreshException)
+            {
+                AppendActivity($"{module.Name} repaired, but state refresh needs attention: {refreshException.Message}");
+                SetModuleActionFeedback(
+                    $"{module.Name}: repair finished",
+                    $"{BuildModuleActionFeedbackDetail(string.Join(Environment.NewLine, repairLines))}\n\nState refresh warning: {refreshException.Message}");
+            }
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"{module.Name} repair needs attention.";
+            AppendActivity($"{module.Name} repair warning: {ex.Message}");
+            SetModuleActionFeedback(
+                $"{module.Name}: repair needs attention",
+                BuildModuleActionFeedbackDetail(string.Join(Environment.NewLine, repairLines.Append(ex.Message))));
         }
         finally
         {
@@ -2945,6 +3057,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
         _openModuleCommand.RaiseCanExecuteChanged();
         _installModuleCommand.RaiseCanExecuteChanged();
+        _repairModuleCommand.RaiseCanExecuteChanged();
         _updateModuleCommand.RaiseCanExecuteChanged();
         _uninstallModuleCommand.RaiseCanExecuteChanged();
         _deleteModuleCommand.RaiseCanExecuteChanged();
@@ -2983,6 +3096,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
         _openModuleCommand.RaiseCanExecuteChanged();
         _installModuleCommand.RaiseCanExecuteChanged();
+        _repairModuleCommand.RaiseCanExecuteChanged();
         _updateModuleCommand.RaiseCanExecuteChanged();
         _uninstallModuleCommand.RaiseCanExecuteChanged();
         _deleteModuleCommand.RaiseCanExecuteChanged();
@@ -2995,6 +3109,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(ShowInstalledModuleActions));
         OnPropertyChanged(nameof(ShowDeleteModuleData));
         OnPropertyChanged(nameof(ShowModuleUiAction));
+        _repairModuleCommand.RaiseCanExecuteChanged();
     }
 
     private void RefreshDisplayedModuleDetails(NymphModuleViewModel module)
@@ -3011,6 +3126,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         RefreshDisplayedModuleActionState();
         _openModuleCommand.RaiseCanExecuteChanged();
         _installModuleCommand.RaiseCanExecuteChanged();
+        _repairModuleCommand.RaiseCanExecuteChanged();
         _updateModuleCommand.RaiseCanExecuteChanged();
         _uninstallModuleCommand.RaiseCanExecuteChanged();
         _deleteModuleCommand.RaiseCanExecuteChanged();
@@ -3236,6 +3352,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             "available" => "Available",
             "installed" => "Installed",
             "running" => "Running",
+            "repair_needed" => "Repair needed",
             "needs_attention" => "Needs attention",
             "installing" => "Installing",
             "uninstalling" => "Uninstalling",

@@ -63,7 +63,7 @@ Manager/apps/NymphsCoreManager/publish/NymphsCoreManager-win-x64.zip
 Still in proof phase:
 
 - Brain, LoRA, and TRELLIS still need the full install/status/start/stop/open/logs/uninstall validation loop under the new module contract.
-- Z-Image has been live-tested far enough to prove installed-state recovery, the WebView2 module UI path, and model fetching through the legacy-prefetch bridge. It still needs the same full abuse pass as the rest of the official modules.
+- Z-Image has been live-tested far enough to prove installed-state recovery, the WebView2 module UI path, and model fetching through the module-owned `fetch_models` action. It still needs the same full abuse pass as the rest of the official modules.
 - Current custom module UI support is intentionally narrow: installed `local_html` only. `local_web_app`, `served_web_app`, and external browser flows are planned but should not be promoted before they are timed and visually verified.
 - `Delete Module + Data` remains conservative until each module declares safe purge scopes.
 
@@ -195,11 +195,10 @@ Module cards open a detail page first. Install is a deliberate action from the d
 
 Module UI performance rule: do not move first-load navigation, WebView2 profile setup, cache refresh, or navigation filtering without timing the result. The Z-Image UI proof found that Dispatcher priority, `NavigateToString`, `data:` navigation allowance, local WebView2 user-data folders, preserving newer cached HTML over older installed source files, content-aware navigation reloads, and avoiding background-status reloads are all load-time critical.
 
-Z-Image model fetch rule: until Z-Image owns a proper module-side fetch surface,
-the modular Manager intentionally runs the old `legacy/prefetch_models.sh --backend zimage`
-flow from the `main` Manager. Do not route this through registry repo cloning or
-manifest fallback logic; that path was slower to diagnose and did not match the
-tested monolith behavior.
+Z-Image model fetch rule: Z-Image owns model fetching in its module repo through
+`scripts/zimage_fetch_models.sh`. The Manager must call `fetch_models` through
+the normal manifest action runner and must not stage or run bundled legacy
+prefetch scripts for this module.
 
 Z-Image Fetch Models currently offers:
 

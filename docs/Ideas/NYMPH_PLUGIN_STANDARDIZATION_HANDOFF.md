@@ -103,14 +103,13 @@ Do not show a scary top-level "Needs attention" install state just because statu
 Fix the module status script/manifest path that contradicted the marker.
 ```
 
-Current Z-Image proof state:
+Resolved Z-Image proof state from this checkpoint:
 
 ```text
 Z-Image install reached installed_module_version=0.1.2.
 The installed marker exists from the Manager perspective.
-The Z-Image status entrypoint currently fails or reports installed=false even though the marker exists.
-That is a Z-Image module contract bug, not proof that the marker system is wrong.
-Next step: inspect the installed Z-Image nymph.json and status_zimage.sh inside the managed NymphsCore distro, then fix the module repo so status reads the same marker path the installer writes.
+The Manager must trust the installed marker and call module status through the normal manifest action runner.
+Z-Image status and fetch now live in the Z-Image module repo instead of Manager-side special action paths.
 ```
 
 Current local Manager artifact:
@@ -170,12 +169,32 @@ What is now working from the Z-Image proof:
 Module UI opens instantly again in the tested Win x64 build.
 Z-Image Fetch Models exposes INT4 r32/r128/r256 and FP4 r32/r128.
 Auto is r32/r128 only because r256 is INT4-only.
-Fetch Models runs through the tested legacy prefetch path, not registry guessing.
+Fetch Models runs through the module-owned `fetch_models` entrypoint, not Manager-bundled legacy scripts.
 Long fetch jobs switch to Logs.
 Logs stay pinned to the latest line while download status prints.
 MODEL DOWNLOAD STATUS lines show cache size, downloaded bytes for the step, and active partial files.
 The Fetch Models HF Token field persists to %LOCALAPPDATA%\NymphsCore\shared-secrets.json.
 The token is passed as NYMPHS3D_HF_TOKEN and must not be printed.
+```
+
+Z-Image follow-up from 2026-05-12:
+
+```text
+Do not use "Needs attention" for the normal post-install state where the runtime
+is installed but model cache is missing or not yet verified. Keep state=installed
+and report models_ready=false with plain detail such as "Model files need
+downloading..."
+
+Careful bug found: status verification used prefetch_model.py --local-files-only
+with Z_IMAGE_NUNCHAKU_PRECISION=auto. That path can require more cached weights
+than the runtime actually uses after Nunchaku resolves auto precision. A user may
+have the usable INT4 r32 model downloaded and still be told the module needs
+attention. Status must verify the effective runtime precision, not every possible
+auto variant.
+
+The Z-Image module now has a delete_models entrypoint and Fetch Models UI buttons
+for deleting the Nunchaku weight cache or all Z-Image model cache files. This is
+module-owned behavior and should stay out of Manager-specific UI code.
 ```
 
 Tomorrow should start by testing, not redesigning:
@@ -888,13 +907,11 @@ Keep that folder for now as migration/reference material while each official
 module is tested and moved into its own module repo.
 
 Do not package or call Manager/scripts/legacy from the generic Manager shell.
-Temporary exception: Z-Image `fetch_models` is currently bridged through the
-old `legacy/prefetch_models.sh --backend zimage` path, with `legacy/common_paths.sh`
-staged beside it inside WSL at runtime. This keeps the modular Manager using the
-known-good monolith prefetch behavior while the real module-owned fetch surface is
-being designed. Do not replace this with registry cloning or manifest guessing.
-The current fetch bridge also passes `NYMPHS3D_HF_TOKEN` from the shared Manager
-secrets file when the Fetch Models UI provides an HF token.
+Z-Image `fetch_models` must run from the module repo through
+`scripts/zimage_fetch_models.sh`. The old Manager bridge through
+`legacy/prefetch_models.sh --backend zimage` was removed because it made the
+Manager own module behavior. Keep the known-good progress and cache behavior in
+the Z-Image module script instead of reintroducing a Manager-side special case.
 After WORBI, Z-Image, LoRA, Brain, and TRELLIS are all tested from their module
 repos, delete whatever is left in Manager/scripts/legacy.
 ```

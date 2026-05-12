@@ -4993,25 +4993,6 @@ meta:
             ? string.Empty
             : " " + string.Join(" ", normalizedActionArguments.Select(ToBashSingleQuoted));
         var normalizedModuleId = moduleId.Trim().ToLowerInvariant();
-        if (string.Equals(normalizedModuleId, "zimage", StringComparison.OrdinalIgnoreCase) &&
-            string.Equals(normalizedAction, "status", StringComparison.OrdinalIgnoreCase))
-        {
-            return await RunZImageStatusActionAsync(
-                settings,
-                progress,
-                cancellationToken).ConfigureAwait(false);
-        }
-
-        if (string.Equals(normalizedModuleId, "zimage", StringComparison.OrdinalIgnoreCase) &&
-            string.Equals(normalizedAction, "fetch_models", StringComparison.OrdinalIgnoreCase))
-        {
-            return await RunZImageFetchModelsActionAsync(
-                settings,
-                normalizedActionArguments,
-                progress,
-                cancellationToken).ConfigureAwait(false);
-        }
-
         var homePath = $"/home/{settings.LinuxUser}";
         var installRoot = GetNymphModuleInstallRoot(settings, normalizedModuleId);
         var cacheRepo = $"{homePath}/.cache/nymphs-modules/repos/{normalizedModuleId}";
@@ -5026,6 +5007,8 @@ meta:
         var commandTimeoutPrefix = isStatusAction ? "timeout 6s " : string.Empty;
         var unavailableStatus =
             $"echo id={ToBashSingleQuoted(normalizedModuleId)}; echo installed=false; echo running=false; echo version=not-installed; echo state=available; echo health=unknown; echo install_root={ToBashSingleQuoted(installRoot)}; echo detail={ToBashSingleQuoted("Module is available from the registry, but is not installed yet.")}; exit 0; ";
+        var repairNeededStatus =
+            $"echo id={ToBashSingleQuoted(normalizedModuleId)}; echo installed=false; echo running=false; echo runtime_present=true; echo data_present=true; echo version=not-installed; echo state=repair_needed; echo health=repair-needed; echo install_root={ToBashSingleQuoted(installRoot)}; echo detail={ToBashSingleQuoted("Existing module files were found, but the modular install marker is missing. Use Repair Module to finish or convert this install.")}; exit 0; ";
         var hasLocalActionEntrypoint = !isStatusAction &&
             (HasSafeModuleActionEntrypoint(settings, installedManifestPath, normalizedAction) ||
              HasSafeModuleActionEntrypoint(settings, manifestPath, normalizedAction));
@@ -5078,7 +5061,7 @@ meta:
             $"export LOGNAME={ToBashSingleQuoted(settings.LinuxUser)}; " +
             "ENTRYPOINT=\"\"; " +
             (isStatusAction
-                ? $"if [[ ! -f {ToBashSingleQuoted(versionMarkerPath)} ]]; then {unavailableStatus} fi; "
+                ? $"if [[ ! -f {ToBashSingleQuoted(versionMarkerPath)} ]]; then if [[ -e {ToBashSingleQuoted(installRoot)} ]]; then {repairNeededStatus} else {unavailableStatus} fi; fi; "
                 : string.Empty) +
             $"if [[ -f {ToBashSingleQuoted(installedManifestPath)} ]]; then " +
             $"ENTRYPOINT=$(MODULE_ACTION={ToBashSingleQuoted(normalizedAction)} python3 -c {ToBashSingleQuoted(entrypointReader)} {ToBashSingleQuoted(installedManifestPath)} 2>/dev/null || true); " +
@@ -5137,192 +5120,6 @@ meta:
             var detail = string.IsNullOrWhiteSpace(result.CombinedOutput)
                 ? $"Module action '{normalizedAction}' failed for '{normalizedModuleId}' with exit code {result.ExitCode}."
                 : $"Module action '{normalizedAction}' failed for '{normalizedModuleId}' with exit code {result.ExitCode}.\n\n{result.CombinedOutput.Trim()}";
-            throw new InvalidOperationException(detail);
-        }
-
-        return result.CombinedOutput.Trim();
-    }
-
-    private async Task<string> RunZImageStatusActionAsync(
-        InstallSettings settings,
-        IProgress<string> progress,
-        CancellationToken cancellationToken)
-    {
-        var homePath = $"/home/{settings.LinuxUser}";
-        var zimageRoot = $"{homePath}/Z-Image";
-        var statusScript = $"{zimageRoot}/scripts/zimage_status.sh";
-        var markerPath = $"{zimageRoot}/.nymph-module-version";
-        var fallbackUnavailable =
-            $"echo id=zimage; echo name='Z-Image Turbo'; echo installed=false; echo runtime_present=false; echo version=not-installed; echo env_ready=false; echo models_ready=unknown; echo running=false; echo state=available; echo health=unknown; echo install_root={ToBashSingleQuoted(zimageRoot)}; echo marker={ToBashSingleQuoted(markerPath)}; echo detail='Module is available from the registry, but is not installed yet.'";
-        var fallbackInstalled =
-            $"version=$(cat {ToBashSingleQuoted(markerPath)} 2>/dev/null || printf unknown); " +
-            "echo id=zimage; echo name='Z-Image Turbo'; echo installed=true; echo runtime_present=true; echo version=$version; echo env_ready=unknown; echo models_ready=unknown; echo running=false; echo state=installed; echo health=status-warning; " +
-            $"echo install_root={ToBashSingleQuoted(zimageRoot)}; echo marker={ToBashSingleQuoted(markerPath)}; echo detail='Z-Image is installed, but the status script did not answer in time.'";
-        var bashCommand =
-            "set -uo pipefail; " +
-            $"export HOME={ToBashSingleQuoted(homePath)}; " +
-            $"export USER={ToBashSingleQuoted(settings.LinuxUser)}; " +
-            $"export LOGNAME={ToBashSingleQuoted(settings.LinuxUser)}; " +
-            $"export NYMPHS3D_RUNTIME_ROOT={ToBashSingleQuoted(homePath)}; " +
-            $"export NYMPHS3D_Z_IMAGE_DIR={ToBashSingleQuoted(zimageRoot)}; " +
-            $"export NYMPHS3D_N2D2_DIR={ToBashSingleQuoted(zimageRoot)}; " +
-            $"export PATH={ToBashSingleQuoted($"{zimageRoot}/.venv-nunchaku/bin")}:\"$PATH\"; " +
-            $"if [[ -x {ToBashSingleQuoted(statusScript)} ]]; then " +
-            $"  timeout 3s bash {ToBashSingleQuoted(statusScript)}; status=$?; " +
-            "  if [[ \"$status\" -eq 0 ]]; then exit 0; fi; " +
-            $"  if [[ -f {ToBashSingleQuoted(markerPath)} ]]; then {fallbackInstalled}; exit 0; fi; " +
-            "  exit \"$status\"; " +
-            "fi; " +
-            $"if [[ -f {ToBashSingleQuoted(markerPath)} ]]; then {fallbackInstalled}; else {fallbackUnavailable}; fi";
-
-        var result = await RunWslBashAsync(settings, bashCommand, progress, cancellationToken).ConfigureAwait(false);
-        if (!string.IsNullOrWhiteSpace(result.CombinedOutput))
-        {
-            return result.CombinedOutput.Trim();
-        }
-
-        if (result.ExitCode != 0)
-        {
-            throw new InvalidOperationException($"Z-Image status failed with exit code {result.ExitCode}.");
-        }
-
-        return string.Empty;
-    }
-
-    private async Task<string> RunZImageFetchModelsActionAsync(
-        InstallSettings settings,
-        IReadOnlyList<string> actionArguments,
-        IProgress<string> progress,
-        CancellationToken cancellationToken)
-    {
-        var precision = "auto";
-        var rank = "32";
-        var huggingFaceToken = settings.HuggingFaceToken;
-        for (var index = 0; index < actionArguments.Count; index++)
-        {
-            var argument = actionArguments[index];
-            if (string.Equals(argument, "--precision", StringComparison.OrdinalIgnoreCase) &&
-                index + 1 < actionArguments.Count)
-            {
-                precision = actionArguments[++index].Trim().ToLowerInvariant();
-                continue;
-            }
-
-            if (argument.StartsWith("--precision=", StringComparison.OrdinalIgnoreCase))
-            {
-                precision = argument["--precision=".Length..].Trim().ToLowerInvariant();
-                continue;
-            }
-
-            if (string.Equals(argument, "--rank", StringComparison.OrdinalIgnoreCase) &&
-                index + 1 < actionArguments.Count)
-            {
-                rank = actionArguments[++index].Trim();
-                continue;
-            }
-
-            if (argument.StartsWith("--rank=", StringComparison.OrdinalIgnoreCase))
-            {
-                rank = argument["--rank=".Length..].Trim();
-                continue;
-            }
-
-            if ((string.Equals(argument, "--hf_token", StringComparison.OrdinalIgnoreCase) ||
-                 string.Equals(argument, "--hf-token", StringComparison.OrdinalIgnoreCase)) &&
-                index + 1 < actionArguments.Count)
-            {
-                huggingFaceToken = actionArguments[++index].Trim();
-                continue;
-            }
-
-            if (argument.StartsWith("--hf_token=", StringComparison.OrdinalIgnoreCase))
-            {
-                huggingFaceToken = argument["--hf_token=".Length..].Trim();
-                continue;
-            }
-
-            if (argument.StartsWith("--hf-token=", StringComparison.OrdinalIgnoreCase))
-            {
-                huggingFaceToken = argument["--hf-token=".Length..].Trim();
-            }
-        }
-
-        if (precision is not ("auto" or "int4" or "fp4"))
-        {
-            throw new ArgumentException($"Unsupported Z-Image precision: {precision}");
-        }
-
-        if (!Regex.IsMatch(rank, "^[0-9]+$", RegexOptions.CultureInvariant))
-        {
-            throw new ArgumentException($"Unsupported Z-Image rank: {rank}");
-        }
-
-        var allowedWeight = $"{precision}:{rank}" is "auto:32" or "auto:128" or
-            "int4:32" or "int4:128" or "int4:256" or
-            "fp4:32" or "fp4:128";
-        if (!allowedWeight)
-        {
-            throw new ArgumentException($"Unsupported Z-Image Nunchaku weight: {precision} r{rank}");
-        }
-
-        var homePath = $"/home/{settings.LinuxUser}";
-        var zimageRoot = $"{homePath}/Z-Image";
-        var zimagePython = $"{zimageRoot}/.venv-nunchaku/bin/python";
-        var zimagePrefetchModelScript = $"{zimageRoot}/scripts/prefetch_model.py";
-        var stageRoot = $"/tmp/nymphs-manager-zimage-prefetch-{settings.LinuxUser}";
-        var stagedScriptsDirectory = $"{stageRoot}/scripts";
-        var stagedPrefetchScript = $"{stageRoot}/scripts/prefetch_models.sh";
-        var stagedCommonPathsScript = $"{stageRoot}/scripts/common_paths.sh";
-        var localPrefetchScript = RequireScript(Path.Combine("legacy", "prefetch_models.sh"));
-        var localCommonPathsScript = RequireScript(Path.Combine("legacy", "common_paths.sh"));
-        var encodedPrefetchScript = Convert.ToBase64String(File.ReadAllBytes(localPrefetchScript));
-        var encodedCommonPathsScript = Convert.ToBase64String(File.ReadAllBytes(localCommonPathsScript));
-        var nunchakuWeightRepo = "nunchaku-ai/nunchaku-z-image-turbo";
-        var tokenExport = string.IsNullOrWhiteSpace(huggingFaceToken)
-            ? string.Empty
-            : $"export NYMPHS3D_HF_TOKEN={ToBashSingleQuoted(huggingFaceToken.Trim())}; ";
-        var bashCommand =
-            "set -euo pipefail; " +
-            $"export HOME={ToBashSingleQuoted(homePath)}; " +
-            $"export USER={ToBashSingleQuoted(settings.LinuxUser)}; " +
-            $"export LOGNAME={ToBashSingleQuoted(settings.LinuxUser)}; " +
-            $"rm -rf {ToBashSingleQuoted(stageRoot)}; " +
-            $"mkdir -p {ToBashSingleQuoted(stagedScriptsDirectory)}; " +
-            $"trap 'rm -rf {ToBashSingleQuoted(stageRoot)}' EXIT; " +
-            $"printf %s {ToBashSingleQuoted(encodedPrefetchScript)} | base64 -d > {ToBashSingleQuoted(stagedPrefetchScript)}; " +
-            $"printf %s {ToBashSingleQuoted(encodedCommonPathsScript)} | base64 -d > {ToBashSingleQuoted(stagedCommonPathsScript)}; " +
-            $"chmod +x {ToBashSingleQuoted(stagedPrefetchScript)} {ToBashSingleQuoted(stagedCommonPathsScript)}; " +
-            $"export NYMPHS3D_RUNTIME_ROOT={ToBashSingleQuoted(homePath)}; " +
-            $"export NYMPHS3D_Z_IMAGE_DIR={ToBashSingleQuoted(zimageRoot)}; " +
-            $"export NYMPHS3D_N2D2_DIR={ToBashSingleQuoted(zimageRoot)}; " +
-            $"export NYMPHS3D_TRELLIS_DIR={ToBashSingleQuoted($"{homePath}/TRELLIS.2")}; " +
-            $"export PATH={ToBashSingleQuoted($"{zimageRoot}/.venv-nunchaku/bin")}:\"$PATH\"; " +
-            "export Z_IMAGE_RUNTIME=nunchaku; " +
-            $"export Z_IMAGE_NUNCHAKU_MODEL_REPO={ToBashSingleQuoted(nunchakuWeightRepo)}; " +
-            $"export Z_IMAGE_NUNCHAKU_PRECISION={ToBashSingleQuoted(precision)}; " +
-            $"export Z_IMAGE_NUNCHAKU_RANK={ToBashSingleQuoted(rank)}; " +
-            "export NYMPHS3D_PREFETCH_PROGRESS_INTERVAL=5; " +
-            "export HF_HUB_DISABLE_XET=1; " +
-            "export HF_HUB_DISABLE_PROGRESS_BARS=1; " +
-            tokenExport +
-            $"if [[ ! -x {ToBashSingleQuoted(zimagePython)} ]]; then echo {ToBashSingleQuoted($"Z-Image Nunchaku runtime is missing in WSL distro '{settings.DistroName}': {zimagePython}. Install or repair Z-Image first.")} >&2; exit 1; fi; " +
-            $"if [[ ! -f {ToBashSingleQuoted(zimagePrefetchModelScript)} ]]; then echo {ToBashSingleQuoted($"Z-Image prefetch script is missing in WSL distro '{settings.DistroName}': {zimagePrefetchModelScript}. Install or repair Z-Image first.")} >&2; exit 1; fi; " +
-            $"echo target_distro={ToBashSingleQuoted(settings.DistroName)}; " +
-            $"echo zimage_python={ToBashSingleQuoted(zimagePython)}; " +
-            $"echo staged_prefetch_script={ToBashSingleQuoted(stagedPrefetchScript)}; " +
-            "echo zimage_model=Tongyi-MAI/Z-Image-Turbo; " +
-            $"echo nunchaku_weight_repo={ToBashSingleQuoted(nunchakuWeightRepo)}; " +
-            $"echo nunchaku_precision={ToBashSingleQuoted(precision)}; " +
-            $"echo nunchaku_rank={ToBashSingleQuoted(rank)}; " +
-            $"bash {ToBashSingleQuoted(stagedPrefetchScript)} --backend zimage";
-
-        progress.Report($"Running legacy Z-Image model prefetch: precision={precision} rank={rank}.");
-        var result = await RunWslBashAsync(settings, bashCommand, progress, cancellationToken).ConfigureAwait(false);
-        if (result.ExitCode != 0)
-        {
-            var detail = string.IsNullOrWhiteSpace(result.CombinedOutput)
-                ? $"Z-Image model fetch failed with exit code {result.ExitCode}."
-                : $"Z-Image model fetch failed with exit code {result.ExitCode}.\n\n{result.CombinedOutput.Trim()}";
             throw new InvalidOperationException(detail);
         }
 

@@ -1740,7 +1740,13 @@
                         CommandParameter="{Binding DisplayedModule}"
                         Visibility="{Binding ShowInstallModuleAction, Converter={StaticResource BoolToVisibilityConverter}}"
                         Content="Install Module" />
-                <Button Margin="0,16,0,10"
+                <Button Margin="0,0,0,10"
+                        Style="{StaticResource ShellButtonStyle}"
+                        Command="{Binding RepairModuleCommand}"
+                        CommandParameter="{Binding DisplayedModule}"
+                        Visibility="{Binding HasSelectedModule, Converter={StaticResource BoolToVisibilityConverter}}"
+                        Content="Repair Module" />
+                <Button Margin="0,0,0,10"
                         Style="{StaticResource ShellButtonStyle}"
                         Command="{Binding OpenModuleInstallPathCommand}"
                         CommandParameter="{Binding DisplayedModule}"
