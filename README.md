@@ -75,12 +75,8 @@ Cleaned repo layout:
 
 - `Manager/` is the active Windows Manager and packaged release.
 - `Graphics/` holds shared logo/source assets.
-- `docs/` holds public docs plus the single active standardization handoff.
+- `docs/` holds public docs and module standards.
 - Old prototype roots (`ManagerFEUI/`, `Monitor/`, `WORBI-installer/`, and the static `home/` site) were removed from this branch.
-
-The live handoff for this work is:
-
-[Nymph Plugin Standardization Handoff](docs/Ideas/NYMPH_PLUGIN_STANDARDIZATION_HANDOFF.md)
 
 The forward-facing community module standard is:
 
@@ -291,7 +287,6 @@ Module logs should be standardized through module manifests and status output. T
 
 - [Nymph Module Making Guide](docs/NYMPHS_MODULE_MAKING_GUIDE.md)
 - [Nymph Module UI Standard](docs/NYMPH_MODULE_UI_STANDARD.md)
-- [Nymph Plugin Standardization Handoff](docs/Ideas/NYMPH_PLUGIN_STANDARDIZATION_HANDOFF.md)
 - [Plugin Manager Implementation Plan](docs/Ideas/NYMPH_PLUGIN_MANAGER_IMPLEMENTATION_PLAN.md)
 - [Install Disk And Model Footprint](docs/FOOTPRINT.md)
 
