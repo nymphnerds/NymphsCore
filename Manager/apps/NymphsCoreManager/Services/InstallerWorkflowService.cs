@@ -4695,17 +4695,21 @@ meta:
 
     private static string BuildNymphModuleOverviewDetail(JsonElement manifestRoot, JsonElement registryElement)
     {
-        var lines = new List<string>();
-        AppendOverviewBlock(lines, manifestRoot);
-        AppendOverviewBlock(lines, registryElement);
-        return string.Join("\n", lines);
+        var registryLines = BuildOverviewBlockLines(registryElement);
+        if (registryLines.Count > 0)
+        {
+            return string.Join("\n", registryLines);
+        }
+
+        return string.Join("\n", BuildOverviewBlockLines(manifestRoot));
     }
 
-    private static void AppendOverviewBlock(List<string> lines, JsonElement root)
+    private static List<string> BuildOverviewBlockLines(JsonElement root)
     {
+        var lines = new List<string>();
         if (!root.TryGetProperty("overview", out var overview) || overview.ValueKind != JsonValueKind.Object)
         {
-            return;
+            return lines;
         }
 
         var body = GetJsonString(overview, "body")
@@ -4723,7 +4727,7 @@ meta:
         if (!overview.TryGetProperty("links", out var linksElement) ||
             linksElement.ValueKind != JsonValueKind.Array)
         {
-            return;
+            return lines;
         }
 
         foreach (var linkElement in linksElement.EnumerateArray())
@@ -4740,6 +4744,8 @@ meta:
                 lines.Add($"{label}: {url}");
             }
         }
+
+        return lines;
     }
 
     private static void AppendStringArrayOverviewLine(List<string> lines, JsonElement overview, string propertyName, string label)
