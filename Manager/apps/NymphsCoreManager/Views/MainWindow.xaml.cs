@@ -26,7 +26,6 @@ public partial class MainWindow : Window
     private const int DwmwaBorderColor = 34;
     private const int DwmwaCaptionColor = 35;
     private const int DwmwaTextColor = 36;
-    private const double MinimumCleanNavSpace = 90;
     private const double SidebarOnlyMonitorWidth = 360;
     private const double MonitorModeWidth = 240;
     private const double MonitorModeHeight = 470;
@@ -171,9 +170,7 @@ public partial class MainWindow : Window
         }
 
         var sidebarOnlyMode = _isMonitorMode || ActualWidth < SidebarOnlyMonitorWidth;
-        var usedSidebarHeight = SidebarHeader.ActualHeight + SidebarRuntimePanel.ActualHeight + 42;
-        var availableNavSpace = SidebarRoot.ActualHeight - usedSidebarHeight;
-        var verticallyCompact = _isMonitorMode || availableNavSpace < MinimumCleanNavSpace;
+        var verticallyCompact = _isMonitorMode;
 
         if (_isSidebarCollapsed && !sidebarOnlyMode)
         {
@@ -645,6 +642,8 @@ window.addEventListener('DOMContentLoaded', function() {
 
         UpdateCompactMonitorMode();
         _ = Dispatcher.BeginInvoke(UpdateCompactMonitorMode, DispatcherPriority.Loaded);
+        _ = Dispatcher.BeginInvoke(UpdateCompactMonitorMode, DispatcherPriority.Render);
+        _ = Dispatcher.BeginInvoke(UpdateCompactMonitorMode, DispatcherPriority.ContextIdle);
     }
 
     private static bool IsUsableFullModeBounds(Rect bounds)
