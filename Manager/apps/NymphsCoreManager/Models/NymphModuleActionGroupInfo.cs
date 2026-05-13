@@ -62,6 +62,19 @@ public sealed class NymphModuleActionGroupInfo
     public bool HasOptionFields => Fields.Any(field => field.IsOptionField);
 
     public bool HasDescription => !string.IsNullOrWhiteSpace(Description);
+
+    public void ApplyFieldStateFrom(NymphModuleActionGroupInfo previous)
+    {
+        foreach (var field in Fields)
+        {
+            var previousField = previous.Fields.FirstOrDefault(candidate =>
+                string.Equals(candidate.Name, field.Name, StringComparison.OrdinalIgnoreCase));
+            if (previousField is not null)
+            {
+                field.ApplyTransientStateFrom(previousField);
+            }
+        }
+    }
 }
 
 public sealed record NymphModuleActionLinkInfo(string Label, string Url);
@@ -159,6 +172,25 @@ public sealed class NymphModuleActionFieldInfo : ViewModelBase
     public void ApplySavedSecretState(bool hasSavedSecret)
     {
         HasSavedSecret = hasSavedSecret;
+    }
+
+    public void ApplyTransientStateFrom(NymphModuleActionFieldInfo previous)
+    {
+        var previousSelectionWasDefault = string.Equals(
+            previous.SelectedValue,
+            previous.DefaultValue,
+            StringComparison.Ordinal);
+        if (IsOptionField &&
+            !previousSelectionWasDefault &&
+            Options.Any(option => string.Equals(option.Value, previous.SelectedValue, StringComparison.Ordinal)))
+        {
+            SelectedValue = previous.SelectedValue;
+        }
+
+        if (IsSecret && !string.IsNullOrWhiteSpace(previous.SecretValue))
+        {
+            SecretValue = previous.SecretValue;
+        }
     }
 
     private static string NormalizeLabel(string label, string name, string secretId)

@@ -152,9 +152,9 @@ Guide
 Install
 Update
 Repair
-Storage
+Model Cache
+Directory
 Uninstall
-Dir
 ```
 
 These are install/admin buttons. You do not define these in your module.
@@ -304,6 +304,20 @@ registry/manifest roster -> resolve install root -> check <install root>/.nymph-
 If the marker exists, the module is shown as installed immediately. This keeps
 Home responsive and avoids waiting for every backend to prove runtime health.
 
+On Windows, the Manager must perform this startup marker scan from the Windows
+side through the UNC view of the managed runtime distro:
+
+```text
+\\wsl.localhost\NymphsCore\home\nymph\<module>\.nymph-module-version
+```
+
+Do not implement startup install truth as a WSL bash probe, module `status`
+call, model-cache scan, smoke test, or backend health check. The Manager may be
+launched from the development/source distro, such as `NymphsCore_Lite`, while
+installed modules live in the managed runtime distro, `NymphsCore`. Direct
+Windows-side marker reads avoid that distro-boundary mistake and avoid WSL wake
+races.
+
 Stage 2 is the module `status` action:
 
 ```text
@@ -322,6 +336,10 @@ status may promote Available -> Installed
 status may add health/detail warnings
 status must not demote marker-installed modules to Available
 ```
+
+If the fast marker scan times out, a deferred marker-only retry is allowed. That
+retry must still read only install markers and repair-candidate filesystem
+signals. It must not become a deep status pass.
 
 Do not remove the status recovery pass just to make startup feel faster. Make
 the shell responsive first, then refresh status in the background.
@@ -342,7 +360,8 @@ only after at least one proof module ships them and the Manager tests that path.
 Startup should be boring and quick:
 
 - Load registry/manifest cards first.
-- Prime installed state from the fast marker scan.
+- Prime installed state from Windows-side marker reads against the real managed
+  `NymphsCore` runtime distro.
 - Show the Home grid as soon as the roster is ready.
 - Run Windows/system checks with short timeouts.
 - Run module status in the background after the shell is usable.
@@ -510,6 +529,112 @@ Simple rule:
 ```text
 If you want a button, declare it in ui.manager_actions.
 If you want the button to do something, point it at an entrypoint script.
+```
+
+## Native Action Groups
+
+Use `ui.manager_action_groups` when a module needs compact native controls
+instead of a single button.
+
+This is the standard for model fetch panels such as Z-Image Turbo and TRELLIS.
+It is also suitable for small module-owned setup forms, such as selecting a
+runtime profile or optional model pack.
+
+Use action groups when you need:
+
+```text
+select/dropdown fields
+checkboxes
+saved secret inputs
+source links
+one submit action
+compact controls that still match the Manager style
+```
+
+Do not build a WebView2/local HTML page just to choose model files. Keep simple
+model download choices native, compact, and module-owned.
+
+Example:
+
+```json
+{
+  "ui": {
+    "manager_action_groups": [
+      {
+        "id": "model_fetch",
+        "title": "Model Fetch",
+        "layout": "compact",
+        "entrypoint": "fetch_models",
+        "result": "show_logs",
+        "visibility": "installed",
+        "description": "Fetch the backend model files. Install only sets up the runtime.",
+        "links": [
+          {
+            "label": "Base model",
+            "url": "https://huggingface.co/example/base"
+          },
+          {
+            "label": "Quantized weights",
+            "url": "https://huggingface.co/example/weights"
+          }
+        ],
+        "fields": [
+          {
+            "name": "model",
+            "type": "select",
+            "label": "Download",
+            "arg": "--model",
+            "default": "small",
+            "options": [
+              {
+                "label": "Small",
+                "value": "small",
+                "description": "Lower VRAM"
+              },
+              {
+                "label": "All weights",
+                "value": "all",
+                "description": "Downloads every selectable preset"
+              }
+            ]
+          },
+          {
+            "name": "hf_token",
+            "type": "secret",
+            "label": "Hugging Face token",
+            "secret_id": "huggingface.token",
+            "env": "NYMPHS3D_HF_TOKEN",
+            "optional": true
+          }
+        ],
+        "submit": {
+          "label": "Fetch Models"
+        }
+      }
+    ]
+  }
+}
+```
+
+Field rules:
+
+- `label` must be understandable to a beginner. Use `Hugging Face token`, not
+  `HF`.
+- `secret` fields are saved by the Manager once and injected into the module
+  action through the declared environment variable. Do not print secrets.
+- `links` should be real links to source model pages, not button-looking UI.
+- Long downloads should print progress and keep the Manager responsive.
+- The module owns download validation, selected-model persistence, and cache
+  layout. The Manager only renders controls and routes the declared action.
+
+The compact Z-Image proof established this behavior:
+
+```text
+Install = set up backend/runtime only
+Fetch Models = download the real AI model files
+Base model downloads can be large and must be explained in the guide text
+All weights is optional and should be clearly labelled as larger
+Blender/addon model choice can consume the fetched models later
 ```
 
 ## Uninstall And Data

@@ -8,6 +8,48 @@ This file focuses on user-facing and system-level changes rather than package-by
 
 Newest entries first.
 
+### 2026-05-13 Startup marker detection fixed for the real runtime distro
+Source: live modular Manager testing from the dev/source `NymphsCore_Lite` WSL
+distro against the actual managed runtime distro named `NymphsCore`.
+
+Changed in source:
+
+- fixed the startup installed-module marker pass so installed cards appear
+  immediately from `.nymph-module-version` again
+- changed the fast marker probe, when the Manager is running on Windows, to read
+  markers directly through the Windows UNC view of the target runtime distro:
+  `\\wsl.localhost\NymphsCore\home\nymph\<module>\.nymph-module-version`
+- kept the WSL bash marker probe only as the non-Windows fallback path
+- added a deferred marker-only retry if the first fast pass times out
+- added a code comment at the marker scanner warning future work not to turn
+  startup install truth back into a WSL bash/status probe
+
+Why this matters:
+
+- the Manager EXE may be launched from the dev/source distro path
+  `\\wsl.localhost\NymphsCore_Lite\...`
+- installed modules live in the managed runtime distro `NymphsCore`
+- using WSL bash probing at startup can be slow, can race WSL wake-up, and can
+  fail to see markers even though later per-module status recovers them
+- startup installed state must come from cheap marker reads, not from backend
+  status, model scans, smoke tests, or runtime health checks
+
+Observed fix:
+
+- before this fix, Z-Image appeared installed earlier because its background
+  status path ran before WORBI, while the fast marker scan found zero markers
+- after this fix, WORBI and Z-Image both appear installed immediately from their
+  markers
+
+Do not regress:
+
+- `.nymph-module-version` remains install truth
+- marker-installed modules must not be demoted to Available by failed status
+- startup marker detection should stay Windows-side and target the real
+  `NymphsCore` runtime distro
+- module `status` remains the later background health/detail pass
+- startup must not scan Hugging Face/model caches or run heavyweight checks
+
 ### 2026-05-13 Native model fetch panel and module-owned Z-Image fetch proof
 Source: live modular Manager testing against the installed Z-Image Turbo module and the managed `NymphsCore` WSL runtime.
 

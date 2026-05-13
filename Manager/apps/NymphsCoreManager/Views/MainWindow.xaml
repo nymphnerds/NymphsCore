@@ -1327,21 +1327,21 @@
 	                      Command="{Binding UpdateModuleCommand}"
 	                      CommandParameter="{Binding DisplayedModule}"
 	                      Content="Update" />
-	              <Button Style="{StaticResource ManageLinkButtonStyle}"
-	                      Command="{Binding RepairModuleCommand}"
-	                      CommandParameter="{Binding DisplayedModule}"
+		                <Button Style="{StaticResource ManageLinkButtonStyle}"
+		                        Command="{Binding RepairModuleCommand}"
+		                        CommandParameter="{Binding DisplayedModule}"
                       Content="Repair" />
               <Button Style="{StaticResource ManageLinkButtonStyle}"
-                      IsEnabled="False"
-                      Content="Storage" />
+                      Command="{Binding OpenModelCacheCommand}"
+                      Content="Model Cache" />
+              <Button Style="{StaticResource ManageLinkButtonStyle}"
+                      Command="{Binding OpenModuleInstallPathCommand}"
+                      CommandParameter="{Binding DisplayedModule}"
+                      Content="Directory" />
               <Button Style="{StaticResource ManageLinkButtonStyle}"
                       Command="{Binding UninstallModuleCommand}"
                       CommandParameter="{Binding DisplayedModule}"
                       Content="Uninstall" />
-              <Button Style="{StaticResource ManageLinkButtonStyle}"
-                      Command="{Binding OpenModuleInstallPathCommand}"
-                      CommandParameter="{Binding DisplayedModule}"
-                      Content="Dir" />
             </StackPanel>
           </Border>
         </Popup>
@@ -2141,16 +2141,16 @@
 		                        CommandParameter="{Binding DisplayedModule}"
 		                        Content="Repair" />
 		                <Button Style="{StaticResource ManageLinkButtonStyle}"
-		                        IsEnabled="False"
-		                        Content="Storage" />
+		                        Command="{Binding OpenModelCacheCommand}"
+		                        Content="Model Cache" />
+		                <Button Style="{StaticResource ManageLinkButtonStyle}"
+		                        Command="{Binding OpenModuleInstallPathCommand}"
+		                        CommandParameter="{Binding DisplayedModule}"
+	                        Content="Directory" />
 		                <Button Style="{StaticResource ManageLinkButtonStyle}"
 		                        Command="{Binding UninstallModuleCommand}"
 		                        CommandParameter="{Binding DisplayedModule}"
 		                        Content="Uninstall" />
-		                <Button Style="{StaticResource ManageLinkButtonStyle}"
-		                        Command="{Binding OpenModuleInstallPathCommand}"
-		                        CommandParameter="{Binding DisplayedModule}"
-	                        Content="Dir" />
               </StackPanel>
 
               <Border Grid.Row="1"

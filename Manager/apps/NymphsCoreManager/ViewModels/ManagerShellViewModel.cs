@@ -35,6 +35,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
     private readonly RelayCommand<NymphModuleViewModel> _installModuleCommand;
     private readonly RelayCommand<NymphModuleViewModel> _repairModuleCommand;
     private readonly RelayCommand<NymphModuleViewModel> _updateModuleCommand;
+    private readonly RelayCommand _openModelCacheCommand;
     private readonly RelayCommand<NymphModuleViewModel> _openModuleInstallPathCommand;
     private readonly RelayCommand<NymphModuleViewModel> _openModuleUiCommand;
     private readonly RelayCommand<NymphModuleViewModel> _openModuleSourceCommand;
@@ -143,6 +144,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         _installModuleCommand = new RelayCommand<NymphModuleViewModel>(InstallModule, module => module?.IsInstalled == false && !IsBusy);
         _repairModuleCommand = new RelayCommand<NymphModuleViewModel>(RepairModule, module => module?.CanRepair == true && !IsBusy);
         _updateModuleCommand = new RelayCommand<NymphModuleViewModel>(UpdateModule, module => module?.CanUpdate == true && !IsBusy);
+        _openModelCacheCommand = new RelayCommand(OpenModelCache);
         _openModuleInstallPathCommand = new RelayCommand<NymphModuleViewModel>(OpenModuleInstallPath, module => module?.CanOpenInstallPath == true);
         _openModuleUiCommand = new RelayCommand<NymphModuleViewModel>(OpenModuleUi, module => module?.HasInstalledModuleUi == true);
         _openModuleSourceCommand = new RelayCommand<NymphModuleViewModel>(OpenModuleSource, module => module?.HasRepositoryUrl == true);
@@ -217,6 +219,8 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
     public RelayCommand<NymphModuleViewModel> RepairModuleCommand => _repairModuleCommand;
 
     public RelayCommand<NymphModuleViewModel> UpdateModuleCommand => _updateModuleCommand;
+
+    public RelayCommand OpenModelCacheCommand => _openModelCacheCommand;
 
     public RelayCommand<NymphModuleViewModel> OpenModuleInstallPathCommand => _openModuleInstallPathCommand;
 
@@ -1341,10 +1345,8 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         if (DisplayedModule is not null)
         {
             SetModuleActionFeedback(
-                $"{DisplayedModule.Name}: {DisplayedModule.DisplayStateLabel}",
-                DisplayedModule.HasUpdate
-                    ? DisplayedModule.UpdateDetail
-                    : $"{DisplayedModule.Detail}\n\n{DisplayedModule.SecondaryDetail}");
+                BuildModuleDetailPaneTitle(DisplayedModule),
+                BuildModuleDetailPaneText(DisplayedModule));
         }
 
         RebuildModuleNavigation();
@@ -1415,6 +1417,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
     private async Task RefreshModuleRosterAsync()
     {
         var selectedModuleId = DisplayedModule?.Id ?? SelectedModule?.Id;
+        var previousModules = _allModules.ToDictionary(module => module.Id, StringComparer.OrdinalIgnoreCase);
         IReadOnlyList<NymphModuleManifestInfo> manifests;
 
         try
@@ -1444,7 +1447,13 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         var index = 0;
         foreach (var manifest in manifests)
         {
-            _allModules.Add(CreateModuleViewModel(manifest, index++));
+            var module = CreateModuleViewModel(manifest, index++);
+            if (previousModules.TryGetValue(module.Id, out var previousModule))
+            {
+                module.ApplyActionGroupFieldStateFrom(previousModule);
+            }
+
+            _allModules.Add(module);
         }
 
         await PrimeModulePresenceAsync(manifests).ConfigureAwait(true);
@@ -1814,13 +1823,14 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             OnPropertyChanged(nameof(DisplayedModuleActionGroups));
             _openModuleUiCommand.RaiseCanExecuteChanged();
             _runModuleActionGroupCommand.RaiseCanExecuteChanged();
-            SetModuleActionFeedback($"{module.Name}: {module.DisplayStateLabel}", BuildModuleDetailPaneText(module));
+            SetModuleActionFeedback(BuildModuleDetailPaneTitle(module), BuildModuleDetailPaneText(module));
         }
     }
 
     private async Task PrimeModulePresenceAsync(IReadOnlyList<NymphModuleManifestInfo> manifests)
     {
         IReadOnlyDictionary<string, NymphModuleMarkerProbe> markerProbes;
+        var retryMarkerScan = false;
         try
         {
             using var markerTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(3));
@@ -1830,6 +1840,12 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                     manifests,
                     markerTimeout.Token).ConfigureAwait(true)
                 : new Dictionary<string, NymphModuleMarkerProbe>(StringComparer.OrdinalIgnoreCase);
+        }
+        catch (OperationCanceledException ex)
+        {
+            AppendActivity($"Fast module marker scan warning: {FirstNonEmptyLine(ex.Message)}");
+            markerProbes = new Dictionary<string, NymphModuleMarkerProbe>(StringComparer.OrdinalIgnoreCase);
+            retryMarkerScan = ManagedDistroDetected;
         }
         catch (Exception ex)
         {
@@ -1841,8 +1857,62 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         var repairCount = markerProbes.Values.Count(probe => probe.RepairCandidatePresent);
         AppendActivity($"Fast module marker scan found {markerCount} installed marker(s), {repairCount} repair candidate(s).");
 
+        ApplyModuleMarkerProbes(markerProbes, markMissingAsAvailable: true);
+
+        if (retryMarkerScan)
+        {
+            _ = RetryModuleMarkerScanInBackgroundAsync(manifests);
+        }
+    }
+
+    private async Task RetryModuleMarkerScanInBackgroundAsync(IReadOnlyList<NymphModuleManifestInfo> manifests)
+    {
+        await Task.Yield();
+
+        try
+        {
+            using var markerTimeout = CancellationTokenSource.CreateLinkedTokenSource(_operationCancellation.Token);
+            markerTimeout.CancelAfter(TimeSpan.FromSeconds(10));
+            var markerProbes = await _workflowService.GetInstalledNymphModuleMarkerProbesAsync(
+                _settings,
+                manifests,
+                markerTimeout.Token).ConfigureAwait(true);
+
+            var markerCount = markerProbes.Values.Count(probe => probe.MarkerPresent);
+            var repairCount = markerProbes.Values.Count(probe => probe.RepairCandidatePresent);
+            AppendActivity($"Deferred module marker scan found {markerCount} installed marker(s), {repairCount} repair candidate(s).");
+
+            if (ApplyModuleMarkerProbes(markerProbes, markMissingAsAvailable: false))
+            {
+                RebuildModuleCollections();
+                RebuildModuleNavigation();
+
+                if (DisplayedModule is not null)
+                {
+                    RefreshDisplayedModuleDetails(DisplayedModule);
+                }
+            }
+        }
+        catch (OperationCanceledException) when (_operationCancellation.IsCancellationRequested)
+        {
+        }
+        catch (Exception ex)
+        {
+            AppendActivity($"Deferred module marker scan warning: {FirstNonEmptyLine(ex.Message)}");
+        }
+    }
+
+    private bool ApplyModuleMarkerProbes(
+        IReadOnlyDictionary<string, NymphModuleMarkerProbe> markerProbes,
+        bool markMissingAsAvailable)
+    {
+        var changed = false;
+
         foreach (var module in _allModules)
         {
+            var wasInstalled = module.IsInstalled;
+            var previousState = module.StateLabel;
+
             if (markerProbes.TryGetValue(module.Id, out var probe) && probe.MarkerPresent)
             {
                 module.ApplyState(
@@ -1854,6 +1924,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                     detail: $"{module.Name} is installed. Runtime health will refresh in the background.",
                     secondaryDetail: $"Startup detection used the standard module marker: {probe.InstallRoot}/.nymph-module-version");
                 RefreshInstalledModuleUiInfo(module);
+                changed = changed || wasInstalled != module.IsInstalled || !string.Equals(previousState, module.StateLabel, StringComparison.Ordinal);
                 continue;
             }
 
@@ -1867,6 +1938,12 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                     statusBrush: "#D49A2A",
                     detail: $"{module.Name} has files in the expected install folder, but the standard module marker is missing.",
                     secondaryDetail: "Use Repair Module to refresh module-owned scripts and write the install marker.");
+                changed = changed || wasInstalled != module.IsInstalled || !string.Equals(previousState, module.StateLabel, StringComparison.Ordinal);
+                continue;
+            }
+
+            if (!markMissingAsAvailable)
+            {
                 continue;
             }
 
@@ -1878,7 +1955,10 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                 statusBrush: "#6E745A",
                 detail: $"{module.Name} is available from the registry, but is not installed yet.",
                 secondaryDetail: "Install state came from the fast standard module marker scan.");
+            changed = changed || wasInstalled != module.IsInstalled || !string.Equals(previousState, module.StateLabel, StringComparison.Ordinal);
         }
+
+        return changed;
     }
 
     private string GetInstalledModuleVersionLabel(string moduleId, bool isInstalled)
@@ -2645,7 +2725,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         ModuleLogsTitle = $"{module.Name} module logs";
         ModuleLogsDetail = "Click // logs to load this module's recent logs.";
         SetModuleActionFeedback(
-            $"{module.Name}: {module.DisplayStateLabel}",
+            BuildModuleDetailPaneTitle(module),
             BuildModuleDetailPaneText(module));
         _ = LoadModuleManifestInfoAsync(module);
     }
@@ -2666,7 +2746,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             _updateModuleCommand.RaiseCanExecuteChanged();
             CurrentPageSubtitle = module.Detail;
             SetModuleActionFeedback(
-                $"{module.Name}: {module.DisplayStateLabel}",
+                BuildModuleDetailPaneTitle(module),
                 BuildModuleDetailPaneText(module));
         }
         catch (Exception ex)
@@ -2695,6 +2775,26 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         catch (Exception ex)
         {
             AppendActivity($"Could not open {module.Name} install path: {ex.Message}");
+        }
+    }
+
+    private void OpenModelCache()
+    {
+        try
+        {
+            var cachePath = BuildManagedDistroPath("home", _settings.LinuxUser, "NymphsData", "cache", "huggingface");
+            Directory.CreateDirectory(cachePath);
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = "explorer.exe",
+                Arguments = cachePath,
+                UseShellExecute = true,
+            });
+            AppendActivity("Model cache opened.");
+        }
+        catch (Exception ex)
+        {
+            AppendActivity($"Could not open model cache: {ex.Message}");
         }
     }
 
@@ -3223,6 +3323,11 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         return string.Join(Environment.NewLine, guideLines);
     }
 
+    private static string BuildModuleDetailPaneTitle(NymphModuleViewModel module)
+    {
+        return $"{module.Name}: {module.DisplayStateLabel}";
+    }
+
     private static IEnumerable<string> BuildModuleActionGroupGuideLines(NymphModuleActionGroupInfo group)
     {
         if (!string.IsNullOrWhiteSpace(group.Description))
@@ -3607,7 +3712,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         {
             RefreshDisplayedModuleDetails(module);
             SetModuleActionFeedback(
-                $"{module.Name}: {module.DisplayStateLabel}",
+                BuildModuleDetailPaneTitle(module),
                 BuildModuleDetailPaneText(module));
         }
 

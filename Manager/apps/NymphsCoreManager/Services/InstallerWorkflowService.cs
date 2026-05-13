@@ -4348,6 +4348,28 @@ meta:
             return new Dictionary<string, NymphModuleMarkerProbe>(StringComparer.OrdinalIgnoreCase);
         }
 
+        // Startup install truth must be a cheap Windows-side marker read.
+        // Do not turn this back into a WSL bash/status probe: when the Manager
+        // is launched from the dev distro UNC path, WSL startup/probing can look
+        // slow or hit the wrong distro boundary. The target runtime markers live
+        // under \\wsl.localhost\<settings.DistroName>\..., and status runs later.
+        if (OperatingSystem.IsWindows())
+        {
+            var directProbes = new Dictionary<string, NymphModuleMarkerProbe>(StringComparer.OrdinalIgnoreCase);
+            foreach (var target in probeTargets)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var currentProbe = ProbeNymphModuleMarkerViaWindowsPath(settings, target.ModuleId, target.InstallRoot);
+                if (!directProbes.TryGetValue(target.ModuleId, out var existingProbe) ||
+                    ShouldReplaceNymphModuleMarkerProbe(existingProbe, currentProbe))
+                {
+                    directProbes[target.ModuleId] = currentProbe;
+                }
+            }
+
+            return directProbes;
+        }
+
         var targetLines = string.Join("\n", probeTargets.Select(target => $"{target.ModuleId}\t{target.InstallRoot}"));
         var bashCommand =
             "set -euo pipefail\n" +
@@ -4407,6 +4429,59 @@ meta:
         }
 
         return probes;
+    }
+
+    private static NymphModuleMarkerProbe ProbeNymphModuleMarkerViaWindowsPath(
+        InstallSettings settings,
+        string moduleId,
+        string installRoot)
+    {
+        var markerPresent = false;
+        var rootPresent = false;
+        var repairPresent = false;
+        var version = "not-installed";
+
+        try
+        {
+            var rootPath = ToWindowsWslPath(settings, installRoot);
+            rootPresent = Directory.Exists(rootPath) || File.Exists(rootPath);
+
+            repairPresent =
+                File.Exists(ToWindowsWslPath(settings, $"{installRoot}/nymph.json")) ||
+                Directory.Exists(ToWindowsWslPath(settings, $"{installRoot}/bin")) ||
+                File.Exists(ToWindowsWslPath(settings, $"{installRoot}/package.json")) ||
+                Directory.Exists(ToWindowsWslPath(settings, $"{installRoot}/.venv")) ||
+                Directory.Exists(ToWindowsWslPath(settings, $"{installRoot}/.venv-nunchaku")) ||
+                Directory.Exists(ToWindowsWslPath(settings, $"{installRoot}/dist")) ||
+                Directory.Exists(ToWindowsWslPath(settings, $"{installRoot}/server"));
+
+            var markerPath = ToWindowsWslPath(settings, $"{installRoot}/.nymph-module-version");
+            if (File.Exists(markerPath))
+            {
+                markerPresent = true;
+                repairPresent = false;
+                version = File.ReadLines(markerPath).FirstOrDefault()?.Trim() ?? string.Empty;
+                if (string.IsNullOrWhiteSpace(version))
+                {
+                    version = "unknown";
+                }
+            }
+        }
+        catch
+        {
+            markerPresent = false;
+            rootPresent = false;
+            repairPresent = false;
+            version = "not-installed";
+        }
+
+        return new NymphModuleMarkerProbe(
+            ModuleId: moduleId,
+            MarkerPresent: markerPresent,
+            InstallRootPresent: rootPresent,
+            RepairCandidatePresent: repairPresent,
+            Version: version,
+            InstallRoot: installRoot);
     }
 
     private static bool ShouldReplaceNymphModuleMarkerProbe(NymphModuleMarkerProbe existingProbe, NymphModuleMarkerProbe candidateProbe)

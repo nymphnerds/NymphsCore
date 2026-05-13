@@ -250,7 +250,7 @@ public sealed class NymphModuleViewModel : ViewModelBase
 
         if (managerActionGroups.Count > 0)
         {
-            ManagerActionGroups = managerActionGroups;
+            ManagerActionGroups = PreserveActionGroupFieldState(ManagerActionGroups, managerActionGroups);
             OnPropertyChanged(nameof(ManagerActionGroups));
             OnPropertyChanged(nameof(ManagerActionGroupLinks));
             OnPropertyChanged(nameof(HasManagerActionGroupLinks));
@@ -261,7 +261,7 @@ public sealed class NymphModuleViewModel : ViewModelBase
     {
         ManagerActions = manifest.ManagerActions;
         OnPropertyChanged(nameof(ManagerActions));
-        ManagerActionGroups = manifest.ManagerActionGroups;
+        ManagerActionGroups = PreserveActionGroupFieldState(ManagerActionGroups, manifest.ManagerActionGroups);
         OnPropertyChanged(nameof(ManagerActionGroups));
         OnPropertyChanged(nameof(ManagerActionGroupLinks));
         OnPropertyChanged(nameof(HasManagerActionGroupLinks));
@@ -296,6 +296,14 @@ public sealed class NymphModuleViewModel : ViewModelBase
             : manifestDetail;
 
         OnPropertyChanged(nameof(CanUpdate));
+    }
+
+    public void ApplyActionGroupFieldStateFrom(NymphModuleViewModel previous)
+    {
+        ManagerActionGroups = PreserveActionGroupFieldState(previous.ManagerActionGroups, ManagerActionGroups);
+        OnPropertyChanged(nameof(ManagerActionGroups));
+        OnPropertyChanged(nameof(ManagerActionGroupLinks));
+        OnPropertyChanged(nameof(HasManagerActionGroupLinks));
     }
 
     public void ApplyUpdateState(string? installedVersion, string? remoteVersion, bool hasUpdate, string detail)
@@ -353,6 +361,23 @@ public sealed class NymphModuleViewModel : ViewModelBase
         }
 
         return false;
+    }
+
+    private static IReadOnlyList<NymphModuleActionGroupInfo> PreserveActionGroupFieldState(
+        IReadOnlyList<NymphModuleActionGroupInfo> previousGroups,
+        IReadOnlyList<NymphModuleActionGroupInfo> nextGroups)
+    {
+        foreach (var group in nextGroups)
+        {
+            var previous = previousGroups.FirstOrDefault(candidate =>
+                string.Equals(candidate.Id, group.Id, StringComparison.OrdinalIgnoreCase));
+            if (previous is not null)
+            {
+                group.ApplyFieldStateFrom(previous);
+            }
+        }
+
+        return nextGroups;
     }
 
     private static bool IsUnknownVersion(string version)
