@@ -208,8 +208,8 @@ Minimum useful shape:
   "name": "Example Module",
   "short_name": "EX",
   "version": "0.1.0",
-  "description": "A local backend managed by NymphsCore.",
-  "category": "tool",
+  "description": "A local AI backend managed by NymphsCore.",
+  "category": "image",
   "packaging": "repo",
   "source": {
     "type": "repo",
@@ -217,12 +217,25 @@ Minimum useful shape:
     "ref": "main"
   },
   "install": {
-    "root": "$HOME/example",
+    "root": "$HOME/Example",
     "entrypoint": "scripts/install_example.sh",
-    "version_marker": "$HOME/example/.nymph-module-version",
+    "version_marker": "$HOME/Example/.nymph-module-version",
     "installed_markers": [
-      "$HOME/example/.nymph-module-version"
+      "$HOME/Example/.nymph-module-version"
     ]
+  },
+  "runtime": {
+    "host": "127.0.0.1",
+    "port": 8090,
+    "health_url": "http://127.0.0.1:8090/health",
+    "server_info_url": "http://127.0.0.1:8090/server_info"
+  },
+  "artifacts": {
+    "models_root": "$HOME/NymphsData/models",
+    "cache_root": "$HOME/NymphsData/cache",
+    "outputs_root": "$HOME/NymphsData/outputs/example",
+    "logs_root": "$HOME/NymphsData/logs/example",
+    "huggingface_cache": "$HOME/NymphsData/cache/huggingface"
   },
   "entrypoints": {
     "install": "scripts/install_example.sh",
@@ -231,29 +244,107 @@ Minimum useful shape:
     "stop": "scripts/example_stop.sh",
     "open": "scripts/example_open.sh",
     "logs": "scripts/example_logs.sh",
+    "fetch_models": "scripts/example_fetch_models.sh",
+    "smoke_test": "scripts/example_smoke_test.sh",
     "uninstall": "scripts/example_uninstall.sh"
   },
   "ui": {
     "sort_order": 100,
+    "manager_action_groups": [
+      {
+        "id": "model_fetch",
+        "title": "Model Fetch",
+        "layout": "compact",
+        "entrypoint": "fetch_models",
+        "result": "show_logs",
+        "visibility": "installed",
+        "description": "Install sets up the backend only. Fetch Models downloads the actual AI model files. Explain what will be downloaded, how large it may be, and which option a new user should choose.",
+        "links": [
+          {
+            "label": "Base model",
+            "url": "https://huggingface.co/example/base-model"
+          },
+          {
+            "label": "Quantized weights",
+            "url": "https://huggingface.co/example/quantized-weights"
+          }
+        ],
+        "fields": [
+          {
+            "name": "model_choice",
+            "type": "select",
+            "label": "Download",
+            "arg": "--model",
+            "default": "recommended",
+            "options": [
+              {
+                "label": "Recommended",
+                "value": "recommended",
+                "description": "Best first choice for most users"
+              },
+              {
+                "label": "All models",
+                "value": "all",
+                "description": "Download every supported model option"
+              }
+            ]
+          },
+          {
+            "name": "hf_token",
+            "type": "secret",
+            "label": "Hugging Face token",
+            "secret_id": "huggingface.token",
+            "env": "NYMPHS_HF_TOKEN",
+            "optional": true
+          }
+        ],
+        "submit": {
+          "label": "Fetch Models"
+        }
+      }
+    ],
     "manager_actions": [
+      {
+        "id": "smoke_test",
+        "label": "Smoke Test",
+        "entrypoint": "smoke_test",
+        "result": "show_output"
+      },
       {
         "id": "start",
         "label": "Start",
         "entrypoint": "start",
-        "result": "open_in_manager"
+        "result": "show_output"
       },
       {
-        "id": "browser",
-        "label": "Browser",
-        "entrypoint": "start",
-        "result": "open_external_browser"
+        "id": "stop",
+        "label": "Stop",
+        "entrypoint": "stop",
+        "result": "show_output"
       },
       {
         "id": "logs",
         "label": "Logs",
         "entrypoint": "logs",
-        "result": "open_notepad"
+        "result": "show_output"
       }
+    ]
+  },
+  "uninstall": {
+    "supports_purge": true,
+    "requires_confirmation": true,
+    "dry_run_arg": "--dry-run",
+    "confirm_arg": "--yes",
+    "purge_arg": "--purge",
+    "preserve_by_default": [
+      "outputs",
+      "logs",
+      "model cache"
+    ],
+    "removes_by_default": [
+      "runtime source files",
+      "virtual environment",
+      "generated module scripts"
     ]
   }
 }
