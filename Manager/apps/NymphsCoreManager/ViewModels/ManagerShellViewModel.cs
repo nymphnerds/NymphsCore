@@ -3220,7 +3220,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             return detail;
         }
 
-        return $"Model fetch guide:\n{string.Join(Environment.NewLine, guideLines)}";
+        return string.Join(Environment.NewLine, guideLines);
     }
 
     private static string BuildModuleActionFeedbackDetail(string output)

@@ -2272,7 +2272,7 @@
                                             SelectedValuePath="Value"
                                             TextSearch.TextPath="Label"
                                             Style="{StaticResource DarkComboBoxStyle}"
-                                            Width="420"
+                                            Width="150"
                                             MinHeight="24"
                                             Padding="6,2"
                                             Visibility="{Binding IsOptionField, Converter={StaticResource BoolToVisibilityConverter}}">
