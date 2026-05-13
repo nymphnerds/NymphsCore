@@ -429,39 +429,32 @@ normal `ui.manager_actions`, usually beside `Start`, `Stop`, and `Logs`.
 
 ## Initial Adopter: Z-Image Turbo
 
-Z-Image generation uses the Nunchaku runtime. The UI should make the GPU family
-choice manual and visible instead of silently relying on auto detection.
+Z-Image generation uses the Nunchaku runtime. The UI should make the exact
+Z-Image Turbo quantized weight manual and visible instead of hiding it behind
+automatic detection.
 
-User-facing options:
-
-```text
-GPU
-RTX 20/30/40 -> INT4
-RTX 50       -> FP4
-
-Preset
-Fast         -> r32
-Balanced     -> r128
-Highest      -> r256, INT4 only
-```
-
-Published Nunchaku Z-Image Turbo generation weights:
+Noob guide:
 
 ```text
-INT4 r32
-INT4 r128
-INT4 r256
-FP4 r32
-FP4 r128
+RTX 20/30/40: start with svdq-int4_r128.
+RTX 50:       start with svdq-fp4_r128.
+Low VRAM:     use an r32 file.
+Max quality:  use svdq-int4_r256 if the card can handle it.
 ```
 
-Invalid combination:
+Published Z-Image Turbo quantized weights for the Nunchaku runtime:
 
 ```text
-FP4 r256
+svdq-int4_r32-z-image-turbo.safetensors
+svdq-int4_r128-z-image-turbo.safetensors
+svdq-int4_r256-z-image-turbo.safetensors
+svdq-fp4_r32-z-image-turbo.safetensors
+svdq-fp4_r128-z-image-turbo.safetensors
 ```
 
-The module script should validate this and print a clear error if selected.
+These are Z-Image Turbo inference weights, not separate models and not GGUF.
+They are Nunchaku-compatible `.safetensors` files used by the acceleration
+runtime. FP4 r256 is not offered because the published r256 weight is INT4-only.
 The Manager does not need Z-Image-specific conditional UI logic.
 
 Suggested compact display:
@@ -469,8 +462,8 @@ Suggested compact display:
 ```text
 // MODEL FETCH
 Base · Weights
-GPU    [RTX 20/30/40] [RTX 50]
-Preset [Fast] [Balanced] [Highest]
+Guide  downloads base Z-Image Turbo plus one Nunchaku-compatible weight
+Weight [svdq-int4_r128-z-image-turbo.safetensors v]
 HF     [token field] [saved/clear]
        [Fetch Models]
 
@@ -488,17 +481,17 @@ Weights: https://huggingface.co/nunchaku-ai/nunchaku-z-image-turbo
 Suggested script interface:
 
 ```bash
-scripts/zimage_fetch_models.sh --gpu-family rtx_20_30_40 --preset fast
-scripts/zimage_fetch_models.sh --gpu-family rtx_20_30_40 --preset balanced
-scripts/zimage_fetch_models.sh --gpu-family rtx_20_30_40 --preset highest
-scripts/zimage_fetch_models.sh --gpu-family rtx_50 --preset fast
-scripts/zimage_fetch_models.sh --gpu-family rtx_50 --preset balanced
+scripts/zimage_fetch_models.sh --model svdq-int4_r32-z-image-turbo.safetensors
+scripts/zimage_fetch_models.sh --model svdq-int4_r128-z-image-turbo.safetensors
+scripts/zimage_fetch_models.sh --model svdq-int4_r256-z-image-turbo.safetensors
+scripts/zimage_fetch_models.sh --model svdq-fp4_r32-z-image-turbo.safetensors
+scripts/zimage_fetch_models.sh --model svdq-fp4_r128-z-image-turbo.safetensors
 ```
 
 Optional token interface:
 
 ```bash
-NYMPHS3D_HF_TOKEN=hf_xxx scripts/zimage_fetch_models.sh --gpu-family rtx_20_30_40 --preset balanced
+NYMPHS3D_HF_TOKEN=hf_xxx scripts/zimage_fetch_models.sh --model svdq-int4_r128-z-image-turbo.safetensors
 ```
 
 The current script also accepts `--hf-token`, but the Manager should prefer
@@ -515,8 +508,8 @@ scripts/zimage_fetch_models.sh --precision fp4 --rank 32
 scripts/zimage_fetch_models.sh --precision fp4 --rank 128
 ```
 
-The Manager UI should use GPU family and preset labels. Logs can show the
-technical precision/rank values.
+The Manager UI should use the real Z-Image Turbo quantized weight filenames.
+Logs can still show the technical precision/rank values.
 
 Z-Image module-owned canonical paths:
 
@@ -630,8 +623,11 @@ paths once the TRELLIS module contract is stable.
 
 - remove the old Z-Image local HTML/WebView2 fetch UI
 - declare the model fetch group in `ui.manager_action_groups`
-- add friendly `--gpu-family` and `--preset` arguments
-- reject invalid `FP4 r256`
+- add a single `--model` / `--weight` argument using the real quantized
+  `.safetensors` filename
+- keep legacy `--gpu-family` and `--preset` arguments only for manual/backward
+  compatibility
+- do not offer invalid `FP4 r256`
 - save selected generation preset after successful normal fetch
 - keep HF token support through `NYMPHS3D_HF_TOKEN`
 

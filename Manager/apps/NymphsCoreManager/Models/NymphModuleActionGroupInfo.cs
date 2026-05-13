@@ -9,6 +9,7 @@ public sealed class NymphModuleActionGroupInfo
     public NymphModuleActionGroupInfo(
         string id,
         string title,
+        string description,
         string entryPoint,
         string resultMode,
         string visibility,
@@ -18,6 +19,7 @@ public sealed class NymphModuleActionGroupInfo
     {
         Id = id;
         Title = title;
+        Description = description;
         EntryPoint = entryPoint;
         ResultMode = resultMode;
         Visibility = visibility;
@@ -29,6 +31,8 @@ public sealed class NymphModuleActionGroupInfo
     public string Id { get; }
 
     public string Title { get; }
+
+    public string Description { get; }
 
     public string EntryPoint { get; }
 
@@ -45,6 +49,8 @@ public sealed class NymphModuleActionGroupInfo
     public bool HasLinks => Links.Count > 0;
 
     public bool HasFields => Fields.Count > 0;
+
+    public bool HasDescription => !string.IsNullOrWhiteSpace(Description);
 }
 
 public sealed record NymphModuleActionLinkInfo(string Label, string Url);

@@ -1814,6 +1814,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             OnPropertyChanged(nameof(DisplayedModuleActionGroups));
             _openModuleUiCommand.RaiseCanExecuteChanged();
             _runModuleActionGroupCommand.RaiseCanExecuteChanged();
+            SetModuleActionFeedback($"{module.Name}: {module.DisplayStateLabel}", BuildModuleDetailPaneText(module));
         }
     }
 
@@ -2645,9 +2646,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         ModuleLogsDetail = "Click // logs to load this module's recent logs.";
         SetModuleActionFeedback(
             $"{module.Name}: {module.DisplayStateLabel}",
-            module.HasUpdate
-                ? module.UpdateDetail
-                : $"{module.Detail}\n\n{module.SecondaryDetail}");
+            BuildModuleDetailPaneText(module));
         _ = LoadModuleManifestInfoAsync(module);
     }
 
@@ -2668,9 +2667,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             CurrentPageSubtitle = module.Detail;
             SetModuleActionFeedback(
                 $"{module.Name}: {module.DisplayStateLabel}",
-                module.HasUpdate
-                    ? module.UpdateDetail
-                    : $"{module.Detail}\n\n{module.SecondaryDetail}");
+                BuildModuleDetailPaneText(module));
         }
         catch (Exception ex)
         {
@@ -3207,6 +3204,27 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         ModuleActionFeedbackDetail = string.IsNullOrWhiteSpace(detail) ? "The command finished without output." : detail.Trim();
     }
 
+    private static string BuildModuleDetailPaneText(NymphModuleViewModel module)
+    {
+        var detail = module.HasUpdate
+            ? module.UpdateDetail
+            : $"{module.Detail}\n\n{module.SecondaryDetail}";
+        if (!module.IsInstalled)
+        {
+            return detail;
+        }
+
+        var guideLines = module.ManagerActionGroups
+            .Select(group => group.Description)
+            .Where(description => !string.IsNullOrWhiteSpace(description))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        return guideLines.Length == 0
+            ? detail
+            : $"{detail}\n\nModel fetch guide:\n{string.Join(Environment.NewLine, guideLines)}";
+    }
+
     private static string BuildModuleActionFeedbackDetail(string output)
     {
         var downloadDetail = BuildModelDownloadFeedbackDetail(output);
@@ -3580,7 +3598,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             RefreshDisplayedModuleDetails(module);
             SetModuleActionFeedback(
                 $"{module.Name}: {module.DisplayStateLabel}",
-                $"{module.Detail}\n\n{module.SecondaryDetail}");
+                BuildModuleDetailPaneText(module));
         }
 
         _openModuleCommand.RaiseCanExecuteChanged();

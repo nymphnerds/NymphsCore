@@ -4867,6 +4867,10 @@ meta:
             groups.Add(new NymphModuleActionGroupInfo(
                 id.Trim(),
                 GetJsonString(groupElement, "title") ?? id.Trim(),
+                GetJsonString(groupElement, "description")
+                    ?? GetJsonString(groupElement, "guide")
+                    ?? GetJsonString(groupElement, "help")
+                    ?? "",
                 entrypoint.Trim(),
                 GetJsonString(groupElement, "result")
                     ?? GetJsonString(groupElement, "result_mode")

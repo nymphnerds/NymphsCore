@@ -193,7 +193,10 @@
                           <ColumnDefinition Width="*" />
                           <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
-                        <ContentPresenter />
+	                        <ContentPresenter Content="{Binding SelectionBoxItem, RelativeSource={RelativeSource AncestorType=ComboBox}}"
+	                                          ContentStringFormat="{Binding SelectionBoxItemStringFormat, RelativeSource={RelativeSource AncestorType=ComboBox}}"
+	                                          ContentTemplate="{Binding SelectionBoxItemTemplate, RelativeSource={RelativeSource AncestorType=ComboBox}}"
+	                                          VerticalAlignment="Center" />
                         <TextBlock Grid.Column="1"
                                    Text="⌄"
                                    Margin="8,0,0,0"
@@ -211,11 +214,7 @@
                     </ControlTemplate.Triggers>
                   </ControlTemplate>
                 </ToggleButton.Template>
-                <ContentPresenter Content="{TemplateBinding SelectionBoxItem}"
-                                  ContentStringFormat="{TemplateBinding SelectionBoxItemStringFormat}"
-                                  ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
-                                  VerticalAlignment="Center" />
-              </ToggleButton>
+	              </ToggleButton>
               <Popup IsOpen="{TemplateBinding IsDropDownOpen}"
                      Placement="Bottom"
                      AllowsTransparency="True"
@@ -2243,12 +2242,20 @@
                               </DataTemplate>
                             </ItemsControl.ItemTemplate>
                           </ItemsControl>
-                          <TextBlock Text="{Binding Title, StringFormat=// {0}}"
-                                     Style="{StaticResource MonoLabelStyle}"
-                                     Foreground="{StaticResource LimeBrush}"
-                                     FontSize="13"
-                                     TextTrimming="CharacterEllipsis" />
-                        </DockPanel>
+	                          <StackPanel>
+	                            <TextBlock Text="{Binding Title, StringFormat=// {0}}"
+	                                       Style="{StaticResource MonoLabelStyle}"
+	                                       Foreground="{StaticResource LimeBrush}"
+	                                       FontSize="13"
+	                                       TextTrimming="CharacterEllipsis" />
+	                            <TextBlock Text="{Binding Description}"
+	                                       Margin="0,4,0,0"
+	                                       Foreground="#9AB8B4"
+	                                       FontSize="11"
+	                                       TextWrapping="Wrap"
+	                                       Visibility="{Binding HasDescription, Converter={StaticResource BoolToVisibilityConverter}}" />
+	                          </StackPanel>
+	                        </DockPanel>
 
                         <WrapPanel>
                           <ItemsControl ItemsSource="{Binding Fields}">
@@ -2268,15 +2275,16 @@
                                              FontSize="10.5"
                                              VerticalAlignment="Center"
                                              Margin="0,0,5,0" />
-                                  <ComboBox ItemsSource="{Binding Options}"
-                                            SelectedValue="{Binding SelectedValue, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                            SelectedValuePath="Value"
-                                            DisplayMemberPath="Label"
-                                            Style="{StaticResource DarkComboBoxStyle}"
-                                            Width="122"
-                                            MinHeight="24"
-                                            Padding="6,2"
-                                            Visibility="{Binding IsOptionField, Converter={StaticResource BoolToVisibilityConverter}}" />
+	                                  <ComboBox ItemsSource="{Binding Options}"
+	                                            SelectedValue="{Binding SelectedValue, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+	                                            SelectedValuePath="Value"
+	                                            DisplayMemberPath="Label"
+	                                            TextSearch.TextPath="Label"
+	                                            Style="{StaticResource DarkComboBoxStyle}"
+	                                            MinWidth="270"
+	                                            MinHeight="24"
+	                                            Padding="6,2"
+	                                            Visibility="{Binding IsOptionField, Converter={StaticResource BoolToVisibilityConverter}}" />
                                   <StackPanel Orientation="Horizontal"
                                               Visibility="{Binding IsSecret, Converter={StaticResource BoolToVisibilityConverter}}">
                                     <PasswordBox Style="{StaticResource CompactSecretBoxStyle}"
