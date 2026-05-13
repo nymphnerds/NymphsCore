@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using NymphsCoreManager.Models;
 
 namespace NymphsCoreManager.ViewModels;
@@ -70,6 +71,15 @@ public sealed class NymphModuleViewModel : ViewModelBase
     public IReadOnlyList<NymphModuleActionInfo> ManagerActions { get; private set; }
 
     public IReadOnlyList<NymphModuleActionGroupInfo> ManagerActionGroups { get; private set; }
+
+    public IReadOnlyList<NymphModuleActionLinkInfo> ManagerActionGroupLinks =>
+        ManagerActionGroups
+            .SelectMany(group => group.Links)
+            .GroupBy(link => link.Url, StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.First())
+            .ToArray();
+
+    public bool HasManagerActionGroupLinks => ManagerActionGroupLinks.Count > 0;
 
     public IReadOnlyList<string> DevCapabilities { get; }
 
@@ -242,6 +252,8 @@ public sealed class NymphModuleViewModel : ViewModelBase
         {
             ManagerActionGroups = managerActionGroups;
             OnPropertyChanged(nameof(ManagerActionGroups));
+            OnPropertyChanged(nameof(ManagerActionGroupLinks));
+            OnPropertyChanged(nameof(HasManagerActionGroupLinks));
         }
     }
 
@@ -251,6 +263,8 @@ public sealed class NymphModuleViewModel : ViewModelBase
         OnPropertyChanged(nameof(ManagerActions));
         ManagerActionGroups = manifest.ManagerActionGroups;
         OnPropertyChanged(nameof(ManagerActionGroups));
+        OnPropertyChanged(nameof(ManagerActionGroupLinks));
+        OnPropertyChanged(nameof(HasManagerActionGroupLinks));
 
         if (!string.IsNullOrWhiteSpace(manifest.Version))
         {

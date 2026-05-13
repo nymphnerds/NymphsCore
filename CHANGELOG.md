@@ -8,6 +8,57 @@ This file focuses on user-facing and system-level changes rather than package-by
 
 Newest entries first.
 
+### 2026-05-13 Native model fetch panel and module-owned Z-Image fetch proof
+Source: live modular Manager testing against the installed Z-Image Turbo module and the managed `NymphsCore` WSL runtime.
+
+Changed in source:
+
+- added a compact native Manager model-fetch panel driven by module manifest metadata rather than a module WebView2 page
+- added persistent Manager-side module secret handling for the shared Hugging Face token field:
+  - the visible label is expanded to `Hugging Face token`
+  - saved tokens are masked with a longer password-style placeholder
+  - module actions receive the token through the module-declared environment variable
+- made model-fetch guide text and source links render inside the standard details pane:
+  - links are clickable Manager hyperlinks, not fake buttons
+  - the details pane can switch from guide text to action progress/failure feedback
+- changed long module action feedback so model fetch progress stays in the module details flow instead of jumping to the global Logs page
+- made the global Logs page copyable/selectable and stopped autoscroll while the user is selecting text
+- hardened module action execution so installed module-owned scripts win before remote/cache refresh logic:
+  - installed scripts such as `/home/nymph/Z-Image/scripts/zimage_fetch_models.sh` run directly
+  - this avoids stale remote/cache manifests breaking installed module actions
+  - this is the intended pattern for TRELLIS model fetch support too
+- rebuilt the Win x64 published Manager EXE
+
+Updated Z-Image module contract:
+
+- changed the Z-Image model fetch selector from a single default weight to `Download`
+- added `All weights` so Blender can later switch freely between r32, r128, and r256 presets
+- kept individual published Nunchaku-compatible Z-Image Turbo weight choices available:
+  - `int4_r32`
+  - `int4_r128`
+  - `int4_r256`
+  - `fp4_r32`
+  - `fp4_r128`
+- improved the installed guide text for noob-friendly model choice:
+  - r32 is the light/default Blender choice
+  - r128 is balanced or portrait-friendly
+  - r256 is highest quality and INT4-only
+  - RTX 50 users should fetch `fp4_r128` or `All weights`
+
+Validated locally:
+
+- Z-Image Fetch Models loaded immediately after install from the standard Manager details page
+- Z-Image Fetch Models began downloading through the installed module-owned script path
+- the runtime manifest and script were synced into the managed `NymphsCore` WSL distro for testing
+- `dotnet publish Manager/apps/NymphsCoreManager/NymphsCoreManager.csproj -c Release -r win-x64 -p:NoIncremental=true -p:EnableWindowsTargeting=true`
+- `bash -n scripts/zimage_fetch_models.sh`
+- `python3 -m json.tool nymph.json`
+
+Current caveats:
+
+- TRELLIS still needs its module manifest and fetch script updated to use the same native action group pattern
+- Blender addon model-cache selection should be reviewed after Z-Image and TRELLIS model fetch paths settle
+
 ### 2026-05-13 Module-owned Manager actions and WORBI first standard proof
 Source: live modular Manager testing with WORBI as the first module-owned action contract proof.
 

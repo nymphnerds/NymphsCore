@@ -47,9 +47,11 @@ public sealed class NymphModuleActionGroupInfo
 
     public IReadOnlyList<NymphModuleActionFieldInfo> Fields { get; }
 
-    public IEnumerable<NymphModuleActionFieldInfo> SecretFields => Fields.Where(field => field.IsSecret);
+    public IReadOnlyList<NymphModuleActionFieldInfo> SecretFields =>
+        Fields.Where(field => field.IsSecret).ToArray();
 
-    public IEnumerable<NymphModuleActionFieldInfo> OptionFields => Fields.Where(field => field.IsOptionField);
+    public IReadOnlyList<NymphModuleActionFieldInfo> OptionFields =>
+        Fields.Where(field => field.IsOptionField).ToArray();
 
     public bool HasLinks => Links.Count > 0;
 
@@ -83,7 +85,7 @@ public sealed class NymphModuleActionFieldInfo : ViewModelBase
     {
         Name = name;
         Type = string.IsNullOrWhiteSpace(type) ? "select" : type;
-        Label = string.IsNullOrWhiteSpace(label) ? name : label;
+        Label = NormalizeLabel(label, name, secretId);
         DefaultValue = defaultValue;
         ArgumentName = argumentName;
         EnvironmentName = environmentName;
@@ -152,11 +154,22 @@ public sealed class NymphModuleActionFieldInfo : ViewModelBase
 
     public string SecretStatusLabel => HasSavedSecret ? "token saved" : "no token";
 
-    public string SavedSecretMask => HasSavedSecret ? "••••••••" : string.Empty;
+    public string SavedSecretMask => HasSavedSecret ? "••••••••••••••••••••••••••••••••" : string.Empty;
 
     public void ApplySavedSecretState(bool hasSavedSecret)
     {
         HasSavedSecret = hasSavedSecret;
+    }
+
+    private static string NormalizeLabel(string label, string name, string secretId)
+    {
+        if (string.Equals(secretId, "huggingface.token", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(label, "HF", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Hugging Face token";
+        }
+
+        return string.IsNullOrWhiteSpace(label) ? name : label;
     }
 }
 

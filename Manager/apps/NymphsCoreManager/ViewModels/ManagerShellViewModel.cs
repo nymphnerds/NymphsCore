@@ -2868,7 +2868,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         SetModuleActionFeedback(
             $"{module.Name}: {actionLabel} started",
             "Command sent to the managed WSL distro. Waiting for module output...");
-        if (resultMode is "show_logs" or "logs")
+        if ((resultMode is "show_logs" or "logs") && normalizedAction is "logs")
         {
             SelectPrimaryPage(ManagerPageKind.Logs);
         }
@@ -3233,10 +3233,6 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             }
         }
 
-        foreach (var link in group.Links)
-        {
-            yield return $"{link.Label}: {link.Url}";
-        }
     }
 
     private static string BuildModuleActionFeedbackDetail(string output)

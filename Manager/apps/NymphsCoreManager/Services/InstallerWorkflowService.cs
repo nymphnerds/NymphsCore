@@ -5780,6 +5780,8 @@ meta:
         var localBinEntrypoint = $"{homePath}/.local/bin/{normalizedModuleId}-{normalizedAction}";
         var installRootBinEntrypoint = $"{installRoot}/bin/{normalizedModuleId}-{normalizedAction}";
         var conventionalEntrypoint = $"scripts/{normalizedModuleId.Replace('-', '_')}_{normalizedAction}.sh";
+        var installedConventionalEntrypointPath = $"{installRoot}/{conventionalEntrypoint}";
+        var cachedConventionalEntrypointPath = $"{cacheRepo}/{conventionalEntrypoint}";
         var isStatusAction = string.Equals(normalizedAction, "status", StringComparison.OrdinalIgnoreCase);
         var commandTimeoutPrefix = isStatusAction ? "timeout 6s " : string.Empty;
         var unavailableStatus =
@@ -5788,7 +5790,9 @@ meta:
             $"echo id={ToBashSingleQuoted(normalizedModuleId)}; echo installed=false; echo running=false; echo runtime_present=true; echo data_present=true; echo version=not-installed; echo state=repair_needed; echo health=repair-needed; echo install_root={ToBashSingleQuoted(installRoot)}; echo detail={ToBashSingleQuoted("Existing module files were found, but the modular install marker is missing. Use Repair Module to finish or convert this install.")}; exit 0; ";
         var hasLocalActionEntrypoint = !isStatusAction &&
             (HasSafeModuleActionEntrypoint(settings, installedManifestPath, normalizedAction) ||
-             HasSafeModuleActionEntrypoint(settings, manifestPath, normalizedAction));
+             HasSafeModuleActionEntrypoint(settings, manifestPath, normalizedAction) ||
+             File.Exists(ToWindowsWslPath(settings, $"{installRoot}/{conventionalEntrypoint}")) ||
+             File.Exists(ToWindowsWslPath(settings, $"{cacheRepo}/{conventionalEntrypoint}")));
         var trustedModuleSource = isStatusAction || hasLocalActionEntrypoint
             ? null
             : await TryGetTrustedNymphModuleSourceInfoAsync(normalizedModuleId, cancellationToken).ConfigureAwait(false);
@@ -5836,17 +5840,30 @@ meta:
             $"export HOME={ToBashSingleQuoted(homePath)}; " +
             $"export USER={ToBashSingleQuoted(settings.LinuxUser)}; " +
             $"export LOGNAME={ToBashSingleQuoted(settings.LinuxUser)}; " +
+            (!isStatusAction
+                ? $"if [[ -f {ToBashSingleQuoted(installedConventionalEntrypointPath)} ]]; then " +
+                  $"echo module_action_entrypoint={ToBashSingleQuoted($"installed:{installedConventionalEntrypointPath}")}; " +
+                  $"{commandTimeoutPrefix}bash {ToBashSingleQuoted(installedConventionalEntrypointPath)}{quotedActionArguments}; " +
+                  "exit $?; " +
+                  "fi; "
+                : string.Empty) +
             "ENTRYPOINT=\"\"; " +
             (isStatusAction
                 ? $"if [[ ! -f {ToBashSingleQuoted(versionMarkerPath)} ]]; then if [[ -e {ToBashSingleQuoted(installRoot)} ]]; then {repairNeededStatus} else {unavailableStatus} fi; fi; "
                 : string.Empty) +
-            $"if [[ -f {ToBashSingleQuoted(installedManifestPath)} ]]; then " +
+            $"if [[ -f {ToBashSingleQuoted(installedConventionalEntrypointPath)} ]]; then " +
+            $"ENTRYPOINT={ToBashSingleQuoted(conventionalEntrypoint)}; " +
+            "fi; " +
+            $"if [[ -z \"$ENTRYPOINT\" && -f {ToBashSingleQuoted(installedManifestPath)} ]]; then " +
             $"ENTRYPOINT=$(MODULE_ACTION={ToBashSingleQuoted(normalizedAction)} python3 -c {ToBashSingleQuoted(entrypointReader)} {ToBashSingleQuoted(installedManifestPath)} 2>/dev/null || true); " +
             "fi; " +
             $"if [[ -z \"$ENTRYPOINT\" && -f {ToBashSingleQuoted(manifestPath)} ]]; then " +
             $"ENTRYPOINT=$(MODULE_ACTION={ToBashSingleQuoted(normalizedAction)} python3 -c {ToBashSingleQuoted(entrypointReader)} {ToBashSingleQuoted(manifestPath)} 2>/dev/null || true); " +
             "fi; " +
-            $"if [[ -z \"$ENTRYPOINT\" && -f {ToBashSingleQuoted(cacheRepo)}/{ToBashSingleQuoted(conventionalEntrypoint)} ]]; then " +
+            $"if [[ -z \"$ENTRYPOINT\" && -f {ToBashSingleQuoted(installedConventionalEntrypointPath)} ]]; then " +
+            $"ENTRYPOINT={ToBashSingleQuoted(conventionalEntrypoint)}; " +
+            "fi; " +
+            $"if [[ -z \"$ENTRYPOINT\" && -f {ToBashSingleQuoted(cachedConventionalEntrypointPath)} ]]; then " +
             $"ENTRYPOINT={ToBashSingleQuoted(conventionalEntrypoint)}; " +
             "fi; " +
             (!isStatusAction

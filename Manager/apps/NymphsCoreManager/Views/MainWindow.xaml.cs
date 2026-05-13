@@ -215,6 +215,36 @@ public partial class MainWindow : Window
         Dispatcher.BeginInvoke(ScrollUnifiedLogToLatest, DispatcherPriority.ContextIdle);
     }
 
+    private void UnifiedLogTextBox_PreviewMouseDown(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is TextBox textBox && !textBox.IsKeyboardFocusWithin)
+        {
+            textBox.Focus();
+        }
+    }
+
+    private void UnifiedLogCopyMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        if (UnifiedLogTextBox is null)
+        {
+            return;
+        }
+
+        var text = string.IsNullOrEmpty(UnifiedLogTextBox.SelectedText)
+            ? UnifiedLogTextBox.Text
+            : UnifiedLogTextBox.SelectedText;
+        if (!string.IsNullOrEmpty(text))
+        {
+            Clipboard.SetText(text);
+        }
+    }
+
+    private void UnifiedLogSelectAllMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        UnifiedLogTextBox?.Focus();
+        UnifiedLogTextBox?.SelectAll();
+    }
+
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName == nameof(ManagerShellViewModel.ModuleUiSource) ||
@@ -495,7 +525,13 @@ public partial class MainWindow : Window
             return;
         }
 
-        UnifiedLogTextBox.CaretIndex = UnifiedLogTextBox.Text.Length;
+        if (UnifiedLogTextBox.IsKeyboardFocusWithin ||
+            UnifiedLogTextBox.SelectionLength > 0 ||
+            Mouse.LeftButton == MouseButtonState.Pressed)
+        {
+            return;
+        }
+
         UnifiedLogTextBox.ScrollToEnd();
     }
 
