@@ -199,7 +199,7 @@ Use lowercase module ids in filenames. Keep scripts self-contained and safe to r
 
 Every module must include `nymph.json` at repo root or package root.
 
-Minimum useful shape:
+Minimum useful shape for a normal module:
 
 ```json
 {
@@ -208,8 +208,8 @@ Minimum useful shape:
   "name": "Example Module",
   "short_name": "EX",
   "version": "0.1.0",
-  "description": "A local AI backend managed by NymphsCore.",
-  "category": "image",
+  "description": "A local tool managed by NymphsCore.",
+  "category": "tool",
   "packaging": "repo",
   "source": {
     "type": "repo",
@@ -224,6 +224,89 @@ Minimum useful shape:
       "$HOME/Example/.nymph-module-version"
     ]
   },
+  "entrypoints": {
+    "install": "scripts/install_example.sh",
+    "status": "scripts/example_status.sh",
+    "start": "scripts/example_start.sh",
+    "stop": "scripts/example_stop.sh",
+    "open": "scripts/example_open.sh",
+    "logs": "scripts/example_logs.sh",
+    "uninstall": "scripts/example_uninstall.sh"
+  },
+  "ui": {
+    "sort_order": 100,
+    "manager_actions": [
+      {
+        "id": "start",
+        "label": "Start",
+        "entrypoint": "start",
+        "result": "show_output"
+      },
+      {
+        "id": "stop",
+        "label": "Stop",
+        "entrypoint": "stop",
+        "result": "show_output"
+      },
+      {
+        "id": "logs",
+        "label": "Logs",
+        "entrypoint": "logs",
+        "result": "show_output"
+      }
+    ]
+  },
+  "uninstall": {
+    "supports_purge": true,
+    "requires_confirmation": true,
+    "dry_run_arg": "--dry-run",
+    "confirm_arg": "--yes",
+    "purge_arg": "--purge",
+    "preserve_by_default": [
+      "outputs",
+      "logs"
+    ],
+    "removes_by_default": [
+      "runtime source files",
+      "generated module scripts"
+    ]
+  }
+}
+```
+
+Use this shape for simple tools such as WORBI-style modules. They still need
+the install marker, lifecycle entrypoints, and safe uninstall metadata, but they
+do not need model fetch controls, Hugging Face tokens, smoke tests, or model
+cache paths unless the module actually uses them.
+
+Model-fetch backend shape:
+
+Use this larger shape for AI backends like Z-Image Turbo or TRELLIS where
+installing the backend and downloading model files are separate steps.
+
+```json
+{
+  "manifest_version": 1,
+  "id": "example-backend",
+  "name": "Example Backend",
+  "short_name": "EX",
+  "version": "0.1.0",
+  "description": "A local AI backend managed by NymphsCore.",
+  "category": "image",
+  "packaging": "repo",
+  "source": {
+    "type": "repo",
+    "repo": "https://github.com/example/example-backend.git",
+    "ref": "main"
+  },
+  "install": {
+    "root": "$HOME/ExampleBackend",
+    "entrypoint": "scripts/install_example_backend.sh",
+    "version_marker": "$HOME/ExampleBackend/.nymph-module-version",
+    "installed_markers": [
+      "$HOME/ExampleBackend/.nymph-module-version"
+    ]
+  },
   "runtime": {
     "host": "127.0.0.1",
     "port": 8090,
@@ -233,20 +316,20 @@ Minimum useful shape:
   "artifacts": {
     "models_root": "$HOME/NymphsData/models",
     "cache_root": "$HOME/NymphsData/cache",
-    "outputs_root": "$HOME/NymphsData/outputs/example",
-    "logs_root": "$HOME/NymphsData/logs/example",
+    "outputs_root": "$HOME/NymphsData/outputs/example-backend",
+    "logs_root": "$HOME/NymphsData/logs/example-backend",
     "huggingface_cache": "$HOME/NymphsData/cache/huggingface"
   },
   "entrypoints": {
-    "install": "scripts/install_example.sh",
-    "status": "scripts/example_status.sh",
-    "start": "scripts/example_start.sh",
-    "stop": "scripts/example_stop.sh",
-    "open": "scripts/example_open.sh",
-    "logs": "scripts/example_logs.sh",
-    "fetch_models": "scripts/example_fetch_models.sh",
-    "smoke_test": "scripts/example_smoke_test.sh",
-    "uninstall": "scripts/example_uninstall.sh"
+    "install": "scripts/install_example_backend.sh",
+    "status": "scripts/example_backend_status.sh",
+    "start": "scripts/example_backend_start.sh",
+    "stop": "scripts/example_backend_stop.sh",
+    "open": "scripts/example_backend_open.sh",
+    "logs": "scripts/example_backend_logs.sh",
+    "fetch_models": "scripts/example_backend_fetch_models.sh",
+    "smoke_test": "scripts/example_backend_smoke_test.sh",
+    "uninstall": "scripts/example_backend_uninstall.sh"
   },
   "ui": {
     "sort_order": 100,
