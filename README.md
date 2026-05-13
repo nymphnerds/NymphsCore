@@ -50,9 +50,12 @@ What works now:
 - The old hardcoded module surfaces have been removed from the active shell.
 - Module status is parsed through generic `key=value` snapshots.
 - WORBI is the first live proof module for the new lifecycle contract.
-- Z-Image is the current heavy-runtime proof path for installed module state, model actions, custom module UI, and visible model-download progress.
+- Z-Image is the current heavy-runtime proof path for installed module state, native model fetch, installed module-owned actions, and smoke-test feedback.
+- Startup installed-module detection now uses fast Windows-side marker reads against the real managed `NymphsCore` runtime distro, so marker-installed modules appear immediately without waiting on backend health checks.
 - Installed modules can expose `ui.manager_ui` from their installed `nymph.json`; the Manager hosts current `local_html` pages through WebView2 while keeping the standard shell and Back bar.
-- Z-Image Fetch Models now supports all published Nunchaku Turbo weights, keeps long download output on the standard Logs page, and can persist an optional Hugging Face token under the Windows user profile.
+- Modules can expose compact native `ui.manager_action_groups` for simple installed controls such as model fetch, without needing a WebView2 page.
+- Z-Image Fetch Models now supports all published Nunchaku Turbo weights, clearly explains the large base-model download, and can persist an optional Hugging Face token under the Windows user profile.
+- Z-Image Smoke Test now reports `SMOKE TEST PASSED` when the backend starts, answers `/server_info`, and stops cleanly.
 - The packaged Manager release is rebuilt under:
 
 ```text
@@ -63,7 +66,8 @@ Manager/apps/NymphsCoreManager/publish/NymphsCoreManager-win-x64.zip
 Still in proof phase:
 
 - Brain, LoRA, and TRELLIS still need the full install/status/start/stop/open/logs/uninstall validation loop under the new module contract.
-- Z-Image has been live-tested far enough to prove installed-state recovery, the WebView2 module UI path, and model fetching through the module-owned `fetch_models` action. It still needs the same full abuse pass as the rest of the official modules.
+- Z-Image has been live-tested far enough to prove installed-state recovery, native model fetching through the module-owned `fetch_models` action, direct installed action execution, and smoke-test pass/fail feedback. It still needs the same full abuse pass as the rest of the official modules, including Blender addon follow-up.
+- TRELLIS is the next backend to port to the same native model-fetch and smoke-test standard.
 - Current custom module UI support is intentionally narrow: installed `local_html` only. `local_web_app`, `served_web_app`, and external browser flows are planned but should not be promoted before they are timed and visually verified.
 - `Delete Module + Data` remains conservative until each module declares safe purge scopes.
 
@@ -199,21 +203,32 @@ Module cards open a detail page first. Install is a deliberate action from the d
 
 Module UI performance rule: do not move first-load navigation, WebView2 profile setup, cache refresh, or navigation filtering without timing the result. The Z-Image UI proof found that Dispatcher priority, `NavigateToString`, `data:` navigation allowance, local WebView2 user-data folders, preserving newer cached HTML over older installed source files, content-aware navigation reloads, and avoiding background-status reloads are all load-time critical.
 
+Native model fetch rule: simple model selection/download UI belongs in
+`ui.manager_action_groups`, not in a module-specific Manager page. The Manager
+renders the compact controls; the module owns the script, validation, cache
+paths, progress output, and selected-model persistence.
+
 Z-Image model fetch rule: Z-Image owns model fetching in its module repo through
-`scripts/zimage_fetch_models.sh`. The Manager must call `fetch_models` through
-the normal manifest action runner and must not stage or run bundled legacy
+`scripts/zimage_fetch_models.sh`. After install, the Manager must run the
+installed module-owned script directly and must not stage or run bundled legacy
 prefetch scripts for this module.
 
 Z-Image Fetch Models currently offers:
 
 - INT4 r32/r128/r256
 - FP4 r32/r128
-- Auto r32/r128 only
+- All weights
 
 Those options are Nunchaku generation weights for Z-Image Turbo. They are not
 LoRA training precision; LoRA training uses BF16 separately. The optional HF
 Token field is saved to `%LOCALAPPDATA%\NymphsCore\shared-secrets.json` and
 passed to model downloads without printing the token to logs.
+
+Smoke test rule: validation actions must show obvious pass/fail wording. A
+successful backend smoke test should report `SMOKE TEST PASSED`, not just
+`finished`. The lightweight Z-Image smoke test can pass with `loaded_model_id`
+set to `null` because it validates backend startup and `/server_info`, not full
+generation.
 
 ---
 
@@ -230,10 +245,10 @@ Registry cards currently cover:
 Proof order:
 
 ```text
-WORBI -> Z-Image -> LoRA -> Brain -> TRELLIS
+WORBI -> Z-Image -> TRELLIS -> LoRA -> Brain
 ```
 
-WORBI is currently the cleanest lifecycle-contract proof. Z-Image is the current heavy-runtime and custom-UI proof. The remaining official modules should follow the same marker, staging, bounded-status, and manifest-owned UI rules before this branch is promoted.
+WORBI is currently the cleanest lifecycle-contract proof. Z-Image is the heavy-runtime proof for native model fetch, installed action routing, and smoke-test feedback. TRELLIS should follow the same marker, staging, bounded-status, native model-fetch, and smoke-test rules next.
 
 ---
 
@@ -274,9 +289,9 @@ Module logs should be standardized through module manifests and status output. T
 
 ## Important Docs
 
-- [Nymph Plugin Standardization Handoff](docs/Ideas/NYMPH_PLUGIN_STANDARDIZATION_HANDOFF.md)
-- [Nymph Module UI Standard](docs/NYMPH_MODULE_UI_STANDARD.md)
 - [Nymph Module Making Guide](docs/NYMPHS_MODULE_MAKING_GUIDE.md)
+- [Nymph Module UI Standard](docs/NYMPH_MODULE_UI_STANDARD.md)
+- [Nymph Plugin Standardization Handoff](docs/Ideas/NYMPH_PLUGIN_STANDARDIZATION_HANDOFF.md)
 - [Plugin Manager Implementation Plan](docs/Ideas/NYMPH_PLUGIN_MANAGER_IMPLEMENTATION_PLAN.md)
 - [Install Disk And Model Footprint](docs/FOOTPRINT.md)
 
@@ -291,6 +306,6 @@ It should not be treated as the final stable public installer until the official
 Latest pushed checkpoint:
 
 ```text
-NymphsCore modular: b48b6f8 Add persistent HF token for model fetch
-Z-Image module:     9d59781 Add HF token field to model fetch UI
+NymphsCore modular: 4e7b2e4 Standardize module-owned fetch and smoke test flow
+Z-Image module:     371b410 Refine module-owned Z-Image model fetch
 ```
