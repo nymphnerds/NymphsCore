@@ -54,7 +54,7 @@ The Manager owns:
 - the module registry cards
 - install, update, uninstall, and delete controls
 - the standard module detail page
-- the standard right-side action rail
+- the universal right-side lifecycle rail
 - generic action routing
 - logs and lifecycle feedback
 
@@ -66,6 +66,7 @@ The module owns:
 - its runtime dependencies
 - its model/artifact/cache/log paths
 - any custom Manager UI shown after install
+- the installed module action buttons shown in the module details pane
 
 Before a module is installed, the Manager should only show registry and manifest metadata. After install, the Manager may host module-owned local UI declared by the installed module manifest.
 
@@ -103,7 +104,75 @@ The registry entry should contain enough card metadata to show a useful availabl
 }
 ```
 
-Registry metadata is for discovery. It is not the source of installed custom UI.
+Think of the registry as the shop shelf. It tells users that your module exists
+before they install it.
+
+Put simple public info in the registry:
+
+```text
+what the module is called
+what it does
+what it needs
+where its nymph.json file is
+where it should appear in the Manager list
+```
+
+Do not put your installed workflow buttons in the registry. Buttons belong in
+your module's own `nymph.json`, because your module can change its tools without
+needing the catalog to know every detail.
+
+## Publishing Checklist
+
+When you release a module update, use this order:
+
+1. Push the module repo first.
+2. Check that the raw `nymph.json` URL opens in a browser.
+3. Update the registry only if the catalog card changed.
+4. Push the registry if you changed it.
+5. Test from the Manager using the pushed module repo and pushed registry.
+
+Never update the registry to advertise a module change that only exists on your
+local machine. If the Manager cannot download it from GitHub yet, it is not
+published yet.
+
+When a module author is actively pushing updates, fetch the module repo before
+editing, keep changes small, and avoid rewriting their unpublished local work.
+
+## What Goes Where
+
+The module detail page has two kinds of controls.
+
+### Manager-Owned Controls
+
+The right side of the page is owned by the Manager. These buttons are the same
+for every module:
+
+```text
+Guide
+Install
+Update
+Repair
+Storage
+Uninstall
+Dir
+```
+
+These are install/admin buttons. You do not define these in your module.
+
+### Module-Owned Controls
+
+The action buttons inside the details pane are yours. Your module decides:
+
+```text
+which buttons appear
+what they are called
+what order they appear in
+which script each button runs
+what the Manager should do with the script output
+```
+
+The Manager renders these buttons and safely runs the entrypoint you declare.
+The Manager should not hardcode a universal button set for every module.
 
 ## Module Repo Layout
 
@@ -166,7 +235,26 @@ Minimum useful shape:
   },
   "ui": {
     "sort_order": 100,
-    "standard_lifecycle_rail": true
+    "manager_actions": [
+      {
+        "id": "start",
+        "label": "Start",
+        "entrypoint": "start",
+        "result": "open_in_manager"
+      },
+      {
+        "id": "browser",
+        "label": "Browser",
+        "entrypoint": "start",
+        "result": "open_external_browser"
+      },
+      {
+        "id": "logs",
+        "label": "Logs",
+        "entrypoint": "logs",
+        "result": "open_notepad"
+      }
+    ]
   }
 }
 ```
@@ -339,6 +427,90 @@ Each action should:
 - print useful progress
 - avoid interactive prompts unless explicitly called with a confirmation flag
 - write useful logs to the declared module log folder
+
+## Installed Module Buttons
+
+Installed module buttons appear in the module details pane after install.
+
+Use these when your module has actions like:
+
+```text
+Start
+Stop
+Browser
+Logs
+Fetch Models
+Open Project
+Backup
+Reindex
+Train
+Export
+```
+
+Declare them in `ui.manager_actions`:
+
+```json
+{
+  "ui": {
+    "manager_actions": [
+      {
+        "id": "start",
+        "label": "Start",
+        "entrypoint": "start",
+        "result": "open_in_manager"
+      },
+      {
+        "id": "browser",
+        "label": "Browser",
+        "entrypoint": "start",
+        "result": "open_external_browser"
+      },
+      {
+        "id": "logs",
+        "label": "Logs",
+        "entrypoint": "logs",
+        "result": "open_notepad"
+      }
+    ]
+  }
+}
+```
+
+Fields:
+
+- `id`: stable action id, such as `start` or `browser`.
+- `label`: button text shown to users.
+- `entrypoint`: the key from your `entrypoints` block to run.
+- `result`: what the Manager should do after the script succeeds.
+
+Supported result modes:
+
+```text
+show_output
+open_in_manager
+open_external_browser
+open_notepad
+```
+
+Your module owns the behavior. The Manager is only the renderer, launcher, and
+safe host bridge.
+
+Module actions should print structured hints when they want the Manager to open
+something:
+
+```text
+url=http://localhost:8082
+log_file=/home/nymph/worbi/logs/worbi-server.log
+server_log=/home/nymph/worbi/logs/worbi-server.log
+message=Action finished.
+```
+
+Simple rule:
+
+```text
+If you want a button, declare it in ui.manager_actions.
+If you want the button to do something, point it at an entrypoint script.
+```
 
 ## Uninstall And Data
 

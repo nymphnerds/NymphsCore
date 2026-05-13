@@ -78,6 +78,10 @@ The live handoff for this work is:
 
 [Nymph Plugin Standardization Handoff](docs/Ideas/NYMPH_PLUGIN_STANDARDIZATION_HANDOFF.md)
 
+The forward-facing community module standard is:
+
+[Nymphs Module Making Guide](docs/NYMPHS_MODULE_MAKING_GUIDE.md)
+
 For future Manager/module UI work, read this first:
 
 [Nymph Module UI Standard](docs/NYMPH_MODULE_UI_STANDARD.md)
