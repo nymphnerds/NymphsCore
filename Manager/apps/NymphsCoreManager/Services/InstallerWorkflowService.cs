@@ -5863,6 +5863,33 @@ meta:
             $"echo id={ToBashSingleQuoted(normalizedModuleId)}; echo installed=false; echo running=false; echo version=not-installed; echo state=available; echo health=unknown; echo install_root={ToBashSingleQuoted(installRoot)}; echo detail={ToBashSingleQuoted("Module is available from the registry, but is not installed yet.")}; exit 0; ";
         var repairNeededStatus =
             $"echo id={ToBashSingleQuoted(normalizedModuleId)}; echo installed=false; echo running=false; echo runtime_present=true; echo data_present=true; echo version=not-installed; echo state=repair_needed; echo health=repair-needed; echo install_root={ToBashSingleQuoted(installRoot)}; echo detail={ToBashSingleQuoted("Existing module files were found, but the modular install marker is missing. Use Repair Module to finish or convert this install.")}; exit 0; ";
+        // Installed module-owned scripts run directly, matching the old main Manager script path.
+        // Do not wrap lifecycle actions through the registry/cache resolver after install.
+        if (!isStatusAction && File.Exists(ToWindowsWslPath(settings, installedConventionalEntrypointPath)))
+        {
+            progress.Report($"Module action source '{normalizedModuleId}' -> installed:{installedConventionalEntrypointPath}");
+            progress.Report($"Running module action '{normalizedAction}' for '{normalizedModuleId}'...");
+            progress.Report($"module_action_entrypoint=installed:{installedConventionalEntrypointPath}");
+
+            var directArguments = new List<string> { "/bin/bash", installedConventionalEntrypointPath };
+            directArguments.AddRange(normalizedActionArguments);
+            var directResult = await RunWslCommandAsync(
+                settings,
+                directArguments,
+                progress,
+                actionProcessEnvironment,
+                cancellationToken).ConfigureAwait(false);
+            if (directResult.ExitCode != 0)
+            {
+                var detail = string.IsNullOrWhiteSpace(directResult.CombinedOutput)
+                    ? $"Module action '{normalizedAction}' failed for '{normalizedModuleId}' with exit code {directResult.ExitCode}."
+                    : $"Module action '{normalizedAction}' failed for '{normalizedModuleId}' with exit code {directResult.ExitCode}.\n\n{directResult.CombinedOutput.Trim()}";
+                throw new InvalidOperationException(detail);
+            }
+
+            return directResult.CombinedOutput.Trim();
+        }
+
         var hasLocalActionEntrypoint = !isStatusAction &&
             (HasSafeModuleActionEntrypoint(settings, installedManifestPath, normalizedAction) ||
              HasSafeModuleActionEntrypoint(settings, manifestPath, normalizedAction) ||

@@ -8,6 +8,37 @@ This file focuses on user-facing and system-level changes rather than package-by
 
 Newest entries first.
 
+### 2026-05-13 Z-Image module proof promoted to module standard
+Source: live modular Manager testing with installed Z-Image Turbo, model fetch,
+smoke test, and startup marker detection in the managed `NymphsCore` runtime
+distro.
+
+Changed in source:
+
+- made installed module-owned actions run the installed script directly when the
+  script exists, instead of letting registry/cache action resolution override an
+  installed module
+- made module action results sticky in the details pane so background status and
+  manifest refreshes do not immediately erase the result
+- changed successful smoke test feedback to say `SMOKE TEST PASSED` and start
+  details with a clear `SUCCESS` line
+- rebuilt the Win x64 published Manager EXE
+- updated the module standards docs with the Z-Image proof rules:
+  - fast startup installed state comes from Windows-side marker reads against
+    the real `NymphsCore` runtime distro
+  - startup must not run status, smoke tests, model-cache scans, or downloads
+  - installed actions remain module-owned
+  - native model fetch panels use `ui.manager_action_groups`
+  - smoke tests must show obvious pass/fail results
+
+Validated locally:
+
+- Z-Image Smoke Test starts the backend, receives `/server_info`, stops the
+  backend, and reports `SMOKE TEST PASSED`
+- `/server_info` may report `loaded_model_id=null` during smoke test; that is
+  valid for the lightweight health/config check because generation/model-load is
+  not part of this smoke test
+
 ### 2026-05-13 Startup marker detection fixed for the real runtime distro
 Source: live modular Manager testing from the dev/source `NymphsCore_Lite` WSL
 distro against the actual managed runtime distro named `NymphsCore`.

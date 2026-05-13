@@ -165,33 +165,248 @@ If an older installed manifest is missing a requested action, the Manager may re
 
 When a module UI action starts, the Manager switches to the standard Logs page and streams stdout, stderr, and carriage-return progress there. Module UI pages should therefore trigger long jobs with `nymphs-module-action://` and let the module script print useful progress instead of trying to run downloads during page load.
 
+## Native Action Groups
+
+Some module-owned UI does not need WebView2. If a module only needs compact
+native controls, use `ui.manager_action_groups` in the module manifest.
+
+Action groups are still module-owned:
+
+- the module declares the controls
+- the module owns the script that runs
+- the module owns validation, downloads, cache paths, and persisted presets
+- the Manager only renders the controls and routes the declared action
+
+Use native action groups for:
+
+```text
+model fetch controls
+small setup forms
+runtime/profile selectors
+token entry
+source links
+one submit action
+```
+
+Do not build a WebView2/local HTML page just to choose model files. The Z-Image
+Turbo proof showed that model fetch can stay compact, Manager-styled, and
+module-owned without custom Manager code.
+
+### Model Fetch UI
+
+Model fetch controls should live on the installed module detail page, below the
+standard `// DETAILS` pane and above `// MODULE ACTIONS`.
+
+Do not create a second details card, a separate browser button, or a new
+module-specific Manager page for simple model downloads.
+
+The `// DETAILS` pane should explain what the user is choosing. The fetch
+controls should stay compact and action-oriented.
+
+Recommended layout:
+
+```text
+// DETAILS
+<module status or guide>
+clear beginner guide
+source links
+
+// Model Fetch
+Hugging Face token: [masked token field........] [remove token]
+Download:           [model/weight selector....] [// Fetch Models]
+
+// MODULE ACTIONS
+// Smoke Test   // Start   // Stop   // Logs
+```
+
+Standard rules:
+
+- Explain that installing a backend is not the same as downloading model
+  weights.
+- If every fetch downloads a required base model first, say that clearly in the
+  guide text. Do not let a user think the smallest weight is the whole download.
+- If `All weights` exists, label it as optional and larger. Use it only when the
+  downstream tool, such as the Blender addon, can switch between models later.
+- Let the user choose the model or quantized weight manually. Do not silently
+  auto-pick from GPU detection.
+- Use real, beginner-readable labels. Use `Hugging Face token`, not `HF`.
+- Show source model pages as links in the details guide, not button-looking
+  controls floating near the submit button.
+- Keep the token row separate from the model fetch row.
+- Mask saved tokens across the width of the token field, not with a tiny token
+  indicator that looks like only a few characters were saved.
+- The selector should show the useful end of long model filenames, such as
+  `int4_r32`, while the value sent to the script can still be the full filename.
+- Long downloads should use `result: "show_logs"` and print progress lines.
+- Short validation actions, such as `Smoke Test`, should use `result:
+  "show_output"` and leave a clear pass/fail result in the details pane.
+- A successful smoke test must say `SMOKE TEST PASSED` or equivalent. `finished`
+  is too vague for a test result.
+- The details pane should preserve the latest action result long enough for the
+  user to read it. Background status refresh and delayed manifest refresh must
+  not immediately overwrite a just-completed action result.
+
+Example:
+
+```json
+{
+  "ui": {
+    "manager_action_groups": [
+      {
+        "id": "model_fetch",
+        "title": "Model Fetch",
+        "layout": "compact",
+        "entrypoint": "fetch_models",
+        "result": "show_logs",
+        "visibility": "installed",
+        "description": "Install sets up the backend only. Fetch Models downloads the actual AI model files.\nEvery fetch downloads the required base model first.\nThen it downloads your selected quantized weight. Choose All weights only if another tool can switch between them later.",
+        "links": [
+          {
+            "label": "Base model",
+            "url": "https://huggingface.co/example/base-model"
+          },
+          {
+            "label": "Quantized weights",
+            "url": "https://huggingface.co/example/weights"
+          }
+        ],
+        "fields": [
+          {
+            "name": "quantized_weight",
+            "type": "select",
+            "label": "Download",
+            "arg": "--model",
+            "default": "small",
+            "options": [
+              {
+                "label": "small",
+                "value": "small-model-file.safetensors",
+                "description": "Smallest download and lowest VRAM"
+              },
+              {
+                "label": "All weights",
+                "value": "all",
+                "description": "Downloads every selectable preset"
+              }
+            ]
+          },
+          {
+            "name": "hf_token",
+            "type": "secret",
+            "label": "Hugging Face token",
+            "secret_id": "huggingface.token",
+            "env": "NYMPHS3D_HF_TOKEN",
+            "optional": true
+          }
+        ],
+        "submit": {
+          "label": "Fetch Models"
+        }
+      }
+    ],
+    "manager_actions": [
+      {
+        "id": "smoke_test",
+        "label": "Smoke Test",
+        "entrypoint": "smoke_test",
+        "result": "show_output"
+      }
+    ]
+  }
+}
+```
+
+### Model Fetch Script Output
+
+The module-owned fetch script should print human-readable progress. The Manager
+does not know the module's model sizes, Hugging Face repos, cache shape, or file
+names beyond what the manifest declares.
+
+Useful lines include:
+
+```text
+model_fetch_plan=1 required base model, then selected weight
+MODEL FETCH STARTED: step=1/2 required base model repo=...
+MODEL FETCH STATUS: downloading=required large base model files
+MODEL FETCH STATUS: huggingface_cache_total=...
+MODEL FETCH COMPLETE: step=1/2 required base model repo=...
+MODEL FETCH STARTED: step=2/2 selected Blender weight repo=...
+MODEL FETCH COMPLETE: step=2/2 selected Blender weight repo=...
+```
+
+The module should persist the selected generation preset in a module-owned config
+file under a shared data root, for example:
+
+```text
+$HOME/NymphsData/config/<module-id>/
+```
+
+The Manager should not infer model readiness by scanning large model caches at
+startup. Startup installed state comes from the module install marker. Model
+readiness belongs in module-owned status/fetch scripts and user-triggered
+actions.
+
+### Smoke Test Result UI
+
+Smoke tests are validation actions, so the UI must make pass/fail obvious.
+
+The Manager should render successful smoke tests like:
+
+```text
+<Module Name>: SMOKE TEST PASSED
+SUCCESS: backend started, answered /server_info, and stopped cleanly.
+```
+
+Do not show only `finished`. A user should not have to read JSON or logs to know
+whether a test passed.
+
+Module-owned smoke test scripts should print concise raw evidence after the
+success line, such as the server URL and `/server_info` response. It is valid
+for `/server_info` to report `loaded_model_id=null` if the smoke test only checks
+that the backend starts and answers health/config endpoints. A generation test
+is a separate, heavier validation.
+
 ## Shared Secrets
 
-Module UI pages must not print secrets into logs or bake them into installed
-HTML. For the current Z-Image fetch proof, the Manager supports a temporary
-shared Hugging Face token path:
+Module UI pages and action groups must not print secrets into logs or bake them
+into installed HTML.
+
+The standard shared Hugging Face token path is:
 
 ```text
 %LOCALAPPDATA%\NymphsCore\shared-secrets.json
 ```
 
-The installed module UI can expose an `HF Token` password field and pass it to:
+Modules should request this with a declared secret field:
 
-```text
-nymphs-module-action://fetch_models?hf_token=<token>
+```json
+{
+  "name": "hf_token",
+  "type": "secret",
+  "label": "Hugging Face token",
+  "secret_id": "huggingface.token",
+  "env": "NYMPHS3D_HF_TOKEN",
+  "optional": true
+}
 ```
 
-The Manager saves that token and passes it into the download environment as
-`NYMPHS3D_HF_TOKEN`. The token itself must not be logged. Future modules should
-use a declared secret field contract instead of adding module-specific Manager
-code.
+The Manager saves the token once and passes it into the module action
+environment as `NYMPHS3D_HF_TOKEN`. The token itself must not be logged.
 
 ## Z-Image Example
 
-`nymphnerds/zimage` declares `ui.manager_ui.entrypoint` as `ui/manager.html`. That file lives in the module repo and is copied into the installed module root by the module installer.
+`nymphnerds/zimage` is the current proof for compact native model fetch controls.
+It does not need a custom WebView2 page for model selection.
 
-The Manager only hosts that local file after Z-Image is installed.
+The installed Z-Image manifest declares:
 
-The Z-Image Fetch Models UI currently offers all published Nunchaku Turbo
-weights: INT4 r32/r128/r256 and FP4 r32/r128. Auto is limited to r32/r128 because
-r256 is INT4-only. These are generation weights, not LoRA training precision.
+- a `Model Fetch` action group
+- a persistent `Hugging Face token` secret field
+- a `Download` selector for Nunchaku-compatible Z-Image Turbo weights
+- source links for the base model and quantized weights
+- simple module actions for `Smoke Test`, `Start`, `Stop`, and `Logs`
+
+The Z-Image Fetch Models action currently offers all published compatible
+weights: INT4 r32/r128/r256 and FP4 r32/r128. `All weights` is available so the
+Blender addon can switch between presets later. These are generation weights,
+not LoRA training precision.

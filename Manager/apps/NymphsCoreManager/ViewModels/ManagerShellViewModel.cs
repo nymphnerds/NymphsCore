@@ -90,6 +90,8 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
     private string _availableModulesSummary = "Manifest-aware shell is loading the known module roster.";
     private string _moduleActionFeedbackTitle = "No module command has run yet.";
     private string _moduleActionFeedbackDetail = "Use the manager contract buttons below to run this module's live commands.";
+    private string _stickyModuleActionFeedbackModuleId = string.Empty;
+    private DateTime _stickyModuleActionFeedbackUntilUtc = DateTime.MinValue;
     private string _moduleLogsTitle = "No module logs loaded.";
     private string _moduleLogsDetail = string.Empty;
     private string _moduleUiTitle = "Module UI";
@@ -1344,9 +1346,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
         if (DisplayedModule is not null)
         {
-            SetModuleActionFeedback(
-                BuildModuleDetailPaneTitle(DisplayedModule),
-                BuildModuleDetailPaneText(DisplayedModule));
+            SetModuleDetailPaneFeedback(DisplayedModule);
         }
 
         RebuildModuleNavigation();
@@ -1823,7 +1823,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             OnPropertyChanged(nameof(DisplayedModuleActionGroups));
             _openModuleUiCommand.RaiseCanExecuteChanged();
             _runModuleActionGroupCommand.RaiseCanExecuteChanged();
-            SetModuleActionFeedback(BuildModuleDetailPaneTitle(module), BuildModuleDetailPaneText(module));
+            SetModuleDetailPaneFeedback(module);
         }
     }
 
@@ -2724,9 +2724,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         ShowModuleLogs = false;
         ModuleLogsTitle = $"{module.Name} module logs";
         ModuleLogsDetail = "Click // logs to load this module's recent logs.";
-        SetModuleActionFeedback(
-            BuildModuleDetailPaneTitle(module),
-            BuildModuleDetailPaneText(module));
+        SetModuleDetailPaneFeedback(module);
         _ = LoadModuleManifestInfoAsync(module);
     }
 
@@ -2745,9 +2743,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             module.ApplyManifestInfo(manifest);
             _updateModuleCommand.RaiseCanExecuteChanged();
             CurrentPageSubtitle = module.Detail;
-            SetModuleActionFeedback(
-                BuildModuleDetailPaneTitle(module),
-                BuildModuleDetailPaneText(module));
+            SetModuleDetailPaneFeedback(module);
         }
         catch (Exception ex)
         {
@@ -2965,6 +2961,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
         StatusMessage = $"Running {module.Name} {actionLabel}...";
         ShowModuleLogs = false;
+        ClearStickyModuleActionFeedback();
         SetModuleActionFeedback(
             $"{module.Name}: {actionLabel} started",
             "Command sent to the managed WSL distro. Waiting for module output...");
@@ -2994,16 +2991,18 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                 CancellationToken.None).ConfigureAwait(true);
 
             AppendModuleActionOutput(module, normalizedAction, output);
-            SetModuleActionFeedback(
-                $"{module.Name}: {actionLabel} finished",
-                BuildModuleActionFeedbackDetail(string.Join(Environment.NewLine, liveLines.Append(output))));
+            var successDetail = BuildModuleActionFeedbackDetail(string.Join(Environment.NewLine, liveLines.Append(output)));
 
             if (normalizedAction is not "logs" and not "open")
             {
                 await RefreshModuleStateAsync().ConfigureAwait(true);
             }
 
-            StatusMessage = $"{module.Name} {actionLabel} finished.";
+            SetStickyModuleActionFeedback(
+                module,
+                BuildModuleActionSuccessTitle(module, actionLabel, normalizedAction),
+                BuildModuleActionSuccessDetail(normalizedAction, successDetail));
+            StatusMessage = BuildModuleActionSuccessStatus(module, actionLabel, normalizedAction);
         }
         catch (Exception ex)
         {
@@ -3148,6 +3147,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             ShowModuleLogs = false;
         }
 
+        ClearStickyModuleActionFeedback();
         SetModuleActionFeedback(
             $"{module.Name}: running {actionLabel}",
             $"Command sent to the managed WSL distro. Waiting for {actionLabel} output...");
@@ -3162,9 +3162,11 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                 CancellationToken.None).ConfigureAwait(true);
 
             AppendModuleActionOutput(module, normalizedAction, output);
-            SetModuleActionFeedback(
-                $"{module.Name}: {actionLabel} finished",
-                BuildModuleActionFeedbackDetail(output));
+            var successDetail = BuildModuleActionFeedbackDetail(output);
+            SetStickyModuleActionFeedback(
+                module,
+                BuildModuleActionSuccessTitle(module, actionLabel, normalizedAction),
+                BuildModuleActionSuccessDetail(normalizedAction, successDetail));
 
             if (resultMode is "open_notepad" or "notepad")
             {
@@ -3234,7 +3236,11 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                 await RefreshModuleStateAsync().ConfigureAwait(true);
             }
 
-            StatusMessage = $"{module.Name} {actionLabel} finished.";
+            SetStickyModuleActionFeedback(
+                module,
+                BuildModuleActionSuccessTitle(module, actionLabel, normalizedAction),
+                BuildModuleActionSuccessDetail(normalizedAction, successDetail));
+            StatusMessage = BuildModuleActionSuccessStatus(module, actionLabel, normalizedAction);
         }
         catch (Exception ex)
         {
@@ -3302,6 +3308,70 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
     {
         ModuleActionFeedbackTitle = title;
         ModuleActionFeedbackDetail = string.IsNullOrWhiteSpace(detail) ? "The command finished without output." : detail.Trim();
+    }
+
+    private void SetStickyModuleActionFeedback(NymphModuleViewModel module, string title, string detail)
+    {
+        _stickyModuleActionFeedbackModuleId = module.Id;
+        _stickyModuleActionFeedbackUntilUtc = DateTime.UtcNow.AddSeconds(45);
+        SetModuleActionFeedback(title, detail);
+    }
+
+    private void ClearStickyModuleActionFeedback()
+    {
+        _stickyModuleActionFeedbackModuleId = string.Empty;
+        _stickyModuleActionFeedbackUntilUtc = DateTime.MinValue;
+    }
+
+    private bool ShouldPreserveModuleActionFeedback(NymphModuleViewModel module)
+    {
+        return CurrentPageKind == ManagerPageKind.Module &&
+               DateTime.UtcNow < _stickyModuleActionFeedbackUntilUtc &&
+               string.Equals(_stickyModuleActionFeedbackModuleId, module.Id, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private void SetModuleDetailPaneFeedback(NymphModuleViewModel module)
+    {
+        if (ShouldPreserveModuleActionFeedback(module))
+        {
+            return;
+        }
+
+        SetModuleActionFeedback(
+            BuildModuleDetailPaneTitle(module),
+            BuildModuleDetailPaneText(module));
+    }
+
+    private static string BuildModuleActionSuccessTitle(NymphModuleViewModel module, string actionLabel, string normalizedAction)
+    {
+        return IsSmokeTestAction(normalizedAction)
+            ? $"{module.Name}: SMOKE TEST PASSED"
+            : $"{module.Name}: {actionLabel} finished";
+    }
+
+    private static string BuildModuleActionSuccessStatus(NymphModuleViewModel module, string actionLabel, string normalizedAction)
+    {
+        return IsSmokeTestAction(normalizedAction)
+            ? $"{module.Name} {actionLabel} passed."
+            : $"{module.Name} {actionLabel} finished.";
+    }
+
+    private static string BuildModuleActionSuccessDetail(string normalizedAction, string detail)
+    {
+        if (!IsSmokeTestAction(normalizedAction))
+        {
+            return detail;
+        }
+
+        var normalizedDetail = string.IsNullOrWhiteSpace(detail)
+            ? "The module smoke test completed without output."
+            : detail.Trim();
+        return $"SUCCESS: backend started, answered /server_info, and stopped cleanly.{Environment.NewLine}{Environment.NewLine}{normalizedDetail}";
+    }
+
+    private static bool IsSmokeTestAction(string normalizedAction)
+    {
+        return normalizedAction is "smoke_test" or "smoke-test" or "smoke";
     }
 
     private static string BuildModuleDetailPaneText(NymphModuleViewModel module)
@@ -3711,9 +3781,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         if (DisplayedModule is not null && string.Equals(DisplayedModule.Id, module.Id, StringComparison.OrdinalIgnoreCase))
         {
             RefreshDisplayedModuleDetails(module);
-            SetModuleActionFeedback(
-                BuildModuleDetailPaneTitle(module),
-                BuildModuleDetailPaneText(module));
+            SetModuleDetailPaneFeedback(module);
         }
 
         _openModuleCommand.RaiseCanExecuteChanged();

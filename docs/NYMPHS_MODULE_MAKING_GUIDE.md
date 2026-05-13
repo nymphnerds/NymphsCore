@@ -377,6 +377,22 @@ Refreshing live status...
 Manager shell refreshed.
 ```
 
+Z-Image/WORBI proof rule:
+
+```text
+startup install truth == Windows-side marker read from the real managed runtime distro
+startup install truth != module status
+startup install truth != model cache scan
+startup install truth != smoke test
+```
+
+This is now part of the standard because the Manager may be launched from the
+developer/source distro path, such as `NymphsCore_Lite`, while installed modules
+live in the managed runtime distro, `NymphsCore`. The fast startup checker must
+target the real runtime distro and read `.nymph-module-version` through the
+Windows UNC view. Do not replace this with WSL bash startup probing unless the
+Windows-side path is unavailable and the fallback is clearly bounded.
+
 ## Status Contract
 
 `status` must be fast, timeout-safe, and safe when files are missing.
@@ -446,6 +462,48 @@ Each action should:
 - print useful progress
 - avoid interactive prompts unless explicitly called with a confirmation flag
 - write useful logs to the declared module log folder
+
+Installed action execution standard:
+
+- After install, lifecycle and utility actions should run the installed
+  module-owned script directly from the installed module root.
+- The Manager may use the registry/cache manifest to discover actions, but it
+  must not let a stale cache override an installed script that exists locally.
+- Conventional installed scripts such as
+  `scripts/<module_id>_<action>.sh` should be treated as the authoritative
+  action implementation for installed modules.
+- The module owns the script behavior and exit code. The Manager owns only
+  rendering, routing, and progress capture.
+
+## Smoke Test Standard
+
+`smoke_test` is a lightweight health validation action.
+
+For backend modules, a smoke test should usually:
+
+```text
+start the backend if it is not already running
+wait for a health/config endpoint
+print concise evidence, such as /server_info
+stop the backend if the smoke test started it
+exit 0 only when the health/config check passed
+exit nonzero on real failure
+```
+
+Smoke tests should not silently run a full generation unless the module clearly
+labels that as a heavier validation. A backend can pass smoke test with
+`loaded_model_id=null` if the test only proves that the server starts and
+answers `/server_info`. Model load or generation can be a separate action later.
+
+The Manager UI must report the result plainly:
+
+```text
+SMOKE TEST PASSED
+SMOKE TEST FAILED
+```
+
+Do not use vague success labels such as `finished` for tests. The user should not
+have to decode raw JSON to know whether the test passed.
 
 ## Installed Module Buttons
 
