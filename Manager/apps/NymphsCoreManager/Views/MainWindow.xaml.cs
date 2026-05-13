@@ -29,7 +29,7 @@ public partial class MainWindow : Window
     private const double MinimumCleanNavSpace = 90;
     private const double SidebarOnlyMonitorWidth = 360;
     private const double MonitorModeWidth = 240;
-    private const double MonitorModeHeight = 390;
+    private const double MonitorModeHeight = 470;
     private const double MinimumFullModeWidth = 820;
     private const double MinimumFullModeHeight = 560;
     private const double DefaultFullModeWidth = 1060;
