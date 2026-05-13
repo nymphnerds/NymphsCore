@@ -134,7 +134,7 @@ public sealed class NymphModuleActionFieldInfo : ViewModelBase
 
     public bool IsOptionField => !IsSecret && Options.Count > 0;
 
-    public string SecretStatusLabel => HasSavedSecret ? "saved" : "not saved";
+    public string SecretStatusLabel => HasSavedSecret ? "token saved" : "no token";
 
     public void ApplySavedSecretState(bool hasSavedSecret)
     {

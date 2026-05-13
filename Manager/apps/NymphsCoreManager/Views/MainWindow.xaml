@@ -134,7 +134,7 @@
       <Setter Property="Padding" Value="7,3" />
       <Setter Property="FontSize" Value="11" />
       <Setter Property="MinHeight" Value="24" />
-      <Setter Property="Width" Value="190" />
+      <Setter Property="Width" Value="260" />
     </Style>
 
     <Style TargetType="Button" x:Key="ModuleEllipsisButtonStyle" BasedOn="{StaticResource ModuleActionButtonStyle}">
@@ -2218,39 +2218,47 @@
                   <ItemsControl.ItemTemplate>
                     <DataTemplate>
                       <StackPanel Margin="0,0,0,10">
-                        <DockPanel LastChildFill="True"
-                                   Margin="0,0,0,6">
-                          <ItemsControl ItemsSource="{Binding Links}"
-                                        DockPanel.Dock="Right"
-                                        HorizontalAlignment="Right"
-                                        Visibility="{Binding HasLinks, Converter={StaticResource BoolToVisibilityConverter}}">
-                            <ItemsControl.ItemsPanel>
-                              <ItemsPanelTemplate>
-                                <StackPanel Orientation="Horizontal" />
-                              </ItemsPanelTemplate>
-                            </ItemsControl.ItemsPanel>
-                            <ItemsControl.ItemTemplate>
-                              <DataTemplate>
-	                                <TextBlock Margin="10,0,0,0"
-	                                           VerticalAlignment="Center"
-	                                           FontFamily="Cascadia Mono"
-	                                           FontSize="10.5">
-	                                  <Hyperlink Command="{Binding DataContext.OpenModuleActionLinkCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-	                                             CommandParameter="{Binding}"
-	                                             Foreground="#97DF48"
-	                                             TextDecorations="{x:Null}">
-	                                    <Run Text="{Binding Label, Mode=OneWay}" />
-	                                  </Hyperlink>
-	                                </TextBlock>
-                              </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                          </ItemsControl>
+                        <StackPanel Orientation="Horizontal"
+                                    Margin="0,0,0,6">
                           <TextBlock Text="{Binding Title, StringFormat=// {0}}"
                                      Style="{StaticResource MonoLabelStyle}"
                                      Foreground="{StaticResource LimeBrush}"
                                      FontSize="13"
-                                     TextTrimming="CharacterEllipsis" />
-	                        </DockPanel>
+                                     TextTrimming="CharacterEllipsis"
+                                     VerticalAlignment="Center" />
+	                          <StackPanel Orientation="Horizontal"
+	                                      Margin="14,0,0,0"
+	                                      VerticalAlignment="Center"
+	                                      Visibility="{Binding HasLinks, Converter={StaticResource BoolToVisibilityConverter}}">
+	                            <TextBlock Text="links:"
+	                                       Foreground="#9AB8B4"
+	                                       FontFamily="Cascadia Mono"
+	                                       FontSize="10.5"
+	                                       VerticalAlignment="Center" />
+	                            <ItemsControl ItemsSource="{Binding Links}">
+	                              <ItemsControl.ItemsPanel>
+	                                <ItemsPanelTemplate>
+	                                  <StackPanel Orientation="Horizontal" />
+	                                </ItemsPanelTemplate>
+	                              </ItemsControl.ItemsPanel>
+	                              <ItemsControl.ItemTemplate>
+	                                <DataTemplate>
+		                                  <TextBlock Margin="10,0,0,0"
+		                                             VerticalAlignment="Center"
+		                                             FontFamily="Cascadia Mono"
+		                                             FontSize="10.5">
+		                                    <Hyperlink Command="{Binding DataContext.OpenModuleActionLinkCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+		                                               CommandParameter="{Binding}"
+		                                               Foreground="#97DF48"
+		                                               TextDecorations="{x:Null}">
+		                                      <Run Text="{Binding Label, Mode=OneWay}" />
+		                                    </Hyperlink>
+		                                  </TextBlock>
+	                                </DataTemplate>
+	                              </ItemsControl.ItemTemplate>
+	                            </ItemsControl>
+	                          </StackPanel>
+		                      </StackPanel>
 
                         <WrapPanel>
                           <ItemsControl ItemsSource="{Binding Fields}">
@@ -2289,20 +2297,22 @@
                                   </ComboBox>
                                   <StackPanel Orientation="Horizontal"
                                               Visibility="{Binding IsSecret, Converter={StaticResource BoolToVisibilityConverter}}">
-                                    <PasswordBox Style="{StaticResource CompactSecretBoxStyle}"
-                                                 PasswordChanged="ModuleActionSecretBox_PasswordChanged"
-                                                 ToolTip="Enter or replace saved Hugging Face token" />
+	                                    <PasswordBox Style="{StaticResource CompactSecretBoxStyle}"
+	                                                 PasswordChanged="ModuleActionSecretBox_PasswordChanged"
+	                                                 ToolTip="Optional Hugging Face token. The Manager saves it for future model downloads." />
                                     <TextBlock Text="{Binding SecretStatusLabel}"
                                                Foreground="#9AB8B4"
                                                FontFamily="Cascadia Mono"
                                                FontSize="10.5"
                                                VerticalAlignment="Center"
                                                Margin="6,0,0,0" />
-                                    <Button Style="{StaticResource ContractLinkButtonStyle}"
-                                            Margin="6,0,0,0"
-                                            Command="{Binding DataContext.ClearModuleActionSecretCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                            CommandParameter="{Binding}">
-                                      <TextBlock Text="clear"
+	                                    <Button Style="{StaticResource ContractLinkButtonStyle}"
+	                                            Margin="6,0,0,0"
+	                                            Command="{Binding DataContext.ClearModuleActionSecretCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+	                                            CommandParameter="{Binding}"
+	                                            ToolTip="Remove the saved Hugging Face token from this PC"
+	                                            Visibility="{Binding HasSavedSecret, Converter={StaticResource BoolToVisibilityConverter}}">
+                                      <TextBlock Text="remove token"
                                                  Foreground="#23E7DB"
                                                  FontFamily="Cascadia Mono"
                                                  FontSize="10.5" />
