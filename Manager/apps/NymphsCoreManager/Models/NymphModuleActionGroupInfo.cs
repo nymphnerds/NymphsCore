@@ -145,4 +145,10 @@ public sealed class NymphModuleActionFieldInfo : ViewModelBase
 public sealed record NymphModuleActionOptionInfo(
     string Label,
     string Value,
-    string Description);
+    string Description)
+{
+    public override string ToString()
+    {
+        return Label;
+    }
+}

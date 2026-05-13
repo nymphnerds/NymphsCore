@@ -3206,23 +3206,21 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
     private static string BuildModuleDetailPaneText(NymphModuleViewModel module)
     {
-        var detail = module.HasUpdate
-            ? module.UpdateDetail
-            : $"{module.Detail}\n\n{module.SecondaryDetail}";
-        if (!module.IsInstalled)
-        {
-            return detail;
-        }
-
         var guideLines = module.ManagerActionGroups
             .Select(group => group.Description)
             .Where(description => !string.IsNullOrWhiteSpace(description))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToArray();
+        var detail = module.HasUpdate
+            ? module.UpdateDetail
+            : $"{module.Detail}\n\n{module.SecondaryDetail}";
 
-        return guideLines.Length == 0
-            ? detail
-            : $"{detail}\n\nModel fetch guide:\n{string.Join(Environment.NewLine, guideLines)}";
+        if (!module.IsInstalled || guideLines.Length == 0)
+        {
+            return detail;
+        }
+
+        return $"Model fetch guide:\n{string.Join(Environment.NewLine, guideLines)}";
     }
 
     private static string BuildModuleActionFeedbackDetail(string output)
