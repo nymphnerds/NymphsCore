@@ -301,6 +301,7 @@ It should not be treated as the final stable public installer until the official
 Latest pushed checkpoint:
 
 ```text
-NymphsCore modular: 4e7b2e4 Standardize module-owned fetch and smoke test flow
-Z-Image module:     371b410 Refine module-owned Z-Image model fetch
+NymphsCore modular:       5cb78e1 Clean public README docs links
+NymphsCore functional:    4e7b2e4 Standardize module-owned fetch and smoke test flow
+Z-Image module:           371b410 Refine module-owned Z-Image model fetch
 ```
