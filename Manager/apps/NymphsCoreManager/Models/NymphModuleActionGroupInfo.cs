@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using NymphsCoreManager.ViewModels;
 
 namespace NymphsCoreManager.Models;
@@ -46,9 +47,17 @@ public sealed class NymphModuleActionGroupInfo
 
     public IReadOnlyList<NymphModuleActionFieldInfo> Fields { get; }
 
+    public IEnumerable<NymphModuleActionFieldInfo> SecretFields => Fields.Where(field => field.IsSecret);
+
+    public IEnumerable<NymphModuleActionFieldInfo> OptionFields => Fields.Where(field => field.IsOptionField);
+
     public bool HasLinks => Links.Count > 0;
 
     public bool HasFields => Fields.Count > 0;
+
+    public bool HasSecretFields => Fields.Any(field => field.IsSecret);
+
+    public bool HasOptionFields => Fields.Any(field => field.IsOptionField);
 
     public bool HasDescription => !string.IsNullOrWhiteSpace(Description);
 }
@@ -126,6 +135,9 @@ public sealed class NymphModuleActionFieldInfo : ViewModelBase
             if (SetProperty(ref _hasSavedSecret, value))
             {
                 OnPropertyChanged(nameof(SecretStatusLabel));
+                OnPropertyChanged(nameof(SavedSecretMask));
+                OnPropertyChanged(nameof(ShowSecretInput));
+                OnPropertyChanged(nameof(ShowSavedSecretMask));
             }
         }
     }
@@ -134,7 +146,13 @@ public sealed class NymphModuleActionFieldInfo : ViewModelBase
 
     public bool IsOptionField => !IsSecret && Options.Count > 0;
 
+    public bool ShowSecretInput => IsSecret && !HasSavedSecret;
+
+    public bool ShowSavedSecretMask => IsSecret && HasSavedSecret;
+
     public string SecretStatusLabel => HasSavedSecret ? "token saved" : "no token";
+
+    public string SavedSecretMask => HasSavedSecret ? "••••••••" : string.Empty;
 
     public void ApplySavedSecretState(bool hasSavedSecret)
     {

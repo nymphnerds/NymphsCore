@@ -3207,7 +3207,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
     private static string BuildModuleDetailPaneText(NymphModuleViewModel module)
     {
         var guideLines = module.ManagerActionGroups
-            .Select(group => group.Description)
+            .SelectMany(BuildModuleActionGroupGuideLines)
             .Where(description => !string.IsNullOrWhiteSpace(description))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToArray();
@@ -3221,6 +3221,22 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         }
 
         return string.Join(Environment.NewLine, guideLines);
+    }
+
+    private static IEnumerable<string> BuildModuleActionGroupGuideLines(NymphModuleActionGroupInfo group)
+    {
+        if (!string.IsNullOrWhiteSpace(group.Description))
+        {
+            foreach (var line in group.Description.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            {
+                yield return line;
+            }
+        }
+
+        foreach (var link in group.Links)
+        {
+            yield return $"{link.Label}: {link.Url}";
+        }
     }
 
     private static string BuildModuleActionFeedbackDetail(string output)

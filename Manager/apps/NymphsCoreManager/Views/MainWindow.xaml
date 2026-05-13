@@ -2226,42 +2226,66 @@
                                      FontSize="13"
                                      TextTrimming="CharacterEllipsis"
                                      VerticalAlignment="Center" />
-	                          <StackPanel Orientation="Horizontal"
-	                                      Margin="14,0,0,0"
-	                                      VerticalAlignment="Center"
-	                                      Visibility="{Binding HasLinks, Converter={StaticResource BoolToVisibilityConverter}}">
-	                            <TextBlock Text="links:"
-	                                       Foreground="#9AB8B4"
-	                                       FontFamily="Cascadia Mono"
-	                                       FontSize="10.5"
-	                                       VerticalAlignment="Center" />
-	                            <ItemsControl ItemsSource="{Binding Links}">
-	                              <ItemsControl.ItemsPanel>
-	                                <ItemsPanelTemplate>
-	                                  <StackPanel Orientation="Horizontal" />
-	                                </ItemsPanelTemplate>
-	                              </ItemsControl.ItemsPanel>
-	                              <ItemsControl.ItemTemplate>
-	                                <DataTemplate>
-		                                  <TextBlock Margin="10,0,0,0"
-		                                             VerticalAlignment="Center"
-		                                             FontFamily="Cascadia Mono"
-		                                             FontSize="10.5">
-		                                    <Hyperlink Command="{Binding DataContext.OpenModuleActionLinkCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-		                                               CommandParameter="{Binding}"
-		                                               Foreground="#97DF48"
-		                                               TextDecorations="{x:Null}">
-		                                      <Run Text="{Binding Label, Mode=OneWay}" />
-		                                    </Hyperlink>
-		                                  </TextBlock>
-	                                </DataTemplate>
-	                              </ItemsControl.ItemTemplate>
-	                            </ItemsControl>
-	                          </StackPanel>
-		                      </StackPanel>
+			                      </StackPanel>
 
-                        <WrapPanel>
-                          <ItemsControl ItemsSource="{Binding Fields}">
+                        <StackPanel>
+                          <ItemsControl ItemsSource="{Binding SecretFields}"
+                                        Visibility="{Binding HasSecretFields, Converter={StaticResource BoolToVisibilityConverter}}">
+                            <ItemsControl.ItemsPanel>
+                              <ItemsPanelTemplate>
+                                <WrapPanel />
+                              </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                              <DataTemplate>
+                                <StackPanel Orientation="Horizontal"
+                                            Margin="0,0,10,6"
+                                            VerticalAlignment="Center">
+                                  <TextBlock Text="{Binding Label, StringFormat={}{0}:}"
+                                             Foreground="#9AB8B4"
+                                             FontFamily="Cascadia Mono"
+                                             FontSize="10.5"
+                                             VerticalAlignment="Center"
+                                             Margin="0,0,5,0" />
+	                                  <StackPanel Orientation="Horizontal">
+		                                    <PasswordBox Style="{StaticResource CompactSecretBoxStyle}"
+		                                                 PasswordChanged="ModuleActionSecretBox_PasswordChanged"
+		                                                 ToolTip="Optional Hugging Face token. The Manager saves it for future model downloads."
+		                                                 Visibility="{Binding ShowSecretInput, Converter={StaticResource BoolToVisibilityConverter}}" />
+	                                    <TextBox Text="{Binding SavedSecretMask}"
+	                                             IsReadOnly="True"
+	                                             Width="260"
+	                                             MinHeight="24"
+	                                             Padding="7,3"
+	                                             Foreground="#E4F2EF"
+	                                             Background="#101B1D"
+	                                             BorderBrush="#284446"
+	                                             FontSize="11"
+	                                             Visibility="{Binding ShowSavedSecretMask, Converter={StaticResource BoolToVisibilityConverter}}" />
+	                                    <TextBlock Text="{Binding SecretStatusLabel}"
+	                                               Foreground="#9AB8B4"
+                                               FontFamily="Cascadia Mono"
+                                               FontSize="10.5"
+                                               VerticalAlignment="Center"
+                                               Margin="6,0,0,0" />
+	                                    <Button Style="{StaticResource ContractLinkButtonStyle}"
+	                                            Margin="6,0,0,0"
+	                                            Command="{Binding DataContext.ClearModuleActionSecretCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+	                                            CommandParameter="{Binding}"
+	                                            ToolTip="Remove the saved Hugging Face token from this PC"
+	                                            Visibility="{Binding HasSavedSecret, Converter={StaticResource BoolToVisibilityConverter}}">
+                                      <TextBlock Text="remove token"
+                                                 Foreground="#23E7DB"
+                                                 FontFamily="Cascadia Mono"
+                                                 FontSize="10.5" />
+                                    </Button>
+	                                  </StackPanel>
+	                                </StackPanel>
+	                              </DataTemplate>
+	                            </ItemsControl.ItemTemplate>
+	                          </ItemsControl>
+                          <ItemsControl ItemsSource="{Binding OptionFields}"
+                                        Visibility="{Binding HasOptionFields, Converter={StaticResource BoolToVisibilityConverter}}">
                             <ItemsControl.ItemsPanel>
                               <ItemsPanelTemplate>
                                 <WrapPanel />
@@ -2283,10 +2307,9 @@
                                             SelectedValuePath="Value"
                                             TextSearch.TextPath="Label"
                                             Style="{StaticResource DarkComboBoxStyle}"
-	                                            Width="106"
+                                            Width="106"
                                             MinHeight="24"
-                                            Padding="6,2"
-                                            Visibility="{Binding IsOptionField, Converter={StaticResource BoolToVisibilityConverter}}">
+                                            Padding="6,2">
                                     <ComboBox.ItemTemplate>
                                       <DataTemplate>
                                         <TextBlock Text="{Binding Label}"
@@ -2295,29 +2318,6 @@
                                       </DataTemplate>
                                     </ComboBox.ItemTemplate>
                                   </ComboBox>
-                                  <StackPanel Orientation="Horizontal"
-                                              Visibility="{Binding IsSecret, Converter={StaticResource BoolToVisibilityConverter}}">
-	                                    <PasswordBox Style="{StaticResource CompactSecretBoxStyle}"
-	                                                 PasswordChanged="ModuleActionSecretBox_PasswordChanged"
-	                                                 ToolTip="Optional Hugging Face token. The Manager saves it for future model downloads." />
-                                    <TextBlock Text="{Binding SecretStatusLabel}"
-                                               Foreground="#9AB8B4"
-                                               FontFamily="Cascadia Mono"
-                                               FontSize="10.5"
-                                               VerticalAlignment="Center"
-                                               Margin="6,0,0,0" />
-	                                    <Button Style="{StaticResource ContractLinkButtonStyle}"
-	                                            Margin="6,0,0,0"
-	                                            Command="{Binding DataContext.ClearModuleActionSecretCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-	                                            CommandParameter="{Binding}"
-	                                            ToolTip="Remove the saved Hugging Face token from this PC"
-	                                            Visibility="{Binding HasSavedSecret, Converter={StaticResource BoolToVisibilityConverter}}">
-                                      <TextBlock Text="remove token"
-                                                 Foreground="#23E7DB"
-                                                 FontFamily="Cascadia Mono"
-                                                 FontSize="10.5" />
-                                    </Button>
-                                  </StackPanel>
                                 </StackPanel>
                               </DataTemplate>
                             </ItemsControl.ItemTemplate>
@@ -2331,7 +2331,7 @@
                                        FontFamily="Cascadia Mono"
                                        FontSize="12" />
                           </Button>
-                        </WrapPanel>
+                        </StackPanel>
                       </StackPanel>
                     </DataTemplate>
                   </ItemsControl.ItemTemplate>
