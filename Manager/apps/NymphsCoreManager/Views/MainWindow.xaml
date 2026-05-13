@@ -126,6 +126,17 @@
       <Setter Property="Margin" Value="0,0,5,4" />
     </Style>
 
+    <Style TargetType="PasswordBox" x:Key="CompactSecretBoxStyle">
+      <Setter Property="Foreground" Value="#E4F2EF" />
+      <Setter Property="Background" Value="#101B1D" />
+      <Setter Property="BorderBrush" Value="#284446" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="Padding" Value="7,3" />
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="MinHeight" Value="24" />
+      <Setter Property="Width" Value="128" />
+    </Style>
+
     <Style TargetType="Button" x:Key="ModuleEllipsisButtonStyle" BasedOn="{StaticResource ModuleActionButtonStyle}">
       <Setter Property="Margin" Value="0" />
       <Setter Property="Width" Value="32" />
@@ -562,7 +573,7 @@
                         Style="{StaticResource HomeCardStatusRowStyle}">
               <Ellipse Style="{StaticResource HomeCardStatusDotStyle}"
                        Fill="{Binding StatusBrush}" />
-              <TextBlock Text="{Binding AvailabilityLabel}"
+              <TextBlock Text="{Binding DisplayStateLabel}"
                          Style="{StaticResource HomeCardStatusTextStyle}"
                          Foreground="{Binding StatusBrush}" />
             </StackPanel>
@@ -887,6 +898,7 @@
 	                <Grid.RowDefinitions>
 	                  <RowDefinition Height="Auto" />
 	                  <RowDefinition Height="Auto" />
+	                  <RowDefinition Height="*" />
 	                  <RowDefinition Height="Auto" />
 	                </Grid.RowDefinitions>
 
@@ -931,7 +943,7 @@
         </Grid>
 
 	        <Grid Grid.Row="0"
-	              Grid.RowSpan="3"
+	              Grid.RowSpan="4"
 	              Panel.ZIndex="0"
 	              Margin="8,0,0,0">
           <Rectangle Fill="#020708" />
@@ -1003,7 +1015,7 @@
 	                BorderThickness="0"
 	                Margin="0">
           <StackPanel Margin="22,18,22,18"
-                      VerticalAlignment="Bottom">
+                      VerticalAlignment="Top">
           <TextBlock Text="// RUNTIME"
                      Style="{StaticResource MonoLabelStyle}"
                      Foreground="{StaticResource LimeBrush}" />
@@ -1080,7 +1092,14 @@
                      Text="{Binding LastRefreshedText}"
                      Style="{StaticResource AccentTextStyle}"
                      FontSize="12.5" />
-          <StackPanel x:Name="SidebarFooterHost">
+          </StackPanel>
+        </Border>
+
+        <StackPanel x:Name="SidebarFooterHost"
+                    Grid.Row="3"
+                    Panel.ZIndex="2"
+                    Margin="22,0,22,18"
+                    VerticalAlignment="Bottom">
             <Rectangle Margin="0,12,0,12"
                        Height="1"
                        Fill="#173436"
@@ -1099,8 +1118,6 @@
               </Hyperlink>
             </TextBlock>
           </StackPanel>
-          </StackPanel>
-        </Border>
       </Grid>
     </Border>
 
@@ -2133,7 +2150,7 @@
                       Padding="16"
                       Background="#0A1415"
                       VerticalAlignment="Stretch">
-                  <Grid>
+                  <Grid VerticalAlignment="Stretch">
                     <Grid.RowDefinitions>
                       <RowDefinition Height="Auto" />
                       <RowDefinition Height="Auto" />
@@ -2150,6 +2167,7 @@
                                TextWrapping="Wrap" />
                     <ScrollViewer Grid.Row="2"
                                   Margin="0,8,0,0"
+                                  VerticalAlignment="Stretch"
                                   VerticalScrollBarVisibility="Auto"
                                   HorizontalScrollBarVisibility="Disabled"
                                   CanContentScroll="False">
@@ -2160,6 +2178,7 @@
                       <TextBlock Text="{Binding ModuleActionFeedbackDetail}"
                                  Foreground="#9AB8B4"
                                  FontSize="12"
+                                 VerticalAlignment="Stretch"
                                  TextWrapping="Wrap" />
                     </ScrollViewer>
 	                  </Grid>
@@ -2194,6 +2213,109 @@
 	                    </ScrollViewer>
 	                  </StackPanel>
                 </Border>
+
+                <ItemsControl ItemsSource="{Binding DisplayedModuleActionGroups}"
+                              Visibility="{Binding ShowInstalledModuleActionGroups, Converter={StaticResource BoolToVisibilityConverter}}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                      <StackPanel Margin="0,0,0,10">
+                        <DockPanel LastChildFill="True"
+                                   Margin="0,0,0,6">
+                          <ItemsControl ItemsSource="{Binding Links}"
+                                        DockPanel.Dock="Right"
+                                        HorizontalAlignment="Right"
+                                        Visibility="{Binding HasLinks, Converter={StaticResource BoolToVisibilityConverter}}">
+                            <ItemsControl.ItemsPanel>
+                              <ItemsPanelTemplate>
+                                <StackPanel Orientation="Horizontal" />
+                              </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                              <DataTemplate>
+                                <Button Style="{StaticResource ContractLinkButtonStyle}"
+                                        Command="{Binding DataContext.OpenModuleActionLinkCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                        CommandParameter="{Binding}">
+                                  <TextBlock Text="{Binding Label}"
+                                             Foreground="#97DF48"
+                                             FontFamily="Cascadia Mono"
+                                             FontSize="10.5" />
+                                </Button>
+                              </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                          </ItemsControl>
+                          <TextBlock Text="{Binding Title, StringFormat=// {0}}"
+                                     Style="{StaticResource MonoLabelStyle}"
+                                     Foreground="{StaticResource LimeBrush}"
+                                     FontSize="13"
+                                     TextTrimming="CharacterEllipsis" />
+                        </DockPanel>
+
+                        <WrapPanel>
+                          <ItemsControl ItemsSource="{Binding Fields}">
+                            <ItemsControl.ItemsPanel>
+                              <ItemsPanelTemplate>
+                                <WrapPanel />
+                              </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                              <DataTemplate>
+                                <StackPanel Orientation="Horizontal"
+                                            Margin="0,0,10,6"
+                                            VerticalAlignment="Center">
+                                  <TextBlock Text="{Binding Label, StringFormat={}{0}:}"
+                                             Foreground="#9AB8B4"
+                                             FontFamily="Cascadia Mono"
+                                             FontSize="10.5"
+                                             VerticalAlignment="Center"
+                                             Margin="0,0,5,0" />
+                                  <ComboBox ItemsSource="{Binding Options}"
+                                            SelectedValue="{Binding SelectedValue, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                            SelectedValuePath="Value"
+                                            DisplayMemberPath="Label"
+                                            Style="{StaticResource DarkComboBoxStyle}"
+                                            Width="122"
+                                            MinHeight="24"
+                                            Padding="6,2"
+                                            Visibility="{Binding IsOptionField, Converter={StaticResource BoolToVisibilityConverter}}" />
+                                  <StackPanel Orientation="Horizontal"
+                                              Visibility="{Binding IsSecret, Converter={StaticResource BoolToVisibilityConverter}}">
+                                    <PasswordBox Style="{StaticResource CompactSecretBoxStyle}"
+                                                 PasswordChanged="ModuleActionSecretBox_PasswordChanged"
+                                                 ToolTip="Enter or replace saved Hugging Face token" />
+                                    <TextBlock Text="{Binding SecretStatusLabel}"
+                                               Foreground="#9AB8B4"
+                                               FontFamily="Cascadia Mono"
+                                               FontSize="10.5"
+                                               VerticalAlignment="Center"
+                                               Margin="6,0,0,0" />
+                                    <Button Style="{StaticResource ContractLinkButtonStyle}"
+                                            Margin="6,0,0,0"
+                                            Command="{Binding DataContext.ClearModuleActionSecretCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                            CommandParameter="{Binding}">
+                                      <TextBlock Text="clear"
+                                                 Foreground="#23E7DB"
+                                                 FontFamily="Cascadia Mono"
+                                                 FontSize="10.5" />
+                                    </Button>
+                                  </StackPanel>
+                                </StackPanel>
+                              </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                          </ItemsControl>
+                          <Button Style="{StaticResource ModuleActionButtonStyle}"
+                                  Margin="0,0,10,6"
+                                  Command="{Binding DataContext.RunModuleActionGroupCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                  CommandParameter="{Binding}">
+                            <TextBlock Text="{Binding SubmitLabel, StringFormat=// {0}}"
+                                       Foreground="#23E7DB"
+                                       FontFamily="Cascadia Mono"
+                                       FontSize="12" />
+                          </Button>
+                        </WrapPanel>
+                      </StackPanel>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
 
                 <TextBlock Margin="0,0,0,10"
 	                             Text="// MODULE ACTIONS"

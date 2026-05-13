@@ -14,6 +14,7 @@ using System.Windows.Input;
 using System.Windows.Threading;
 using System.Windows.Media;
 using Microsoft.Web.WebView2.Core;
+using NymphsCoreManager.Models;
 using NymphsCoreManager.Services;
 using NymphsCoreManager.ViewModels;
 
@@ -689,6 +690,15 @@ window.addEventListener('DOMContentLoaded', function() {
         _ = DwmSetWindowAttribute(windowHandle, DwmwaCaptionColor, ref captionColor, sizeof(int));
         _ = DwmSetWindowAttribute(windowHandle, DwmwaTextColor, ref textColor, sizeof(int));
         _ = DwmSetWindowAttribute(windowHandle, DwmwaBorderColor, ref borderColor, sizeof(int));
+    }
+
+    private void ModuleActionSecretBox_PasswordChanged(object sender, RoutedEventArgs e)
+    {
+        if (sender is PasswordBox passwordBox &&
+            passwordBox.DataContext is NymphModuleActionFieldInfo field)
+        {
+            field.SecretValue = passwordBox.Password;
+        }
     }
 
     [DllImport("dwmapi.dll")]

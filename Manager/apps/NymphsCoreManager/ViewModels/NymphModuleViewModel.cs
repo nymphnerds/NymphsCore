@@ -32,6 +32,7 @@ public sealed class NymphModuleViewModel : ViewModelBase
         string accentBrush,
         IReadOnlyList<string> capabilities,
         IReadOnlyList<NymphModuleActionInfo> managerActions,
+        IReadOnlyList<NymphModuleActionGroupInfo>? managerActionGroups = null,
         IReadOnlyList<string>? devCapabilities = null)
     {
         Id = id;
@@ -44,6 +45,7 @@ public sealed class NymphModuleViewModel : ViewModelBase
         AccentBrush = accentBrush;
         Capabilities = capabilities;
         ManagerActions = managerActions;
+        ManagerActionGroups = managerActionGroups ?? Array.Empty<NymphModuleActionGroupInfo>();
         DevCapabilities = devCapabilities ?? Array.Empty<string>();
     }
 
@@ -66,6 +68,8 @@ public sealed class NymphModuleViewModel : ViewModelBase
     public IReadOnlyList<string> Capabilities { get; }
 
     public IReadOnlyList<NymphModuleActionInfo> ManagerActions { get; private set; }
+
+    public IReadOnlyList<NymphModuleActionGroupInfo> ManagerActionGroups { get; private set; }
 
     public IReadOnlyList<string> DevCapabilities { get; }
 
@@ -175,6 +179,9 @@ public sealed class NymphModuleViewModel : ViewModelBase
 
     public bool CanInstall => !IsInstalled;
 
+    public bool CanRepair => IsInstalled ||
+                             StateLabel.Contains("repair", StringComparison.OrdinalIgnoreCase);
+
     public bool CanUpdate => IsInstalled && (HasUpdate || IsRemoteVersionNewer(VersionLabel, RemoteVersionLabel));
 
     public void ApplyState(
@@ -199,6 +206,7 @@ public sealed class NymphModuleViewModel : ViewModelBase
         OnPropertyChanged(nameof(InstallPathLabel));
         OnPropertyChanged(nameof(CanOpenInstallPath));
         OnPropertyChanged(nameof(CanInstall));
+        OnPropertyChanged(nameof(CanRepair));
         OnPropertyChanged(nameof(CanUpdate));
         OnPropertyChanged(nameof(DisplayStateLabel));
         OnPropertyChanged(nameof(DisplayStatusBrush));
@@ -220,10 +228,29 @@ public sealed class NymphModuleViewModel : ViewModelBase
         ModuleUiTitle = manifestTitle ?? uiInfo?.Title ?? "Module UI";
     }
 
+    public void ApplyInstalledModuleControls(
+        IReadOnlyList<NymphModuleActionInfo> managerActions,
+        IReadOnlyList<NymphModuleActionGroupInfo> managerActionGroups)
+    {
+        if (managerActions.Count > 0)
+        {
+            ManagerActions = managerActions;
+            OnPropertyChanged(nameof(ManagerActions));
+        }
+
+        if (managerActionGroups.Count > 0)
+        {
+            ManagerActionGroups = managerActionGroups;
+            OnPropertyChanged(nameof(ManagerActionGroups));
+        }
+    }
+
     public void ApplyManifestInfo(NymphModuleManifestInfo manifest)
     {
         ManagerActions = manifest.ManagerActions;
         OnPropertyChanged(nameof(ManagerActions));
+        ManagerActionGroups = manifest.ManagerActionGroups;
+        OnPropertyChanged(nameof(ManagerActionGroups));
 
         if (!string.IsNullOrWhiteSpace(manifest.Version))
         {

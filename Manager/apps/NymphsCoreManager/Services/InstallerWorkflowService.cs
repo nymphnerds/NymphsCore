@@ -685,9 +685,7 @@ public sealed class InstallerWorkflowService
             var osReleaseText = await TryRunWslTextAsync(settings, ["cat", "/etc/os-release"], cancellationToken).ConfigureAwait(false);
             var kernelText = await TryRunWslTextAsync(settings, ["uname", "-r"], cancellationToken).ConfigureAwait(false);
             var uptimeText = await TryRunWslTextAsync(settings, ["cat", "/proc/uptime"], cancellationToken).ConfigureAwait(false);
-            var cpuStat1Text = await TryRunWslTextAsync(settings, ["cat", "/proc/stat"], cancellationToken).ConfigureAwait(false);
-            await Task.Delay(200, cancellationToken).ConfigureAwait(false);
-            var cpuStat2Text = await TryRunWslTextAsync(settings, ["cat", "/proc/stat"], cancellationToken).ConfigureAwait(false);
+            var cpuPercent = await GetWindowsHostCpuPercentAsync(cancellationToken).ConfigureAwait(false);
             var memInfoText = await TryRunWslTextAsync(settings, ["cat", "/proc/meminfo"], cancellationToken).ConfigureAwait(false);
             var diskText = await TryRunWslTextAsync(settings, ["df", "-Pk", "/"], cancellationToken).ConfigureAwait(false);
             var gpuTelemetry = await GetManagedRuntimeGpuTelemetryAsync(settings, cancellationToken).ConfigureAwait(false);
@@ -695,10 +693,6 @@ public sealed class InstallerWorkflowService
             var prettyName = NormalizeRuntimeDistribution(ParsePrettyName(osReleaseText));
             var kernel = string.IsNullOrWhiteSpace(kernelText) ? "-" : kernelText.Trim();
             var uptime = FormatRuntimeUptime(uptimeText);
-
-            var (cpuTotal1, cpuIdle1) = ParseCpuStat(cpuStat1Text);
-            var (cpuTotal2, cpuIdle2) = ParseCpuStat(cpuStat2Text);
-            var cpuPercent = ComputeCpuPercent(cpuTotal1, cpuIdle1, cpuTotal2, cpuIdle2);
 
             var (memoryUsedKb, memoryTotalKb, memoryPercent) = ParseMemoryInfo(memInfoText);
             var (diskUsedKb, diskTotalKb, diskPercent) = ParseDiskUsage(diskText);
@@ -1778,6 +1772,13 @@ public sealed class InstallerWorkflowService
         InstallSettings settings,
         CancellationToken cancellationToken)
     {
+        var windowsGpuTelemetry = await GetWindowsGpuTelemetryAsync(cancellationToken).ConfigureAwait(false);
+        if (!string.Equals(windowsGpuTelemetry.GpuVram, "Unavailable", StringComparison.OrdinalIgnoreCase) ||
+            !string.Equals(windowsGpuTelemetry.GpuTemp, "Unavailable", StringComparison.OrdinalIgnoreCase))
+        {
+            return windowsGpuTelemetry;
+        }
+
         var monitorScript = Path.Combine(ScriptsDirectory, "monitor_query.sh");
         var wslMonitorScriptPath = File.Exists(monitorScript)
             ? ConvertWindowsPathToWsl(monitorScript) ?? string.Empty
@@ -1812,7 +1813,7 @@ public sealed class InstallerWorkflowService
             return (gpuVram, gpuTemp);
         }
 
-        return await GetWindowsGpuTelemetryAsync(cancellationToken).ConfigureAwait(false);
+        return windowsGpuTelemetry;
     }
 
     private async Task<(string GpuVram, string GpuTemp)> GetWindowsGpuTelemetryAsync(CancellationToken cancellationToken)
@@ -3399,10 +3400,26 @@ meta:
         IProgress<string>? progress,
         CancellationToken cancellationToken)
     {
+        return RunWslBashAsync(
+            settings,
+            bashCommand,
+            progress,
+            environmentVariables: null,
+            cancellationToken);
+    }
+
+    private Task<CommandResult> RunWslBashAsync(
+        InstallSettings settings,
+        string bashCommand,
+        IProgress<string>? progress,
+        IReadOnlyDictionary<string, string?>? environmentVariables,
+        CancellationToken cancellationToken)
+    {
         return RunWslCommandAsync(
             settings,
             ["/bin/bash", "-lc", bashCommand],
             progress,
+            environmentVariables,
             cancellationToken);
     }
 
@@ -3410,6 +3427,21 @@ meta:
         InstallSettings settings,
         IEnumerable<string> commandArguments,
         IProgress<string>? progress,
+        CancellationToken cancellationToken)
+    {
+        return await RunWslCommandAsync(
+            settings,
+            commandArguments,
+            progress,
+            environmentVariables: null,
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task<CommandResult> RunWslCommandAsync(
+        InstallSettings settings,
+        IEnumerable<string> commandArguments,
+        IProgress<string>? progress,
+        IReadOnlyDictionary<string, string?>? environmentVariables,
         CancellationToken cancellationToken)
     {
         var arguments = new List<string>
@@ -3427,7 +3459,7 @@ meta:
             arguments,
             workingDirectory: Environment.SystemDirectory,
             progress,
-            environmentVariables: null,
+            environmentVariables,
             cancellationToken).ConfigureAwait(false);
 
         if (!IsTransientWslServiceFailure(result))
@@ -3451,7 +3483,7 @@ meta:
             arguments,
             workingDirectory: Environment.SystemDirectory,
             progress,
-            environmentVariables: null,
+            environmentVariables,
             cancellationToken).ConfigureAwait(false);
     }
 
@@ -3610,6 +3642,49 @@ meta:
             (int)Math.Round(100d * busyDelta / totalDelta, MidpointRounding.AwayFromZero),
             0,
             100);
+    }
+
+    private static async Task<int> GetWindowsHostCpuPercentAsync(CancellationToken cancellationToken)
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return 0;
+        }
+
+        if (!TryGetWindowsSystemCpuTimes(out var total1, out var idle1))
+        {
+            return 0;
+        }
+
+        await Task.Delay(200, cancellationToken).ConfigureAwait(false);
+
+        return TryGetWindowsSystemCpuTimes(out var total2, out var idle2)
+            ? ComputeCpuPercent(total1, idle1, total2, idle2)
+            : 0;
+    }
+
+    private static bool TryGetWindowsSystemCpuTimes(out long total, out long idle)
+    {
+        total = 0;
+        idle = 0;
+
+        if (!GetSystemTimes(out var idleTime, out var kernelTime, out var userTime))
+        {
+            return false;
+        }
+
+        var idleTicks = FileTimeToInt64(idleTime);
+        var kernelTicks = FileTimeToInt64(kernelTime);
+        var userTicks = FileTimeToInt64(userTime);
+
+        idle = idleTicks;
+        total = kernelTicks + userTicks;
+        return total > 0;
+    }
+
+    private static long FileTimeToInt64(FileTime fileTime)
+    {
+        return ((long)fileTime.HighDateTime << 32) | fileTime.LowDateTime;
     }
 
     private static (long UsedKb, long TotalKb, int Percent) ParseMemoryInfo(string? memInfoText)
@@ -4484,6 +4559,7 @@ meta:
 
         var capabilities = BuildCapabilities(entrypointActions);
         var managerActions = ReadManagerActions(manifestRoot);
+        var managerActionGroups = ReadManagerActionGroups(manifestRoot);
         var managerUiTitle = "";
         if (manifestRoot.TryGetProperty("ui", out var manifestUiElement) &&
             manifestUiElement.ValueKind == JsonValueKind.Object &&
@@ -4523,6 +4599,7 @@ meta:
             ManagerUiTitle: managerUiTitle,
             Capabilities: capabilities,
             ManagerActions: managerActions,
+            ManagerActionGroups: managerActionGroups,
             DevCapabilities: ["check-upstream", "test-upstream", "package"],
             SortOrder: sortOrder);
     }
@@ -4753,6 +4830,177 @@ meta:
             .GroupBy(action => action.Id, StringComparer.OrdinalIgnoreCase)
             .Select(group => group.First())
             .ToList();
+    }
+
+    private static IReadOnlyList<NymphModuleActionGroupInfo> ReadManagerActionGroups(JsonElement manifestRoot)
+    {
+        if (!manifestRoot.TryGetProperty("ui", out var uiElement) ||
+            uiElement.ValueKind != JsonValueKind.Object ||
+            !uiElement.TryGetProperty("manager_action_groups", out var groupsElement) ||
+            groupsElement.ValueKind != JsonValueKind.Array)
+        {
+            return Array.Empty<NymphModuleActionGroupInfo>();
+        }
+
+        var groups = new List<NymphModuleActionGroupInfo>();
+        foreach (var groupElement in groupsElement.EnumerateArray())
+        {
+            if (groupElement.ValueKind != JsonValueKind.Object)
+            {
+                continue;
+            }
+
+            var id = GetJsonString(groupElement, "id") ?? "";
+            var entrypoint = GetJsonString(groupElement, "entrypoint")
+                ?? GetJsonString(groupElement, "entry")
+                ?? id;
+            if (string.IsNullOrWhiteSpace(id))
+            {
+                id = entrypoint;
+            }
+
+            if (string.IsNullOrWhiteSpace(id) || string.IsNullOrWhiteSpace(entrypoint))
+            {
+                continue;
+            }
+
+            groups.Add(new NymphModuleActionGroupInfo(
+                id.Trim(),
+                GetJsonString(groupElement, "title") ?? id.Trim(),
+                entrypoint.Trim(),
+                GetJsonString(groupElement, "result")
+                    ?? GetJsonString(groupElement, "result_mode")
+                    ?? "show_logs",
+                GetJsonString(groupElement, "visibility") ?? "installed",
+                ReadManagerActionGroupSubmitLabel(groupElement),
+                ReadManagerActionGroupLinks(groupElement),
+                ReadManagerActionGroupFields(groupElement)));
+        }
+
+        return groups
+            .GroupBy(group => group.Id, StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.First())
+            .ToList();
+    }
+
+    private static string ReadManagerActionGroupSubmitLabel(JsonElement groupElement)
+    {
+        if (groupElement.TryGetProperty("submit", out var submitElement) &&
+            submitElement.ValueKind == JsonValueKind.Object)
+        {
+            return GetJsonString(submitElement, "label") ?? "Run";
+        }
+
+        return GetJsonString(groupElement, "submit_label") ?? "Run";
+    }
+
+    private static IReadOnlyList<NymphModuleActionLinkInfo> ReadManagerActionGroupLinks(JsonElement groupElement)
+    {
+        if (!groupElement.TryGetProperty("links", out var linksElement) ||
+            linksElement.ValueKind != JsonValueKind.Array)
+        {
+            return Array.Empty<NymphModuleActionLinkInfo>();
+        }
+
+        var links = new List<NymphModuleActionLinkInfo>();
+        foreach (var linkElement in linksElement.EnumerateArray())
+        {
+            if (linkElement.ValueKind != JsonValueKind.Object)
+            {
+                continue;
+            }
+
+            var label = GetJsonString(linkElement, "label") ?? GetJsonString(linkElement, "name") ?? "Link";
+            var url = GetJsonString(linkElement, "url") ?? GetJsonString(linkElement, "href") ?? "";
+            if (string.IsNullOrWhiteSpace(label) || string.IsNullOrWhiteSpace(url))
+            {
+                continue;
+            }
+
+            links.Add(new NymphModuleActionLinkInfo(label.Trim(), url.Trim()));
+        }
+
+        return links;
+    }
+
+    private static IReadOnlyList<NymphModuleActionFieldInfo> ReadManagerActionGroupFields(JsonElement groupElement)
+    {
+        if (!groupElement.TryGetProperty("fields", out var fieldsElement) ||
+            fieldsElement.ValueKind != JsonValueKind.Array)
+        {
+            return Array.Empty<NymphModuleActionFieldInfo>();
+        }
+
+        var fields = new List<NymphModuleActionFieldInfo>();
+        foreach (var fieldElement in fieldsElement.EnumerateArray())
+        {
+            if (fieldElement.ValueKind != JsonValueKind.Object)
+            {
+                continue;
+            }
+
+            var name = GetJsonString(fieldElement, "name") ?? "";
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                continue;
+            }
+
+            fields.Add(new NymphModuleActionFieldInfo(
+                name.Trim(),
+                GetJsonString(fieldElement, "type") ?? "select",
+                GetJsonString(fieldElement, "label") ?? name.Trim(),
+                GetJsonString(fieldElement, "default") ?? "",
+                GetJsonString(fieldElement, "arg") ?? "",
+                GetJsonString(fieldElement, "env") ?? "",
+                GetJsonString(fieldElement, "secret_id") ?? "",
+                GetJsonBool(fieldElement, "optional") ?? false,
+                ReadManagerActionGroupFieldOptions(fieldElement)));
+        }
+
+        return fields;
+    }
+
+    private static IReadOnlyList<NymphModuleActionOptionInfo> ReadManagerActionGroupFieldOptions(JsonElement fieldElement)
+    {
+        if (!fieldElement.TryGetProperty("options", out var optionsElement) ||
+            optionsElement.ValueKind != JsonValueKind.Array)
+        {
+            return Array.Empty<NymphModuleActionOptionInfo>();
+        }
+
+        var options = new List<NymphModuleActionOptionInfo>();
+        foreach (var optionElement in optionsElement.EnumerateArray())
+        {
+            if (optionElement.ValueKind == JsonValueKind.String)
+            {
+                var stringValue = optionElement.GetString()?.Trim() ?? "";
+                if (!string.IsNullOrWhiteSpace(stringValue))
+                {
+                    options.Add(new NymphModuleActionOptionInfo(stringValue, stringValue, ""));
+                }
+
+                continue;
+            }
+
+            if (optionElement.ValueKind != JsonValueKind.Object)
+            {
+                continue;
+            }
+
+            var value = GetJsonString(optionElement, "value") ?? "";
+            var label = GetJsonString(optionElement, "label") ?? value;
+            if (string.IsNullOrWhiteSpace(value) || string.IsNullOrWhiteSpace(label))
+            {
+                continue;
+            }
+
+            options.Add(new NymphModuleActionOptionInfo(
+                label.Trim(),
+                value.Trim(),
+                GetJsonString(optionElement, "description") ?? ""));
+        }
+
+        return options;
     }
 
     private static string BuildNymphModuleOverviewDetail(JsonElement manifestRoot, JsonElement registryElement)
@@ -5114,6 +5362,43 @@ meta:
             candidatePath);
     }
 
+    public (IReadOnlyList<NymphModuleActionInfo> ManagerActions, IReadOnlyList<NymphModuleActionGroupInfo> ManagerActionGroups)? GetInstalledNymphModuleControls(
+        InstallSettings settings,
+        string moduleId)
+    {
+        if (string.IsNullOrWhiteSpace(moduleId))
+        {
+            return null;
+        }
+
+        var normalizedModuleId = moduleId.Trim().ToLowerInvariant();
+        foreach (var manifestPath in GetInstalledNymphModuleManifestCandidatePaths(settings, normalizedModuleId))
+        {
+            try
+            {
+                if (!File.Exists(manifestPath))
+                {
+                    continue;
+                }
+
+                using var document = JsonDocument.Parse(File.ReadAllText(manifestPath));
+                var root = document.RootElement;
+                var managerActions = ReadManagerActions(root);
+                var managerActionGroups = ReadManagerActionGroups(root);
+                if (managerActions.Count > 0 || managerActionGroups.Count > 0)
+                {
+                    return (managerActions, managerActionGroups);
+                }
+            }
+            catch
+            {
+                // Try the next installed/cached manifest candidate.
+            }
+        }
+
+        return null;
+    }
+
     public InstalledNymphModuleUiInfo? GetCachedInstalledNymphModuleUiInfo(InstallSettings settings, string moduleId)
     {
         var uiInfo = GetInstalledNymphModuleUiInfo(settings, moduleId);
@@ -5445,6 +5730,25 @@ meta:
         IProgress<string> progress,
         CancellationToken cancellationToken)
     {
+        return await RunNymphModuleActionAsync(
+            settings,
+            moduleId,
+            action,
+            actionArguments,
+            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase),
+            progress,
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task<string> RunNymphModuleActionAsync(
+        InstallSettings settings,
+        string moduleId,
+        string action,
+        IReadOnlyList<string> actionArguments,
+        IReadOnlyDictionary<string, string> actionEnvironment,
+        IProgress<string> progress,
+        CancellationToken cancellationToken)
+    {
         if (string.IsNullOrWhiteSpace(moduleId))
         {
             throw new ArgumentException("Module id is required.", nameof(moduleId));
@@ -5460,6 +5764,7 @@ meta:
         var quotedActionArguments = normalizedActionArguments.Count == 0
             ? string.Empty
             : " " + string.Join(" ", normalizedActionArguments.Select(ToBashSingleQuoted));
+        var actionProcessEnvironment = BuildModuleActionProcessEnvironment(actionEnvironment);
         var normalizedModuleId = moduleId.Trim().ToLowerInvariant();
         var homePath = $"/home/{settings.LinuxUser}";
         var installRoot = GetNymphModuleInstallRoot(settings, normalizedModuleId);
@@ -5582,7 +5887,12 @@ meta:
 
         progress.Report($"Running module action '{normalizedAction}' for '{normalizedModuleId}'...");
 
-        var result = await RunWslBashAsync(settings, bashCommand, progress, cancellationToken).ConfigureAwait(false);
+        var result = await RunWslBashAsync(
+            settings,
+            bashCommand,
+            progress,
+            actionProcessEnvironment,
+            cancellationToken).ConfigureAwait(false);
         if (result.ExitCode != 0)
         {
             var detail = string.IsNullOrWhiteSpace(result.CombinedOutput)
@@ -5621,6 +5931,36 @@ meta:
         }
 
         return normalized;
+    }
+
+    private static IReadOnlyDictionary<string, string?>? BuildModuleActionProcessEnvironment(IReadOnlyDictionary<string, string> actionEnvironment)
+    {
+        if (actionEnvironment.Count == 0)
+        {
+            return null;
+        }
+
+        var environment = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
+        var wslNames = new List<string>();
+        foreach (var pair in actionEnvironment)
+        {
+            var name = pair.Key.Trim();
+            if (!Regex.IsMatch(name, "^[A-Z_][A-Z0-9_]{0,63}$", RegexOptions.CultureInvariant))
+            {
+                continue;
+            }
+
+            environment[name] = pair.Value;
+            wslNames.Add(name);
+        }
+
+        if (wslNames.Count == 0)
+        {
+            return null;
+        }
+
+        environment["WSLENV"] = string.Join(':', wslNames);
+        return environment;
     }
 
     private async Task<string?> GetActiveModuleLifecycleStatusAsync(
@@ -6615,6 +6955,21 @@ meta:
             : null;
     }
 
+    private static bool? GetJsonBool(JsonElement element, string propertyName)
+    {
+        if (!element.TryGetProperty(propertyName, out var property))
+        {
+            return null;
+        }
+
+        return property.ValueKind switch
+        {
+            JsonValueKind.True => true,
+            JsonValueKind.False => false,
+            _ => null,
+        };
+    }
+
     private static string? ReadInstalledModuleVersion(InstallSettings settings, string moduleId)
     {
         var normalizedModuleId = moduleId.Trim().ToLowerInvariant();
@@ -6646,15 +7001,7 @@ meta:
             }
         }
 
-        var manifestCandidates = new[]
-        {
-            ToWindowsWslPath(settings, $"/home/{settings.LinuxUser}/.cache/nymphs-modules/{normalizedModuleId}.nymph.json"),
-            ToWindowsWslPath(settings, $"/home/{settings.LinuxUser}/.cache/nymphs-modules/repos/{normalizedModuleId}/nymph.json"),
-            ToWindowsWslPath(settings, $"{installRoot}/nymph.json"),
-            ToWindowsWslPath(settings, $"/home/{settings.LinuxUser}/{normalizedModuleId}/nymph.json"),
-        };
-
-        foreach (var manifestPath in manifestCandidates)
+        foreach (var manifestPath in GetInstalledNymphModuleManifestCandidatePaths(settings, normalizedModuleId))
         {
             try
             {
@@ -6673,6 +7020,18 @@ meta:
         }
 
         return null;
+    }
+
+    private static IReadOnlyList<string> GetInstalledNymphModuleManifestCandidatePaths(InstallSettings settings, string normalizedModuleId)
+    {
+        var installRoot = GetNymphModuleInstallRoot(settings, normalizedModuleId);
+        return
+        [
+            ToWindowsWslPath(settings, $"{installRoot}/nymph.json"),
+            ToWindowsWslPath(settings, $"/home/{settings.LinuxUser}/{normalizedModuleId}/nymph.json"),
+            ToWindowsWslPath(settings, $"/home/{settings.LinuxUser}/.cache/nymphs-modules/repos/{normalizedModuleId}/nymph.json"),
+            ToWindowsWslPath(settings, $"/home/{settings.LinuxUser}/.cache/nymphs-modules/{normalizedModuleId}.nymph.json"),
+        ];
     }
 
     private static bool IsRemoteVersionNewer(string? installedVersion, string? remoteVersion)
@@ -7209,4 +7568,16 @@ meta:
     [DllImport("kernel32.dll", CharSet = CharSet.Auto, SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool GlobalMemoryStatusEx([In, Out] MemoryStatusEx lpBuffer);
+
+    [StructLayout(LayoutKind.Sequential)]
+    private readonly struct FileTime
+    {
+        public readonly uint LowDateTime;
+
+        public readonly uint HighDateTime;
+    }
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool GetSystemTimes(out FileTime idleTime, out FileTime kernelTime, out FileTime userTime);
 }
