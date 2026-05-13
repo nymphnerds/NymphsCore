@@ -2196,10 +2196,12 @@
                 </Border>
 
                 <TextBlock Margin="0,0,0,10"
-	                             Text="// MANAGER CONTRACT"
+	                             Text="// MODULE ACTIONS"
 	                             Style="{StaticResource MonoLabelStyle}"
-	                             Foreground="{StaticResource LimeBrush}" />
-                  <ItemsControl ItemsSource="{Binding DisplayedModuleContractActions}">
+	                             Foreground="{StaticResource LimeBrush}"
+                             Visibility="{Binding ShowInstalledModuleActions, Converter={StaticResource BoolToVisibilityConverter}}" />
+                  <ItemsControl ItemsSource="{Binding DisplayedModuleContractActions}"
+                                Visibility="{Binding ShowInstalledModuleActions, Converter={StaticResource BoolToVisibilityConverter}}">
                     <ItemsControl.ItemsPanel>
                       <ItemsPanelTemplate>
                         <WrapPanel />
@@ -2211,7 +2213,7 @@
                                 Margin="0,0,10,10"
                                 Command="{Binding DataContext.RunModuleActionCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                 CommandParameter="{Binding}">
-                          <TextBlock Text="{Binding StringFormat=// {0}}"
+                          <TextBlock Text="{Binding DisplayLabel, StringFormat=// {0}}"
                                      Foreground="#23E7DB"
                                      FontFamily="Cascadia Mono"
                                      FontSize="12" />
@@ -2296,7 +2298,7 @@
                 <Button Style="{StaticResource ContractLinkButtonStyle}"
                         Command="{Binding DataContext.RunModuleActionCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                         CommandParameter="{Binding}">
-                  <TextBlock Text="{Binding}"
+                  <TextBlock Text="{Binding DisplayLabel}"
                              Foreground="#23E7DB"
                              FontFamily="Cascadia Mono"
                              FontSize="10.5" />

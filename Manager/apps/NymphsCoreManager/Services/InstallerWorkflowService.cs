@@ -4483,6 +4483,7 @@ meta:
         }
 
         var capabilities = BuildCapabilities(entrypointActions);
+        var managerActions = ReadManagerActions(manifestRoot);
         var managerUiTitle = "";
         if (manifestRoot.TryGetProperty("ui", out var manifestUiElement) &&
             manifestUiElement.ValueKind == JsonValueKind.Object &&
@@ -4521,6 +4522,7 @@ meta:
             InstallRoot: installRoot,
             ManagerUiTitle: managerUiTitle,
             Capabilities: capabilities,
+            ManagerActions: managerActions,
             DevCapabilities: ["check-upstream", "test-upstream", "package"],
             SortOrder: sortOrder);
     }
@@ -4691,6 +4693,66 @@ meta:
 
         ordered.AddRange(actionSet.OrderBy(action => action, StringComparer.OrdinalIgnoreCase));
         return ordered;
+    }
+
+    private static IReadOnlyList<NymphModuleActionInfo> ReadManagerActions(JsonElement manifestRoot)
+    {
+        if (!manifestRoot.TryGetProperty("ui", out var uiElement) ||
+            uiElement.ValueKind != JsonValueKind.Object ||
+            !uiElement.TryGetProperty("manager_actions", out var actionsElement) ||
+            actionsElement.ValueKind != JsonValueKind.Array)
+        {
+            return Array.Empty<NymphModuleActionInfo>();
+        }
+
+        var actions = new List<NymphModuleActionInfo>();
+        foreach (var actionElement in actionsElement.EnumerateArray())
+        {
+            if (actionElement.ValueKind == JsonValueKind.String)
+            {
+                var stringActionId = actionElement.GetString()?.Trim() ?? "";
+                if (!string.IsNullOrWhiteSpace(stringActionId))
+                {
+                    actions.Add(new NymphModuleActionInfo(stringActionId, stringActionId, stringActionId, "show_output"));
+                }
+
+                continue;
+            }
+
+            if (actionElement.ValueKind != JsonValueKind.Object)
+            {
+                continue;
+            }
+
+            var id = GetJsonString(actionElement, "id")
+                ?? GetJsonString(actionElement, "action")
+                ?? "";
+            var entrypoint = GetJsonString(actionElement, "entrypoint")
+                ?? GetJsonString(actionElement, "entry")
+                ?? id;
+            if (string.IsNullOrWhiteSpace(id))
+            {
+                id = entrypoint;
+            }
+
+            if (string.IsNullOrWhiteSpace(id))
+            {
+                continue;
+            }
+
+            actions.Add(new NymphModuleActionInfo(
+                id.Trim(),
+                GetJsonString(actionElement, "label") ?? id.Trim(),
+                entrypoint.Trim(),
+                GetJsonString(actionElement, "result")
+                    ?? GetJsonString(actionElement, "result_mode")
+                    ?? "show_output"));
+        }
+
+        return actions
+            .GroupBy(action => action.Id, StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.First())
+            .ToList();
     }
 
     private static string BuildNymphModuleOverviewDetail(JsonElement manifestRoot, JsonElement registryElement)

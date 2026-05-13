@@ -8,6 +8,49 @@ This file focuses on user-facing and system-level changes rather than package-by
 
 Newest entries first.
 
+### 2026-05-13 Module-owned Manager actions and WORBI first standard proof
+Source: live modular Manager testing with WORBI as the first module-owned action contract proof.
+
+Changed in source:
+
+- moved installed module action buttons out of Manager assumptions and into module manifests
+- added Manager support for `ui.manager_actions`:
+  - modules declare the button id, label, entrypoint, and result mode
+  - Manager renders only the module-declared buttons in the details pane and module UI strip
+  - modules with no declared actions do not get a generic fallback action strip
+- added action result modes used by the first WORBI proof:
+  - `open_in_manager` starts a module and opens the returned URL in the Manager WebView
+  - `open_external_browser` starts a module and opens the returned URL in the default browser
+  - `open_notepad` writes command output to a temp log file and opens it in Notepad
+  - `show_output` keeps normal Manager feedback behavior
+- changed the details label from `// MANAGER CONTRACT` to `// MODULE ACTIONS` to match ownership
+- kept universal right-rail Manager controls separate from module-owned detail actions
+- updated the forward-facing module guide so authors know:
+  - registry is the catalog, not the installed-button contract
+  - installed module actions belong in the module manifest
+  - module repo changes must be pushed before registry hash/catalog updates
+- updated WORBI as the first test module:
+  - added `ui.manager_actions` for `Start`, `Stop`, `Browser`, and `Logs`
+  - added `Nymphs Brain local AI stack` as a visible requirement
+- updated `nymphs-registry` with the pushed WORBI manifest hash and matching requirement text
+- rebuilt the Win x64 release EXE and ZIP
+
+Validated locally:
+
+- `dotnet.exe build '\\wsl.localhost\NymphsCore_Lite\home\nymph\NymphsCore\Manager\apps\NymphsCoreManager\NymphsCoreManager.csproj' -c Debug`
+- `powershell.exe -NoProfile -ExecutionPolicy Bypass -File '\\wsl.localhost\NymphsCore_Lite\home\nymph\NymphsCore\Manager\apps\NymphsCoreManager\build-release.ps1'`
+- WORBI module-owned buttons worked in the Manager during live testing
+- pushed `nymphnerds/worbi` main commit `67b9c3c Add manager action contract`
+- pushed `nymphnerds/nymphs-registry` main commit `27732ee Update WORBI manifest metadata`
+- verified the remote WORBI manifest hash matches the registry hash:
+  `c3f268d0970a7c5260a256efaf1b6bc27648c3415299f23be1f8c025497afec0`
+
+Current caveats:
+
+- this is the first working proof of the action standard; the next modules still need to adopt `ui.manager_actions`
+- the Manager code is intentionally strict now: no module action manifest means no module action buttons
+- richer action result types can be added later, but should be documented in the module guide before modules depend on them
+
 ### 2026-05-12 Manager UI-mode split, WORBI WebView proof, and module marker hardening
 Source: live modular Manager testing in the `NymphsCore` WSL distro with WORBI as the fast reference module.
 

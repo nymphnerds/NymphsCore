@@ -31,6 +31,7 @@ public sealed class NymphModuleViewModel : ViewModelBase
         string installPath,
         string accentBrush,
         IReadOnlyList<string> capabilities,
+        IReadOnlyList<NymphModuleActionInfo> managerActions,
         IReadOnlyList<string>? devCapabilities = null)
     {
         Id = id;
@@ -42,6 +43,7 @@ public sealed class NymphModuleViewModel : ViewModelBase
         InstallPath = installPath;
         AccentBrush = accentBrush;
         Capabilities = capabilities;
+        ManagerActions = managerActions;
         DevCapabilities = devCapabilities ?? Array.Empty<string>();
     }
 
@@ -62,6 +64,8 @@ public sealed class NymphModuleViewModel : ViewModelBase
     public string AccentBrush { get; }
 
     public IReadOnlyList<string> Capabilities { get; }
+
+    public IReadOnlyList<NymphModuleActionInfo> ManagerActions { get; private set; }
 
     public IReadOnlyList<string> DevCapabilities { get; }
 
@@ -218,6 +222,9 @@ public sealed class NymphModuleViewModel : ViewModelBase
 
     public void ApplyManifestInfo(NymphModuleManifestInfo manifest)
     {
+        ManagerActions = manifest.ManagerActions;
+        OnPropertyChanged(nameof(ManagerActions));
+
         if (!string.IsNullOrWhiteSpace(manifest.Version))
         {
             RemoteVersionLabel = manifest.Version;

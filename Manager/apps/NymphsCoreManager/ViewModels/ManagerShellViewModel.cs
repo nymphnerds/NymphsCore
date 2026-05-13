@@ -38,7 +38,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
     private readonly RelayCommand<NymphModuleViewModel> _openModuleInstallPathCommand;
     private readonly RelayCommand<NymphModuleViewModel> _openModuleUiCommand;
     private readonly RelayCommand<NymphModuleViewModel> _openModuleSourceCommand;
-    private readonly RelayCommand<string> _runModuleActionCommand;
+    private readonly RelayCommand<NymphModuleActionInfo> _runModuleActionCommand;
     private readonly RelayCommand<string> _runModuleDevActionCommand;
     private readonly RelayCommand _toggleDeveloperModeCommand;
     private readonly RelayCommand<NymphModuleViewModel> _uninstallModuleCommand;
@@ -143,7 +143,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         _openModuleInstallPathCommand = new RelayCommand<NymphModuleViewModel>(OpenModuleInstallPath, module => module?.CanOpenInstallPath == true);
         _openModuleUiCommand = new RelayCommand<NymphModuleViewModel>(OpenModuleUi, module => module?.HasInstalledModuleUi == true);
         _openModuleSourceCommand = new RelayCommand<NymphModuleViewModel>(OpenModuleSource, module => module?.HasRepositoryUrl == true);
-        _runModuleActionCommand = new RelayCommand<string>(RunSelectedModuleAction, CanRunSelectedModuleAction);
+        _runModuleActionCommand = new RelayCommand<NymphModuleActionInfo>(RunSelectedModuleAction, CanRunSelectedModuleAction);
         _runModuleDevActionCommand = new RelayCommand<string>(RunSelectedModuleDevAction, CanRunSelectedModuleDevAction);
         _toggleDeveloperModeCommand = new RelayCommand(ToggleDeveloperMode);
         _uninstallModuleCommand = new RelayCommand<NymphModuleViewModel>(UninstallModule, module => module?.IsInstalled == true && !IsBusy);
@@ -218,7 +218,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
     public RelayCommand<NymphModuleViewModel> OpenModuleSourceCommand => _openModuleSourceCommand;
 
-    public RelayCommand<string> RunModuleActionCommand => _runModuleActionCommand;
+    public RelayCommand<NymphModuleActionInfo> RunModuleActionCommand => _runModuleActionCommand;
 
     public RelayCommand<string> RunModuleDevActionCommand => _runModuleDevActionCommand;
 
@@ -326,27 +326,20 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
     public bool ShowInstallModuleAction => DisplayedModule?.CanInstall == true;
 
-    public bool ShowInstalledModuleActions => DisplayedModule?.IsInstalled == true;
+    public bool ShowInstalledModuleActions => DisplayedModule?.IsInstalled == true && DisplayedModule.ManagerActions.Count > 0;
 
     public bool ShowModuleUiAction => DisplayedModule?.HasInstalledModuleUi == true;
 
-    public IReadOnlyList<string> DisplayedModuleContractActions
+    public IReadOnlyList<NymphModuleActionInfo> DisplayedModuleContractActions
     {
         get
         {
             if (DisplayedModule is null)
             {
-                return Array.Empty<string>();
+                return Array.Empty<NymphModuleActionInfo>();
             }
 
-            if (ShouldShowExternalBrowserAction(DisplayedModule))
-            {
-                return DisplayedModule.Capabilities
-                    .Concat(["browser"])
-                    .ToArray();
-            }
-
-            return DisplayedModule.Capabilities;
+            return DisplayedModule.ManagerActions;
         }
     }
 
@@ -1448,6 +1441,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             ResolveManagedInstallPath(manifest.InstallRoot, manifest.Id),
             BuildModuleAccent(manifest.Id, index),
             manifest.Capabilities,
+            manifest.ManagerActions,
             manifest.DevCapabilities);
 
         module.ApplyManifestInfo(manifest);
@@ -2684,23 +2678,41 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         }
     }
 
-    private bool CanRunSelectedModuleAction(string? action)
+    private void OpenTextInNotepad(string name, string text)
     {
-        if (DisplayedModule is null || string.IsNullOrWhiteSpace(action))
+        try
+        {
+            var safeName = Regex.Replace(name, @"[^A-Za-z0-9_.-]+", "-");
+            var tempPath = Path.Combine(Path.GetTempPath(), $"nymphs-{safeName}-{DateTime.Now:yyyyMMdd-HHmmss}.log");
+            File.WriteAllText(tempPath, text, Encoding.UTF8);
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = "notepad.exe",
+                Arguments = $"\"{tempPath}\"",
+                UseShellExecute = true,
+            });
+            AppendActivity($"Action output opened in Notepad: {tempPath}");
+        }
+        catch (Exception ex)
+        {
+            AppendActivity($"Could not open action output in Notepad: {ex.Message}");
+        }
+    }
+
+    private bool CanRunSelectedModuleAction(NymphModuleActionInfo? actionInfo)
+    {
+        if (DisplayedModule is null || actionInfo is null || string.IsNullOrWhiteSpace(actionInfo.ActionName))
         {
             return false;
         }
 
-        var normalizedAction = action.Trim().ToLowerInvariant();
+        var normalizedAction = actionInfo.ActionName.Trim().ToLowerInvariant();
         if (IsBusy && normalizedAction is not "stop" and not "logs")
         {
             return false;
         }
 
-        var isExternalBrowserAction = string.Equals(normalizedAction, "browser", StringComparison.OrdinalIgnoreCase) &&
-                                      ShouldShowExternalBrowserAction(DisplayedModule);
-        if (!isExternalBrowserAction &&
-            !DisplayedModule.Capabilities.Any(capability => string.Equals(capability, normalizedAction, StringComparison.OrdinalIgnoreCase)))
+        if (!DisplayedModule.Capabilities.Any(capability => string.Equals(capability, normalizedAction, StringComparison.OrdinalIgnoreCase)))
         {
             return false;
         }
@@ -2713,7 +2725,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         };
     }
 
-    private void RunSelectedModuleAction(string? action)
+    private void RunSelectedModuleAction(NymphModuleActionInfo? action)
     {
         _ = RunSelectedModuleActionAsync(action);
     }
@@ -2750,15 +2762,19 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         IsDeveloperMode = !IsDeveloperMode;
     }
 
-    private async Task RunSelectedModuleActionAsync(string? action)
+    private async Task RunSelectedModuleActionAsync(NymphModuleActionInfo? actionInfo)
     {
         var module = DisplayedModule;
-        if (module is null || string.IsNullOrWhiteSpace(action))
+        if (module is null || actionInfo is null || string.IsNullOrWhiteSpace(actionInfo.ActionName))
         {
             return;
         }
 
-        var normalizedAction = action.Trim().ToLowerInvariant();
+        var normalizedAction = actionInfo.ActionName.Trim().ToLowerInvariant();
+        var actionLabel = string.IsNullOrWhiteSpace(actionInfo.DisplayLabel) ? normalizedAction : actionInfo.DisplayLabel;
+        var resultMode = string.IsNullOrWhiteSpace(actionInfo.ResultMode)
+            ? "show_output"
+            : actionInfo.ResultMode.Trim().ToLowerInvariant();
         var canRunWhileBusy = normalizedAction is "stop" or "logs";
         if (IsBusy && !canRunWhileBusy)
         {
@@ -2775,30 +2791,71 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         {
             IsBusy = true;
         }
-        StatusMessage = $"Running {module.Name} {normalizedAction}...";
+        StatusMessage = $"Running {module.Name} {actionLabel}...";
         if (!string.Equals(normalizedAction, "logs", StringComparison.OrdinalIgnoreCase))
         {
             ShowModuleLogs = false;
         }
 
         SetModuleActionFeedback(
-            $"{module.Name}: running {normalizedAction}",
-            $"Command sent to the managed WSL distro. Waiting for {normalizedAction} output...");
+            $"{module.Name}: running {actionLabel}",
+            $"Command sent to the managed WSL distro. Waiting for {actionLabel} output...");
 
         try
         {
-            if (string.Equals(normalizedAction, "browser", StringComparison.OrdinalIgnoreCase) &&
-                ShouldShowExternalBrowserAction(module))
-            {
-                var startOutput = await _workflowService.RunNymphModuleActionAsync(
-                    _settings,
-                    module.Id,
-                    "start",
-                    new Progress<string>(AppendActivity),
-                    CancellationToken.None).ConfigureAwait(true);
+            var output = await _workflowService.RunNymphModuleActionAsync(
+                _settings,
+                module.Id,
+                normalizedAction,
+                new Progress<string>(AppendActivity),
+                CancellationToken.None).ConfigureAwait(true);
 
-                AppendModuleActionOutput(module, "start", startOutput);
-                if (!OpenFirstUrlFromOutput(module, startOutput, forceExternalBrowser: true, quietWhenMissing: true) &&
+            AppendModuleActionOutput(module, normalizedAction, output);
+            SetModuleActionFeedback(
+                $"{module.Name}: {actionLabel} finished",
+                BuildModuleActionFeedbackDetail(output));
+
+            if (resultMode is "open_notepad" or "notepad")
+            {
+                OpenTextInNotepad($"{module.Id}-{actionInfo.Id}", BuildModuleActionFeedbackDetail(output));
+                SetModuleActionFeedback(
+                    $"{module.Name}: {actionLabel} opened",
+                    "Action output opened in Notepad.");
+            }
+            else if (string.Equals(normalizedAction, "logs", StringComparison.OrdinalIgnoreCase))
+            {
+                ShowModuleLogs = true;
+                ModuleLogsTitle = $"{module.Name} module logs";
+                ModuleLogsDetail = BuildModuleActionFeedbackDetail(output);
+                SetModuleActionFeedback(
+                    $"{module.Name}: logs loaded",
+                    "Module logs are shown below.");
+            }
+
+            var shouldOpenInManager = resultMode is "open_in_manager" or "manager_url" ||
+                                      (resultMode is "show_output" && normalizedAction is "start" or "open");
+            if (shouldOpenInManager)
+            {
+                if (!OpenFirstUrlFromOutput(module, output, quietWhenMissing: true) &&
+                    normalizedAction is not "open" &&
+                    module.Capabilities.Any(capability => string.Equals(capability, "open", StringComparison.OrdinalIgnoreCase)))
+                {
+                    var openOutput = await _workflowService.RunNymphModuleActionAsync(
+                        _settings,
+                        module.Id,
+                        "open",
+                        new Progress<string>(AppendActivity),
+                        CancellationToken.None).ConfigureAwait(true);
+
+                    AppendModuleActionOutput(module, "open", openOutput);
+                    OpenFirstUrlFromOutput(module, openOutput);
+                }
+            }
+
+            if (resultMode is "open_external_browser" or "external_browser")
+            {
+                if (!OpenFirstUrlFromOutput(module, output, forceExternalBrowser: true, quietWhenMissing: true) &&
+                    normalizedAction is not "open" &&
                     module.Capabilities.Any(capability => string.Equals(capability, "open", StringComparison.OrdinalIgnoreCase)))
                 {
                     var openOutput = await _workflowService.RunNymphModuleActionAsync(
@@ -2811,37 +2868,6 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                     AppendModuleActionOutput(module, "open", openOutput);
                     OpenFirstUrlFromOutput(module, openOutput, forceExternalBrowser: true);
                 }
-
-                await RefreshModuleStateAsync().ConfigureAwait(true);
-                StatusMessage = $"{module.Name} browser finished.";
-                return;
-            }
-
-            var output = await _workflowService.RunNymphModuleActionAsync(
-                _settings,
-                module.Id,
-                normalizedAction,
-                new Progress<string>(AppendActivity),
-                CancellationToken.None).ConfigureAwait(true);
-
-            AppendModuleActionOutput(module, normalizedAction, output);
-            SetModuleActionFeedback(
-                $"{module.Name}: {normalizedAction} finished",
-                BuildModuleActionFeedbackDetail(output));
-
-            if (string.Equals(normalizedAction, "logs", StringComparison.OrdinalIgnoreCase))
-            {
-                ShowModuleLogs = true;
-                ModuleLogsTitle = $"{module.Name} module logs";
-                ModuleLogsDetail = BuildModuleActionFeedbackDetail(output);
-                SetModuleActionFeedback(
-                    $"{module.Name}: logs loaded",
-                    "Module logs are shown below.");
-            }
-
-            if (string.Equals(normalizedAction, "open", StringComparison.OrdinalIgnoreCase))
-            {
-                OpenFirstUrlFromOutput(module, output);
             }
 
             if (string.Equals(normalizedAction, "stop", StringComparison.OrdinalIgnoreCase) &&
@@ -2852,41 +2878,19 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                 ShowModulePage(module);
             }
 
-            if (string.Equals(normalizedAction, "start", StringComparison.OrdinalIgnoreCase) &&
-                !OpenFirstUrlFromOutput(module, output, quietWhenMissing: true) &&
-                module.Capabilities.Any(capability => string.Equals(capability, "open", StringComparison.OrdinalIgnoreCase)))
-            {
-                SetModuleActionFeedback(
-                    $"{module.Name}: start finished",
-                    $"{BuildModuleActionFeedbackDetail(output)}\n\nStart did not return a URL, so the manager is asking the module for its open target...");
-
-                var openOutput = await _workflowService.RunNymphModuleActionAsync(
-                    _settings,
-                    module.Id,
-                    "open",
-                    new Progress<string>(AppendActivity),
-                    CancellationToken.None).ConfigureAwait(true);
-
-                AppendModuleActionOutput(module, "open", openOutput);
-                SetModuleActionFeedback(
-                    $"{module.Name}: start finished, opening module",
-                    $"{BuildModuleActionFeedbackDetail(output)}\n\nOpen output:\n{BuildModuleActionFeedbackDetail(openOutput)}");
-                OpenFirstUrlFromOutput(module, openOutput);
-            }
-
             if (normalizedAction is not "logs" and not "open")
             {
                 await RefreshModuleStateAsync().ConfigureAwait(true);
             }
 
-            StatusMessage = $"{module.Name} {normalizedAction} finished.";
+            StatusMessage = $"{module.Name} {actionLabel} finished.";
         }
         catch (Exception ex)
         {
-            StatusMessage = $"{module.Name} {normalizedAction} needs attention.";
-            AppendActivity($"{module.Name} {normalizedAction} warning: {ex.Message}");
+            StatusMessage = $"{module.Name} {actionLabel} needs attention.";
+            AppendActivity($"{module.Name} {actionLabel} warning: {ex.Message}");
             SetModuleActionFeedback(
-                $"{module.Name}: {normalizedAction} needs attention",
+                $"{module.Name}: {actionLabel} needs attention",
                 BuildModuleActionFeedbackDetail(ex.Message));
             if (string.Equals(normalizedAction, "logs", StringComparison.OrdinalIgnoreCase))
             {
@@ -3141,13 +3145,6 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                 ex.Message);
             return false;
         }
-    }
-
-    private static bool ShouldShowExternalBrowserAction(NymphModuleViewModel module)
-    {
-        return module.HasInstalledModuleUi &&
-               string.Equals(module.InstalledModuleUiInfo?.Type, "local_url", StringComparison.OrdinalIgnoreCase) &&
-               module.Capabilities.Any(capability => string.Equals(capability, "start", StringComparison.OrdinalIgnoreCase));
     }
 
     private void UninstallModule(NymphModuleViewModel? module)
