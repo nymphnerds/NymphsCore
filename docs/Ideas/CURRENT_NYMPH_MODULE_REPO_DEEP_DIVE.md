@@ -491,7 +491,7 @@ not detected
 Current standard reference:
 
 ```text
-docs/Ideas/NYMPH_PLUGIN_STANDARDIZATION_HANDOFF.md
+docs/NYMPHS_MODULE_MAKING_GUIDE.md
 ```
 
 Recommended future module repo:

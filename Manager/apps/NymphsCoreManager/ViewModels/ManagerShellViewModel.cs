@@ -658,6 +658,8 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             {
                 OnPropertyChanged(nameof(BaseRuntimeStatusLabel));
                 OnPropertyChanged(nameof(BaseRuntimeStatusBrush));
+                OnPropertyChanged(nameof(BaseRuntimeInstallPath));
+                OnPropertyChanged(nameof(BaseRuntimeDriveSummary));
                 OnPropertyChanged(nameof(CanChooseBaseRuntimeDrive));
                 _setupBaseRuntimeCommand.RaiseCanExecuteChanged();
                 _uninstallBaseRuntimeCommand.RaiseCanExecuteChanged();
@@ -697,10 +699,10 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
     public string BaseRuntimeDriveSummary =>
         ManagedDistroDetected
-            ? "Existing managed distro detected. Repairs reuse its current Windows location."
+            ? "Current runtime location. Unregister to choose another drive."
             : SelectedBaseRuntimeDrive is null
                 ? "No fixed Windows drive is available for the managed distro."
-                : $"Fresh install target: {SelectedBaseRuntimeDrive.InstallPath}";
+                : "Choose where the fresh runtime will be installed.";
 
     public bool CanChooseBaseRuntimeDrive => !ManagedDistroDetected && !IsBusy;
 
@@ -917,9 +919,9 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
         try
         {
-            await RefreshSystemChecksAsync().ConfigureAwait(true);
             await RefreshBaseRuntimeStateAsync().ConfigureAwait(true);
             await RefreshModuleRosterAsync().ConfigureAwait(true);
+            await RefreshSystemChecksAsync().ConfigureAwait(true);
             LoadHistoricalLogs();
             StatusMessage = "Manager shell loaded. Refreshing live status...";
             AppendActivity("Manager shell loaded. Refreshing live status.");
@@ -1261,7 +1263,8 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
     {
         try
         {
-            var existingDistroName = await _workflowService.GetExistingManagedDistroNameAsync(CancellationToken.None).ConfigureAwait(true);
+            using var runtimeStateTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            var existingDistroName = await _workflowService.GetExistingManagedDistroNameAsync(runtimeStateTimeout.Token).ConfigureAwait(true);
             ManagedDistroDetected = !string.IsNullOrWhiteSpace(existingDistroName);
             if (ManagedDistroDetected)
             {
@@ -1401,6 +1404,12 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                 InstalledModulesSummary = "Module registry could not be loaded yet.";
                 AvailableModulesSummary = "Check network access or the Nymphs registry JSON.";
             }
+            else
+            {
+                RebuildModuleCollections();
+                RebuildModuleNavigation();
+                HasLoadedModuleState = true;
+            }
 
             return;
         }
@@ -1415,6 +1424,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         await PrimeModulePresenceAsync(manifests).ConfigureAwait(true);
         RebuildModuleCollections();
         RebuildModuleNavigation();
+        HasLoadedModuleState = true;
 
         if (CurrentPageKind == ManagerPageKind.Module && !string.IsNullOrWhiteSpace(selectedModuleId))
         {

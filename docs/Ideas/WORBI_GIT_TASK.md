@@ -23,7 +23,7 @@ Package WORBI so that `NymphsCore Manager` can discover, install, and manage it 
 
 ## 3. Design References
 
-- **Current module standard**: `NymphsCore/docs/Ideas/NYMPH_PLUGIN_STANDARDIZATION_HANDOFF.md`
+- **Current module standard**: `NymphsCore/docs/NYMPHS_MODULE_MAKING_GUIDE.md`
 - **Current installer**: `/home/nymph/Nymphs-Brain/WORBI` (source project)
 
 ---

@@ -88,16 +88,69 @@ public sealed class InstallerWorkflowService
 
     public async Task<IReadOnlyList<SystemCheckItem>> RunSystemChecksAsync(CancellationToken cancellationToken)
     {
+        var wslAvailabilityTask = RunSystemCheckWithTimeoutAsync(
+            CheckWslAvailabilityAsync,
+            TimeSpan.FromSeconds(4),
+            new SystemCheckItem(
+                "WSL availability",
+                "Checks that WSL is installed and ready for this installer.",
+                CheckState.Fail,
+                "WSL did not respond within 4 seconds. Startup is continuing; refresh again once WSL has settled.",
+                key: WslAvailabilityCheckKey),
+            cancellationToken);
+
+        var distroTask = RunSystemCheckWithTimeoutAsync(
+            CheckExistingWslDistrosAsync,
+            TimeSpan.FromSeconds(4),
+            new SystemCheckItem(
+                "Existing WSL distros",
+                "Warns if this machine already has one or more WSL distros installed.",
+                CheckState.Warning,
+                "WSL distro listing did not respond within 4 seconds. Startup is continuing.",
+                key: ExistingWslDistrosCheckKey),
+            cancellationToken);
+
+        var nvidiaTask = RunSystemCheckWithTimeoutAsync(
+            CheckNvidiaStatusAsync,
+            TimeSpan.FromSeconds(3),
+            new SystemCheckItem(
+                "NVIDIA driver visibility",
+                "Checks that the Windows NVIDIA runtime tooling is available.",
+                CheckState.Warning,
+                "nvidia-smi did not respond within 3 seconds. GPU status can be checked again after startup."),
+            cancellationToken);
+
+        await Task.WhenAll(wslAvailabilityTask, distroTask, nvidiaTask).ConfigureAwait(false);
+
         var items = new List<SystemCheckItem>
         {
             CheckAdministratorStatus(),
             CheckDriveAvailability(),
-            await CheckWslAvailabilityAsync(cancellationToken).ConfigureAwait(false),
-            await CheckExistingWslDistrosAsync(cancellationToken).ConfigureAwait(false),
-            await CheckNvidiaStatusAsync(cancellationToken).ConfigureAwait(false),
+            wslAvailabilityTask.Result,
+            distroTask.Result,
+            nvidiaTask.Result,
         };
 
         return items;
+    }
+
+    private static async Task<SystemCheckItem> RunSystemCheckWithTimeoutAsync(
+        Func<CancellationToken, Task<SystemCheckItem>> checkFactory,
+        TimeSpan timeout,
+        SystemCheckItem timeoutResult,
+        CancellationToken cancellationToken)
+    {
+        using var timeoutSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeoutSource.CancelAfter(timeout);
+
+        try
+        {
+            return await checkFactory(timeoutSource.Token).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            return timeoutResult;
+        }
     }
 
     public async Task ImportBaseDistroAsync(
@@ -3353,7 +3406,7 @@ meta:
             cancellationToken);
     }
 
-    private Task<CommandResult> RunWslCommandAsync(
+    private async Task<CommandResult> RunWslCommandAsync(
         InstallSettings settings,
         IEnumerable<string> commandArguments,
         IProgress<string>? progress,
@@ -3369,13 +3422,43 @@ meta:
         };
         arguments.AddRange(commandArguments);
 
-        return _processRunner.RunAsync(
+        var result = await _processRunner.RunAsync(
             fileName: "wsl.exe",
             arguments,
             workingDirectory: Environment.SystemDirectory,
             progress,
             environmentVariables: null,
-            cancellationToken);
+            cancellationToken).ConfigureAwait(false);
+
+        if (!IsTransientWslServiceFailure(result))
+        {
+            return result;
+        }
+
+        progress?.Report($"WSL service error while talking to '{settings.DistroName}'. Restarting that distro and retrying once.");
+        await _processRunner.RunAsync(
+            fileName: "wsl.exe",
+            arguments: ["--terminate", settings.DistroName],
+            workingDirectory: Environment.SystemDirectory,
+            progress: null,
+            environmentVariables: null,
+            cancellationToken).ConfigureAwait(false);
+
+        await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken).ConfigureAwait(false);
+
+        return await _processRunner.RunAsync(
+            fileName: "wsl.exe",
+            arguments,
+            workingDirectory: Environment.SystemDirectory,
+            progress,
+            environmentVariables: null,
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    private static bool IsTransientWslServiceFailure(CommandResult result)
+    {
+        return result.ExitCode != 0 &&
+               result.CombinedOutput.Contains("Wsl/Service/E_UNEXPECTED", StringComparison.OrdinalIgnoreCase);
     }
 
     private static string ValueOrDash(string? value)
@@ -4162,16 +4245,26 @@ meta:
     {
         var probeTargets = modules
             .Where(module => !string.IsNullOrWhiteSpace(module.Id))
-            .Select(module =>
+            .SelectMany(module =>
             {
                 var normalizedModuleId = module.Id.Trim().ToLowerInvariant();
-                return new
+                var resolvedRoots = new[]
                 {
-                    ModuleId = normalizedModuleId,
-                    InstallRoot = ResolveNymphModuleInstallRoot(settings, normalizedModuleId, module.InstallRoot),
+                    ResolveNymphModuleInstallRoot(settings, normalizedModuleId, module.InstallRoot),
+                    GetNymphModuleInstallRoot(settings, normalizedModuleId),
+                    $"/home/{settings.LinuxUser}/{normalizedModuleId}",
                 };
+
+                return resolvedRoots
+                    .Where(root => !string.IsNullOrWhiteSpace(root))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .Select(root => new
+                    {
+                        ModuleId = normalizedModuleId,
+                        InstallRoot = root,
+                    });
             })
-            .GroupBy(module => module.ModuleId, StringComparer.OrdinalIgnoreCase)
+            .GroupBy(module => $"{module.ModuleId}\t{module.InstallRoot}", StringComparer.OrdinalIgnoreCase)
             .Select(group => group.First())
             .ToList();
 
@@ -4223,16 +4316,42 @@ meta:
                 continue;
             }
 
-            probes[moduleId] = new NymphModuleMarkerProbe(
+            var currentProbe = new NymphModuleMarkerProbe(
                 ModuleId: moduleId,
                 MarkerPresent: values.TryGetValue("marker_present", out var markerPresent) && string.Equals(markerPresent, "true", StringComparison.OrdinalIgnoreCase),
                 InstallRootPresent: values.TryGetValue("root_present", out var rootPresent) && string.Equals(rootPresent, "true", StringComparison.OrdinalIgnoreCase),
                 RepairCandidatePresent: values.TryGetValue("repair_present", out var repairPresent) && string.Equals(repairPresent, "true", StringComparison.OrdinalIgnoreCase),
                 Version: values.TryGetValue("version", out var version) && !string.IsNullOrWhiteSpace(version) ? version : "unknown",
                 InstallRoot: values.TryGetValue("install_root", out var installRoot) ? installRoot : "");
+
+            if (!probes.TryGetValue(moduleId, out var existingProbe) ||
+                ShouldReplaceNymphModuleMarkerProbe(existingProbe, currentProbe))
+            {
+                probes[moduleId] = currentProbe;
+            }
         }
 
         return probes;
+    }
+
+    private static bool ShouldReplaceNymphModuleMarkerProbe(NymphModuleMarkerProbe existingProbe, NymphModuleMarkerProbe candidateProbe)
+    {
+        if (candidateProbe.MarkerPresent != existingProbe.MarkerPresent)
+        {
+            return candidateProbe.MarkerPresent;
+        }
+
+        if (candidateProbe.RepairCandidatePresent != existingProbe.RepairCandidatePresent)
+        {
+            return candidateProbe.RepairCandidatePresent;
+        }
+
+        if (candidateProbe.InstallRootPresent != existingProbe.InstallRootPresent)
+        {
+            return candidateProbe.InstallRootPresent;
+        }
+
+        return false;
     }
 
     public async Task<NymphModuleManifestInfo?> GetNymphModuleManifestInfoAsync(

@@ -1,8 +1,48 @@
 # Nymphs Module Making Guide
 
+This is the source-of-truth community module standard for NymphsCore.
+
 This guide is for people who want to build community modules for NymphsCore.
 
 The goal is simple: a module author should be able to build, test, and ship a Nymph module without reading Manager source code.
+
+## How This Standard Evolves
+
+This standard is defined by testing real modules, one at a time.
+
+Do not treat planning notes as the contract. When a module test proves a rule,
+update this guide first, then update the Manager, module repo, registry entry,
+or UI standard as needed.
+
+Current proof order:
+
+1. Base Runtime: proves the managed WSL shell, install location, runtime logs,
+   Windows WSL readiness, and shared runtime identity.
+2. WORBI: proves the light module lifecycle: install, status, start, stop,
+   logs, open, uninstall, marker handling, custom UI, and preserved user data.
+3. Z-Image: proves heavyweight GPU/runtime behavior: model downloads,
+   backend health, long actions, cache preservation, and Blender-facing image
+   generation.
+4. TRELLIS: proves 3D asset output, artifact metadata, and Blender/Unity
+   consumption.
+5. Brain: proves long-running services, secrets, model management, and chat/API
+   style backends.
+
+Testing loop:
+
+```text
+test module -> discover rule -> update this guide -> update implementation -> retest
+```
+
+Supporting docs:
+
+- `NYMPH_MODULE_UI_STANDARD.md`: focused contract for installed module UI.
+- `Ideas/CURRENT_NYMPH_MODULE_REPO_DEEP_DIVE.md`: migration notes for current
+  module repos.
+- `Ideas/NYMPH_PLUGIN_STANDARDIZATION_HANDOFF.md`: session handoff and current
+  proof-state notes.
+- `Ideas/NYMPH_MANIFEST_DRAFT.md`: older manifest design sketch; useful
+  background, but this guide wins when there is a conflict.
 
 ## Mental Model
 
@@ -162,6 +202,73 @@ Manager interpretation rule:
 - A `status` script must agree with the marker.
 - If the marker exists but `status` fails, times out, or reports `installed=false`, the Manager should keep the module in the installed group and surface a status warning/detail. It should not demote the module to available, and it should not show a scary top-level install state.
 - The proper fix for a marker/status mismatch is in the module status script or manifest path, not a Manager hardcode.
+
+## Installed Detection Standard
+
+The working Manager detection path is deliberately two-stage.
+
+Stage 1 is a fast marker scan:
+
+```text
+registry/manifest roster -> resolve install root -> check <install root>/.nymph-module-version
+```
+
+If the marker exists, the module is shown as installed immediately. This keeps
+Home responsive and avoids waiting for every backend to prove runtime health.
+
+Stage 2 is the module `status` action:
+
+```text
+status -> key=value snapshot -> runtime health/detail
+```
+
+Status is the recovery and verification path. The Manager still runs status in
+the background because the fast marker scan can fail when WSL is slow to wake,
+when a manifest path is wrong, or when the distro service has just recovered.
+
+The rule is:
+
+```text
+fast marker scan may promote Available -> Installed
+status may promote Available -> Installed
+status may add health/detail warnings
+status must not demote marker-installed modules to Available
+```
+
+Do not remove the status recovery pass just to make startup feel faster. Make
+the shell responsive first, then refresh status in the background.
+
+For now, the canonical marker path is:
+
+```text
+<resolved install root>/.nymph-module-version
+```
+
+`install.root` is preferred, then `runtime.install_root`, then registry
+`install_root`, then the Manager's module-id fallback. Future manifest fields
+such as `install.version_marker` or `install.installed_markers` may be added
+only after at least one proof module ships them and the Manager tests that path.
+
+## Startup Performance Standard
+
+Startup should be boring and quick:
+
+- Load registry/manifest cards first.
+- Prime installed state from the fast marker scan.
+- Show the Home grid as soon as the roster is ready.
+- Run Windows/system checks with short timeouts.
+- Run module status in the background after the shell is usable.
+- Keep per-module status bounded and safe.
+- Do not run heavyweight health checks, model scans, downloads, or smoke tests
+  as part of startup status.
+
+The bottom status line should distinguish these phases:
+
+```text
+Manager shell loaded.
+Refreshing live status...
+Manager shell refreshed.
+```
 
 ## Status Contract
 

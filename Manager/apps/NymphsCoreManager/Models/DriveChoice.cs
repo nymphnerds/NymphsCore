@@ -19,4 +19,9 @@ public sealed class DriveChoice
     public string InstallPath => Path.Combine(RootPath, "WSL", "NymphsCore");
 
     public string DisplayLabel => $"{RootPath} ({FreeGiB} GB free)";
+
+    public override string ToString()
+    {
+        return DisplayLabel;
+    }
 }
