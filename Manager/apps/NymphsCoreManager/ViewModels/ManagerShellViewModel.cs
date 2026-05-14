@@ -1717,6 +1717,11 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             secondaryParts.Add($"URL: {url}");
         }
 
+        if (string.Equals(module.Id, "brain", StringComparison.OrdinalIgnoreCase))
+        {
+            AddBrainModuleStatusDetails(secondaryParts, snapshot);
+        }
+
         module.ApplyState(
             snapshot.IsInstalled,
             snapshot.IsRunning,
@@ -1773,6 +1778,12 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         AddStatusValue(parts, "models_ready", snapshot.Get("models_ready"));
         AddStatusValue(parts, "recommended_precision", snapshot.Get("recommended_precision"));
         AddStatusValue(parts, "gpu_vram_mb", snapshot.Get("gpu_vram_mb"));
+        AddStatusValue(parts, "llm_running", snapshot.Get("llm_running"));
+        AddStatusValue(parts, "mcp_running", snapshot.Get("mcp_running"));
+        AddStatusValue(parts, "open_webui_running", snapshot.Get("open_webui_running"));
+        AddStatusValue(parts, "local_model", snapshot.Get("local_model"));
+        AddStatusValue(parts, "remote_model", snapshot.Get("remote_model"));
+        AddStatusValue(parts, "openrouter_key", snapshot.Get("openrouter_key"));
 
         if (!string.IsNullOrWhiteSpace(snapshot.Detail))
         {
@@ -1780,6 +1791,49 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         }
 
         return string.Join(" ", parts);
+    }
+
+    private static void AddBrainModuleStatusDetails(ICollection<string> parts, NymphStatusSnapshot snapshot)
+    {
+        AddStatusLine(parts, "LLM", FormatRunningState(snapshot.Get("llm_running")));
+        AddStatusLine(parts, "MCP", FormatRunningState(snapshot.Get("mcp_running")));
+        AddStatusLine(parts, "WebUI", FormatRunningState(snapshot.Get("open_webui_running")));
+        AddStatusLine(parts, "Local model", FormatBrainModelValue(snapshot.Get("local_model")));
+        AddStatusLine(parts, "Remote model", FormatBrainModelValue(snapshot.Get("remote_model")));
+        AddStatusLine(parts, "OpenRouter key", FormatOpenRouterKeyState(snapshot.Get("openrouter_key")));
+    }
+
+    private static void AddStatusLine(ICollection<string> parts, string label, string? value)
+    {
+        if (!string.IsNullOrWhiteSpace(value))
+        {
+            parts.Add($"{label}: {value}");
+        }
+    }
+
+    private static string FormatRunningState(string? value)
+    {
+        return string.Equals(value, "true", StringComparison.OrdinalIgnoreCase)
+            ? "Running"
+            : string.Equals(value, "false", StringComparison.OrdinalIgnoreCase)
+                ? "Stopped"
+                : ValueOrFallback(value, "Unknown");
+    }
+
+    private static string FormatOpenRouterKeyState(string? value)
+    {
+        return string.Equals(value, "saved", StringComparison.OrdinalIgnoreCase)
+            ? "Saved"
+            : string.Equals(value, "not_set", StringComparison.OrdinalIgnoreCase)
+                ? "Not set"
+                : ValueOrFallback(value, "Unknown");
+    }
+
+    private static string FormatBrainModelValue(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value) || string.Equals(value, "none", StringComparison.OrdinalIgnoreCase)
+            ? "None"
+            : value.Trim();
     }
 
     private static string FirstNonEmptyLine(string? message)
@@ -3356,8 +3410,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                     "Module logs are shown below.");
             }
 
-            var shouldOpenInManager = resultMode is "open_in_manager" or "manager_url" ||
-                                      (resultMode is "show_output" && normalizedAction is "start" or "open");
+            var shouldOpenInManager = resultMode is "open_in_manager" or "manager_url";
             if (shouldOpenInManager)
             {
                 if (!OpenFirstUrlFromOutput(module, output, quietWhenMissing: true) &&
@@ -3561,7 +3614,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             return detail;
         }
 
-        return string.Join(Environment.NewLine, guideLines);
+        return $"{detail}{Environment.NewLine}{Environment.NewLine}{string.Join(Environment.NewLine, guideLines)}";
     }
 
     private static string BuildModuleDetailPaneTitle(NymphModuleViewModel module)
