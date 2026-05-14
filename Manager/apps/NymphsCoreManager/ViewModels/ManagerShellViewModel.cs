@@ -15,6 +15,7 @@ namespace NymphsCoreManager.ViewModels;
 
 public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 {
+    private const string CloseModuleUiActionName = "__close_module_ui";
     private readonly InstallerWorkflowService _workflowService;
     private readonly SharedSecretsService _sharedSecretsService = new();
     private readonly InstallSettings _settings;
@@ -366,7 +367,41 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                 return Array.Empty<NymphModuleActionInfo>();
             }
 
-            return DisplayedModule.ManagerActions;
+            if (!string.Equals(DisplayedModule.Id, "brain", StringComparison.OrdinalIgnoreCase))
+            {
+                return DisplayedModule.ManagerActions;
+            }
+
+            var actions = new List<NymphModuleActionInfo>();
+            foreach (var action in DisplayedModule.ManagerActions)
+            {
+                var actionName = action.ActionName.Trim().ToLowerInvariant();
+                if (actionName == "start" && DisplayedModule.IsRunning)
+                {
+                    continue;
+                }
+
+                if (actionName == "stop" && !DisplayedModule.IsRunning)
+                {
+                    continue;
+                }
+
+                if (actionName == "webui" && CurrentPageKind == ManagerPageKind.ModuleUi)
+                {
+                    actions.Add(action with
+                    {
+                        Id = "close_webui",
+                        Label = "Close WebUI",
+                        EntryPoint = CloseModuleUiActionName,
+                        ResultMode = "manager_close"
+                    });
+                    continue;
+                }
+
+                actions.Add(action);
+            }
+
+            return actions;
         }
     }
 
@@ -911,6 +946,8 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             OnPropertyChanged(nameof(IsStandardContentPage));
             OnPropertyChanged(nameof(ShowHomeCheckingState));
             OnPropertyChanged(nameof(ShowHomeContent));
+            OnPropertyChanged(nameof(DisplayedModuleContractActions));
+            _runModuleActionCommand.RaiseCanExecuteChanged();
         }
     }
 
@@ -2961,6 +2998,12 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         }
 
         var normalizedAction = actionInfo.ActionName.Trim().ToLowerInvariant();
+        if (normalizedAction == CloseModuleUiActionName)
+        {
+            return CurrentPageKind == ManagerPageKind.ModuleUi &&
+                   DisplayedModule.IsInstalled;
+        }
+
         if (IsBusy && normalizedAction is not "stop" and not "logs")
         {
             return false;
@@ -3323,6 +3366,14 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
         var normalizedAction = actionInfo.ActionName.Trim().ToLowerInvariant();
         var actionLabel = string.IsNullOrWhiteSpace(actionInfo.DisplayLabel) ? normalizedAction : actionInfo.DisplayLabel;
+        if (normalizedAction == CloseModuleUiActionName)
+        {
+            ShowModulePage(module);
+            StatusMessage = $"{module.Name} WebUI closed.";
+            AppendActivity($"{module.Name} WebUI closed.");
+            return;
+        }
+
         var resultMode = string.IsNullOrWhiteSpace(actionInfo.ResultMode)
             ? "show_output"
             : actionInfo.ResultMode.Trim().ToLowerInvariant();
@@ -4108,11 +4159,13 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(DisplayedModuleInstallOptionsTitle));
         OnPropertyChanged(nameof(ShowInstalledModuleActions));
         OnPropertyChanged(nameof(ShowInstalledModuleActionGroups));
+        OnPropertyChanged(nameof(DisplayedModuleContractActions));
         OnPropertyChanged(nameof(DisplayedModuleInstallFields));
         OnPropertyChanged(nameof(DisplayedModuleActionGroups));
         OnPropertyChanged(nameof(ShowDeleteModuleData));
         OnPropertyChanged(nameof(ShowModuleUiAction));
         _repairModuleCommand.RaiseCanExecuteChanged();
+        _runModuleActionCommand.RaiseCanExecuteChanged();
         _runModuleActionGroupCommand.RaiseCanExecuteChanged();
     }
 
