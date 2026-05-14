@@ -289,7 +289,7 @@ public sealed class NymphModuleViewModel : ViewModelBase
     {
         ManagerActions = manifest.ManagerActions;
         OnPropertyChanged(nameof(ManagerActions));
-        OverviewLinks = manifest.OverviewLinks;
+        OverviewLinks = BuildOverviewLinks(manifest);
         ManagerActionGroups = PreserveActionGroupFieldState(ManagerActionGroups, manifest.ManagerActionGroups);
         OnPropertyChanged(nameof(ManagerActionGroups));
         OnPropertyChanged(nameof(ManagerActionGroupLinks));
@@ -316,17 +316,15 @@ public sealed class NymphModuleViewModel : ViewModelBase
             Detail = manifest.Description;
         }
 
-        var sourceLine = string.IsNullOrWhiteSpace(manifest.SourceSummary)
-            ? manifest.ManifestUrl
-            : manifest.SourceSummary;
         RepositoryUrl = manifest.RepositoryUrl;
         var overviewDetail = string.IsNullOrWhiteSpace(manifest.OverviewDetail)
             ? ""
-            : $"{manifest.OverviewDetail}\n\n";
-        var manifestDetail = $"{overviewDetail}Registry manifest: {manifest.ManifestUrl}\nSource: {sourceLine}";
+            : manifest.OverviewDetail;
+        var manifestDetail = overviewDetail;
         SecondaryDetail = IsInstalled &&
                           !string.IsNullOrWhiteSpace(SecondaryDetail) &&
-                          !SecondaryDetail.Contains("Registry manifest:", StringComparison.OrdinalIgnoreCase)
+                          !string.IsNullOrWhiteSpace(manifestDetail) &&
+                          !SecondaryDetail.Contains(manifestDetail, StringComparison.OrdinalIgnoreCase)
             ? $"{SecondaryDetail}\n\n{manifestDetail}"
             : manifestDetail;
 
@@ -434,6 +432,37 @@ public sealed class NymphModuleViewModel : ViewModelBase
         }
 
         return nextFields;
+    }
+
+    private static IReadOnlyList<NymphModuleActionLinkInfo> BuildOverviewLinks(NymphModuleManifestInfo manifest)
+    {
+        var links = new List<NymphModuleActionLinkInfo>();
+        AddOverviewLink(links, "Registry manifest", manifest.ManifestUrl);
+        AddOverviewLink(links, "Source repo", manifest.RepositoryUrl);
+        if (!string.Equals(manifest.SourceSummary, manifest.RepositoryUrl, StringComparison.OrdinalIgnoreCase))
+        {
+            AddOverviewLink(links, "Source", manifest.SourceSummary);
+        }
+
+        foreach (var link in manifest.OverviewLinks)
+        {
+            AddOverviewLink(links, link.Label, link.Url);
+        }
+
+        return links;
+    }
+
+    private static void AddOverviewLink(List<NymphModuleActionLinkInfo> links, string label, string url)
+    {
+        if (string.IsNullOrWhiteSpace(url) ||
+            !Uri.TryCreate(url.Trim(), UriKind.Absolute, out var uri) ||
+            (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps) ||
+            links.Any(link => string.Equals(link.Url, uri.AbsoluteUri, StringComparison.OrdinalIgnoreCase)))
+        {
+            return;
+        }
+
+        links.Add(new NymphModuleActionLinkInfo(label, uri.AbsoluteUri));
     }
 
     private static string NormalizeInstallOptionsTitle(string? title)

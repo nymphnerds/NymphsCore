@@ -2194,7 +2194,7 @@
                                    TextWrapping="Wrap" />
                         <StackPanel Margin="0,10,0,0"
                                     Visibility="{Binding DisplayedModule.HasOverviewLinks, Converter={StaticResource BoolToVisibilityConverter}}">
-                          <TextBlock Text="Guide links:"
+                          <TextBlock Text="Links:"
                                      Foreground="#D8EAE6"
                                      FontWeight="SemiBold"
                                      FontSize="12"
