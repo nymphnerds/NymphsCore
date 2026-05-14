@@ -2349,12 +2349,13 @@
 		                      </StackPanel>
 
                         <StackPanel>
-                          <WrapPanel>
+                          <StackPanel Orientation="Horizontal"
+                                      Margin="0,0,0,0">
                             <ItemsControl ItemsSource="{Binding SecretFields}"
                                           Visibility="{Binding HasSecretFields, Converter={StaticResource BoolToVisibilityConverter}}">
                               <ItemsControl.ItemsPanel>
                                 <ItemsPanelTemplate>
-                                  <WrapPanel />
+                                  <StackPanel Orientation="Horizontal" />
                                 </ItemsPanelTemplate>
                               </ItemsControl.ItemsPanel>
                               <ItemsControl.ItemTemplate>
@@ -2422,7 +2423,7 @@
                                          FontFamily="Cascadia Mono"
                                          FontSize="12" />
                             </Button>
-                          </WrapPanel>
+                          </StackPanel>
                           <WrapPanel>
                             <ItemsControl ItemsSource="{Binding OptionFields}"
                                           Visibility="{Binding HasOptionFields, Converter={StaticResource BoolToVisibilityConverter}}">
