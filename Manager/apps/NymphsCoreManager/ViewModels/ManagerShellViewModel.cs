@@ -1724,13 +1724,17 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             AddBrainModuleStatusDetails(secondaryParts, snapshot);
         }
 
+        var detail = isBrainModule && snapshot.IsInstalled
+            ? "Live Brain status"
+            : snapshot.Detail;
+
         module.ApplyState(
             snapshot.IsInstalled,
             snapshot.IsRunning,
             snapshot.IsInstalled ? ValueOrFallback(snapshot.Version, "unknown") : "Not installed",
             stateLabel,
             statusBrush,
-            snapshot.Detail,
+            detail,
             secondaryParts.Count == 0
                 ? "Status came from the module-owned status entrypoint."
                 : string.Join(Environment.NewLine, secondaryParts));
@@ -1798,13 +1802,12 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
     private static void AddBrainModuleStatusDetails(ICollection<string> parts, NymphStatusSnapshot snapshot)
     {
         parts.Add(
-            "Brain: " +
-            $"LLM {FormatRunningState(snapshot.Get("llm_running"))} | " +
-            $"MCP {FormatRunningState(snapshot.Get("mcp_running"))} | " +
-            $"WebUI {FormatRunningState(snapshot.Get("open_webui_running"))} | " +
-            $"Local {FormatBrainModelValue(snapshot.Get("local_model"))} | " +
-            $"Remote {FormatBrainModelValue(snapshot.Get("remote_model"))} | " +
-            $"Key {FormatOpenRouterKeyState(snapshot.Get("openrouter_key"))}");
+            $"LLM: {FormatRunningState(snapshot.Get("llm_running"))}   |   " +
+            $"MCP: {FormatRunningState(snapshot.Get("mcp_running"))}   |   " +
+            $"WebUI: {FormatRunningState(snapshot.Get("open_webui_running"))}");
+        parts.Add($"Local model: {FormatBrainModelValue(snapshot.Get("local_model"))}");
+        parts.Add($"Remote model: {FormatBrainModelValue(snapshot.Get("remote_model"))}");
+        parts.Add($"OpenRouter key: {FormatOpenRouterKeyState(snapshot.Get("openrouter_key"))}");
     }
 
     private static string FormatRunningState(string? value)
