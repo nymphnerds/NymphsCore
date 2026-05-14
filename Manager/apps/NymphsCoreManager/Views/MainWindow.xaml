@@ -1086,6 +1086,11 @@
                        Foreground="#9BB9B4"
                        FontSize="11"
                        TextTrimming="CharacterEllipsis" />
+            <TextBlock Margin="0,3,0,0"
+                       Text="{Binding RuntimeBrainRemoteModelLabel}"
+                       Foreground="#9BB9B4"
+                       FontSize="11"
+                       TextTrimming="CharacterEllipsis" />
           </StackPanel>
           <TextBlock Margin="0,8,0,0"
                      Text="{Binding LastRefreshedText}"

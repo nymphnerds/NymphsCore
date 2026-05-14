@@ -71,7 +71,8 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
     private string _runtimeGpuVramLabel = "Unavailable";
     private string _runtimeGpuTempLabel = "Unavailable";
     private string _runtimeBrainLlmStateLabel = "LLM: Offline";
-    private string _runtimeBrainModelLabel = "Model: -";
+    private string _runtimeBrainModelLabel = "Local: -";
+    private string _runtimeBrainRemoteModelLabel = "Remote: -";
     private string _runtimeBrainContextLabel = "Context: -";
     private string _runtimeBrainTokensPerSecondLabel = "TPS: -";
     private double _runtimeCpuBarWidth;
@@ -658,6 +659,12 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
     {
         get => _runtimeBrainModelLabel;
         private set => SetProperty(ref _runtimeBrainModelLabel, value);
+    }
+
+    public string RuntimeBrainRemoteModelLabel
+    {
+        get => _runtimeBrainRemoteModelLabel;
+        private set => SetProperty(ref _runtimeBrainRemoteModelLabel, value);
     }
 
     public string RuntimeBrainContextLabel
@@ -1461,6 +1468,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         RuntimeGpuTempLabel = snapshot.GpuTempLabel;
         RuntimeBrainLlmStateLabel = snapshot.BrainLlmStateLabel;
         RuntimeBrainModelLabel = snapshot.BrainModelLabel;
+        RuntimeBrainRemoteModelLabel = snapshot.BrainRemoteModelLabel;
         RuntimeBrainContextLabel = snapshot.BrainContextLabel;
         RuntimeBrainTokensPerSecondLabel = snapshot.BrainTokensPerSecondLabel;
         RuntimeCpuBarWidth = ComputeRuntimeBarWidth(snapshot.CpuPercent);

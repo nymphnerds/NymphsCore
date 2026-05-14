@@ -720,6 +720,7 @@ public sealed class InstallerWorkflowService
                 gpuTelemetry.GpuTemp,
                 brainTelemetry.BrainLlmStateLabel,
                 brainTelemetry.BrainModelLabel,
+                brainTelemetry.BrainRemoteModelLabel,
                 brainTelemetry.BrainContextLabel,
                 brainTelemetry.BrainTokensPerSecondLabel);
         }
@@ -729,7 +730,7 @@ public sealed class InstallerWorkflowService
         }
     }
 
-    private async Task<(string BrainLlmStateLabel, string BrainModelLabel, string BrainContextLabel, string BrainTokensPerSecondLabel)> GetShellBrainTelemetryAsync(
+    private async Task<(string BrainLlmStateLabel, string BrainModelLabel, string BrainRemoteModelLabel, string BrainContextLabel, string BrainTokensPerSecondLabel)> GetShellBrainTelemetryAsync(
         InstallSettings settings,
         CancellationToken cancellationToken)
     {
@@ -738,18 +739,19 @@ public sealed class InstallerWorkflowService
             var snapshot = await GetNymphsBrainMonitorAsync(settings, cancellationToken).ConfigureAwait(false);
             if (!snapshot.IsRunning)
             {
-                return ("LLM: Offline", "Model: -", "Context: -", "TPS: -");
+                return ("LLM: Offline", $"Local: {ValueOrDash(snapshot.LocalModel)}", $"Remote: {ValueOrDash(snapshot.RemoteModel)}", "Context: -", "TPS: -");
             }
 
             return (
                 "LLM: Running",
-                $"Model: {ValueOrDash(snapshot.Model)}",
+                $"Local: {ValueOrDash(snapshot.LocalModel)}",
+                $"Remote: {ValueOrDash(snapshot.RemoteModel)}",
                 $"Context: {ValueOrDash(snapshot.Context)}",
                 $"TPS: {ValueOrDash(snapshot.TokensPerSecond)}");
         }
         catch
         {
-            return ("LLM: Unknown", "Model: -", "Context: -", "TPS: -");
+            return ("LLM: Unknown", "Local: -", "Remote: -", "Context: -", "TPS: -");
         }
     }
 
@@ -1687,10 +1689,14 @@ public sealed class InstallerWorkflowService
         var modelsJson = await QueryNymphsBrainModelsEndpointAsync(settings, cancellationToken)
             .ConfigureAwait(false);
         var isRunning = !string.IsNullOrWhiteSpace(pid) || !string.IsNullOrWhiteSpace(modelsJson);
+        var localModel = await QueryNymphsBrainMonitorValueAsync(settings, installedMonitorScriptPath, "local-model", cancellationToken)
+            .ConfigureAwait(false);
+        var remoteModel = await QueryNymphsBrainMonitorValueAsync(settings, installedMonitorScriptPath, "remote-model", cancellationToken)
+            .ConfigureAwait(false);
 
         if (!isRunning)
         {
-            return BrainMonitorSnapshot.Offline;
+            return new BrainMonitorSnapshot(false, "-", ValueOrDash(localModel), ValueOrDash(remoteModel), "-", "-", "-", "-");
         }
 
         var model = await QueryNymphsBrainMonitorValueAsync(settings, installedMonitorScriptPath, "model", cancellationToken)
@@ -1707,6 +1713,8 @@ public sealed class InstallerWorkflowService
         var snapshot = new BrainMonitorSnapshot(
             true,
             ValueOrDash(model),
+            ValueOrDash(localModel),
+            ValueOrDash(remoteModel),
             ValueOrDash(context) == "-" ? "Unavailable" : ValueOrDash(context),
             ValueOrDash(vram),
             ValueOrDash(temp),
@@ -2008,6 +2016,8 @@ public sealed class InstallerWorkflowService
         return new BrainMonitorSnapshot(
             isRunning,
             ValueOrDash(values, "model"),
+            ValueOrDash(values, "local_model"),
+            ValueOrDash(values, "remote_model"),
             isRunning && context == "-" ? "Unavailable" : context,
             ValueOrDash(values, "vram"),
             ValueOrDash(values, "temp"),

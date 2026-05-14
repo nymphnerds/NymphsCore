@@ -25,6 +25,24 @@ case "${1:-}" in
         fi
         ;;
 
+    local-model)
+        model=$(sed -n 's/^MODEL_KEY="\([^"]*\)".*/\1/p' "$LMS_START" 2>/dev/null | head -1 || true)
+        if [ -n "$model" ]; then
+            echo "$model"
+        else
+            echo "-"
+        fi
+        ;;
+
+    remote-model)
+        model=$(sed -n 's/^REMOTE_LLM_MODEL=//p' "$HOME/Nymphs-Brain/secrets/llm-wrapper.env" 2>/dev/null | tail -1 || true)
+        if [ -n "$model" ]; then
+            echo "$model"
+        else
+            echo "-"
+        fi
+        ;;
+
     context)
         ctx=$(grep -oP 'CONTEXT_LENGTH="?\K[0-9]+' "$LMS_START" 2>/dev/null | head -1 || true)
         if [ -n "$ctx" ]; then
@@ -65,7 +83,7 @@ case "${1:-}" in
         ;;
 
     *)
-        echo "Usage: monitor_query.sh {pid|model|context|gpu-vram|gpu-temp|tps}"
+        echo "Usage: monitor_query.sh {pid|model|local-model|remote-model|context|gpu-vram|gpu-temp|tps}"
         exit 1
         ;;
 esac

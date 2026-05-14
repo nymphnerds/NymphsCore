@@ -15,6 +15,7 @@ public sealed record ShellRuntimeMonitorSnapshot(
     string GpuTempLabel,
     string BrainLlmStateLabel,
     string BrainModelLabel,
+    string BrainRemoteModelLabel,
     string BrainContextLabel,
     string BrainTokensPerSecondLabel)
 {
@@ -32,7 +33,8 @@ public sealed record ShellRuntimeMonitorSnapshot(
         "Unavailable",
         "Unavailable",
         "LLM: Offline",
-        "Model: -",
+        "Local: -",
+        "Remote: -",
         "Context: -",
         "TPS: -");
 }
