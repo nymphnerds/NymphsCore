@@ -2504,6 +2504,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         StatusMessage = $"Installing {module.Name} from the Nymphs registry...";
         ShowModuleLogs = false;
         var installLines = new List<string>();
+        var installEnvironment = BuildInstallFieldEnvironment(module);
         ApplyModuleLifecycleState(
             module,
             "Installing",
@@ -2511,7 +2512,6 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             "Installing",
             $"{module.Name} install is running inside the managed WSL distro.",
             "Status refresh is paused for this module until the lifecycle action finishes.");
-        var installEnvironment = BuildInstallFieldEnvironment(module);
         SetModuleActionFeedback(
             $"{module.Name}: installing",
             BuildInstallFieldFeedback(module, installEnvironment));
@@ -3135,8 +3135,57 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                 continue;
             }
 
-            selections[field.Name] = value;
+            RememberInstallFieldSelection(module, field, value, allowDefaultOverwrite: false);
         }
+    }
+
+    public void RememberInstallFieldSelection(NymphModuleActionFieldInfo? field, string? value)
+    {
+        var module = _allModules.FirstOrDefault(candidate =>
+            candidate.InstallFields.Any(installField => ReferenceEquals(installField, field))) ??
+            DisplayedModule;
+        if (module is null || field is null)
+        {
+            return;
+        }
+
+        RememberInstallFieldSelection(module, field, value, allowDefaultOverwrite: true);
+    }
+
+    private void RememberInstallFieldSelection(
+        NymphModuleViewModel module,
+        NymphModuleActionFieldInfo field,
+        string? value,
+        bool allowDefaultOverwrite)
+    {
+        if (!field.IsOptionField)
+        {
+            return;
+        }
+
+        var normalizedValue = value?.Trim() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(normalizedValue) ||
+            normalizedValue.Length > 256 ||
+            !field.Options.Any(option => string.Equals(option.Value, normalizedValue, StringComparison.Ordinal)))
+        {
+            return;
+        }
+
+        if (!_installFieldSelections.TryGetValue(module.Id, out var selections))
+        {
+            selections = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            _installFieldSelections[module.Id] = selections;
+        }
+
+        if (!allowDefaultOverwrite &&
+            selections.TryGetValue(field.Name, out var existingValue) &&
+            !string.Equals(existingValue, field.DefaultValue, StringComparison.Ordinal) &&
+            string.Equals(normalizedValue, field.DefaultValue, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        selections[field.Name] = normalizedValue;
     }
 
     private void ApplyRememberedInstallFieldSelections(NymphModuleViewModel? module)

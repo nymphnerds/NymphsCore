@@ -2280,6 +2280,7 @@
                                       SelectedValue="{Binding SelectedValue, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                       SelectedValuePath="Value"
                                       TextSearch.TextPath="Label"
+                                      SelectionChanged="InstallFieldComboBox_SelectionChanged"
                                       Style="{StaticResource DarkComboBoxStyle}"
                                       Width="236"
                                       MinHeight="24"
