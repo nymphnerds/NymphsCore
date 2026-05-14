@@ -2374,8 +2374,6 @@
                                           Visibility="{Binding IsSecret, Converter={StaticResource BoolToVisibilityConverter}}">
                                       <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="220" />
-                                        <ColumnDefinition Width="10" />
-                                        <ColumnDefinition Width="106" />
                                       </Grid.ColumnDefinitions>
                                       <PasswordBox Style="{StaticResource CompactSecretBoxStyle}"
                                                    Width="220"
@@ -2398,19 +2396,6 @@
                                                    TextWrapping="NoWrap"
                                                    VerticalAlignment="Center" />
                                       </Border>
-                                      <Button Style="{StaticResource ContractLinkButtonStyle}"
-                                              Grid.Column="2"
-                                              Width="106"
-                                              Margin="0"
-                                              Command="{Binding DataContext.ClearModuleActionSecretCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                              CommandParameter="{Binding}"
-                                              ToolTip="{Binding ClearSecretToolTip}"
-                                              Visibility="{Binding HasSavedSecret, Converter={StaticResource BoolToVisibilityConverter}}">
-                                        <TextBlock Text="remove secret"
-                                                   Foreground="#23E7DB"
-                                                   FontFamily="Cascadia Mono"
-                                                   FontSize="10.5" />
-                                      </Button>
                                     </Grid>
                                   </StackPanel>
                                 </DataTemplate>
@@ -2427,6 +2412,30 @@
                                          FontFamily="Cascadia Mono"
                                          FontSize="11.5" />
                             </Button>
+                            <ItemsControl ItemsSource="{Binding SecretFields}"
+                                          Visibility="{Binding HasSecretFields, Converter={StaticResource BoolToVisibilityConverter}}">
+                              <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                  <StackPanel Orientation="Horizontal" />
+                                </ItemsPanelTemplate>
+                              </ItemsControl.ItemsPanel>
+                              <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                  <Button Style="{StaticResource ContractLinkButtonStyle}"
+                                          Width="92"
+                                          Margin="0,0,10,6"
+                                          Command="{Binding DataContext.ClearModuleActionSecretCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                          CommandParameter="{Binding}"
+                                          ToolTip="{Binding ClearSecretToolTip}"
+                                          Visibility="{Binding HasSavedSecret, Converter={StaticResource BoolToVisibilityConverter}}">
+                                    <TextBlock Text="remove key"
+                                               Foreground="#23E7DB"
+                                               FontFamily="Cascadia Mono"
+                                               FontSize="10.5" />
+                                  </Button>
+                                </DataTemplate>
+                              </ItemsControl.ItemTemplate>
+                            </ItemsControl>
                           </StackPanel>
                           <WrapPanel>
                             <ItemsControl ItemsSource="{Binding OptionFields}"
