@@ -1320,8 +1320,7 @@
                       Command="{Binding OpenGuideCommand}"
                       Content="Guide" />
 	              <Button Style="{StaticResource ManageLinkButtonStyle}"
-	                      Command="{Binding InstallModuleCommand}"
-	                      CommandParameter="{Binding DisplayedModule}"
+                          IsEnabled="{Binding ShowInstallModuleAction}"
                           Click="InstallModuleButton_Click"
 	                      Content="Install" />
 	              <Button Style="{StaticResource ManageLinkButtonStyle}"
@@ -2130,8 +2129,7 @@
 		                        Command="{Binding OpenGuideCommand}"
 		                        Content="Guide" />
 		                <Button Style="{StaticResource ManageLinkButtonStyle}"
-		                        Command="{Binding InstallModuleCommand}"
-		                        CommandParameter="{Binding DisplayedModule}"
+                                IsEnabled="{Binding ShowInstallModuleAction}"
                                 Click="InstallModuleButton_Click"
 		                        Content="Install" />
 		                <Button Style="{StaticResource ManageLinkButtonStyle}"

@@ -760,6 +760,13 @@ window.addEventListener('DOMContentLoaded', function() {
     private void InstallModuleButton_Click(object sender, RoutedEventArgs e)
     {
         SyncModuleOptionComboBoxes(ModuleInstallFieldsControl);
+        if (DataContext is ManagerShellViewModel viewModel &&
+            viewModel.InstallModuleCommand.CanExecute(viewModel.DisplayedModule))
+        {
+            viewModel.InstallModuleCommand.Execute(viewModel.DisplayedModule);
+        }
+
+        e.Handled = true;
     }
 
     private static void SyncModuleOptionComboBoxes(DependencyObject root)
