@@ -741,7 +741,8 @@ window.addEventListener('DOMContentLoaded', function() {
     {
         if (sender is not ComboBox comboBox ||
             comboBox.DataContext is not NymphModuleActionFieldInfo field ||
-            comboBox.SelectedValue is null)
+            comboBox.SelectedValue is null ||
+            (!comboBox.IsKeyboardFocusWithin && !comboBox.IsDropDownOpen))
         {
             return;
         }

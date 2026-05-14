@@ -343,9 +343,12 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
     public bool ShowDeleteModuleData => string.Equals(DisplayedModule?.Id, "worbi", StringComparison.OrdinalIgnoreCase);
 
-    public bool ShowInstallModuleAction => DisplayedModule?.CanInstall == true;
+    public bool ShowInstallModuleAction => DisplayedModule?.CanInstall == true && !IsModuleLifecycleActive(DisplayedModule);
 
-    public bool ShowModuleInstallFields => DisplayedModule?.CanInstall == true && DisplayedModule.InstallOptionFields.Count > 0;
+    public bool ShowModuleInstallFields =>
+        DisplayedModule?.CanInstall == true &&
+        !IsModuleLifecycleActive(DisplayedModule) &&
+        DisplayedModule.InstallOptionFields.Count > 0;
 
     public bool ShowInstalledModuleActions => DisplayedModule?.IsInstalled == true && DisplayedModule.ManagerActions.Count > 0;
 
@@ -3081,6 +3084,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
     private IReadOnlyDictionary<string, string?> BuildInstallFieldEnvironment(NymphModuleViewModel module)
     {
         RememberInstallFieldSelections(module);
+        ApplyRememberedInstallFieldSelections(module);
         var environment = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
         foreach (var field in module.InstallFields)
         {
@@ -3105,6 +3109,11 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         }
 
         return environment;
+    }
+
+    private bool IsModuleLifecycleActive(NymphModuleViewModel? module)
+    {
+        return module is not null && _modulesWithActiveLifecycle.Contains(module.Id);
     }
 
     private void RememberInstallFieldSelections(NymphModuleViewModel? module)
