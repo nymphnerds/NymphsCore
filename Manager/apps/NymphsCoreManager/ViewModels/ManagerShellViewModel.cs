@@ -2482,6 +2482,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             return;
         }
 
+        var installEnvironment = BuildInstallFieldEnvironment(module);
         var confirmation = MessageBox.Show(
             $"Install {module.Name} from the Nymphs registry?\n\nThe manager will read nymphs-registry, clone the trusted module repo, and run its install script inside the managed WSL distro.",
             "Install Module",
@@ -2493,7 +2494,6 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             return;
         }
 
-        var installEnvironment = BuildInstallFieldEnvironment(module);
         IsBusy = true;
         _modulesWithActiveLifecycle.Add(module.Id);
         StatusMessage = $"Installing {module.Name} from the Nymphs registry...";
