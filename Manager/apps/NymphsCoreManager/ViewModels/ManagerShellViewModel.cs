@@ -2699,7 +2699,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             ? "the latest registry version"
             : module.RemoteVersionLabel;
         var confirmation = MessageBox.Show(
-            $"Update {module.Name} to {remoteVersion} from the Nymphs registry?\n\nThe manager will fetch the module repo again and rerun its install/update script inside the managed WSL distro.",
+            $"Update {module.Name} to {remoteVersion} from the Nymphs registry?\n\nThe manager will fetch the module repo again and run the module update entrypoint when available.",
             "Update Module",
             MessageBoxButton.YesNo,
             MessageBoxImage.Question);
@@ -2723,11 +2723,11 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             "Status refresh is paused for this module until the lifecycle action finishes.");
         SetModuleActionFeedback(
             $"{module.Name}: updating",
-            "Fetching the module registry entry and rerunning the module install/update flow...");
+            "Fetching the module registry entry and running the module update flow...");
 
         try
         {
-            await _workflowService.RunNymphModuleInstallFromRegistryAsync(
+            await _workflowService.RunNymphModuleUpdateFromRegistryAsync(
                 _settings,
                 module.Id,
                 CreateModuleLiveProgress(module, "update", updateLines),

@@ -5470,6 +5470,47 @@ meta:
         }
     }
 
+    public async Task RunNymphModuleUpdateFromRegistryAsync(
+        InstallSettings settings,
+        string moduleId,
+        IProgress<string> progress,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(moduleId))
+        {
+            throw new ArgumentException("Module id is required.", nameof(moduleId));
+        }
+
+        var normalizedModuleId = moduleId.Trim().ToLowerInvariant();
+        var stagedInstallScriptPath = $"/tmp/nymphs-manager-update-{normalizedModuleId}.sh";
+        var scriptArguments = new List<string>
+        {
+            "--module",
+            normalizedModuleId,
+            "--action",
+            "update",
+        };
+
+        progress.Report($"Updating module '{moduleId}' from the Nymphs registry...");
+
+        var result = await RunPackagedManagerScriptAsync(
+            settings,
+            "install_nymph_module_from_registry.sh",
+            stagedInstallScriptPath,
+            scriptArguments,
+            "update",
+            progress,
+            cancellationToken).ConfigureAwait(false);
+
+        if (result.ExitCode != 0)
+        {
+            var detail = string.IsNullOrWhiteSpace(result.CombinedOutput)
+                ? $"Module registry update failed for '{moduleId}' with exit code {result.ExitCode}."
+                : $"Module registry update failed for '{moduleId}' with exit code {result.ExitCode}.\n\n{result.CombinedOutput.Trim()}";
+            throw new InvalidOperationException(detail);
+        }
+    }
+
     public InstalledNymphModuleUiInfo? GetInstalledNymphModuleUiInfo(InstallSettings settings, string moduleId)
     {
         if (string.IsNullOrWhiteSpace(moduleId))

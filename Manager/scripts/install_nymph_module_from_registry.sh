@@ -5,7 +5,7 @@ DEFAULT_REGISTRY_URL="https://raw.githubusercontent.com/nymphnerds/nymphs-regist
 
 usage() {
   cat <<'EOF'
-Usage: install_nymph_module_from_registry.sh --module <id> [--registry-url <url>] [--dry-run]
+Usage: install_nymph_module_from_registry.sh --module <id> [--registry-url <url>] [--action install|update] [--dry-run]
 
 Installs a trusted Nymph module by reading the public Nymphs registry, fetching
 that module's nymph.json, cloning the module repo, and running its install
@@ -15,6 +15,7 @@ EOF
 
 MODULE_ID=""
 REGISTRY_URL="${NYMPHS_REGISTRY_URL:-${DEFAULT_REGISTRY_URL}}"
+ACTION="install"
 DRY_RUN=0
 
 while [[ $# -gt 0 ]]; do
@@ -25,6 +26,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --registry-url)
       REGISTRY_URL="${2:-}"
+      shift 2
+      ;;
+    --action)
+      ACTION="${2:-}"
       shift 2
       ;;
     --dry-run)
@@ -50,6 +55,11 @@ if [[ -z "${MODULE_ID}" ]]; then
 fi
 
 MODULE_ID="$(printf '%s' "${MODULE_ID}" | tr '[:upper:]' '[:lower:]')"
+ACTION="$(printf '%s' "${ACTION}" | tr '[:upper:]' '[:lower:]')"
+if [[ "${ACTION}" != "install" && "${ACTION}" != "update" ]]; then
+  echo "Unsupported --action: ${ACTION}" >&2
+  exit 2
+fi
 WORK_ROOT="${NYMPHS_MODULE_WORK_ROOT:-${HOME}/.cache/nymphs-modules}"
 REPO_ROOT="${WORK_ROOT}/repos/${MODULE_ID}"
 REGISTRY_FILE="${WORK_ROOT}/registry.json"
@@ -62,9 +72,9 @@ mkdir -p "${WORK_ROOT}/repos" "${ACTION_ROOT}"
 write_action_state() {
   local status="$1"
   local detail="$2"
-  cat > "${ACTION_STATE_FILE}" <<EOF
+cat > "${ACTION_STATE_FILE}" <<EOF
 module=${MODULE_ID}
-action=install
+action=${ACTION}
 status=${status}
 pid=$$
 started_at=$(date -Is)
@@ -139,7 +149,7 @@ if [[ "${DRY_RUN}" -eq 1 ]]; then
   exit 0
 fi
 
-write_action_state "running" "Installing ${MODULE_ID} from the Nymphs registry."
+write_action_state "running" "${ACTION^} ${MODULE_ID} from the Nymphs registry."
 trap clear_action_state EXIT
 
 if [[ -d "${REPO_ROOT}/.git" ]]; then
@@ -153,38 +163,43 @@ fi
 cp "${REPO_ROOT}/nymph.json" "${MANIFEST_FILE}"
 
 INSTALL_ENTRYPOINT="$(
-  python3 - "$MANIFEST_FILE" <<'PY'
+  python3 - "$MANIFEST_FILE" "$ACTION" <<'PY'
 import json
 import sys
 
-with open(sys.argv[1], "r", encoding="utf-8") as handle:
+manifest_path, action = sys.argv[1], sys.argv[2]
+with open(manifest_path, "r", encoding="utf-8") as handle:
     manifest = json.load(handle)
 
-entrypoint = str(manifest.get("entrypoints", {}).get("install", "")).strip()
+entrypoints = manifest.get("entrypoints", {})
+entrypoint = ""
+if action == "update":
+    entrypoint = str(entrypoints.get("update", "")).strip()
+entrypoint = entrypoint or str(entrypoints.get("install", "")).strip()
 if not entrypoint:
     raise SystemExit("module manifest has no install entrypoint")
 if entrypoint.startswith("/") or ".." in entrypoint.split("/"):
-    raise SystemExit("module install entrypoint is not a safe relative path")
+    raise SystemExit("module entrypoint is not a safe relative path")
 print(entrypoint)
 PY
 )"
 
 INSTALL_SCRIPT="${REPO_ROOT}/${INSTALL_ENTRYPOINT}"
 if [[ ! -f "${INSTALL_SCRIPT}" ]]; then
-  echo "Install entrypoint is missing: ${INSTALL_SCRIPT}" >&2
+  echo "Module entrypoint is missing: ${INSTALL_SCRIPT}" >&2
   exit 5
 fi
 
 chmod +x "${INSTALL_SCRIPT}"
-echo "install_entrypoint=${INSTALL_ENTRYPOINT}"
-echo "Installing ${MODULE_ID}..."
+echo "${ACTION}_entrypoint=${INSTALL_ENTRYPOINT}"
+echo "${ACTION^} ${MODULE_ID}..."
 set +e
 "${INSTALL_SCRIPT}"
 INSTALL_STATUS=$?
 set -e
 if [[ "${INSTALL_STATUS}" -ne 0 ]]; then
-  echo "ERROR: install entrypoint failed for ${MODULE_ID} with exit code ${INSTALL_STATUS}." >&2
+  echo "ERROR: ${ACTION} entrypoint failed for ${MODULE_ID} with exit code ${INSTALL_STATUS}." >&2
   exit "${INSTALL_STATUS}"
 fi
-echo "Installed ${MODULE_ID}."
+echo "${ACTION^}d ${MODULE_ID}."
 exit 0

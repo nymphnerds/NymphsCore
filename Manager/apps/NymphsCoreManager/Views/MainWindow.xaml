@@ -2368,21 +2368,21 @@
                                                FontSize="10.5"
                                                VerticalAlignment="Center"
                                                TextAlignment="Right"
-                                               Width="145"
+                                               Width="122"
                                                Margin="0,0,7,0" />
-                                    <Grid Width="426"
+                                    <Grid Width="386"
                                           Visibility="{Binding IsSecret, Converter={StaticResource BoolToVisibilityConverter}}">
                                       <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="300" />
+                                        <ColumnDefinition Width="270" />
                                         <ColumnDefinition Width="10" />
-                                        <ColumnDefinition Width="116" />
+                                        <ColumnDefinition Width="106" />
                                       </Grid.ColumnDefinitions>
                                       <PasswordBox Style="{StaticResource CompactSecretBoxStyle}"
-                                                   Width="300"
+                                                   Width="270"
                                                    PasswordChanged="ModuleActionSecretBox_PasswordChanged"
                                                    ToolTip="{Binding SecretInputToolTip}"
                                                    Visibility="{Binding ShowSecretInput, Converter={StaticResource BoolToVisibilityConverter}}" />
-                                      <Border Width="300"
+                                      <Border Width="270"
                                               MinHeight="24"
                                               Padding="7,3"
                                               Background="#101B1D"
@@ -2396,7 +2396,7 @@
                                       </Border>
                                       <Button Style="{StaticResource ContractLinkButtonStyle}"
                                               Grid.Column="2"
-                                              Width="116"
+                                              Width="106"
                                               Margin="0"
                                               Command="{Binding DataContext.ClearModuleActionSecretCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                               CommandParameter="{Binding}"
@@ -2413,7 +2413,7 @@
                               </ItemsControl.ItemTemplate>
                             </ItemsControl>
                             <Button Style="{StaticResource ModuleActionButtonStyle}"
-                                    Width="180"
+                                    Width="148"
                                     Margin="0,0,10,6"
                                     Command="{Binding DataContext.RunModuleActionGroupCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                     CommandParameter="{Binding}">
