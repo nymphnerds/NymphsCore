@@ -2389,12 +2389,12 @@
                                               Background="#101B1D"
                                               BorderBrush="#284446"
                                               BorderThickness="1"
+                                              ClipToBounds="True"
                                               Visibility="{Binding ShowSavedSecretMask, Converter={StaticResource BoolToVisibilityConverter}}">
                                         <TextBlock Text="{Binding SavedSecretMask}"
                                                    Foreground="#E4F2EF"
                                                    FontSize="11"
                                                    TextWrapping="NoWrap"
-                                                   TextTrimming="Clip"
                                                    VerticalAlignment="Center" />
                                       </Border>
                                       <Button Style="{StaticResource ContractLinkButtonStyle}"
