@@ -1322,6 +1322,7 @@
 	              <Button Style="{StaticResource ManageLinkButtonStyle}"
 	                      Command="{Binding InstallModuleCommand}"
 	                      CommandParameter="{Binding DisplayedModule}"
+                          Click="InstallModuleButton_Click"
 	                      Content="Install" />
 	              <Button Style="{StaticResource ManageLinkButtonStyle}"
 	                      Command="{Binding UpdateModuleCommand}"
@@ -2131,6 +2132,7 @@
 		                <Button Style="{StaticResource ManageLinkButtonStyle}"
 		                        Command="{Binding InstallModuleCommand}"
 		                        CommandParameter="{Binding DisplayedModule}"
+                                Click="InstallModuleButton_Click"
 		                        Content="Install" />
 		                <Button Style="{StaticResource ManageLinkButtonStyle}"
 		                        Command="{Binding UpdateModuleCommand}"
@@ -2256,7 +2258,8 @@
                     <TextBlock Text="{Binding DisplayedModuleInstallOptionsTitle, StringFormat=// {0}}"
                                Style="{StaticResource MonoLabelStyle}"
                                Foreground="{StaticResource LimeBrush}" />
-                    <ItemsControl Margin="0,10,0,0"
+                    <ItemsControl x:Name="ModuleInstallFieldsControl"
+                                  Margin="0,10,0,0"
                                   ItemsSource="{Binding DisplayedModuleInstallFields}">
                       <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>

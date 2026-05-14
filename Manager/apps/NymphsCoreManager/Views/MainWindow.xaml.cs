@@ -757,6 +757,33 @@ window.addEventListener('DOMContentLoaded', function() {
         }
     }
 
+    private void InstallModuleButton_Click(object sender, RoutedEventArgs e)
+    {
+        SyncModuleOptionComboBoxes(ModuleInstallFieldsControl);
+    }
+
+    private static void SyncModuleOptionComboBoxes(DependencyObject root)
+    {
+        for (var index = 0; index < VisualTreeHelper.GetChildrenCount(root); index++)
+        {
+            var child = VisualTreeHelper.GetChild(root, index);
+            if (child is ComboBox comboBox &&
+                comboBox.DataContext is NymphModuleActionFieldInfo field)
+            {
+                if (comboBox.SelectedValue is string selectedValue)
+                {
+                    field.SelectedValue = selectedValue;
+                }
+                else if (comboBox.SelectedItem is NymphModuleActionOptionInfo option)
+                {
+                    field.SelectedValue = option.Value;
+                }
+            }
+
+            SyncModuleOptionComboBoxes(child);
+        }
+    }
+
     [DllImport("dwmapi.dll")]
     private static extern int DwmSetWindowAttribute(IntPtr hwnd, int dwAttribute, ref int pvAttribute, int cbAttribute);
 
