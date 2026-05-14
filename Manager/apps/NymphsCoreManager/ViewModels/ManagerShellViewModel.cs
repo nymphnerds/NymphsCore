@@ -24,6 +24,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
     private readonly string _sidebarPortraitOverrideFileName = "NymphMycelium1.png";
     private readonly List<NymphModuleViewModel> _allModules;
     private readonly HashSet<string> _modulesWithActiveLifecycle = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, Dictionary<string, string>> _installFieldSelections = new(StringComparer.OrdinalIgnoreCase);
     private readonly CancellationTokenSource _operationCancellation = new();
     private bool _shutdownStarted;
     private readonly AsyncRelayCommand _refreshCommand;
@@ -1430,6 +1431,12 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
     private async Task RefreshModuleRosterAsync()
     {
         var selectedModuleId = DisplayedModule?.Id ?? SelectedModule?.Id;
+        RememberInstallFieldSelections(DisplayedModule);
+        foreach (var module in _allModules)
+        {
+            RememberInstallFieldSelections(module);
+        }
+
         var previousModules = _allModules.ToDictionary(module => module.Id, StringComparer.OrdinalIgnoreCase);
         IReadOnlyList<NymphModuleManifestInfo> manifests;
 
@@ -1466,6 +1473,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                 module.ApplyActionGroupFieldStateFrom(previousModule);
             }
 
+            ApplyRememberedInstallFieldSelections(module);
             _allModules.Add(module);
         }
 
@@ -2479,6 +2487,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             return;
         }
 
+        RememberInstallFieldSelections(module);
         var confirmation = MessageBox.Show(
             $"Install {module.Name} from the Nymphs registry?\n\nThe manager will read nymphs-registry, clone the trusted module repo, and run its install script inside the managed WSL distro.",
             "Install Module",
@@ -2502,10 +2511,10 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             "Installing",
             $"{module.Name} install is running inside the managed WSL distro.",
             "Status refresh is paused for this module until the lifecycle action finishes.");
+        var installEnvironment = BuildInstallFieldEnvironment(module);
         SetModuleActionFeedback(
             $"{module.Name}: installing",
-            "Starting module registry install...");
-        var installEnvironment = BuildInstallFieldEnvironment(module);
+            BuildInstallFieldFeedback(module, installEnvironment));
 
         try
         {
@@ -3069,8 +3078,9 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         return (args, environment);
     }
 
-    private static IReadOnlyDictionary<string, string?> BuildInstallFieldEnvironment(NymphModuleViewModel module)
+    private IReadOnlyDictionary<string, string?> BuildInstallFieldEnvironment(NymphModuleViewModel module)
     {
+        RememberInstallFieldSelections(module);
         var environment = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
         foreach (var field in module.InstallFields)
         {
@@ -3095,6 +3105,99 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         }
 
         return environment;
+    }
+
+    private void RememberInstallFieldSelections(NymphModuleViewModel? module)
+    {
+        if (module is null || module.InstallFields.Count == 0)
+        {
+            return;
+        }
+
+        if (!_installFieldSelections.TryGetValue(module.Id, out var selections))
+        {
+            selections = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            _installFieldSelections[module.Id] = selections;
+        }
+
+        foreach (var field in module.InstallFields)
+        {
+            if (!field.IsOptionField)
+            {
+                continue;
+            }
+
+            var value = field.SelectedValue?.Trim() ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(value) ||
+                value.Length > 256 ||
+                !field.Options.Any(option => string.Equals(option.Value, value, StringComparison.Ordinal)))
+            {
+                continue;
+            }
+
+            selections[field.Name] = value;
+        }
+    }
+
+    private void ApplyRememberedInstallFieldSelections(NymphModuleViewModel? module)
+    {
+        if (module is null ||
+            module.InstallFields.Count == 0 ||
+            !_installFieldSelections.TryGetValue(module.Id, out var selections))
+        {
+            return;
+        }
+
+        foreach (var field in module.InstallFields)
+        {
+            if (!field.IsOptionField ||
+                !selections.TryGetValue(field.Name, out var value) ||
+                !field.Options.Any(option => string.Equals(option.Value, value, StringComparison.Ordinal)))
+            {
+                continue;
+            }
+
+            field.SelectedValue = value;
+        }
+    }
+
+    private static string BuildInstallFieldFeedback(
+        NymphModuleViewModel module,
+        IReadOnlyDictionary<string, string?> environment)
+    {
+        var lines = new List<string>
+        {
+            "Starting module registry install...",
+        };
+
+        var optionLines = new List<string>();
+        foreach (var field in module.InstallFields)
+        {
+            if (field.IsSecret || string.IsNullOrWhiteSpace(field.EnvironmentName))
+            {
+                continue;
+            }
+
+            var environmentName = field.EnvironmentName.Trim();
+            if (!environment.TryGetValue(environmentName, out var value) ||
+                string.IsNullOrWhiteSpace(value))
+            {
+                continue;
+            }
+
+            var optionLabel = field.Options.FirstOrDefault(option =>
+                string.Equals(option.Value, value, StringComparison.Ordinal))?.Label ?? value.Trim();
+            optionLines.Add($"{field.Label}: {optionLabel}");
+        }
+
+        if (optionLines.Count > 0)
+        {
+            lines.Add("");
+            lines.Add("Install options:");
+            lines.AddRange(optionLines);
+        }
+
+        return string.Join(Environment.NewLine, lines);
     }
 
     private static bool IsSafeEnvironmentName(string value)

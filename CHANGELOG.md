@@ -8,6 +8,23 @@ This file focuses on user-facing and system-level changes rather than package-by
 
 Newest entries first.
 
+### 2026-05-14 Module install option persistence and shutdown standard
+Source: live TRELLIS.2 module install testing with FlashAttention build options
+and Manager-close cancellation checks.
+
+Changed in source:
+
+- kept module-owned install option selections, such as TRELLIS FlashAttention
+  GPU target, stable across registry/manifest refreshes while the Manager is
+  open
+- documented the all-module shutdown contract: closing the Manager cancels
+  active module lifecycle process trees, and module scripts must not detach
+  install/fetch/smoke-test/update/repair/uninstall work into untracked
+  background processes
+- clarified that backend `start` actions may leave an intentional service
+  running only when the module records ownership state and provides a working
+  `stop` action
+
 ### 2026-05-13 Z-Image module proof promoted to module standard
 Source: live modular Manager testing with installed Z-Image Turbo, model fetch,
 smoke test, and startup marker detection in the managed `NymphsCore` runtime

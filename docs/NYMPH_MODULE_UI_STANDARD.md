@@ -165,6 +165,18 @@ If an older installed manifest is missing a requested action, the Manager may re
 
 When a module UI action starts, the Manager switches to the standard Logs page and streams stdout, stderr, and carriage-return progress there. Module UI pages should therefore trigger long jobs with `nymphs-module-action://` and let the module script print useful progress instead of trying to run downloads during page load.
 
+### Shutdown Contract
+
+Closing the Manager cancels active module action and lifecycle process trees.
+Module UI actions must not detach install, fetch, smoke-test, update, repair, or
+uninstall work into untracked background processes. If an action starts child
+processes, the module-owned script should trap `TERM` and `INT` and clean them
+up before exiting.
+
+Backend `start` actions may intentionally leave a service running, but only if
+the module records ownership state and its `stop` action can cleanly terminate
+that service.
+
 ## Native Action Groups
 
 Some module-owned UI does not need WebView2. If a module only needs compact

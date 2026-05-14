@@ -195,6 +195,23 @@ ui/
 
 Use lowercase module ids in filenames. Keep scripts self-contained and safe to run inside the managed `NymphsCore` WSL distro.
 
+## Process Shutdown Standard
+
+Closing the Manager must cancel active module lifecycle work for every module.
+
+Module install, update, repair, uninstall, fetch, and smoke-test scripts must
+keep their child work inside the process tree launched by the Manager. Do not
+use `nohup`, `disown`, detached `setsid`, or untracked background workers for
+these lifecycle jobs.
+
+If a lifecycle script starts child processes, trap `TERM` and `INT`, then stop
+those children before exiting. The Manager will cancel active module lifecycle
+process trees when the app closes; module scripts must not escape that contract.
+
+Long-running `start` scripts are the exception only when they intentionally
+start a managed backend service. In that case the module must write enough PID
+or ownership state for its `stop` script to terminate the backend cleanly.
+
 ## Manifest
 
 Every module must include `nymph.json` at repo root or package root.
