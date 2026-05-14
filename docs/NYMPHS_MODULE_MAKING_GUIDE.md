@@ -482,6 +482,57 @@ Manager interpretation rule:
 - If the marker exists but `status` fails, times out, or reports `installed=false`, the Manager should keep the module in the installed group and surface a status warning/detail. It should not demote the module to available, and it should not show a scary top-level install state.
 - The proper fix for a marker/status mismatch is in the module status script or manifest path, not a Manager hardcode.
 
+## Native Install Options
+
+Use `install.fields` only for choices that must be known before the install
+script runs, such as TRELLIS FlashAttention build limits or GPU architecture.
+Do not hardcode module-specific install choices into the Manager.
+
+Install fields follow the same compact field shape as native action-group
+fields:
+
+```json
+{
+  "install": {
+    "title": "FLASH ATTENTION OPTIONS",
+    "root": "$HOME/TRELLIS.2",
+    "entrypoint": "scripts/install_trellis.sh",
+    "fields": [
+      {
+        "name": "flash_attn_cuda_archs",
+        "type": "select",
+        "label": "GPU",
+        "env": "TRELLIS_FLASH_ATTN_CUDA_ARCHS",
+        "default": "auto",
+        "options": [
+          {
+            "label": "Auto-detect",
+            "value": "auto",
+            "description": "Read the NVIDIA compute capability"
+          },
+          {
+            "label": "SM80 / RTX 30+40",
+            "value": "sm80",
+            "description": "Compile FlashAttention for Ampere/Ada targets"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+Rules:
+
+- The Manager renders these fields before install and passes selected values to
+  the install script through the declared `env` names.
+- The install script owns validation and must fail clearly if a value is
+  unsupported.
+- Defaults should be safe. For expensive native builds, prefer a conservative
+  default and explain faster/riskier choices in the details pane.
+- The Manager may show the selected install options in the details pane while
+  the lifecycle action runs, but the module script still owns the real work.
+
 ## Installed Detection Standard
 
 The working Manager detection path is deliberately two-stage.

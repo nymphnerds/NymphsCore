@@ -17,6 +17,15 @@ Changed in source:
 - kept module-owned install option selections, such as TRELLIS FlashAttention
   GPU target, stable across registry/manifest refreshes while the Manager is
   open
+- made Manager install actions copy the currently visible native install-option
+  dropdown selections into the exact module object passed to the WSL install
+  command before launch
+- fixed module install option environment propagation so module-owned install
+  scripts receive selected values such as `TRELLIS_FLASH_ATTN_CUDA_ARCHS=sm80`,
+  `TRELLIS_FLASH_ATTN_MAX_JOBS=4`, and
+  `TRELLIS_FLASH_ATTN_NVCC_THREADS=2`
+- rebuilt the Win x64 published Manager EXE with the install-option selection
+  fixes
 - documented the all-module shutdown contract: closing the Manager cancels
   active module lifecycle process trees, and module scripts must not detach
   install/fetch/smoke-test/update/repair/uninstall work into untracked
@@ -24,6 +33,16 @@ Changed in source:
 - clarified that backend `start` actions may leave an intentional service
   running only when the module records ownership state and provides a working
   `stop` action
+
+Validated locally:
+
+- TRELLIS.2 install with the native `GPU` dropdown set to `SM80 / RTX 30+40`
+  passed `TRELLIS_FLASH_ATTN_CUDA_ARCHS=sm80` into the managed `NymphsCore` WSL
+  install process
+- FlashAttention source build ran with only
+  `-gencode arch=compute_80,code=sm_80`, confirming the selected GPU option did
+  not fall back to auto or compile the broad default architecture list
+- FlashAttention build caps were passed as `MAX_JOBS=4` and `NVCC_THREADS=2`
 
 ### 2026-05-13 Z-Image module proof promoted to module standard
 Source: live modular Manager testing with installed Z-Image Turbo, model fetch,
