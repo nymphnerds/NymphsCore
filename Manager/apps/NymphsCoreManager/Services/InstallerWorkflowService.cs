@@ -6091,8 +6091,8 @@ meta:
         var repairNeededStatus =
             $"echo id={ToBashSingleQuoted(normalizedModuleId)}; echo installed=false; echo running=false; echo runtime_present=true; echo data_present=true; echo version=not-installed; echo state=repair_needed; echo health=repair-needed; echo install_root={ToBashSingleQuoted(installRoot)}; echo detail={ToBashSingleQuoted("Existing module files were found, but the modular install marker is missing. Use Repair Module to finish or convert this install.")}; exit 0; ";
         // Installed module-owned scripts run directly, matching the old main Manager script path.
-        // Do not wrap lifecycle actions through the registry/cache resolver after install.
-        if (!isStatusAction && File.Exists(ToWindowsWslPath(settings, installedConventionalEntrypointPath)))
+        // Do not wrap installed module actions through the registry/cache resolver after install.
+        if (File.Exists(ToWindowsWslPath(settings, installedConventionalEntrypointPath)))
         {
             progress.Report($"Module action source '{normalizedModuleId}' -> installed:{installedConventionalEntrypointPath}");
             progress.Report($"Running module action '{normalizedAction}' for '{normalizedModuleId}'...");
