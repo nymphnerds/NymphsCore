@@ -13,6 +13,7 @@ public sealed record NymphModuleManifestInfo(
     string RepositoryUrl,
     string SourceSummary,
     string InstallRoot,
+    IReadOnlyList<NymphModuleActionFieldInfo> InstallFields,
     string ManagerUiTitle,
     IReadOnlyList<string> Capabilities,
     IReadOnlyList<NymphModuleActionInfo> ManagerActions,

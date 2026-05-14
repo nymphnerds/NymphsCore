@@ -33,6 +33,7 @@ public sealed class NymphModuleViewModel : ViewModelBase
         string accentBrush,
         IReadOnlyList<string> capabilities,
         IReadOnlyList<NymphModuleActionInfo> managerActions,
+        IReadOnlyList<NymphModuleActionFieldInfo>? installFields = null,
         IReadOnlyList<NymphModuleActionGroupInfo>? managerActionGroups = null,
         IReadOnlyList<string>? devCapabilities = null)
     {
@@ -46,6 +47,7 @@ public sealed class NymphModuleViewModel : ViewModelBase
         AccentBrush = accentBrush;
         Capabilities = capabilities;
         ManagerActions = managerActions;
+        InstallFields = installFields ?? Array.Empty<NymphModuleActionFieldInfo>();
         ManagerActionGroups = managerActionGroups ?? Array.Empty<NymphModuleActionGroupInfo>();
         DevCapabilities = devCapabilities ?? Array.Empty<string>();
     }
@@ -69,6 +71,13 @@ public sealed class NymphModuleViewModel : ViewModelBase
     public IReadOnlyList<string> Capabilities { get; }
 
     public IReadOnlyList<NymphModuleActionInfo> ManagerActions { get; private set; }
+
+    public IReadOnlyList<NymphModuleActionFieldInfo> InstallFields { get; private set; }
+
+    public IReadOnlyList<NymphModuleActionFieldInfo> InstallOptionFields =>
+        InstallFields.Where(field => field.IsOptionField).ToArray();
+
+    public bool HasInstallFields => InstallFields.Count > 0;
 
     public IReadOnlyList<NymphModuleActionGroupInfo> ManagerActionGroups { get; private set; }
 
@@ -265,6 +274,10 @@ public sealed class NymphModuleViewModel : ViewModelBase
         OnPropertyChanged(nameof(ManagerActionGroups));
         OnPropertyChanged(nameof(ManagerActionGroupLinks));
         OnPropertyChanged(nameof(HasManagerActionGroupLinks));
+        InstallFields = PreserveFieldState(InstallFields, manifest.InstallFields);
+        OnPropertyChanged(nameof(InstallFields));
+        OnPropertyChanged(nameof(InstallOptionFields));
+        OnPropertyChanged(nameof(HasInstallFields));
 
         if (!string.IsNullOrWhiteSpace(manifest.Version))
         {
@@ -301,9 +314,13 @@ public sealed class NymphModuleViewModel : ViewModelBase
     public void ApplyActionGroupFieldStateFrom(NymphModuleViewModel previous)
     {
         ManagerActionGroups = PreserveActionGroupFieldState(previous.ManagerActionGroups, ManagerActionGroups);
+        InstallFields = PreserveFieldState(previous.InstallFields, InstallFields);
         OnPropertyChanged(nameof(ManagerActionGroups));
         OnPropertyChanged(nameof(ManagerActionGroupLinks));
         OnPropertyChanged(nameof(HasManagerActionGroupLinks));
+        OnPropertyChanged(nameof(InstallFields));
+        OnPropertyChanged(nameof(InstallOptionFields));
+        OnPropertyChanged(nameof(HasInstallFields));
     }
 
     public void ApplyUpdateState(string? installedVersion, string? remoteVersion, bool hasUpdate, string detail)
@@ -378,6 +395,23 @@ public sealed class NymphModuleViewModel : ViewModelBase
         }
 
         return nextGroups;
+    }
+
+    private static IReadOnlyList<NymphModuleActionFieldInfo> PreserveFieldState(
+        IReadOnlyList<NymphModuleActionFieldInfo> previousFields,
+        IReadOnlyList<NymphModuleActionFieldInfo> nextFields)
+    {
+        foreach (var field in nextFields)
+        {
+            var previous = previousFields.FirstOrDefault(candidate =>
+                string.Equals(candidate.Name, field.Name, StringComparison.OrdinalIgnoreCase));
+            if (previous is not null)
+            {
+                field.ApplyTransientStateFrom(previous);
+            }
+        }
+
+        return nextFields;
     }
 
     private static bool IsUnknownVersion(string version)

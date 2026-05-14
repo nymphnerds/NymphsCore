@@ -344,6 +344,8 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
     public bool ShowInstallModuleAction => DisplayedModule?.CanInstall == true;
 
+    public bool ShowModuleInstallFields => DisplayedModule?.CanInstall == true && DisplayedModule.InstallOptionFields.Count > 0;
+
     public bool ShowInstalledModuleActions => DisplayedModule?.IsInstalled == true && DisplayedModule.ManagerActions.Count > 0;
 
     public bool ShowInstalledModuleActionGroups => DisplayedModule?.IsInstalled == true && DisplayedModule.ManagerActionGroups.Count > 0;
@@ -362,6 +364,11 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             return DisplayedModule.ManagerActions;
         }
     }
+
+    public IReadOnlyList<NymphModuleActionFieldInfo> DisplayedModuleInstallFields =>
+        DisplayedModule?.CanInstall == true
+            ? DisplayedModule.InstallOptionFields
+            : Array.Empty<NymphModuleActionFieldInfo>();
 
     public IReadOnlyList<NymphModuleActionGroupInfo> DisplayedModuleActionGroups
     {
@@ -465,10 +472,12 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                 OnPropertyChanged(nameof(ShowDevContract));
                 OnPropertyChanged(nameof(ShowDeleteModuleData));
                 OnPropertyChanged(nameof(ShowInstallModuleAction));
+                OnPropertyChanged(nameof(ShowModuleInstallFields));
                 OnPropertyChanged(nameof(ShowInstalledModuleActions));
                 OnPropertyChanged(nameof(ShowInstalledModuleActionGroups));
                 OnPropertyChanged(nameof(ShowModuleUiAction));
                 OnPropertyChanged(nameof(DisplayedModuleContractActions));
+                OnPropertyChanged(nameof(DisplayedModuleInstallFields));
                 OnPropertyChanged(nameof(DisplayedModuleActionGroups));
                 _repairModuleCommand.RaiseCanExecuteChanged();
                 _updateModuleCommand.RaiseCanExecuteChanged();
@@ -1484,6 +1493,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             BuildModuleAccent(manifest.Id, index),
             manifest.Capabilities,
             manifest.ManagerActions,
+            manifest.InstallFields,
             manifest.ManagerActionGroups,
             manifest.DevCapabilities);
 
@@ -2490,12 +2500,14 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         SetModuleActionFeedback(
             $"{module.Name}: installing",
             "Starting module registry install...");
+        var installEnvironment = BuildInstallFieldEnvironment(module);
 
         try
         {
             await _workflowService.RunNymphModuleInstallFromRegistryAsync(
                 _settings,
                 module.Id,
+                installEnvironment,
                 CreateModuleLiveProgress(module, "install", installLines),
                 _operationCancellation.Token).ConfigureAwait(true);
             StatusMessage = $"{module.Name} installed.";
@@ -3050,6 +3062,39 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         }
 
         return (args, environment);
+    }
+
+    private static IReadOnlyDictionary<string, string?> BuildInstallFieldEnvironment(NymphModuleViewModel module)
+    {
+        var environment = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
+        foreach (var field in module.InstallFields)
+        {
+            if (field.IsSecret || string.IsNullOrWhiteSpace(field.EnvironmentName))
+            {
+                continue;
+            }
+
+            var environmentName = field.EnvironmentName.Trim();
+            if (!IsSafeEnvironmentName(environmentName))
+            {
+                continue;
+            }
+
+            var value = field.SelectedValue?.Trim() ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(value) || value.Length > 256)
+            {
+                continue;
+            }
+
+            environment[environmentName] = value;
+        }
+
+        return environment;
+    }
+
+    private static bool IsSafeEnvironmentName(string value)
+    {
+        return Regex.IsMatch(value, "^[A-Za-z_][A-Za-z0-9_]*$");
     }
 
     private void ApplySecretFieldToInvocation(NymphModuleActionFieldInfo field, IDictionary<string, string> environment)
@@ -3796,8 +3841,10 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
     private void RefreshDisplayedModuleActionState()
     {
         OnPropertyChanged(nameof(ShowInstallModuleAction));
+        OnPropertyChanged(nameof(ShowModuleInstallFields));
         OnPropertyChanged(nameof(ShowInstalledModuleActions));
         OnPropertyChanged(nameof(ShowInstalledModuleActionGroups));
+        OnPropertyChanged(nameof(DisplayedModuleInstallFields));
         OnPropertyChanged(nameof(DisplayedModuleActionGroups));
         OnPropertyChanged(nameof(ShowDeleteModuleData));
         OnPropertyChanged(nameof(ShowModuleUiAction));

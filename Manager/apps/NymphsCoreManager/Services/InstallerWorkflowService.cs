@@ -4607,9 +4607,11 @@ meta:
         }
 
         var installRoot = "";
+        IReadOnlyList<NymphModuleActionFieldInfo> installFields = Array.Empty<NymphModuleActionFieldInfo>();
         if (manifestRoot.TryGetProperty("install", out var installElement) && installElement.ValueKind == JsonValueKind.Object)
         {
             installRoot = GetJsonString(installElement, "root") ?? GetJsonString(installElement, "path") ?? "";
+            installFields = ReadManagerActionGroupFields(installElement);
         }
 
         if (string.IsNullOrWhiteSpace(installRoot) &&
@@ -4671,6 +4673,7 @@ meta:
             RepositoryUrl: repositoryUrl,
             SourceSummary: sourceSummary,
             InstallRoot: installRoot,
+            InstallFields: installFields,
             ManagerUiTitle: managerUiTitle,
             Capabilities: capabilities,
             ManagerActions: managerActions,
@@ -5292,6 +5295,21 @@ meta:
         IProgress<string> progress,
         CancellationToken cancellationToken)
     {
+        await RunNymphModuleInstallFromRegistryAsync(
+            settings,
+            moduleId,
+            environmentVariables: null,
+            progress,
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task RunNymphModuleInstallFromRegistryAsync(
+        InstallSettings settings,
+        string moduleId,
+        IReadOnlyDictionary<string, string?>? environmentVariables,
+        IProgress<string> progress,
+        CancellationToken cancellationToken)
+    {
         if (string.IsNullOrWhiteSpace(moduleId))
         {
             throw new ArgumentException("Module id is required.", nameof(moduleId));
@@ -5314,7 +5332,8 @@ meta:
             scriptArguments,
             "install",
             progress,
-            cancellationToken).ConfigureAwait(false);
+            cancellationToken,
+            environmentVariables).ConfigureAwait(false);
 
         if (result.ExitCode != 0)
         {
@@ -5664,7 +5683,8 @@ meta:
         IReadOnlyList<string> scriptArguments,
         string label,
         IProgress<string> progress,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        IReadOnlyDictionary<string, string?>? environmentVariables = null)
     {
         await RunWslCommandAsync(
             settings,
@@ -5707,6 +5727,7 @@ meta:
                 settings,
                 commandArguments,
                 progress,
+                environmentVariables,
                 cancellationToken).ConfigureAwait(false);
         }
         finally
