@@ -532,7 +532,10 @@ preset:    $HOME/NymphsData/config/zimage/generation-preset.env
 
 ## Initial Adopter: TRELLIS.2
 
-The current Nymphs TRELLIS module starts the GGUF FastAPI adapter:
+Status as of 2026-05-14: implemented in `nymphnerds/trellis` with module-owned
+native model fetch controls and pushed as module version `0.1.14`.
+
+The Nymphs TRELLIS module starts the GGUF FastAPI adapter:
 
 ```text
 scripts/api_server_trellis_gguf.py
@@ -551,11 +554,11 @@ compact native Manager action section.
 User-facing options:
 
 ```text
-Q4      low VRAM
-Q5      balanced
-Q6      higher quality
-Q8      largest / maximum
-All     full local cache
+Q4_K_M  smallest download and lowest VRAM; best first proof test
+Q5_K_M  recommended balance of quality, download size, and VRAM
+Q6_K    heavier quality-focused option after Q5 works
+Q8_0    largest local GGUF option; use with plenty of VRAM and disk
+All     optional large download for Blender/addon quant switching later
 ```
 
 Suggested compact display:
@@ -571,11 +574,34 @@ HF     [token field] [saved/clear]
 [Smoke Test] [Start] [Stop] [Logs]
 ```
 
-Hugging Face links:
+Source links:
 
 ```text
-Base/support: https://huggingface.co/microsoft/TRELLIS.2-4B
-GGUF:         https://huggingface.co/Aero-Ex/Trellis2-GGUF
+Official repo:     https://github.com/microsoft/TRELLIS.2
+Project page:      https://microsoft.github.io/TRELLIS.2/
+GGUF models:       https://huggingface.co/Aero-Ex/Trellis2-GGUF
+Support checkpoint:https://huggingface.co/microsoft/TRELLIS.2-4B
+rembg u2net:       https://github.com/danielgatis/rembg/releases/tag/v0.0.0
+```
+
+The installed details guide must make clear that Fetch Models downloads more
+than one selected GGUF file:
+
+```text
+shared GGUF support files
+selected Aero-Ex/Trellis2-GGUF quant bundle
+required microsoft/TRELLIS.2-4B support checkpoint
+rembg u2net background-removal model
+```
+
+These files live under:
+
+```text
+cache:   $HOME/NymphsData/cache/huggingface
+outputs: $HOME/NymphsData/outputs/trellis
+logs:    $HOME/NymphsData/logs/trellis
+config:  $HOME/NymphsData/config/trellis/model-preset.env
+rembg:   $HOME/NymphsData/models/rembg
 ```
 
 Suggested script interface:
@@ -594,11 +620,12 @@ Optional token interface:
 NYMPHS3D_HF_TOKEN=hf_xxx scripts/trellis_fetch_models.sh --quant Q5_K_M
 ```
 
-The current script reads `TRELLIS_GGUF_QUANT`. It should also accept `--quant`
-so Manager action arguments can be clear and generic.
+The script accepts `--quant` and persists the selected normal fetch to
+`$HOME/NymphsData/config/trellis/model-preset.env`.
 
-TRELLIS addon compatibility should use the module's GGUF quant and cache/output
-paths once the TRELLIS module contract is stable.
+TRELLIS addon compatibility has a short-term path alignment fix in addon
+`1.1.236`: default port `8095`, cache/output/log env vars under
+`$HOME/NymphsData`, and migration for stale saved addon port `8094`.
 
 ## Implementation Order
 
@@ -633,12 +660,14 @@ paths once the TRELLIS module contract is stable.
 
 ### 3. TRELLIS Module Interface
 
-- declare the model fetch group in `ui.manager_action_groups`
-- add `--quant`
-- support `all`
-- keep support checkpoint fetch
-- accept `NYMPHS3D_HF_TOKEN` for authenticated Hugging Face downloads
-- save selected GGUF quant after successful normal fetch
+- done: declare the model fetch group in `ui.manager_action_groups`
+- done: add `--quant`
+- done: support `all`
+- done: keep support checkpoint fetch
+- done: accept `NYMPHS3D_HF_TOKEN` for authenticated Hugging Face downloads
+- done: save selected GGUF quant after successful normal fetch
+- done: explain shared GGUF files, selected quant bundle, support checkpoint,
+  and rembg u2net in the installed details guide
 
 ### 4. Proof
 
@@ -661,9 +690,11 @@ Proof order:
 
 After the module-side behavior is stable:
 
-- update Blender addon cache/output/log env vars
+- done short-term: update Blender addon cache/output/log env vars
 - add precision awareness for Z-Image
-- align TRELLIS GGUF quant launch with module choice
+- done short-term: align TRELLIS default addon launch port with module port
+  `8095`
+- next: align TRELLIS GGUF quant launch with module choice/preset discovery
 - add or use module discovery command/file over hardcoded addon paths
 - smoke-test Blender against module-fetched Z-Image and TRELLIS models
 

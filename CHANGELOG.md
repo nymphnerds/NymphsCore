@@ -8,6 +8,59 @@ This file focuses on user-facing and system-level changes rather than package-by
 
 Newest entries first.
 
+### 2026-05-14 TRELLIS module proof, model guide, and addon path alignment
+Source: live TRELLIS.2 modular install testing in the managed `NymphsCore` WSL
+distro, followed by addon source audit against the pushed module manifests.
+
+Changed in source:
+
+- completed the TRELLIS.2 module-owned backend pattern in
+  `nymphnerds/trellis`:
+  - install/status/start/stop/logs/fetch_models/smoke_test/uninstall scripts are
+    module-owned
+  - the installed manifest exposes a native compact `Model Fetch` action group
+  - simple module actions are `Smoke Test`, `Start`, `Stop`, and `Logs`
+  - model/cache/output/log/config paths use `$HOME/NymphsData`
+- improved the installed TRELLIS details page guide so it explains exactly what
+  Fetch Models downloads:
+  - selected `Aero-Ex/Trellis2-GGUF` quant bundle
+  - shared GGUF support files from the GGUF repo
+  - required `microsoft/TRELLIS.2-4B` support checkpoint
+  - `rembg` u2net background-removal model
+  - `Q4_K_M`, `Q5_K_M`, `Q6_K`, `Q8_0`, and optional `All quants`
+- kept TRELLIS model fetch module-owned and generic through
+  `ui.manager_action_groups`; no TRELLIS-specific Manager code was added
+- aligned the Blender addon source with the modular runtime layout:
+  - TRELLIS default port changed from `8094` to module port `8095`
+  - saved old TRELLIS port `8094` migrates to `8095`
+  - addon-launched Z-Image and TRELLIS cache/output/log env vars now point at
+    `$HOME/NymphsData`
+- bumped and pushed the addon package source to `1.1.236`
+
+Validated locally:
+
+- TRELLIS FlashAttention installed successfully as `flash-attn 2.8.3`
+- the successful FlashAttention build ran from `11:31:57` to `12:07:12`
+  on 2026-05-14, about 35 minutes, with:
+  - `FLASH_ATTN_CUDA_ARCHS=80`
+  - `MAX_JOBS=4`
+  - `NVCC_THREADS=2`
+- import check passed inside `/home/nymph/TRELLIS.2/.venv`:
+  `flash_attn import OK 2.8.3`
+- confirmed the selected FlashAttention GPU target compiled only SM80 during
+  the tested build path
+- TRELLIS module `nymph.json` parses with `python3 -m json.tool`
+- TRELLIS module scripts pass `bash -n`
+- addon source compiles with `python3 -m py_compile Nymphs.py`
+- built addon zip:
+  `/home/nymph/NymphsAddon/dist/nymphs-1.1.236.zip`
+
+Pushed:
+
+- `nymphnerds/trellis` main `ea5263b Improve TRELLIS model fetch guide`
+- `nymphnerds/NymphsAddon` main `930762e Align addon module runtime paths`
+- `nymphnerds/NymphsCore` modular docs checkpoint for this proof
+
 ### 2026-05-14 Module install option persistence and shutdown standard
 Source: live TRELLIS.2 module install testing with FlashAttention build options
 and Manager-close cancellation checks.
@@ -165,7 +218,8 @@ Validated locally:
 
 Current caveats:
 
-- TRELLIS still needs its module manifest and fetch script updated to use the same native action group pattern
+- Completed 2026-05-14: TRELLIS now uses the same native action group pattern
+  through its pushed module manifest and `scripts/trellis_fetch_models.sh`
 - Blender addon model-cache selection should be reviewed after Z-Image and TRELLIS model fetch paths settle
 
 ### 2026-05-13 Module-owned Manager actions and WORBI first standard proof

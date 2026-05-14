@@ -34,6 +34,15 @@ Testing loop:
 test module -> discover rule -> update this guide -> update implementation -> retest
 ```
 
+Current heavyweight proof state:
+
+- Z-Image proves native compact model fetch for image generation weights.
+- TRELLIS proves native compact model fetch for multi-part 3D GGUF bundles,
+  support checkpoints, and auxiliary models.
+- Both modules keep model fetch module-owned through `ui.manager_action_groups`.
+- Both modules keep generated outputs, logs, config, and reusable model caches
+  under `$HOME/NymphsData` instead of inside disposable runtime source roots.
+
 Supporting docs:
 
 - `NYMPH_MODULE_UI_STANDARD.md`: focused contract for installed module UI.
@@ -194,6 +203,20 @@ ui/
 ```
 
 Use lowercase module ids in filenames. Keep scripts self-contained and safe to run inside the managed `NymphsCore` WSL distro.
+
+For modules with model downloads, include the fetch action explicitly:
+
+```text
+scripts/
+  <module>_fetch_models.sh
+```
+
+The fetch script should accept clear module-owned arguments such as `--model`,
+`--weight`, or `--quant`, and it should persist selected runtime presets under:
+
+```text
+$HOME/NymphsData/config/<module-id>/
+```
 
 ## Process Shutdown Standard
 

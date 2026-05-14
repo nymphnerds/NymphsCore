@@ -237,6 +237,9 @@ Standard rules:
   weights.
 - If every fetch downloads a required base model first, say that clearly in the
   guide text. Do not let a user think the smallest weight is the whole download.
+- If a fetch downloads shared files plus a selected quant bundle, say that too.
+  TRELLIS, for example, fetches shared GGUF support files, the selected GGUF
+  quant bundle, a required support checkpoint, and rembg u2net.
 - If `All weights` exists, label it as optional and larger. Use it only when the
   downstream tool, such as the Blender addon, can switch between models later.
 - Let the user choose the model or quantized weight manually. Do not silently
@@ -417,6 +420,33 @@ The installed Z-Image manifest declares:
 - a `Download` selector for Nunchaku-compatible Z-Image Turbo weights
 - source links for the base model and quantized weights
 - simple module actions for `Smoke Test`, `Start`, `Stop`, and `Logs`
+
+## TRELLIS Example
+
+`nymphnerds/trellis` is the current proof for compact native model fetch
+controls with a multi-part 3D model bundle.
+
+The installed TRELLIS manifest declares:
+
+- a `Model Fetch` action group
+- a persistent `Hugging Face token` secret field
+- a `Download` selector for `Q4_K_M`, `Q5_K_M`, `Q6_K`, `Q8_0`, and optional
+  `All quants`
+- source links for the official TRELLIS project, GGUF models, support
+  checkpoint, and rembg u2net
+- simple module actions for `Smoke Test`, `Start`, `Stop`, and `Logs`
+
+Its details guide must say that Fetch Models downloads:
+
+```text
+shared GGUF support files
+selected Aero-Ex/Trellis2-GGUF quant bundle
+required microsoft/TRELLIS.2-4B support checkpoint
+rembg u2net background-removal model
+```
+
+Do not describe `Q4_K_M` as the whole download. It is the smallest selected
+quant bundle, but the fetch still needs shared files and support models.
 
 The Z-Image Fetch Models action currently offers all published compatible
 weights: INT4 r32/r128/r256 and FP4 r32/r128. `All weights` is available so the

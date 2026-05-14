@@ -317,7 +317,7 @@ Default addon backend paths are part of the de facto runtime contract:
 - TRELLIS repo: ~/TRELLIS.2
 - TRELLIS python: ~/TRELLIS.2/.venv/bin/python
 - Z-Image port: 8090
-- TRELLIS port: 8094
+- TRELLIS port: 8095
 
 Do not change these paths casually during modularization. If they change, the
 addon needs a discovery/config bridge rather than hidden Manager assumptions.
@@ -331,21 +331,31 @@ Important gotcha found in source:
   Z-Image uses another cache. This can produce exactly the confusing state where
   a user has downloaded models but status still says model files need downloading.
 
-Fix direction:
-1. Short term: update the addon launch env to match module-owned paths:
+Update, 2026-05-14:
+The short-term addon path alignment fix shipped in `NymphsAddon` `1.1.236`
+(`930762e Align addon module runtime paths`):
+
+1. Addon launch env now matches module-owned paths:
    NYMPHS_DATA_ROOT=$HOME/NymphsData
    NYMPHS3D_HF_CACHE_DIR=$HOME/NymphsData/cache/huggingface
-   HF_HOME=$HOME/NymphsData/cache/huggingface
+   HF_HOME=$HOME/NymphsData/cache/huggingface-home
    HF_HUB_CACHE=$HOME/NymphsData/cache/huggingface
    Z_IMAGE_OUTPUT_DIR=$HOME/NymphsData/outputs/zimage
    NYMPHS2D2_OUTPUT_DIR=$HOME/NymphsData/outputs/zimage
-2. Short term: decide whether addon-launched logs should also mirror the module
-   logs path or whether `zimage_logs.sh` should include the legacy
-   ~/Z-Image/logs/api_server.log path when present.
-3. Medium term: expose a small module runtime contract/discovery file or command
+   TRELLIS_OUTPUT_DIR=$HOME/NymphsData/outputs/trellis
+   TRELLIS_LOG_DIR=$HOME/NymphsData/logs/trellis
+   TRELLIS_CONFIG_DIR=$HOME/NymphsData/config/trellis
+2. Addon-launched logs now mirror module logs:
+   $HOME/NymphsData/logs/zimage/zimage-server.log
+   $HOME/NymphsData/logs/trellis/trellis-server.log
+3. The addon migrates stale saved TRELLIS port `8094` to module port `8095`.
+
+Still needed:
+
+1. Medium term: expose a small module runtime contract/discovery file or command
    so Blender can ask the installed module where python, repo root, ports, cache,
    output, and log roots are. Avoid hardcoding future module layout in the addon.
-4. Long term: consider addon start/stop calling module entrypoints when installed,
+2. Long term: consider addon start/stop calling module entrypoints when installed,
    while keeping direct launch as a developer fallback.
 
 API surface the addon expects from backends:
@@ -1091,11 +1101,12 @@ Keep that folder for now as migration/reference material while each official
 module is tested and moved into its own module repo.
 
 Do not package or call Manager/scripts/legacy from the generic Manager shell.
-Z-Image `fetch_models` must run from the module repo through
-`scripts/zimage_fetch_models.sh`. The old Manager bridge through
-`legacy/prefetch_models.sh --backend zimage` was removed because it made the
-Manager own module behavior. Keep the known-good progress and cache behavior in
-the Z-Image module script instead of reintroducing a Manager-side special case.
+Z-Image and TRELLIS `fetch_models` must run from their module repos through
+`scripts/zimage_fetch_models.sh` and `scripts/trellis_fetch_models.sh`. The old
+Manager bridge through `legacy/prefetch_models.sh --backend ...` was removed
+because it made the Manager own module behavior. Keep the known-good progress
+and cache behavior in the module scripts instead of reintroducing Manager-side
+special cases.
 After WORBI, Z-Image, LoRA, Brain, and TRELLIS are all tested from their module
 repos, delete whatever is left in Manager/scripts/legacy.
 ```
