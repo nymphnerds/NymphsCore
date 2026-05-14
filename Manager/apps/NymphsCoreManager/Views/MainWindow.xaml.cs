@@ -737,6 +737,26 @@ window.addEventListener('DOMContentLoaded', function() {
         }
     }
 
+    private void ModuleOptionComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (sender is not ComboBox comboBox ||
+            comboBox.DataContext is not NymphModuleActionFieldInfo field)
+        {
+            return;
+        }
+
+        if (comboBox.SelectedValue is string selectedValue)
+        {
+            field.SelectedValue = selectedValue;
+            return;
+        }
+
+        if (comboBox.SelectedItem is NymphModuleActionOptionInfo option)
+        {
+            field.SelectedValue = option.Value;
+        }
+    }
+
     [DllImport("dwmapi.dll")]
     private static extern int DwmSetWindowAttribute(IntPtr hwnd, int dwAttribute, ref int pvAttribute, int cbAttribute);
 
