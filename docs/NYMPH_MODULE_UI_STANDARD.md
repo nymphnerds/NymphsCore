@@ -255,6 +255,9 @@ Standard rules:
 - Long downloads should use `result: "show_logs"` and print progress lines.
 - Short validation actions, such as `Smoke Test`, should use `result:
   "show_output"` and leave a clear pass/fail result in the details pane.
+- Interactive terminal actions, such as Brain's model manager, may use `result:
+  "open_terminal"` when the module declares an installed entrypoint and the user
+  needs a real terminal session.
 - A successful smoke test must say `SMOKE TEST PASSED` or equivalent. `finished`
   is too vague for a test result.
 - The details pane should preserve the latest action result long enough for the

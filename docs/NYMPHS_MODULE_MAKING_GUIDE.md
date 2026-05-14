@@ -832,7 +832,13 @@ show_output
 open_in_manager
 open_external_browser
 open_notepad
+open_terminal
 ```
+
+Use `open_terminal` only for explicitly interactive installed module actions,
+such as a terminal model manager. The Manager opens the declared installed
+entrypoint in the managed WSL distro and leaves that terminal session under the
+user's control.
 
 Your module owns the behavior. The Manager is only the renderer, launcher, and
 safe host bridge.
@@ -876,6 +882,14 @@ compact controls that still match the Manager style
 
 Do not build a WebView2/local HTML page just to choose model files. Keep simple
 model download choices native, compact, and module-owned.
+
+Secret fields should declare a stable `secret_id` and safe environment variable
+name. Proven shared secret ids:
+
+```text
+huggingface.token -> NYMPHS3D_HF_TOKEN
+openrouter.api_key -> OPENROUTER_API_KEY
+```
 
 Example:
 

@@ -2379,7 +2379,7 @@
 	                                    <PasswordBox Style="{StaticResource CompactSecretBoxStyle}"
 	                                                 Width="300"
 	                                                 PasswordChanged="ModuleActionSecretBox_PasswordChanged"
-	                                                 ToolTip="Optional Hugging Face token. The Manager saves it for future model downloads."
+	                                                 ToolTip="{Binding SecretInputToolTip}"
 	                                                 Visibility="{Binding ShowSecretInput, Converter={StaticResource BoolToVisibilityConverter}}" />
                                     <Border Width="300"
                                             MinHeight="24"
@@ -2399,9 +2399,9 @@
 	                                            Margin="0"
 	                                            Command="{Binding DataContext.ClearModuleActionSecretCommand, RelativeSource={RelativeSource AncestorType=Window}}"
 	                                            CommandParameter="{Binding}"
-	                                            ToolTip="Remove the saved Hugging Face token from this PC"
+	                                            ToolTip="{Binding ClearSecretToolTip}"
 	                                            Visibility="{Binding HasSavedSecret, Converter={StaticResource BoolToVisibilityConverter}}">
-                                      <TextBlock Text="remove token"
+                                      <TextBlock Text="remove secret"
                                                  Foreground="#23E7DB"
                                                  FontFamily="Cascadia Mono"
                                                  FontSize="10.5" />

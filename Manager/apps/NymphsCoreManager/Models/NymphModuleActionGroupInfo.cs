@@ -206,9 +206,13 @@ public sealed class NymphModuleActionFieldInfo : ViewModelBase
 
     public bool ShowSavedSecretMask => IsSecret && HasSavedSecret;
 
-    public string SecretStatusLabel => HasSavedSecret ? "token saved" : "no token";
+    public string SecretStatusLabel => HasSavedSecret ? "secret saved" : "no secret";
 
     public string SavedSecretMask => HasSavedSecret ? "••••••••••••••••••••••••••••••••" : string.Empty;
+
+    public string SecretInputToolTip => $"Optional {Label}. The Manager saves it for future module actions.";
+
+    public string ClearSecretToolTip => $"Remove the saved {Label} from this PC";
 
     public void ApplySavedSecretState(bool hasSavedSecret)
     {
@@ -235,6 +239,11 @@ public sealed class NymphModuleActionFieldInfo : ViewModelBase
             string.Equals(label, "HF", StringComparison.OrdinalIgnoreCase))
         {
             return "Hugging Face token";
+        }
+
+        if (string.Equals(secretId, "openrouter.api_key", StringComparison.OrdinalIgnoreCase))
+        {
+            return "OpenRouter key";
         }
 
         return string.IsNullOrWhiteSpace(label) ? name : label;

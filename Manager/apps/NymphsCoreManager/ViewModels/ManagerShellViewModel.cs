@@ -111,7 +111,9 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
     {
         _workflowService = workflowService;
         _settings = CreateDefaultInstallSettings();
-        _settings.HuggingFaceToken = _sharedSecretsService.Load().HuggingFaceToken?.Trim() ?? string.Empty;
+        var sharedSecrets = _sharedSecretsService.Load();
+        _settings.HuggingFaceToken = sharedSecrets.HuggingFaceToken?.Trim() ?? string.Empty;
+        _settings.OpenRouterApiKey = sharedSecrets.OpenRouterApiKey?.Trim() ?? string.Empty;
 
         PrimaryNavigationItems = new ObservableCollection<ShellNavigationItemViewModel>
         {
@@ -2865,17 +2867,16 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             return;
         }
 
-        if (string.Equals(field.SecretId, "huggingface.token", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(field.EnvironmentName, "NYMPHS3D_HF_TOKEN", StringComparison.OrdinalIgnoreCase))
+        var secretKind = ResolveSharedSecretKind(field);
+        if (string.IsNullOrWhiteSpace(secretKind))
         {
-            _settings.HuggingFaceToken = string.Empty;
-            var existing = _sharedSecretsService.Load();
-            existing.HuggingFaceToken = string.Empty;
-            _sharedSecretsService.Save(existing);
-            field.SecretValue = string.Empty;
-            RefreshDisplayedActionGroupSecretState();
-            AppendActivity("Hugging Face token cleared for model downloads.");
+            return;
         }
+
+        SetSharedSecretValue(secretKind, string.Empty);
+        field.SecretValue = string.Empty;
+        RefreshDisplayedActionGroupSecretState();
+        AppendActivity($"{field.Label} cleared.");
     }
 
     private void OpenTextInNotepad(string name, string text)
@@ -3151,30 +3152,76 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
     private void ApplySecretFieldToInvocation(NymphModuleActionFieldInfo field, IDictionary<string, string> environment)
     {
-        if (!string.Equals(field.SecretId, "huggingface.token", StringComparison.OrdinalIgnoreCase) &&
-            !string.Equals(field.EnvironmentName, "NYMPHS3D_HF_TOKEN", StringComparison.OrdinalIgnoreCase))
+        var secretKind = ResolveSharedSecretKind(field);
+        if (string.IsNullOrWhiteSpace(secretKind))
         {
             return;
         }
 
-        var enteredToken = field.SecretValue?.Trim() ?? string.Empty;
-        if (!string.IsNullOrWhiteSpace(enteredToken))
+        var enteredSecret = field.SecretValue?.Trim() ?? string.Empty;
+        if (!string.IsNullOrWhiteSpace(enteredSecret))
         {
-            _settings.HuggingFaceToken = enteredToken;
-            var existing = _sharedSecretsService.Load();
-            existing.HuggingFaceToken = enteredToken;
-            _sharedSecretsService.Save(existing);
+            SetSharedSecretValue(secretKind, enteredSecret);
             field.SecretValue = string.Empty;
-            AppendActivity("Hugging Face token saved for model downloads.");
+            AppendActivity($"{field.Label} saved.");
         }
 
-        var token = _settings.HuggingFaceToken?.Trim() ?? string.Empty;
-        if (!string.IsNullOrWhiteSpace(token) && !string.IsNullOrWhiteSpace(field.EnvironmentName))
+        var secret = GetSharedSecretValue(secretKind).Trim();
+        if (!string.IsNullOrWhiteSpace(secret) &&
+            !string.IsNullOrWhiteSpace(field.EnvironmentName) &&
+            IsSafeEnvironmentName(field.EnvironmentName.Trim()))
         {
-            environment[field.EnvironmentName.Trim()] = token;
+            environment[field.EnvironmentName.Trim()] = secret;
         }
 
         RefreshDisplayedActionGroupSecretState();
+    }
+
+    private static string ResolveSharedSecretKind(NymphModuleActionFieldInfo field)
+    {
+        if (string.Equals(field.SecretId, "huggingface.token", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(field.EnvironmentName, "NYMPHS3D_HF_TOKEN", StringComparison.OrdinalIgnoreCase))
+        {
+            return "huggingface";
+        }
+
+        if (string.Equals(field.SecretId, "openrouter.api_key", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(field.EnvironmentName, "OPENROUTER_API_KEY", StringComparison.OrdinalIgnoreCase))
+        {
+            return "openrouter";
+        }
+
+        return string.Empty;
+    }
+
+    private string GetSharedSecretValue(string secretKind)
+    {
+        return secretKind switch
+        {
+            "huggingface" => _settings.HuggingFaceToken ?? string.Empty,
+            "openrouter" => _settings.OpenRouterApiKey ?? string.Empty,
+            _ => string.Empty,
+        };
+    }
+
+    private void SetSharedSecretValue(string secretKind, string value)
+    {
+        var existing = _sharedSecretsService.Load();
+        switch (secretKind)
+        {
+            case "huggingface":
+                _settings.HuggingFaceToken = value;
+                existing.HuggingFaceToken = value;
+                break;
+            case "openrouter":
+                _settings.OpenRouterApiKey = value;
+                existing.OpenRouterApiKey = value;
+                break;
+            default:
+                return;
+        }
+
+        _sharedSecretsService.Save(existing);
     }
 
     private bool CanRunSelectedModuleDevAction(string? action)
@@ -3230,6 +3277,33 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
         if (!module.IsInstalled)
         {
+            return;
+        }
+
+        if (resultMode is "open_terminal" or "terminal")
+        {
+            try
+            {
+                _workflowService.OpenNymphModuleActionTerminal(
+                    _settings,
+                    module.Id,
+                    normalizedAction,
+                    $"{module.Name} - {actionLabel}");
+                StatusMessage = $"{module.Name} {actionLabel} opened in a terminal.";
+                SetModuleActionFeedback(
+                    $"{module.Name}: {actionLabel} opened",
+                    "Use the terminal window to continue the interactive module action.");
+                AppendActivity($"{module.Name} {actionLabel} terminal opened.");
+            }
+            catch (Exception ex)
+            {
+                StatusMessage = $"{module.Name} {actionLabel} terminal failed to open.";
+                SetModuleActionFeedback(
+                    $"{module.Name}: {actionLabel} terminal failed",
+                    BuildModuleActionFeedbackDetail(ex.Message));
+                AppendActivity($"{module.Name} terminal action warning: {ex.Message}");
+            }
+
             return;
         }
 
@@ -3917,7 +3991,6 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
     private void RefreshActionGroupSecretState(NymphModuleViewModel module)
     {
-        var hasHuggingFaceToken = !string.IsNullOrWhiteSpace(_settings.HuggingFaceToken);
         foreach (var field in module.ManagerActionGroups.SelectMany(group => group.Fields))
         {
             if (!field.IsSecret)
@@ -3925,11 +3998,8 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                 continue;
             }
 
-            if (string.Equals(field.SecretId, "huggingface.token", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(field.EnvironmentName, "NYMPHS3D_HF_TOKEN", StringComparison.OrdinalIgnoreCase))
-            {
-                field.ApplySavedSecretState(hasHuggingFaceToken);
-            }
+            var secretKind = ResolveSharedSecretKind(field);
+            field.ApplySavedSecretState(!string.IsNullOrWhiteSpace(GetSharedSecretValue(secretKind)));
         }
     }
 

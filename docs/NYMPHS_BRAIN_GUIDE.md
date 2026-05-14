@@ -74,7 +74,7 @@ Use it to:
 - enter an optional OpenRouter key for `llm-wrapper`
 - open `Manage Models` for the local GGUF model, context length, and optional remote wrapper model
 - inspect the Brain activity log
-- update the Brain stack from the launcher
+- update or repair the Brain module through the universal Manager lifecycle rail
 
 The primary Brain button is an all-stop safety control when any Brain service is running. If LLM, MCP, or WebUI is active, it shows `Stop Brain` and stops the active pieces it can manage.
 
@@ -90,7 +90,7 @@ If you want remote OpenRouter-backed delegation inside Brain:
 2. paste an OpenRouter API key into the one-line `OpenRouter key` field
 3. click `Apply Key`
 4. use `Manage Models` to pick the remote `llm-wrapper` model
-5. start Brain or run `Update Stack`
+5. start Brain, or use the universal Update/Repair controls if the module files need refreshing
 
 If no key is configured, Brain omits `llm-wrapper` from MCP, mcpo, Open WebUI, and generated Cline settings while keeping the rest of the stack running.
 
@@ -217,7 +217,9 @@ Update the Linux-side runtime layer:
 wsl -d NymphsCore --user nymph -- bash -lc "/home/nymph/Nymphs-Brain/bin/lms-update"
 ```
 
-The Manager Brain page `Update Stack` action reruns the packaged Brain installer in quiet refresh mode before Open WebUI updates. This refreshes installed wrapper scripts, including the llama-server launch logic, while preserving the selected local model where possible.
+The modular Manager uses the universal module Update/Repair controls to refresh
+Brain module files from the trusted registry. This replaces the old hardcoded
+`Update Stack` button.
 
 Update Open WebUI:
 

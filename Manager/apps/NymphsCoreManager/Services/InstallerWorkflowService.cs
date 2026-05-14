@@ -3917,6 +3917,85 @@ meta:
         }
     }
 
+    public void OpenNymphModuleActionTerminal(
+        InstallSettings settings,
+        string moduleId,
+        string action,
+        string title)
+    {
+        if (string.IsNullOrWhiteSpace(moduleId))
+        {
+            throw new ArgumentException("Module id is required.", nameof(moduleId));
+        }
+
+        if (string.IsNullOrWhiteSpace(action))
+        {
+            throw new ArgumentException("Module action is required.", nameof(action));
+        }
+
+        var normalizedModuleId = moduleId.Trim().ToLowerInvariant();
+        var normalizedAction = action.Trim().ToLowerInvariant();
+        if (!Regex.IsMatch(normalizedModuleId, "^[a-z0-9][a-z0-9_-]{0,39}$", RegexOptions.CultureInvariant) ||
+            !Regex.IsMatch(normalizedAction, "^[a-z0-9][a-z0-9_-]{0,39}$", RegexOptions.CultureInvariant))
+        {
+            throw new ArgumentException("Unsupported module terminal action.");
+        }
+
+        var installRoot = GetNymphModuleInstallRoot(settings, normalizedModuleId);
+        var entrypoint = ResolveInstalledNymphModuleActionEntrypoint(settings, normalizedModuleId, normalizedAction);
+        if (string.IsNullOrWhiteSpace(entrypoint))
+        {
+            throw new InvalidOperationException($"Installed module action is not declared: {normalizedModuleId}/{normalizedAction}");
+        }
+
+        var actionPath = $"{installRoot}/{entrypoint}";
+        if (!File.Exists(ToWindowsWslPath(settings, actionPath)))
+        {
+            throw new FileNotFoundException($"Installed module action script is missing: {actionPath}");
+        }
+
+        var terminalTitle = string.IsNullOrWhiteSpace(title)
+            ? $"{normalizedModuleId} - {normalizedAction}"
+            : title.Trim();
+
+        try
+        {
+            var startInfo = new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = "wt.exe",
+                UseShellExecute = false,
+            };
+            startInfo.ArgumentList.Add("new-tab");
+            startInfo.ArgumentList.Add("--title");
+            startInfo.ArgumentList.Add(terminalTitle);
+            startInfo.ArgumentList.Add("wsl.exe");
+            startInfo.ArgumentList.Add("-d");
+            startInfo.ArgumentList.Add(settings.DistroName);
+            startInfo.ArgumentList.Add("--user");
+            startInfo.ArgumentList.Add(settings.LinuxUser);
+            startInfo.ArgumentList.Add("--");
+            startInfo.ArgumentList.Add("/bin/bash");
+            startInfo.ArgumentList.Add(actionPath);
+            System.Diagnostics.Process.Start(startInfo);
+        }
+        catch
+        {
+            var fallbackCommand =
+                $"start {QuoteWindowsCommandArgument(terminalTitle)} wsl.exe " +
+                $"-d {QuoteWindowsCommandArgument(settings.DistroName)} " +
+                $"--user {QuoteWindowsCommandArgument(settings.LinuxUser)} " +
+                "-- /bin/bash " +
+                QuoteWindowsCommandArgument(actionPath);
+
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = "cmd.exe",
+                Arguments = $"/c {fallbackCommand}",
+                UseShellExecute = false,
+            });
+        }
+    }
+
 #if LEGACY_MANAGER_MODULE_TOOLS
     public void OpenZImageTrainerDatasetsFolder(InstallSettings settings)
     {
@@ -5708,6 +5787,45 @@ meta:
         catch
         {
             return false;
+        }
+    }
+
+    private static string ResolveInstalledNymphModuleActionEntrypoint(
+        InstallSettings settings,
+        string normalizedModuleId,
+        string normalizedAction)
+    {
+        var installRoot = GetNymphModuleInstallRoot(settings, normalizedModuleId);
+        var manifestWindowsPath = ToWindowsWslPath(settings, $"{installRoot}/nymph.json");
+        if (!File.Exists(manifestWindowsPath))
+        {
+            return string.Empty;
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(File.ReadAllText(manifestWindowsPath));
+            var root = document.RootElement;
+            var entrypoint = "";
+            if (root.TryGetProperty("entrypoints", out var entrypointsElement) &&
+                entrypointsElement.ValueKind == JsonValueKind.Object)
+            {
+                entrypoint = GetJsonString(entrypointsElement, normalizedAction) ?? "";
+            }
+
+            var safeEntrypoint = NormalizeSafeRelativeModulePath(entrypoint);
+            if (string.IsNullOrWhiteSpace(safeEntrypoint))
+            {
+                return string.Empty;
+            }
+
+            return File.Exists(ToWindowsWslPath(settings, $"{installRoot}/{safeEntrypoint}"))
+                ? safeEntrypoint
+                : string.Empty;
+        }
+        catch
+        {
+            return string.Empty;
         }
     }
 
