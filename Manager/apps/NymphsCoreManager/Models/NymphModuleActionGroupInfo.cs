@@ -64,11 +64,11 @@ public sealed class NymphModuleActionGroupInfo
 
     public bool HasNoOptionFields => !HasOptionFields;
 
-    public int FieldRowLeftMargin => 0;
+    public int FieldRowLeftMargin => HasOptionFields ? 0 : 24;
 
     public Thickness FieldRowMargin => new(FieldRowLeftMargin, 0, 0, 6);
 
-    public int FieldLabelWidth => HasOptionFields ? 145 : 128;
+    public double FieldLabelWidth => HasOptionFields ? 145 : double.NaN;
 
     public string FieldLabelAlignment => HasOptionFields ? "Right" : "Left";
 
