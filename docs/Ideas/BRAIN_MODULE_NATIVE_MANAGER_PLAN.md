@@ -14,6 +14,10 @@ Read these first before implementing:
 Goal: move the old hardcoded Nymphs-Brain Manager page into the modular Manager
 system without losing the working Brain UX.
 
+Status as of 2026-05-14: implemented and tested in the modular Manager shell.
+Brain is a module-owned native Manager page; Open WebUI remains the WebView2 or
+external browser surface; Manage Models remains the installed terminal flow.
+
 This plan uses the current module standard proven by WORBI, Z-Image, and
 TRELLIS. Brain should become an installable module with module-owned scripts and
 native Manager-rendered controls. Open WebUI remains the browser/WebView2 app
@@ -29,6 +33,14 @@ surface. The existing interactive model manager remains a terminal script.
   not duplicate the old monitor panel.
 - Universal Manager lifecycle controls own install/update/repair/uninstall.
 - Brain should not expose `Update Stack` as a module action.
+- The left sidebar Brain monitor shows configured `Local` and `Remote` model
+  labels separately.
+- The OpenRouter group uses the compact secret-only action-group shape:
+
+```text
+// OpenRouter
+   OpenRouter key: [masked key field] [// Apply Key] [// Remove Key]
+```
 
 ## Proven Patterns To Reuse
 

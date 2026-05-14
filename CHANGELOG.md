@@ -8,6 +8,61 @@ This file focuses on user-facing and system-level changes rather than package-by
 
 Newest entries first.
 
+### 2026-05-14 Brain module native Manager page and shared action layout
+Source: live Brain module testing in the modular Manager shell after the
+TRELLIS.2 and Z-Image native action-group proofs.
+
+Changed in source:
+
+- moved Brain into the modular Manager flow without reintroducing the old
+  hardcoded Brain page
+- added Brain module-owned actions for `Manage Models`, `LLM Dir`, `Start
+  Brain`, `Stop Brain`, `Open WebUI`, `Browser`, and `Logs`
+- kept `Manage Models` as the installed interactive terminal script instead of
+  rebuilding a partial native model picker
+- kept Open WebUI as the rich browser/WebView2 surface, with `Browser` as the
+  external fallback
+- made Brain action buttons state-aware:
+  - `Start Brain` hides while Brain is running
+  - `Stop Brain` hides while Brain is stopped
+  - the WebView2 page shows one `Close WebUI` action instead of duplicating it
+- added a native OpenRouter action group:
+  - `OpenRouter key` secret field
+  - `// Apply Key`
+  - `// Remove Key`
+  - saved OpenRouter and Hugging Face secrets are stored separately
+- standardized compact action-group rows across Brain, Z-Image, and TRELLIS:
+  - token field and dropdown use the same compact width
+  - `// Apply Key` sits on the token row
+  - `// Fetch Models` sits on the download row
+  - remove-secret controls use the same module action button style and text
+    size as other buttons
+- updated the left sidebar Brain monitor to show configured local and remote
+  models separately:
+  - `Local: <local model>`
+  - `Remote: <OpenRouter wrapper model>`
+- restored once-per-session startup module update checks so installed module
+  cards can show `Update available` without requiring a manual Check first
+- rebuilt the Win x64 published Manager EXE after each tested UI pass
+
+Validated locally:
+
+- Brain Open WebUI starts from the module action and loads in the Manager
+  WebView2 host
+- external browser fallback remains available
+- stopping Brain restores the correct Start/Stop action state
+- `// Remove Key` uses the same command-button styling as `// Apply Key` and
+  `// Fetch Models`
+- Manager build passes with `dotnet build -c Release
+  -p:EnableWindowsTargeting=true`
+
+Pushed:
+
+- `nymphnerds/brain` main through `0.1.7`
+- `nymphnerds/nymphs-registry` main Brain manifest through `0.1.7`
+- `nymphnerds/NymphsCore` modular through the Brain native Manager and monitor
+  updates
+
 ### 2026-05-14 TRELLIS module proof, model guide, and addon path alignment
 Source: live TRELLIS.2 modular install testing in the managed `NymphsCore` WSL
 distro, followed by addon source audit against the pushed module manifests.

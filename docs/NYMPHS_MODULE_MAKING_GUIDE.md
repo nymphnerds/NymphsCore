@@ -964,10 +964,26 @@ Field rules:
   `HF`.
 - `secret` fields are saved by the Manager once and injected into the module
   action through the declared environment variable. Do not print secrets.
+- For model fetch groups, the secret entry field and the dropdown should use
+  the same compact width.
+- `// Apply Key` belongs immediately after the secret field and saves the token
+  without starting the download action.
+- `// Fetch Models` belongs immediately after the selector and runs the
+  declared action.
+- Saved-secret removal should appear as `// Remove Key` with the same module
+  action button style and text size as the other buttons.
 - `links` should be real links to source model pages, not button-looking UI.
 - Long downloads should print progress and keep the Manager responsive.
 - The module owns download validation, selected-model persistence, and cache
   layout. The Manager only renders controls and routes the declared action.
+
+Compact secret-only groups, such as Brain's OpenRouter key, should use a small
+indent under the action-group title and no wide fixed label column:
+
+```text
+// OpenRouter
+   OpenRouter key: [masked key field] [// Apply Key] [// Remove Key]
+```
 
 The compact Z-Image proof established this behavior:
 

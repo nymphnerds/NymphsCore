@@ -224,8 +224,8 @@ clear beginner guide
 source links
 
 // Model Fetch
-Hugging Face token: [masked token field........] [remove token]
-Download:           [model/weight selector....] [// Fetch Models]
+Hugging Face token: [masked token field] [// Apply Key] [// Remove Key]
+Download:           [same width select] [// Fetch Models]
 
 // MODULE ACTIONS
 // Smoke Test   // Start   // Stop   // Logs
@@ -248,6 +248,16 @@ Standard rules:
 - Show source model pages as links in the details guide, not button-looking
   controls floating near the submit button.
 - Keep the token row separate from the model fetch row.
+- Use the same compact width for the secret entry field and the download
+  selector. Do not let either row push action buttons off the page at normal
+  Windows scaling.
+- Put `// Apply Key` immediately after the secret field. It saves the Manager
+  secret without running the fetch action.
+- Put `// Fetch Models` immediately after the selector. It runs the declared
+  module action with the selected option and any saved secret environment
+  variables.
+- If a saved secret can be removed, use `// Remove Key` and the same module
+  action button style, font size, and casing as the other buttons.
 - Mask saved tokens across the width of the token field, not with a tiny token
   indicator that looks like only a few characters were saved.
 - The selector should show the useful end of long model filenames, such as
@@ -335,6 +345,28 @@ Example:
   }
 }
 ```
+
+### Compact Secret-Only Groups
+
+Secret-only groups use the same action-group renderer, but they should not look
+like a wide model-fetch form. Use this shape for small setup such as Brain's
+OpenRouter key:
+
+```text
+// OpenRouter
+   OpenRouter key: [masked key field] [// Apply Key] [// Remove Key]
+```
+
+Rules:
+
+- Keep the row lightly indented under the group title.
+- Do not use a wide fixed label column that creates a large gap before the
+  field.
+- Keep the field width compact and unchanged when adjusting alignment.
+- `// Apply Key` may run the group's module action when the module needs to
+  write the secret into its own installed config.
+- `// Remove Key` clears the Manager's saved secret and uses the same action
+  button style as the rest of the row.
 
 ### Model Fetch Script Output
 

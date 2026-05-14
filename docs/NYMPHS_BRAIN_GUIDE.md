@@ -70,13 +70,28 @@ Use it to:
 
 - start or stop the Brain stack
 - start or stop Open WebUI
-- inspect `LLM Server`, `MCP Gateway`, `Open WebUI`, and current model status
+- inspect `LLM Server`, `MCP Gateway`, `Open WebUI`, local model, remote model,
+  and OpenRouter key status
 - enter an optional OpenRouter key for `llm-wrapper`
 - open `Manage Models` for the local GGUF model, context length, and optional remote wrapper model
 - inspect the Brain activity log
 - update or repair the Brain module through the universal Manager lifecycle rail
 
-The primary Brain button is an all-stop safety control when any Brain service is running. If LLM, MCP, or WebUI is active, it shows `Stop Brain` and stops the active pieces it can manage.
+The Brain module action row is state-aware. `Start Brain` hides while Brain is
+running, `Stop Brain` hides while Brain is stopped, and the WebView2 Open WebUI
+page swaps `Open WebUI` for a single `Close WebUI` action. `Browser` remains the
+external browser fallback.
+
+The left sidebar `// BRAIN MONITOR` shows live service telemetry plus the
+configured model choices:
+
+```text
+LLM: Running
+TPS: Waiting
+Context: 32,768
+Local: qwen/qwen3.5-9b
+Remote: deepseek/deepseek-chat
+```
 
 `Runtime Tools` is for the Blender backend runtimes. `Brain` is the separate Brain control page.
 

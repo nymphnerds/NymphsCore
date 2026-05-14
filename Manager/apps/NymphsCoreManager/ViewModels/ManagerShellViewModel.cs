@@ -27,6 +27,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
     private readonly HashSet<string> _modulesWithActiveLifecycle = new(StringComparer.OrdinalIgnoreCase);
     private readonly CancellationTokenSource _operationCancellation = new();
     private bool _shutdownStarted;
+    private bool _hasRunStartupUpdateCheck;
     private readonly AsyncRelayCommand _refreshCommand;
     private readonly AsyncRelayCommand _setupWindowsWslCommand;
     private readonly AsyncRelayCommand _setupBaseRuntimeCommand;
@@ -1067,6 +1068,11 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             ? "Manager shell refreshed."
             : "Manager shell refreshed. Runtime is offline.";
         AppendActivity(StatusMessage);
+
+        if (ManagedDistroDetected)
+        {
+            await CheckForUpdatesOnStartupAsync().ConfigureAwait(true);
+        }
     }
 
     private async Task RefreshRuntimeMonitorSafelyAsync()
@@ -1133,6 +1139,17 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         {
             IsBusy = false;
         }
+    }
+
+    private async Task CheckForUpdatesOnStartupAsync()
+    {
+        if (_hasRunStartupUpdateCheck || IsBusy || _allModules.All(module => !module.IsInstalled))
+        {
+            return;
+        }
+
+        _hasRunStartupUpdateCheck = true;
+        await CheckForUpdatesAsync().ConfigureAwait(true);
     }
 
     private bool CanSetupBaseRuntime()
