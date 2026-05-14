@@ -2361,7 +2361,7 @@
                               <ItemsControl.ItemTemplate>
                                 <DataTemplate>
                                   <StackPanel Orientation="Horizontal"
-                                              Margin="36,0,10,6"
+                                              Margin="24,0,10,6"
                                               VerticalAlignment="Center">
                                     <TextBlock Text="{Binding Label, StringFormat={}{0}:}"
                                                Foreground="#9AB8B4"
@@ -2369,7 +2369,6 @@
                                                FontSize="10.5"
                                                VerticalAlignment="Center"
                                                TextAlignment="Left"
-                                               Width="142"
                                                Margin="0,0,7,0" />
                                     <Grid Width="336"
                                           Visibility="{Binding IsSecret, Converter={StaticResource BoolToVisibilityConverter}}">
