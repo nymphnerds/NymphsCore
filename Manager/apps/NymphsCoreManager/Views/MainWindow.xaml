@@ -2401,17 +2401,6 @@
                                 </DataTemplate>
                               </ItemsControl.ItemTemplate>
                             </ItemsControl>
-                            <Button Style="{StaticResource ModuleActionButtonStyle}"
-                                    MinWidth="88"
-                                    Padding="10,4"
-                                    Margin="0,0,10,6"
-                                    Command="{Binding DataContext.RunModuleActionGroupCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                    CommandParameter="{Binding}">
-                              <TextBlock Text="{Binding SubmitLabel, StringFormat=// {0}}"
-                                         Foreground="#23E7DB"
-                                         FontFamily="Cascadia Mono"
-                                         FontSize="11.5" />
-                            </Button>
                             <ItemsControl ItemsSource="{Binding SecretFields}"
                                           Visibility="{Binding HasSecretFields, Converter={StaticResource BoolToVisibilityConverter}}">
                               <ItemsControl.ItemsPanel>
@@ -2436,6 +2425,17 @@
                                 </DataTemplate>
                               </ItemsControl.ItemTemplate>
                             </ItemsControl>
+                            <Button Style="{StaticResource ModuleActionButtonStyle}"
+                                    MinWidth="88"
+                                    Padding="10,4"
+                                    Margin="0,0,10,6"
+                                    Command="{Binding DataContext.RunModuleActionGroupCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                    CommandParameter="{Binding}">
+                              <TextBlock Text="{Binding SubmitLabel, StringFormat=// {0}}"
+                                         Foreground="#23E7DB"
+                                         FontFamily="Cascadia Mono"
+                                         FontSize="11.5" />
+                            </Button>
                           </StackPanel>
                           <WrapPanel>
                             <ItemsControl ItemsSource="{Binding OptionFields}"
