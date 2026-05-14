@@ -2418,7 +2418,8 @@
                               </ItemsControl.ItemTemplate>
                             </ItemsControl>
                             <Button Style="{StaticResource ModuleActionButtonStyle}"
-                                    Width="132"
+                                    MinWidth="88"
+                                    Padding="10,4"
                                     Margin="0,0,10,6"
                                     Command="{Binding DataContext.RunModuleActionGroupCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                     CommandParameter="{Binding}">
