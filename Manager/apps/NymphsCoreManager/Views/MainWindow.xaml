@@ -2371,19 +2371,19 @@
                                                TextAlignment="Right"
                                                Width="122"
                                                Margin="0,0,7,0" />
-                                    <Grid Width="356"
+                                    <Grid Width="336"
                                           Visibility="{Binding IsSecret, Converter={StaticResource BoolToVisibilityConverter}}">
                                       <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="240" />
+                                        <ColumnDefinition Width="220" />
                                         <ColumnDefinition Width="10" />
                                         <ColumnDefinition Width="106" />
                                       </Grid.ColumnDefinitions>
                                       <PasswordBox Style="{StaticResource CompactSecretBoxStyle}"
-                                                   Width="240"
+                                                   Width="220"
                                                    PasswordChanged="ModuleActionSecretBox_PasswordChanged"
                                                    ToolTip="{Binding SecretInputToolTip}"
                                                    Visibility="{Binding ShowSecretInput, Converter={StaticResource BoolToVisibilityConverter}}" />
-                                      <Border Width="240"
+                                      <Border Width="220"
                                               MinHeight="24"
                                               Padding="7,3"
                                               Background="#101B1D"
@@ -2393,7 +2393,9 @@
                                               Visibility="{Binding ShowSavedSecretMask, Converter={StaticResource BoolToVisibilityConverter}}">
                                         <TextBlock Text="{Binding SavedSecretMask}"
                                                    Foreground="#E4F2EF"
+                                                   FontFamily="Cascadia Mono"
                                                    FontSize="11"
+                                                   Width="204"
                                                    TextWrapping="NoWrap"
                                                    VerticalAlignment="Center" />
                                       </Border>
@@ -2416,14 +2418,14 @@
                               </ItemsControl.ItemTemplate>
                             </ItemsControl>
                             <Button Style="{StaticResource ModuleActionButtonStyle}"
-                                    Width="148"
+                                    Width="132"
                                     Margin="0,0,10,6"
                                     Command="{Binding DataContext.RunModuleActionGroupCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                     CommandParameter="{Binding}">
                               <TextBlock Text="{Binding SubmitLabel, StringFormat=// {0}}"
                                          Foreground="#23E7DB"
                                          FontFamily="Cascadia Mono"
-                                         FontSize="12" />
+                                         FontSize="11.5" />
                             </Button>
                           </StackPanel>
                           <WrapPanel>
