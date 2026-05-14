@@ -2193,6 +2193,29 @@
                                    VerticalAlignment="Stretch"
                                    TextWrapping="Wrap" />
                         <StackPanel Margin="0,10,0,0"
+                                    Visibility="{Binding DisplayedModule.HasOverviewLinks, Converter={StaticResource BoolToVisibilityConverter}}">
+                          <TextBlock Text="Guide links:"
+                                     Foreground="#D8EAE6"
+                                     FontWeight="SemiBold"
+                                     FontSize="12"
+                                     Margin="0,0,0,3" />
+                          <ItemsControl ItemsSource="{Binding DisplayedModule.OverviewLinks}">
+                            <ItemsControl.ItemTemplate>
+                              <DataTemplate>
+                                <TextBlock Margin="0,2,0,0"
+                                           FontSize="12">
+                                  <Hyperlink Command="{Binding DataContext.OpenModuleActionLinkCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                             CommandParameter="{Binding}"
+                                             Foreground="#97DF48"
+                                             TextDecorations="{x:Null}">
+                                    <Run Text="{Binding Label, Mode=OneWay}" />
+                                  </Hyperlink>
+                                </TextBlock>
+                              </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                          </ItemsControl>
+                        </StackPanel>
+                        <StackPanel Margin="0,10,0,0"
                                     Visibility="{Binding DisplayedModule.HasManagerActionGroupLinks, Converter={StaticResource BoolToVisibilityConverter}}">
                           <TextBlock Text="Source links:"
                                      Foreground="#D8EAE6"

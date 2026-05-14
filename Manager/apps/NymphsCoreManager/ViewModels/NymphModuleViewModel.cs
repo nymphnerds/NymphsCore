@@ -20,6 +20,7 @@ public sealed class NymphModuleViewModel : ViewModelBase
     private string _repositoryUrl = "";
     private bool _hasInstalledModuleUi;
     private string _moduleUiTitle = "Module UI";
+    private IReadOnlyList<NymphModuleActionLinkInfo> _overviewLinks = Array.Empty<NymphModuleActionLinkInfo>();
     private InstalledNymphModuleUiInfo? _installedModuleUiInfo;
 
     public NymphModuleViewModel(
@@ -170,6 +171,20 @@ public sealed class NymphModuleViewModel : ViewModelBase
 
     public bool HasRepositoryUrl => !string.IsNullOrWhiteSpace(RepositoryUrl);
 
+    public IReadOnlyList<NymphModuleActionLinkInfo> OverviewLinks
+    {
+        get => _overviewLinks;
+        private set
+        {
+            if (SetProperty(ref _overviewLinks, value))
+            {
+                OnPropertyChanged(nameof(HasOverviewLinks));
+            }
+        }
+    }
+
+    public bool HasOverviewLinks => OverviewLinks.Count > 0;
+
     public bool HasInstalledModuleUi
     {
         get => _hasInstalledModuleUi;
@@ -274,6 +289,7 @@ public sealed class NymphModuleViewModel : ViewModelBase
     {
         ManagerActions = manifest.ManagerActions;
         OnPropertyChanged(nameof(ManagerActions));
+        OverviewLinks = manifest.OverviewLinks;
         ManagerActionGroups = PreserveActionGroupFieldState(ManagerActionGroups, manifest.ManagerActionGroups);
         OnPropertyChanged(nameof(ManagerActionGroups));
         OnPropertyChanged(nameof(ManagerActionGroupLinks));

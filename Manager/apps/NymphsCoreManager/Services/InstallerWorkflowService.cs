@@ -4673,6 +4673,7 @@ meta:
             Version: GetJsonString(manifestRoot, "version") ?? "",
             Description: GetJsonString(manifestRoot, "description") ?? GetJsonString(registryElement, "summary") ?? "",
             OverviewDetail: BuildNymphModuleOverviewDetail(manifestRoot, registryElement),
+            OverviewLinks: ReadNymphModuleOverviewLinks(manifestRoot, registryElement),
             ManifestUrl: manifestUrl,
             RepositoryUrl: repositoryUrl,
             SourceSummary: sourceSummary,
@@ -5101,6 +5102,22 @@ meta:
         return string.Join("\n", BuildOverviewBlockLines(manifestRoot));
     }
 
+    private static IReadOnlyList<NymphModuleActionLinkInfo> ReadNymphModuleOverviewLinks(JsonElement manifestRoot, JsonElement registryElement)
+    {
+        var registryLinks = ReadOverviewBlockLinks(registryElement);
+        return registryLinks.Count > 0 ? registryLinks : ReadOverviewBlockLinks(manifestRoot);
+    }
+
+    private static IReadOnlyList<NymphModuleActionLinkInfo> ReadOverviewBlockLinks(JsonElement root)
+    {
+        if (!root.TryGetProperty("overview", out var overview) || overview.ValueKind != JsonValueKind.Object)
+        {
+            return Array.Empty<NymphModuleActionLinkInfo>();
+        }
+
+        return ReadManagerActionGroupLinks(overview);
+    }
+
     private static List<string> BuildOverviewBlockLines(JsonElement root)
     {
         var lines = new List<string>();
@@ -5120,27 +5137,6 @@ meta:
         AppendStringArrayOverviewLine(lines, overview, "works_with", "Works with");
         AppendStringArrayOverviewLine(lines, overview, "requirements", "Requirements");
         AppendStringArrayOverviewLine(lines, overview, "compatibility", "Compatibility");
-
-        if (!overview.TryGetProperty("links", out var linksElement) ||
-            linksElement.ValueKind != JsonValueKind.Array)
-        {
-            return lines;
-        }
-
-        foreach (var linkElement in linksElement.EnumerateArray())
-        {
-            if (linkElement.ValueKind != JsonValueKind.Object)
-            {
-                continue;
-            }
-
-            var label = GetJsonString(linkElement, "label") ?? GetJsonString(linkElement, "name") ?? "Link";
-            var url = GetJsonString(linkElement, "url") ?? GetJsonString(linkElement, "href") ?? "";
-            if (!string.IsNullOrWhiteSpace(url))
-            {
-                lines.Add($"{label}: {url}");
-            }
-        }
 
         return lines;
     }
