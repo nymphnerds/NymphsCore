@@ -2349,70 +2349,76 @@
 		                      </StackPanel>
 
                         <StackPanel>
-                          <StackPanel Orientation="Horizontal"
-                                      Margin="0,0,0,0">
-                            <ItemsControl ItemsSource="{Binding SecretFields}"
-                                          Visibility="{Binding HasSecretFields, Converter={StaticResource BoolToVisibilityConverter}}">
-                              <ItemsControl.ItemsPanel>
-                                <ItemsPanelTemplate>
-                                  <StackPanel Orientation="Horizontal" />
-                                </ItemsPanelTemplate>
-                              </ItemsControl.ItemsPanel>
-                              <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                  <StackPanel Orientation="Horizontal"
-                                              Margin="24,0,10,6"
-                                              VerticalAlignment="Center">
-                                    <TextBlock Text="{Binding Label, StringFormat={}{0}:}"
-                                               Foreground="#9AB8B4"
+                          <ItemsControl ItemsSource="{Binding SecretFields}"
+                                        Visibility="{Binding HasSecretFields, Converter={StaticResource BoolToVisibilityConverter}}">
+                            <ItemsControl.ItemTemplate>
+                              <DataTemplate>
+                                <StackPanel Orientation="Horizontal"
+                                            Margin="24,0,0,6"
+                                            VerticalAlignment="Center">
+                                  <TextBlock Text="{Binding Label, StringFormat={}{0}:}"
+                                             Foreground="#9AB8B4"
+                                             FontFamily="Cascadia Mono"
+                                             FontSize="10.5"
+                                             VerticalAlignment="Center"
+                                             TextAlignment="Right"
+                                             Width="168"
+                                             Margin="0,0,7,0" />
+                                  <Grid Width="330"
+                                        Visibility="{Binding IsSecret, Converter={StaticResource BoolToVisibilityConverter}}">
+                                    <Grid.ColumnDefinitions>
+                                      <ColumnDefinition Width="330" />
+                                    </Grid.ColumnDefinitions>
+                                    <PasswordBox Style="{StaticResource CompactSecretBoxStyle}"
+                                                 Width="330"
+                                                 PasswordChanged="ModuleActionSecretBox_PasswordChanged"
+                                                 ToolTip="{Binding SecretInputToolTip}"
+                                                 Visibility="{Binding ShowSecretInput, Converter={StaticResource BoolToVisibilityConverter}}" />
+                                    <Border Width="330"
+                                            MinHeight="24"
+                                            Padding="7,3"
+                                            Background="#101B1D"
+                                            BorderBrush="#284446"
+                                            BorderThickness="1"
+                                            ClipToBounds="True"
+                                            Visibility="{Binding ShowSavedSecretMask, Converter={StaticResource BoolToVisibilityConverter}}">
+                                      <TextBlock Text="{Binding SavedSecretMask}"
+                                                 Foreground="#E4F2EF"
+                                                 FontFamily="Cascadia Mono"
+                                                 FontSize="11"
+                                                 Width="314"
+                                                 TextWrapping="NoWrap"
+                                                 VerticalAlignment="Center" />
+                                    </Border>
+                                  </Grid>
+                                  <Button Style="{StaticResource ModuleActionButtonStyle}"
+                                          MinWidth="128"
+                                          Padding="12,4"
+                                          Margin="16,0,0,0"
+                                          Command="{Binding DataContext.ApplyModuleActionSecretCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                          CommandParameter="{Binding}"
+                                          Visibility="{Binding DataContext.HasOptionFields, RelativeSource={RelativeSource AncestorType=ItemsControl}, Converter={StaticResource BoolToVisibilityConverter}}">
+                                    <TextBlock Text="// Apply Key"
+                                               Foreground="#23E7DB"
                                                FontFamily="Cascadia Mono"
-                                               FontSize="10.5"
-                                               VerticalAlignment="Center"
-                                               TextAlignment="Left"
-                                               Margin="0,0,7,0" />
-                                    <Grid Width="220"
-                                          Visibility="{Binding IsSecret, Converter={StaticResource BoolToVisibilityConverter}}">
-                                      <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="220" />
-                                      </Grid.ColumnDefinitions>
-                                      <PasswordBox Style="{StaticResource CompactSecretBoxStyle}"
-                                                   Width="220"
-                                                   PasswordChanged="ModuleActionSecretBox_PasswordChanged"
-                                                   ToolTip="{Binding SecretInputToolTip}"
-                                                   Visibility="{Binding ShowSecretInput, Converter={StaticResource BoolToVisibilityConverter}}" />
-                                      <Border Width="220"
-                                              MinHeight="24"
-                                              Padding="7,3"
-                                              Background="#101B1D"
-                                              BorderBrush="#284446"
-                                              BorderThickness="1"
-                                              ClipToBounds="True"
-                                              Visibility="{Binding ShowSavedSecretMask, Converter={StaticResource BoolToVisibilityConverter}}">
-                                        <TextBlock Text="{Binding SavedSecretMask}"
-                                                   Foreground="#E4F2EF"
-                                                   FontFamily="Cascadia Mono"
-                                                   FontSize="11"
-                                                   Width="204"
-                                                   TextWrapping="NoWrap"
-                                                   VerticalAlignment="Center" />
-                                      </Border>
-                                    </Grid>
-                                  </StackPanel>
-                                </DataTemplate>
-                              </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                            <ItemsControl ItemsSource="{Binding SecretFields}"
-                                          Visibility="{Binding HasSecretFields, Converter={StaticResource BoolToVisibilityConverter}}">
-                              <ItemsControl.ItemsPanel>
-                                <ItemsPanelTemplate>
-                                  <StackPanel Orientation="Horizontal" />
-                                </ItemsPanelTemplate>
-                              </ItemsControl.ItemsPanel>
-                              <ItemsControl.ItemTemplate>
-                                <DataTemplate>
+                                               FontSize="11.5" />
+                                  </Button>
+                                  <Button Style="{StaticResource ModuleActionButtonStyle}"
+                                          MinWidth="128"
+                                          Padding="12,4"
+                                          Margin="16,0,0,0"
+                                          Command="{Binding DataContext.RunModuleActionGroupCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                          CommandParameter="{Binding DataContext, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                          Visibility="{Binding DataContext.HasNoOptionFields, RelativeSource={RelativeSource AncestorType=ItemsControl}, Converter={StaticResource BoolToVisibilityConverter}}">
+                                    <TextBlock Text="{Binding DataContext.SubmitLabel, RelativeSource={RelativeSource AncestorType=ItemsControl}, StringFormat=// {0}}"
+                                               Foreground="#23E7DB"
+                                               FontFamily="Cascadia Mono"
+                                               FontSize="11.5" />
+                                  </Button>
                                   <Button Style="{StaticResource ContractLinkButtonStyle}"
-                                          Width="92"
-                                          Margin="0,0,10,6"
+                                          MinWidth="104"
+                                          Padding="12,4"
+                                          Margin="12,0,0,0"
                                           Command="{Binding DataContext.ClearModuleActionSecretCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                           CommandParameter="{Binding}"
                                           ToolTip="{Binding ClearSecretToolTip}"
@@ -2422,64 +2428,57 @@
                                                FontFamily="Cascadia Mono"
                                                FontSize="10.5" />
                                   </Button>
-                                </DataTemplate>
-                              </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                            <Button Style="{StaticResource ModuleActionButtonStyle}"
-                                    MinWidth="88"
-                                    Padding="10,4"
-                                    Margin="0,0,10,6"
-                                    Command="{Binding DataContext.RunModuleActionGroupCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                    CommandParameter="{Binding}">
-                              <TextBlock Text="{Binding SubmitLabel, StringFormat=// {0}}"
-                                         Foreground="#23E7DB"
-                                         FontFamily="Cascadia Mono"
-                                         FontSize="11.5" />
-                            </Button>
-                          </StackPanel>
-                          <WrapPanel>
-                            <ItemsControl ItemsSource="{Binding OptionFields}"
-                                          Visibility="{Binding HasOptionFields, Converter={StaticResource BoolToVisibilityConverter}}">
-                              <ItemsControl.ItemsPanel>
-                                <ItemsPanelTemplate>
-                                  <WrapPanel />
-                                </ItemsPanelTemplate>
-                              </ItemsControl.ItemsPanel>
-                              <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                  <StackPanel Orientation="Horizontal"
-                                              Margin="0,0,10,6"
-                                              VerticalAlignment="Center">
-                                    <TextBlock Text="{Binding Label, StringFormat={}{0}:}"
-                                               Foreground="#9AB8B4"
+                                </StackPanel>
+                              </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                          </ItemsControl>
+                          <ItemsControl ItemsSource="{Binding OptionFields}"
+                                        Visibility="{Binding HasOptionFields, Converter={StaticResource BoolToVisibilityConverter}}">
+                            <ItemsControl.ItemTemplate>
+                              <DataTemplate>
+                                <StackPanel Orientation="Horizontal"
+                                            Margin="24,0,0,6"
+                                            VerticalAlignment="Center">
+                                  <TextBlock Text="{Binding Label, StringFormat={}{0}:}"
+                                             Foreground="#9AB8B4"
+                                             FontFamily="Cascadia Mono"
+                                             FontSize="10.5"
+                                             VerticalAlignment="Center"
+                                             TextAlignment="Right"
+                                             Width="168"
+                                             Margin="0,0,7,0" />
+                                  <ComboBox ItemsSource="{Binding Options}"
+                                            SelectedValuePath="Value"
+                                            SelectedValue="{Binding SelectedValue, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                            TextSearch.TextPath="Label"
+                                            SelectionChanged="ModuleOptionComboBox_SelectionChanged"
+                                            Style="{StaticResource DarkComboBoxStyle}"
+                                            Width="330"
+                                            MinHeight="24"
+                                            Padding="6,2">
+                                    <ComboBox.ItemTemplate>
+                                      <DataTemplate>
+                                        <TextBlock Text="{Binding Label}"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   ToolTip="{Binding Description}" />
+                                      </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                  </ComboBox>
+                                  <Button Style="{StaticResource ModuleActionButtonStyle}"
+                                          MinWidth="128"
+                                          Padding="12,4"
+                                          Margin="16,0,0,0"
+                                          Command="{Binding DataContext.RunModuleActionGroupCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                          CommandParameter="{Binding DataContext, RelativeSource={RelativeSource AncestorType=ItemsControl}}">
+                                    <TextBlock Text="{Binding DataContext.SubmitLabel, RelativeSource={RelativeSource AncestorType=ItemsControl}, StringFormat=// {0}}"
+                                               Foreground="#23E7DB"
                                                FontFamily="Cascadia Mono"
-                                               FontSize="10.5"
-                                               VerticalAlignment="Center"
-                                               TextAlignment="Right"
-                                               Width="145"
-                                               Margin="0,0,7,0" />
-                                    <ComboBox ItemsSource="{Binding Options}"
-                                              SelectedValuePath="Value"
-                                              SelectedValue="{Binding SelectedValue, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                              TextSearch.TextPath="Label"
-                                              SelectionChanged="ModuleOptionComboBox_SelectionChanged"
-                                              Style="{StaticResource DarkComboBoxStyle}"
-                                              Width="236"
-                                              MinHeight="24"
-                                              Padding="6,2">
-                                      <ComboBox.ItemTemplate>
-                                        <DataTemplate>
-                                          <TextBlock Text="{Binding Label}"
-                                                     TextTrimming="CharacterEllipsis"
-                                                     ToolTip="{Binding Description}" />
-                                        </DataTemplate>
-                                      </ComboBox.ItemTemplate>
-                                    </ComboBox>
-                                  </StackPanel>
-                                </DataTemplate>
-                              </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                          </WrapPanel>
+                                               FontSize="11.5" />
+                                  </Button>
+                                </StackPanel>
+                              </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                          </ItemsControl>
                         </StackPanel>
                       </StackPanel>
                     </DataTemplate>

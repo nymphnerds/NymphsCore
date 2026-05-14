@@ -61,6 +61,8 @@ public sealed class NymphModuleActionGroupInfo
 
     public bool HasOptionFields => Fields.Any(field => field.IsOptionField);
 
+    public bool HasNoOptionFields => !HasOptionFields;
+
     public bool HasDescription => !string.IsNullOrWhiteSpace(Description);
 
     public void ApplyFieldStateFrom(NymphModuleActionGroupInfo previous)

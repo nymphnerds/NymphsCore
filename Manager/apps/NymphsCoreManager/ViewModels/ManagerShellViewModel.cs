@@ -43,6 +43,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
     private readonly RelayCommand<NymphModuleActionInfo> _runModuleActionCommand;
     private readonly RelayCommand<NymphModuleActionGroupInfo> _runModuleActionGroupCommand;
     private readonly RelayCommand<NymphModuleActionLinkInfo> _openModuleActionLinkCommand;
+    private readonly RelayCommand<NymphModuleActionFieldInfo> _applyModuleActionSecretCommand;
     private readonly RelayCommand<NymphModuleActionFieldInfo> _clearModuleActionSecretCommand;
     private readonly RelayCommand<string> _runModuleDevActionCommand;
     private readonly RelayCommand _toggleDeveloperModeCommand;
@@ -156,6 +157,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         _runModuleActionCommand = new RelayCommand<NymphModuleActionInfo>(RunSelectedModuleAction, CanRunSelectedModuleAction);
         _runModuleActionGroupCommand = new RelayCommand<NymphModuleActionGroupInfo>(RunSelectedModuleActionGroup, CanRunSelectedModuleActionGroup);
         _openModuleActionLinkCommand = new RelayCommand<NymphModuleActionLinkInfo>(OpenModuleActionLink, link => link is not null && !string.IsNullOrWhiteSpace(link.Url));
+        _applyModuleActionSecretCommand = new RelayCommand<NymphModuleActionFieldInfo>(ApplyModuleActionSecret, field => field is not null && field.IsSecret);
         _clearModuleActionSecretCommand = new RelayCommand<NymphModuleActionFieldInfo>(ClearModuleActionSecret, field => field is not null && field.IsSecret);
         _runModuleDevActionCommand = new RelayCommand<string>(RunSelectedModuleDevAction, CanRunSelectedModuleDevAction);
         _toggleDeveloperModeCommand = new RelayCommand(ToggleDeveloperMode);
@@ -238,6 +240,8 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
     public RelayCommand<NymphModuleActionGroupInfo> RunModuleActionGroupCommand => _runModuleActionGroupCommand;
 
     public RelayCommand<NymphModuleActionLinkInfo> OpenModuleActionLinkCommand => _openModuleActionLinkCommand;
+
+    public RelayCommand<NymphModuleActionFieldInfo> ApplyModuleActionSecretCommand => _applyModuleActionSecretCommand;
 
     public RelayCommand<NymphModuleActionFieldInfo> ClearModuleActionSecretCommand => _clearModuleActionSecretCommand;
 
@@ -2967,6 +2971,34 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         field.SecretValue = string.Empty;
         RefreshDisplayedActionGroupSecretState();
         AppendActivity($"{field.Label} cleared.");
+    }
+
+    private void ApplyModuleActionSecret(NymphModuleActionFieldInfo? field)
+    {
+        if (field is null || !field.IsSecret)
+        {
+            return;
+        }
+
+        var secretKind = ResolveSharedSecretKind(field);
+        if (string.IsNullOrWhiteSpace(secretKind))
+        {
+            return;
+        }
+
+        var enteredSecret = field.SecretValue?.Trim() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(enteredSecret))
+        {
+            AppendActivity(field.HasSavedSecret
+                ? $"{field.Label} is already saved."
+                : $"Enter a {field.Label} before applying.");
+            return;
+        }
+
+        SetSharedSecretValue(secretKind, enteredSecret);
+        field.SecretValue = string.Empty;
+        RefreshDisplayedActionGroupSecretState();
+        AppendActivity($"{field.Label} saved.");
     }
 
     private void OpenTextInNotepad(string name, string text)
