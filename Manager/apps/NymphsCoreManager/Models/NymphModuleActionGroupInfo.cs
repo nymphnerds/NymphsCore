@@ -83,6 +83,7 @@ public sealed class NymphModuleActionFieldInfo : ViewModelBase
 {
     private string _selectedValue;
     private NymphModuleActionOptionInfo? _selectedOption;
+    private int _selectedIndex;
     private string _secretValue = string.Empty;
     private bool _hasSavedSecret;
 
@@ -117,6 +118,8 @@ public sealed class NymphModuleActionFieldInfo : ViewModelBase
         {
             _selectedValue = _selectedOption.Value;
         }
+
+        _selectedIndex = _selectedOption is null ? -1 : IndexOfOption(options, _selectedOption);
     }
 
     public string Name { get; }
@@ -155,6 +158,13 @@ public sealed class NymphModuleActionFieldInfo : ViewModelBase
                 _selectedOption = selectedOption;
                 OnPropertyChanged(nameof(SelectedOption));
             }
+
+            var selectedIndex = selectedOption is null ? -1 : IndexOfOption(Options, selectedOption);
+            if (_selectedIndex != selectedIndex)
+            {
+                _selectedIndex = selectedIndex;
+                OnPropertyChanged(nameof(SelectedIndex));
+            }
         }
     }
 
@@ -169,6 +179,40 @@ public sealed class NymphModuleActionFieldInfo : ViewModelBase
             }
 
             var selectedValue = value?.Value ?? string.Empty;
+            if (!string.Equals(_selectedValue, selectedValue, StringComparison.Ordinal))
+            {
+                _selectedValue = selectedValue;
+                OnPropertyChanged(nameof(SelectedValue));
+            }
+
+            var selectedIndex = value is null ? -1 : IndexOfOption(Options, value);
+            if (_selectedIndex != selectedIndex)
+            {
+                _selectedIndex = selectedIndex;
+                OnPropertyChanged(nameof(SelectedIndex));
+            }
+        }
+    }
+
+    public int SelectedIndex
+    {
+        get => _selectedIndex;
+        set
+        {
+            var normalizedIndex = value >= 0 && value < Options.Count ? value : -1;
+            if (!SetProperty(ref _selectedIndex, normalizedIndex))
+            {
+                return;
+            }
+
+            var option = normalizedIndex >= 0 ? Options[normalizedIndex] : null;
+            if (!Equals(_selectedOption, option))
+            {
+                _selectedOption = option;
+                OnPropertyChanged(nameof(SelectedOption));
+            }
+
+            var selectedValue = option?.Value ?? string.Empty;
             if (!string.Equals(_selectedValue, selectedValue, StringComparison.Ordinal))
             {
                 _selectedValue = selectedValue;
@@ -238,6 +282,19 @@ public sealed class NymphModuleActionFieldInfo : ViewModelBase
         }
 
         return string.IsNullOrWhiteSpace(label) ? name : label;
+    }
+
+    private static int IndexOfOption(IReadOnlyList<NymphModuleActionOptionInfo> options, NymphModuleActionOptionInfo option)
+    {
+        for (var index = 0; index < options.Count; index++)
+        {
+            if (Equals(options[index], option))
+            {
+                return index;
+            }
+        }
+
+        return -1;
     }
 }
 

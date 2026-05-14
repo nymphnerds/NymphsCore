@@ -745,6 +745,12 @@ window.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
+        if (comboBox.SelectedIndex >= 0)
+        {
+            field.SelectedIndex = comboBox.SelectedIndex;
+            return;
+        }
+
         if (comboBox.SelectedValue is string selectedValue)
         {
             field.SelectedValue = selectedValue;
@@ -777,7 +783,11 @@ window.addEventListener('DOMContentLoaded', function() {
             if (child is ComboBox comboBox &&
                 comboBox.DataContext is NymphModuleActionFieldInfo field)
             {
-                if (comboBox.SelectedValue is string selectedValue)
+                if (comboBox.SelectedIndex >= 0)
+                {
+                    field.SelectedIndex = comboBox.SelectedIndex;
+                }
+                else if (comboBox.SelectedValue is string selectedValue)
                 {
                     field.SelectedValue = selectedValue;
                 }
