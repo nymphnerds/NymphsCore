@@ -379,6 +379,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             var actions = new List<NymphModuleActionInfo>();
             foreach (var action in DisplayedModule.ManagerActions)
             {
+                var actionId = action.Id.Trim().ToLowerInvariant();
                 var actionName = action.ActionName.Trim().ToLowerInvariant();
                 if (actionName == "start" && DisplayedModule.IsRunning)
                 {
@@ -390,7 +391,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                     continue;
                 }
 
-                if (actionName == "webui" && CurrentPageKind == ManagerPageKind.ModuleUi)
+                if (actionId == "webui" && CurrentPageKind == ManagerPageKind.ModuleUi)
                 {
                     actions.Add(action with
                     {
