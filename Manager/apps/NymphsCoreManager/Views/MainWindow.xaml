@@ -2362,19 +2362,16 @@
                                              FontSize="10.5"
                                              VerticalAlignment="Center"
                                              TextAlignment="Right"
-                                             Width="168"
+                                             Width="{Binding DataContext.FieldLabelWidth, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
                                              Margin="0,0,7,0" />
-                                  <Grid Width="330"
+                                  <Grid Width="{Binding DataContext.FieldControlWidth, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
                                         Visibility="{Binding IsSecret, Converter={StaticResource BoolToVisibilityConverter}}">
-                                    <Grid.ColumnDefinitions>
-                                      <ColumnDefinition Width="330" />
-                                    </Grid.ColumnDefinitions>
                                     <PasswordBox Style="{StaticResource CompactSecretBoxStyle}"
-                                                 Width="330"
+                                                 Width="{Binding DataContext.FieldControlWidth, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
                                                  PasswordChanged="ModuleActionSecretBox_PasswordChanged"
                                                  ToolTip="{Binding SecretInputToolTip}"
                                                  Visibility="{Binding ShowSecretInput, Converter={StaticResource BoolToVisibilityConverter}}" />
-                                    <Border Width="330"
+                                    <Border Width="{Binding DataContext.FieldControlWidth, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
                                             MinHeight="24"
                                             Padding="7,3"
                                             Background="#101B1D"
@@ -2386,15 +2383,15 @@
                                                  Foreground="#E4F2EF"
                                                  FontFamily="Cascadia Mono"
                                                  FontSize="11"
-                                                 Width="314"
+                                                 Width="{Binding DataContext.SavedSecretMaskWidth, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
                                                  TextWrapping="NoWrap"
                                                  VerticalAlignment="Center" />
                                     </Border>
                                   </Grid>
                                   <Button Style="{StaticResource ModuleActionButtonStyle}"
-                                          MinWidth="128"
-                                          Padding="12,4"
-                                          Margin="16,0,0,0"
+                                          MinWidth="104"
+                                          Padding="10,4"
+                                          Margin="12,0,0,0"
                                           Command="{Binding DataContext.ApplyModuleActionSecretCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                           CommandParameter="{Binding}"
                                           Visibility="{Binding DataContext.HasOptionFields, RelativeSource={RelativeSource AncestorType=ItemsControl}, Converter={StaticResource BoolToVisibilityConverter}}">
@@ -2404,9 +2401,9 @@
                                                FontSize="11.5" />
                                   </Button>
                                   <Button Style="{StaticResource ModuleActionButtonStyle}"
-                                          MinWidth="128"
-                                          Padding="12,4"
-                                          Margin="16,0,0,0"
+                                          MinWidth="118"
+                                          Padding="10,4"
+                                          Margin="12,0,0,0"
                                           Command="{Binding DataContext.RunModuleActionGroupCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                           CommandParameter="{Binding DataContext, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
                                           Visibility="{Binding DataContext.HasNoOptionFields, RelativeSource={RelativeSource AncestorType=ItemsControl}, Converter={StaticResource BoolToVisibilityConverter}}">
@@ -2416,8 +2413,8 @@
                                                FontSize="11.5" />
                                   </Button>
                                   <Button Style="{StaticResource ContractLinkButtonStyle}"
-                                          MinWidth="104"
-                                          Padding="12,4"
+                                          MinWidth="96"
+                                          Padding="10,4"
                                           Margin="12,0,0,0"
                                           Command="{Binding DataContext.ClearModuleActionSecretCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                           CommandParameter="{Binding}"
@@ -2445,7 +2442,7 @@
                                              FontSize="10.5"
                                              VerticalAlignment="Center"
                                              TextAlignment="Right"
-                                             Width="168"
+                                             Width="{Binding DataContext.FieldLabelWidth, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
                                              Margin="0,0,7,0" />
                                   <ComboBox ItemsSource="{Binding Options}"
                                             SelectedValuePath="Value"
@@ -2453,7 +2450,7 @@
                                             TextSearch.TextPath="Label"
                                             SelectionChanged="ModuleOptionComboBox_SelectionChanged"
                                             Style="{StaticResource DarkComboBoxStyle}"
-                                            Width="330"
+                                            Width="{Binding DataContext.FieldControlWidth, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
                                             MinHeight="24"
                                             Padding="6,2">
                                     <ComboBox.ItemTemplate>
@@ -2465,9 +2462,9 @@
                                     </ComboBox.ItemTemplate>
                                   </ComboBox>
                                   <Button Style="{StaticResource ModuleActionButtonStyle}"
-                                          MinWidth="128"
-                                          Padding="12,4"
-                                          Margin="16,0,0,0"
+                                          MinWidth="118"
+                                          Padding="10,4"
+                                          Margin="12,0,0,0"
                                           Command="{Binding DataContext.RunModuleActionGroupCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                           CommandParameter="{Binding DataContext, RelativeSource={RelativeSource AncestorType=ItemsControl}}">
                                     <TextBlock Text="{Binding DataContext.SubmitLabel, RelativeSource={RelativeSource AncestorType=ItemsControl}, StringFormat=// {0}}"

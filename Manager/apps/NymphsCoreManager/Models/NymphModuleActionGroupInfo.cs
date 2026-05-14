@@ -63,6 +63,12 @@ public sealed class NymphModuleActionGroupInfo
 
     public bool HasNoOptionFields => !HasOptionFields;
 
+    public int FieldLabelWidth => HasOptionFields ? 168 : 145;
+
+    public int FieldControlWidth => 220;
+
+    public int SavedSecretMaskWidth => FieldControlWidth - 16;
+
     public bool HasDescription => !string.IsNullOrWhiteSpace(Description);
 
     public void ApplyFieldStateFrom(NymphModuleActionGroupInfo previous)
