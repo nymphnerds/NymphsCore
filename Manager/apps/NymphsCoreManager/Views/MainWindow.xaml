@@ -2281,6 +2281,7 @@
                                       SelectedValuePath="Value"
                                       TextSearch.TextPath="Label"
                                       SelectionChanged="InstallFieldComboBox_SelectionChanged"
+                                      DropDownClosed="InstallFieldComboBox_DropDownClosed"
                                       Style="{StaticResource DarkComboBoxStyle}"
                                       Width="236"
                                       MinHeight="24"

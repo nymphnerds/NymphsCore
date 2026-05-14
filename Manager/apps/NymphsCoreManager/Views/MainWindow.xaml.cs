@@ -742,7 +742,26 @@ window.addEventListener('DOMContentLoaded', function() {
         if (sender is not ComboBox comboBox ||
             comboBox.DataContext is not NymphModuleActionFieldInfo field ||
             comboBox.SelectedValue is null ||
-            (!comboBox.IsKeyboardFocusWithin && !comboBox.IsDropDownOpen))
+            !comboBox.IsDropDownOpen)
+        {
+            return;
+        }
+
+        RememberInstallFieldComboBoxValue(comboBox, field);
+    }
+
+    private void InstallFieldComboBox_DropDownClosed(object sender, EventArgs e)
+    {
+        if (sender is ComboBox comboBox &&
+            comboBox.DataContext is NymphModuleActionFieldInfo field)
+        {
+            RememberInstallFieldComboBoxValue(comboBox, field);
+        }
+    }
+
+    private void RememberInstallFieldComboBoxValue(ComboBox comboBox, NymphModuleActionFieldInfo field)
+    {
+        if (comboBox.SelectedValue is null)
         {
             return;
         }
