@@ -370,6 +370,9 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             ? DisplayedModule.InstallOptionFields
             : Array.Empty<NymphModuleActionFieldInfo>();
 
+    public string DisplayedModuleInstallOptionsTitle =>
+        DisplayedModule?.InstallOptionsTitle ?? "Install Options";
+
     public IReadOnlyList<NymphModuleActionGroupInfo> DisplayedModuleActionGroups
     {
         get
@@ -473,6 +476,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                 OnPropertyChanged(nameof(ShowDeleteModuleData));
                 OnPropertyChanged(nameof(ShowInstallModuleAction));
                 OnPropertyChanged(nameof(ShowModuleInstallFields));
+                OnPropertyChanged(nameof(DisplayedModuleInstallOptionsTitle));
                 OnPropertyChanged(nameof(ShowInstalledModuleActions));
                 OnPropertyChanged(nameof(ShowInstalledModuleActionGroups));
                 OnPropertyChanged(nameof(ShowModuleUiAction));
@@ -1494,6 +1498,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             manifest.Capabilities,
             manifest.ManagerActions,
             manifest.InstallFields,
+            manifest.InstallOptionsTitle,
             manifest.ManagerActionGroups,
             manifest.DevCapabilities);
 
@@ -3842,6 +3847,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
     {
         OnPropertyChanged(nameof(ShowInstallModuleAction));
         OnPropertyChanged(nameof(ShowModuleInstallFields));
+        OnPropertyChanged(nameof(DisplayedModuleInstallOptionsTitle));
         OnPropertyChanged(nameof(ShowInstalledModuleActions));
         OnPropertyChanged(nameof(ShowInstalledModuleActionGroups));
         OnPropertyChanged(nameof(DisplayedModuleInstallFields));

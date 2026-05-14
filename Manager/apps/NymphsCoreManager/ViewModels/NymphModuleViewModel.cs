@@ -34,6 +34,7 @@ public sealed class NymphModuleViewModel : ViewModelBase
         IReadOnlyList<string> capabilities,
         IReadOnlyList<NymphModuleActionInfo> managerActions,
         IReadOnlyList<NymphModuleActionFieldInfo>? installFields = null,
+        string installOptionsTitle = "Install Options",
         IReadOnlyList<NymphModuleActionGroupInfo>? managerActionGroups = null,
         IReadOnlyList<string>? devCapabilities = null)
     {
@@ -48,6 +49,7 @@ public sealed class NymphModuleViewModel : ViewModelBase
         Capabilities = capabilities;
         ManagerActions = managerActions;
         InstallFields = installFields ?? Array.Empty<NymphModuleActionFieldInfo>();
+        InstallOptionsTitle = NormalizeInstallOptionsTitle(installOptionsTitle);
         ManagerActionGroups = managerActionGroups ?? Array.Empty<NymphModuleActionGroupInfo>();
         DevCapabilities = devCapabilities ?? Array.Empty<string>();
     }
@@ -73,6 +75,8 @@ public sealed class NymphModuleViewModel : ViewModelBase
     public IReadOnlyList<NymphModuleActionInfo> ManagerActions { get; private set; }
 
     public IReadOnlyList<NymphModuleActionFieldInfo> InstallFields { get; private set; }
+
+    public string InstallOptionsTitle { get; private set; }
 
     public IReadOnlyList<NymphModuleActionFieldInfo> InstallOptionFields =>
         InstallFields.Where(field => field.IsOptionField).ToArray();
@@ -275,9 +279,11 @@ public sealed class NymphModuleViewModel : ViewModelBase
         OnPropertyChanged(nameof(ManagerActionGroupLinks));
         OnPropertyChanged(nameof(HasManagerActionGroupLinks));
         InstallFields = PreserveFieldState(InstallFields, manifest.InstallFields);
+        InstallOptionsTitle = NormalizeInstallOptionsTitle(manifest.InstallOptionsTitle);
         OnPropertyChanged(nameof(InstallFields));
         OnPropertyChanged(nameof(InstallOptionFields));
         OnPropertyChanged(nameof(HasInstallFields));
+        OnPropertyChanged(nameof(InstallOptionsTitle));
 
         if (!string.IsNullOrWhiteSpace(manifest.Version))
         {
@@ -412,6 +418,11 @@ public sealed class NymphModuleViewModel : ViewModelBase
         }
 
         return nextFields;
+    }
+
+    private static string NormalizeInstallOptionsTitle(string? title)
+    {
+        return string.IsNullOrWhiteSpace(title) ? "Install Options" : title.Trim();
     }
 
     private static bool IsUnknownVersion(string version)

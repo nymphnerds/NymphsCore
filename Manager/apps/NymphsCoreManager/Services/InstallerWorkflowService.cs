@@ -4608,10 +4608,14 @@ meta:
 
         var installRoot = "";
         IReadOnlyList<NymphModuleActionFieldInfo> installFields = Array.Empty<NymphModuleActionFieldInfo>();
+        var installOptionsTitle = "Install Options";
         if (manifestRoot.TryGetProperty("install", out var installElement) && installElement.ValueKind == JsonValueKind.Object)
         {
             installRoot = GetJsonString(installElement, "root") ?? GetJsonString(installElement, "path") ?? "";
             installFields = ReadManagerActionGroupFields(installElement);
+            installOptionsTitle = GetJsonString(installElement, "title")
+                ?? GetJsonString(installElement, "options_title")
+                ?? installOptionsTitle;
         }
 
         if (string.IsNullOrWhiteSpace(installRoot) &&
@@ -4674,6 +4678,7 @@ meta:
             SourceSummary: sourceSummary,
             InstallRoot: installRoot,
             InstallFields: installFields,
+            InstallOptionsTitle: installOptionsTitle,
             ManagerUiTitle: managerUiTitle,
             Capabilities: capabilities,
             ManagerActions: managerActions,
