@@ -3444,6 +3444,7 @@ meta:
         IReadOnlyDictionary<string, string?>? environmentVariables,
         CancellationToken cancellationToken)
     {
+        var effectiveCommandArguments = BuildWslCommandArgumentsWithEnvironment(commandArguments, environmentVariables);
         var arguments = new List<string>
         {
             "-d",
@@ -3452,14 +3453,14 @@ meta:
             settings.LinuxUser,
             "--",
         };
-        arguments.AddRange(commandArguments);
+        arguments.AddRange(effectiveCommandArguments);
 
         var result = await _processRunner.RunAsync(
             fileName: "wsl.exe",
             arguments,
             workingDirectory: Environment.SystemDirectory,
             progress,
-            environmentVariables,
+            environmentVariables: null,
             cancellationToken).ConfigureAwait(false);
 
         if (!IsTransientWslServiceFailure(result))
@@ -3483,8 +3484,41 @@ meta:
             arguments,
             workingDirectory: Environment.SystemDirectory,
             progress,
-            environmentVariables,
+            environmentVariables: null,
             cancellationToken).ConfigureAwait(false);
+    }
+
+    private static IReadOnlyList<string> BuildWslCommandArgumentsWithEnvironment(
+        IEnumerable<string> commandArguments,
+        IReadOnlyDictionary<string, string?>? environmentVariables)
+    {
+        var command = commandArguments.ToList();
+        if (environmentVariables is null || environmentVariables.Count == 0)
+        {
+            return command;
+        }
+
+        var wrapped = new List<string> { "env" };
+        foreach (var pair in environmentVariables)
+        {
+            if (string.IsNullOrWhiteSpace(pair.Key) ||
+                !Regex.IsMatch(pair.Key, "^[A-Za-z_][A-Za-z0-9_]*$", RegexOptions.CultureInvariant))
+            {
+                continue;
+            }
+
+            if (pair.Value is null)
+            {
+                wrapped.Add("-u");
+                wrapped.Add(pair.Key);
+                continue;
+            }
+
+            wrapped.Add($"{pair.Key}={pair.Value}");
+        }
+
+        wrapped.AddRange(command);
+        return wrapped;
     }
 
     private static bool IsTransientWslServiceFailure(CommandResult result)
