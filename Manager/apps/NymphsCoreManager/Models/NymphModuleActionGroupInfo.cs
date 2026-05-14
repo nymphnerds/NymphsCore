@@ -82,6 +82,7 @@ public sealed record NymphModuleActionLinkInfo(string Label, string Url);
 public sealed class NymphModuleActionFieldInfo : ViewModelBase
 {
     private string _selectedValue;
+    private NymphModuleActionOptionInfo? _selectedOption;
     private string _secretValue = string.Empty;
     private bool _hasSavedSecret;
 
@@ -110,6 +111,12 @@ public sealed class NymphModuleActionFieldInfo : ViewModelBase
             : options.Count > 0
                 ? options[0].Value
                 : string.Empty;
+        _selectedOption = options.FirstOrDefault(option => string.Equals(option.Value, _selectedValue, StringComparison.Ordinal)) ??
+                          options.FirstOrDefault();
+        if (_selectedOption is not null)
+        {
+            _selectedValue = _selectedOption.Value;
+        }
     }
 
     public string Name { get; }
@@ -133,7 +140,41 @@ public sealed class NymphModuleActionFieldInfo : ViewModelBase
     public string SelectedValue
     {
         get => _selectedValue;
-        set => SetProperty(ref _selectedValue, value ?? string.Empty);
+        set
+        {
+            var normalizedValue = value ?? string.Empty;
+            if (!SetProperty(ref _selectedValue, normalizedValue))
+            {
+                return;
+            }
+
+            var selectedOption = Options.FirstOrDefault(option =>
+                string.Equals(option.Value, normalizedValue, StringComparison.Ordinal));
+            if (!Equals(_selectedOption, selectedOption))
+            {
+                _selectedOption = selectedOption;
+                OnPropertyChanged(nameof(SelectedOption));
+            }
+        }
+    }
+
+    public NymphModuleActionOptionInfo? SelectedOption
+    {
+        get => _selectedOption;
+        set
+        {
+            if (!SetProperty(ref _selectedOption, value))
+            {
+                return;
+            }
+
+            var selectedValue = value?.Value ?? string.Empty;
+            if (!string.Equals(_selectedValue, selectedValue, StringComparison.Ordinal))
+            {
+                _selectedValue = selectedValue;
+                OnPropertyChanged(nameof(SelectedValue));
+            }
+        }
     }
 
     public string SecretValue

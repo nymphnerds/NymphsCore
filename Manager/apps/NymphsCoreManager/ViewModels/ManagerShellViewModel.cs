@@ -24,9 +24,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
     private readonly string _sidebarPortraitOverrideFileName = "NymphMycelium1.png";
     private readonly List<NymphModuleViewModel> _allModules;
     private readonly HashSet<string> _modulesWithActiveLifecycle = new(StringComparer.OrdinalIgnoreCase);
-    private readonly Dictionary<string, Dictionary<string, string>> _installFieldSelections = new(StringComparer.OrdinalIgnoreCase);
     private readonly CancellationTokenSource _operationCancellation = new();
-    private string? _moduleInstallPromptModuleId;
     private bool _shutdownStarted;
     private readonly AsyncRelayCommand _refreshCommand;
     private readonly AsyncRelayCommand _setupWindowsWslCommand;
@@ -344,11 +342,11 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
     public bool ShowDeleteModuleData => string.Equals(DisplayedModule?.Id, "worbi", StringComparison.OrdinalIgnoreCase);
 
-    public bool ShowInstallModuleAction => DisplayedModule?.CanInstall == true && !IsModuleInstallBusy(DisplayedModule);
+    public bool ShowInstallModuleAction => DisplayedModule?.CanInstall == true && !IsModuleLifecycleActive(DisplayedModule);
 
     public bool ShowModuleInstallFields =>
         DisplayedModule?.CanInstall == true &&
-        !IsModuleInstallBusy(DisplayedModule) &&
+        !IsModuleLifecycleActive(DisplayedModule) &&
         DisplayedModule.InstallOptionFields.Count > 0;
 
     public bool ShowInstalledModuleActions => DisplayedModule?.IsInstalled == true && DisplayedModule.ManagerActions.Count > 0;
@@ -1435,12 +1433,6 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
     private async Task RefreshModuleRosterAsync()
     {
         var selectedModuleId = DisplayedModule?.Id ?? SelectedModule?.Id;
-        RememberInstallFieldSelections(DisplayedModule);
-        foreach (var module in _allModules)
-        {
-            RememberInstallFieldSelections(module);
-        }
-
         var previousModules = _allModules.ToDictionary(module => module.Id, StringComparer.OrdinalIgnoreCase);
         IReadOnlyList<NymphModuleManifestInfo> manifests;
 
@@ -1477,7 +1469,6 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                 module.ApplyActionGroupFieldStateFrom(previousModule);
             }
 
-            ApplyRememberedInstallFieldSelections(module);
             _allModules.Add(module);
         }
 
@@ -2491,10 +2482,6 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             return;
         }
 
-        RememberInstallFieldSelections(module);
-        var installEnvironment = BuildInstallFieldEnvironment(module);
-        _moduleInstallPromptModuleId = module.Id;
-        RefreshDisplayedModuleActionState();
         var confirmation = MessageBox.Show(
             $"Install {module.Name} from the Nymphs registry?\n\nThe manager will read nymphs-registry, clone the trusted module repo, and run its install script inside the managed WSL distro.",
             "Install Module",
@@ -2502,15 +2489,13 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             MessageBoxImage.Question);
         if (confirmation != MessageBoxResult.Yes)
         {
-            _moduleInstallPromptModuleId = null;
-            RefreshDisplayedModuleActionState();
             AppendActivity($"{module.Name} install cancelled.");
             return;
         }
 
+        var installEnvironment = BuildInstallFieldEnvironment(module);
         IsBusy = true;
         _modulesWithActiveLifecycle.Add(module.Id);
-        _moduleInstallPromptModuleId = null;
         StatusMessage = $"Installing {module.Name} from the Nymphs registry...";
         ShowModuleLogs = false;
         var installLines = new List<string>();
@@ -3089,8 +3074,6 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
     private IReadOnlyDictionary<string, string?> BuildInstallFieldEnvironment(NymphModuleViewModel module)
     {
-        RememberInstallFieldSelections(module);
-        ApplyRememberedInstallFieldSelections(module);
         var environment = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
         foreach (var field in module.InstallFields)
         {
@@ -3120,116 +3103,6 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
     private bool IsModuleLifecycleActive(NymphModuleViewModel? module)
     {
         return module is not null && _modulesWithActiveLifecycle.Contains(module.Id);
-    }
-
-    private bool IsModuleInstallBusy(NymphModuleViewModel? module)
-    {
-        return module is not null &&
-            (_modulesWithActiveLifecycle.Contains(module.Id) ||
-             string.Equals(_moduleInstallPromptModuleId, module.Id, StringComparison.OrdinalIgnoreCase));
-    }
-
-    private void RememberInstallFieldSelections(NymphModuleViewModel? module)
-    {
-        if (module is null || module.InstallFields.Count == 0)
-        {
-            return;
-        }
-
-        if (!_installFieldSelections.TryGetValue(module.Id, out var selections))
-        {
-            selections = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            _installFieldSelections[module.Id] = selections;
-        }
-
-        foreach (var field in module.InstallFields)
-        {
-            if (!field.IsOptionField)
-            {
-                continue;
-            }
-
-            var value = field.SelectedValue?.Trim() ?? string.Empty;
-            if (string.IsNullOrWhiteSpace(value) ||
-                value.Length > 256 ||
-                !field.Options.Any(option => string.Equals(option.Value, value, StringComparison.Ordinal)))
-            {
-                continue;
-            }
-
-            RememberInstallFieldSelection(module, field, value, allowDefaultOverwrite: false);
-        }
-    }
-
-    public void RememberInstallFieldSelection(NymphModuleActionFieldInfo? field, string? value)
-    {
-        var module = _allModules.FirstOrDefault(candidate =>
-            candidate.InstallFields.Any(installField => ReferenceEquals(installField, field))) ??
-            DisplayedModule;
-        if (module is null || field is null)
-        {
-            return;
-        }
-
-        RememberInstallFieldSelection(module, field, value, allowDefaultOverwrite: true);
-    }
-
-    private void RememberInstallFieldSelection(
-        NymphModuleViewModel module,
-        NymphModuleActionFieldInfo field,
-        string? value,
-        bool allowDefaultOverwrite)
-    {
-        if (!field.IsOptionField)
-        {
-            return;
-        }
-
-        var normalizedValue = value?.Trim() ?? string.Empty;
-        if (string.IsNullOrWhiteSpace(normalizedValue) ||
-            normalizedValue.Length > 256 ||
-            !field.Options.Any(option => string.Equals(option.Value, normalizedValue, StringComparison.Ordinal)))
-        {
-            return;
-        }
-
-        if (!_installFieldSelections.TryGetValue(module.Id, out var selections))
-        {
-            selections = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            _installFieldSelections[module.Id] = selections;
-        }
-
-        if (!allowDefaultOverwrite &&
-            selections.TryGetValue(field.Name, out var existingValue) &&
-            !string.Equals(existingValue, field.DefaultValue, StringComparison.Ordinal) &&
-            string.Equals(normalizedValue, field.DefaultValue, StringComparison.Ordinal))
-        {
-            return;
-        }
-
-        selections[field.Name] = normalizedValue;
-    }
-
-    private void ApplyRememberedInstallFieldSelections(NymphModuleViewModel? module)
-    {
-        if (module is null ||
-            module.InstallFields.Count == 0 ||
-            !_installFieldSelections.TryGetValue(module.Id, out var selections))
-        {
-            return;
-        }
-
-        foreach (var field in module.InstallFields)
-        {
-            if (!field.IsOptionField ||
-                !selections.TryGetValue(field.Name, out var value) ||
-                !field.Options.Any(option => string.Equals(option.Value, value, StringComparison.Ordinal)))
-            {
-                continue;
-            }
-
-            field.SelectedValue = value;
-        }
     }
 
     private static string BuildInstallFieldFeedback(

@@ -2277,11 +2277,8 @@
                                        Width="145"
                                        Margin="0,0,7,0" />
                             <ComboBox ItemsSource="{Binding Options}"
-                                      SelectedValue="{Binding SelectedValue, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                      SelectedValuePath="Value"
+                                      SelectedItem="{Binding SelectedOption, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                       TextSearch.TextPath="Label"
-                                      SelectionChanged="InstallFieldComboBox_SelectionChanged"
-                                      DropDownClosed="InstallFieldComboBox_DropDownClosed"
                                       Style="{StaticResource DarkComboBoxStyle}"
                                       Width="236"
                                       MinHeight="24"
@@ -2433,8 +2430,7 @@
                                                Width="145"
                                                Margin="0,0,7,0" />
                                     <ComboBox ItemsSource="{Binding Options}"
-                                              SelectedValue="{Binding SelectedValue, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                              SelectedValuePath="Value"
+                                              SelectedItem="{Binding SelectedOption, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                               TextSearch.TextPath="Label"
                                               Style="{StaticResource DarkComboBoxStyle}"
                                               Width="236"

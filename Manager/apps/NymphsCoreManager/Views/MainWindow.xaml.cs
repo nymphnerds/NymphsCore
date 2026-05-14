@@ -737,40 +737,6 @@ window.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    private void InstallFieldComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
-    {
-        if (sender is not ComboBox comboBox ||
-            comboBox.DataContext is not NymphModuleActionFieldInfo field ||
-            comboBox.SelectedValue is null ||
-            !comboBox.IsDropDownOpen)
-        {
-            return;
-        }
-
-        RememberInstallFieldComboBoxValue(comboBox, field);
-    }
-
-    private void InstallFieldComboBox_DropDownClosed(object sender, EventArgs e)
-    {
-        if (sender is ComboBox comboBox &&
-            comboBox.DataContext is NymphModuleActionFieldInfo field)
-        {
-            RememberInstallFieldComboBoxValue(comboBox, field);
-        }
-    }
-
-    private void RememberInstallFieldComboBoxValue(ComboBox comboBox, NymphModuleActionFieldInfo field)
-    {
-        if (comboBox.SelectedValue is null)
-        {
-            return;
-        }
-
-        var selectedValue = Convert.ToString(comboBox.SelectedValue, CultureInfo.InvariantCulture) ?? string.Empty;
-        field.SelectedValue = selectedValue;
-        _viewModel?.RememberInstallFieldSelection(field, selectedValue);
-    }
-
     [DllImport("dwmapi.dll")]
     private static extern int DwmSetWindowAttribute(IntPtr hwnd, int dwAttribute, ref int pvAttribute, int cbAttribute);
 
