@@ -217,12 +217,7 @@ public sealed class NymphModuleActionFieldInfo : ViewModelBase
 
     public void ApplyTransientStateFrom(NymphModuleActionFieldInfo previous)
     {
-        var previousSelectionWasDefault = string.Equals(
-            previous.SelectedValue,
-            previous.DefaultValue,
-            StringComparison.Ordinal);
         if (IsOptionField &&
-            !previousSelectionWasDefault &&
             Options.Any(option => string.Equals(option.Value, previous.SelectedValue, StringComparison.Ordinal)))
         {
             SelectedValue = previous.SelectedValue;
