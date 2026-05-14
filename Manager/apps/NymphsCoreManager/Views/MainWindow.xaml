@@ -2371,19 +2371,19 @@
                                                TextAlignment="Right"
                                                Width="122"
                                                Margin="0,0,7,0" />
-                                    <Grid Width="386"
+                                    <Grid Width="356"
                                           Visibility="{Binding IsSecret, Converter={StaticResource BoolToVisibilityConverter}}">
                                       <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="270" />
+                                        <ColumnDefinition Width="240" />
                                         <ColumnDefinition Width="10" />
                                         <ColumnDefinition Width="106" />
                                       </Grid.ColumnDefinitions>
                                       <PasswordBox Style="{StaticResource CompactSecretBoxStyle}"
-                                                   Width="270"
+                                                   Width="240"
                                                    PasswordChanged="ModuleActionSecretBox_PasswordChanged"
                                                    ToolTip="{Binding SecretInputToolTip}"
                                                    Visibility="{Binding ShowSecretInput, Converter={StaticResource BoolToVisibilityConverter}}" />
-                                      <Border Width="270"
+                                      <Border Width="240"
                                               MinHeight="24"
                                               Padding="7,3"
                                               Background="#101B1D"
@@ -2393,6 +2393,8 @@
                                         <TextBlock Text="{Binding SavedSecretMask}"
                                                    Foreground="#E4F2EF"
                                                    FontSize="11"
+                                                   TextWrapping="NoWrap"
+                                                   TextTrimming="Clip"
                                                    VerticalAlignment="Center" />
                                       </Border>
                                       <Button Style="{StaticResource ContractLinkButtonStyle}"

@@ -208,7 +208,7 @@ public sealed class NymphModuleActionFieldInfo : ViewModelBase
 
     public string SecretStatusLabel => HasSavedSecret ? "secret saved" : "no secret";
 
-    public string SavedSecretMask => HasSavedSecret ? "••••••••••••••••••••••••••••••••" : string.Empty;
+    public string SavedSecretMask => HasSavedSecret ? "••••••••••••••••••••••••••••••••••••••••••••••••" : string.Empty;
 
     public string SecretInputToolTip => $"Optional {Label}. The Manager saves it for future module actions.";
 
