@@ -3879,12 +3879,14 @@ meta:
     public void OpenNymphsBrainModelManager(InstallSettings settings)
     {
         var modelManagerPath = $"{settings.BrainInstallRoot}/bin/lms-model";
+        var linuxHome = $"/home/{settings.LinuxUser}";
 
         try
         {
             var startInfo = new System.Diagnostics.ProcessStartInfo
             {
                 FileName = "wt.exe",
+                WorkingDirectory = Environment.SystemDirectory,
                 UseShellExecute = false,
             };
             startInfo.ArgumentList.Add("new-tab");
@@ -3895,6 +3897,8 @@ meta:
             startInfo.ArgumentList.Add(settings.DistroName);
             startInfo.ArgumentList.Add("--user");
             startInfo.ArgumentList.Add(settings.LinuxUser);
+            startInfo.ArgumentList.Add("--cd");
+            startInfo.ArgumentList.Add(linuxHome);
             startInfo.ArgumentList.Add("--");
             startInfo.ArgumentList.Add(modelManagerPath);
             System.Diagnostics.Process.Start(startInfo);
@@ -3905,12 +3909,14 @@ meta:
                 "start \"Nymphs-Brain Model Manager\" wsl.exe " +
                 $"-d {QuoteWindowsCommandArgument(settings.DistroName)} " +
                 $"--user {QuoteWindowsCommandArgument(settings.LinuxUser)} " +
+                $"--cd {QuoteWindowsCommandArgument(linuxHome)} " +
                 "-- " +
                 QuoteWindowsCommandArgument(modelManagerPath);
 
             System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
             {
                 FileName = "cmd.exe",
+                WorkingDirectory = Environment.SystemDirectory,
                 Arguments = $"/c {fallbackCommand}",
                 UseShellExecute = false,
             });
@@ -3957,12 +3963,14 @@ meta:
         var terminalTitle = string.IsNullOrWhiteSpace(title)
             ? $"{normalizedModuleId} - {normalizedAction}"
             : title.Trim();
+        var linuxHome = $"/home/{settings.LinuxUser}";
 
         try
         {
             var startInfo = new System.Diagnostics.ProcessStartInfo
             {
                 FileName = "wt.exe",
+                WorkingDirectory = Environment.SystemDirectory,
                 UseShellExecute = false,
             };
             startInfo.ArgumentList.Add("new-tab");
@@ -3973,6 +3981,8 @@ meta:
             startInfo.ArgumentList.Add(settings.DistroName);
             startInfo.ArgumentList.Add("--user");
             startInfo.ArgumentList.Add(settings.LinuxUser);
+            startInfo.ArgumentList.Add("--cd");
+            startInfo.ArgumentList.Add(linuxHome);
             startInfo.ArgumentList.Add("--");
             startInfo.ArgumentList.Add("/bin/bash");
             startInfo.ArgumentList.Add(actionPath);
@@ -3984,12 +3994,14 @@ meta:
                 $"start {QuoteWindowsCommandArgument(terminalTitle)} wsl.exe " +
                 $"-d {QuoteWindowsCommandArgument(settings.DistroName)} " +
                 $"--user {QuoteWindowsCommandArgument(settings.LinuxUser)} " +
+                $"--cd {QuoteWindowsCommandArgument(linuxHome)} " +
                 "-- /bin/bash " +
                 QuoteWindowsCommandArgument(actionPath);
 
             System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
             {
                 FileName = "cmd.exe",
+                WorkingDirectory = Environment.SystemDirectory,
                 Arguments = $"/c {fallbackCommand}",
                 UseShellExecute = false,
             });
