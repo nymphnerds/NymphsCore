@@ -3092,6 +3092,10 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             {
                 IsBusy = false;
             }
+            else if (string.Equals(normalizedAction, "stop", StringComparison.OrdinalIgnoreCase))
+            {
+                IsBusy = false;
+            }
         }
     }
 
