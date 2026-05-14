@@ -745,9 +745,9 @@ window.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
-        if (comboBox.SelectedIndex >= 0)
+        if (comboBox.SelectedItem is NymphModuleActionOptionInfo option)
         {
-            field.SelectedIndex = comboBox.SelectedIndex;
+            field.SelectedValue = option.Value;
             return;
         }
 
@@ -756,26 +756,32 @@ window.addEventListener('DOMContentLoaded', function() {
             field.SelectedValue = selectedValue;
             return;
         }
-
-        if (comboBox.SelectedItem is NymphModuleActionOptionInfo option)
-        {
-            field.SelectedValue = option.Value;
-        }
     }
 
     private void InstallModuleButton_Click(object sender, RoutedEventArgs e)
     {
-        SyncModuleOptionComboBoxes(ModuleInstallFieldsControl);
+        var visibleSelections = SyncModuleOptionComboBoxes(ModuleInstallFieldsControl);
         if (DataContext is ManagerShellViewModel viewModel &&
-            viewModel.InstallModuleCommand.CanExecute(viewModel.DisplayedModule))
+            viewModel.DisplayedModule is { } module)
         {
-            viewModel.InstallModuleCommand.Execute(viewModel.DisplayedModule);
+            ApplyVisibleInstallSelections(module, visibleSelections);
+            if (viewModel.InstallModuleCommand.CanExecute(module))
+            {
+                viewModel.InstallModuleCommand.Execute(module);
+            }
         }
 
         e.Handled = true;
     }
 
-    private static void SyncModuleOptionComboBoxes(DependencyObject root)
+    private static IReadOnlyList<InstallFieldSelection> SyncModuleOptionComboBoxes(DependencyObject root)
+    {
+        var selections = new List<InstallFieldSelection>();
+        SyncModuleOptionComboBoxes(root, selections);
+        return selections;
+    }
+
+    private static void SyncModuleOptionComboBoxes(DependencyObject root, ICollection<InstallFieldSelection> selections)
     {
         for (var index = 0; index < VisualTreeHelper.GetChildrenCount(root); index++)
         {
@@ -783,23 +789,39 @@ window.addEventListener('DOMContentLoaded', function() {
             if (child is ComboBox comboBox &&
                 comboBox.DataContext is NymphModuleActionFieldInfo field)
             {
-                if (comboBox.SelectedIndex >= 0)
-                {
-                    field.SelectedIndex = comboBox.SelectedIndex;
-                }
-                else if (comboBox.SelectedValue is string selectedValue)
+                var selectedValue = comboBox.SelectedItem is NymphModuleActionOptionInfo option
+                    ? option.Value
+                    : comboBox.SelectedValue as string ?? field.SelectedValue;
+
+                if (!string.IsNullOrWhiteSpace(selectedValue))
                 {
                     field.SelectedValue = selectedValue;
-                }
-                else if (comboBox.SelectedItem is NymphModuleActionOptionInfo option)
-                {
-                    field.SelectedValue = option.Value;
+                    selections.Add(new InstallFieldSelection(field.Name, field.EnvironmentName, selectedValue));
                 }
             }
 
-            SyncModuleOptionComboBoxes(child);
+            SyncModuleOptionComboBoxes(child, selections);
         }
     }
+
+    private static void ApplyVisibleInstallSelections(
+        NymphModuleViewModel module,
+        IReadOnlyList<InstallFieldSelection> selections)
+    {
+        foreach (var selection in selections)
+        {
+            var target = module.InstallFields.FirstOrDefault(field =>
+                string.Equals(field.Name, selection.Name, StringComparison.OrdinalIgnoreCase) ||
+                (!string.IsNullOrWhiteSpace(field.EnvironmentName) &&
+                 string.Equals(field.EnvironmentName, selection.EnvironmentName, StringComparison.OrdinalIgnoreCase)));
+            if (target is not null)
+            {
+                target.SelectedValue = selection.Value;
+            }
+        }
+    }
+
+    private sealed record InstallFieldSelection(string Name, string EnvironmentName, string Value);
 
     [DllImport("dwmapi.dll")]
     private static extern int DwmSetWindowAttribute(IntPtr hwnd, int dwAttribute, ref int pvAttribute, int cbAttribute);
