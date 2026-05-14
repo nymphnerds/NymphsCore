@@ -2412,18 +2412,18 @@
                                                FontFamily="Cascadia Mono"
                                                FontSize="11.5" />
                                   </Button>
-                                  <Button Style="{StaticResource ContractLinkButtonStyle}"
-                                          MinWidth="96"
+                                  <Button Style="{StaticResource ModuleActionButtonStyle}"
+                                          MinWidth="118"
                                           Padding="10,4"
                                           Margin="12,0,0,0"
                                           Command="{Binding DataContext.ClearModuleActionSecretCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                           CommandParameter="{Binding}"
                                           ToolTip="{Binding ClearSecretToolTip}"
                                           Visibility="{Binding HasSavedSecret, Converter={StaticResource BoolToVisibilityConverter}}">
-                                    <TextBlock Text="remove key"
+                                    <TextBlock Text="// Remove Key"
                                                Foreground="#23E7DB"
                                                FontFamily="Cascadia Mono"
-                                               FontSize="10.5" />
+                                               FontSize="11.5" />
                                   </Button>
                                 </StackPanel>
                               </DataTemplate>
