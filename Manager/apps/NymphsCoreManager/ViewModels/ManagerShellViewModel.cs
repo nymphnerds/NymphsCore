@@ -1533,7 +1533,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
     {
         try
         {
-            using var statusTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(4));
+            using var statusTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(8));
             var output = await _workflowService.RunNymphModuleActionAsync(
                 _settings,
                 module.Id,
