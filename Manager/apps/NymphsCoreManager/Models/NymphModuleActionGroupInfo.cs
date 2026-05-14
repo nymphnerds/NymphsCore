@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Windows;
 using NymphsCoreManager.ViewModels;
 
 namespace NymphsCoreManager.Models;
@@ -63,7 +64,13 @@ public sealed class NymphModuleActionGroupInfo
 
     public bool HasNoOptionFields => !HasOptionFields;
 
-    public int FieldLabelWidth => HasOptionFields ? 168 : 145;
+    public int FieldRowLeftMargin => HasOptionFields ? 24 : 0;
+
+    public Thickness FieldRowMargin => new(FieldRowLeftMargin, 0, 0, 6);
+
+    public int FieldLabelWidth => HasOptionFields ? 168 : 128;
+
+    public string FieldLabelAlignment => HasOptionFields ? "Right" : "Left";
 
     public int FieldControlWidth => 220;
 
