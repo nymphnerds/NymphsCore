@@ -321,12 +321,14 @@ public sealed class NymphModuleViewModel : ViewModelBase
             ? ""
             : manifest.OverviewDetail;
         var manifestDetail = overviewDetail;
-        SecondaryDetail = IsInstalled &&
-                          !string.IsNullOrWhiteSpace(SecondaryDetail) &&
-                          !string.IsNullOrWhiteSpace(manifestDetail) &&
-                          !SecondaryDetail.Contains(manifestDetail, StringComparison.OrdinalIgnoreCase)
-            ? $"{SecondaryDetail}\n\n{manifestDetail}"
-            : manifestDetail;
+        if (!string.IsNullOrWhiteSpace(manifestDetail))
+        {
+            SecondaryDetail = IsInstalled &&
+                              !string.IsNullOrWhiteSpace(SecondaryDetail) &&
+                              !SecondaryDetail.Contains(manifestDetail, StringComparison.OrdinalIgnoreCase)
+                ? $"{SecondaryDetail}\n\n{manifestDetail}"
+                : manifestDetail;
+        }
 
         OnPropertyChanged(nameof(CanUpdate));
     }
