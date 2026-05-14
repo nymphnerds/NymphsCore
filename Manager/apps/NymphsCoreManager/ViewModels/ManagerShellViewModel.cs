@@ -1677,6 +1677,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                 : repairNeeded ? "#D49A2A" : "#6E745A";
 
         var secondaryParts = new List<string>();
+        var isBrainModule = string.Equals(module.Id, "brain", StringComparison.OrdinalIgnoreCase);
         if (modelDownloadNeeded)
         {
             secondaryParts.Add("Models: download needed");
@@ -1688,7 +1689,8 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
         if (snapshot.IsInstalled &&
             !string.IsNullOrWhiteSpace(snapshot.Health) &&
-            !modelDownloadNeeded)
+            !modelDownloadNeeded &&
+            !isBrainModule)
         {
             secondaryParts.Add($"Health: {snapshot.Health}");
         }
@@ -1700,13 +1702,13 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         }
 
         var runtimePresent = snapshot.Get("runtime_present");
-        if (string.Equals(runtimePresent, "true", StringComparison.OrdinalIgnoreCase))
+        if (!isBrainModule && string.Equals(runtimePresent, "true", StringComparison.OrdinalIgnoreCase))
         {
             secondaryParts.Add($"Runtime: {runtimePresent}");
         }
 
         var dataPresent = snapshot.Get("data_present");
-        if (string.Equals(dataPresent, "true", StringComparison.OrdinalIgnoreCase))
+        if (!isBrainModule && string.Equals(dataPresent, "true", StringComparison.OrdinalIgnoreCase))
         {
             secondaryParts.Add($"Data: {dataPresent}");
         }
@@ -1717,7 +1719,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             secondaryParts.Add($"URL: {url}");
         }
 
-        if (string.Equals(module.Id, "brain", StringComparison.OrdinalIgnoreCase))
+        if (isBrainModule)
         {
             AddBrainModuleStatusDetails(secondaryParts, snapshot);
         }
@@ -1795,20 +1797,14 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
     private static void AddBrainModuleStatusDetails(ICollection<string> parts, NymphStatusSnapshot snapshot)
     {
-        AddStatusLine(parts, "LLM", FormatRunningState(snapshot.Get("llm_running")));
-        AddStatusLine(parts, "MCP", FormatRunningState(snapshot.Get("mcp_running")));
-        AddStatusLine(parts, "WebUI", FormatRunningState(snapshot.Get("open_webui_running")));
-        AddStatusLine(parts, "Local model", FormatBrainModelValue(snapshot.Get("local_model")));
-        AddStatusLine(parts, "Remote model", FormatBrainModelValue(snapshot.Get("remote_model")));
-        AddStatusLine(parts, "OpenRouter key", FormatOpenRouterKeyState(snapshot.Get("openrouter_key")));
-    }
-
-    private static void AddStatusLine(ICollection<string> parts, string label, string? value)
-    {
-        if (!string.IsNullOrWhiteSpace(value))
-        {
-            parts.Add($"{label}: {value}");
-        }
+        parts.Add(
+            "Brain: " +
+            $"LLM {FormatRunningState(snapshot.Get("llm_running"))} | " +
+            $"MCP {FormatRunningState(snapshot.Get("mcp_running"))} | " +
+            $"WebUI {FormatRunningState(snapshot.Get("open_webui_running"))} | " +
+            $"Local {FormatBrainModelValue(snapshot.Get("local_model"))} | " +
+            $"Remote {FormatBrainModelValue(snapshot.Get("remote_model"))} | " +
+            $"Key {FormatOpenRouterKeyState(snapshot.Get("openrouter_key"))}");
     }
 
     private static string FormatRunningState(string? value)
