@@ -833,12 +833,17 @@ open_in_manager
 open_external_browser
 open_notepad
 open_terminal
+open_directory
 ```
 
 Use `open_terminal` only for explicitly interactive installed module actions,
 such as a terminal model manager. The Manager opens the declared installed
 entrypoint in the managed WSL distro and leaves that terminal session under the
 user's control.
+
+Use `open_directory` for module-owned folders. The action should print
+`directory=/absolute/linux/path` or `path=/absolute/linux/path`; the Manager
+opens that folder in Explorer.
 
 Your module owns the behavior. The Manager is only the renderer, launcher, and
 safe host bridge.

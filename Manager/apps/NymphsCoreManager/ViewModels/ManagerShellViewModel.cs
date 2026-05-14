@@ -3405,6 +3405,10 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                     $"{module.Name}: logs loaded",
                     "Module logs are shown below.");
             }
+            else if (resultMode is "open_directory" or "open_folder" or "directory" or "folder")
+            {
+                OpenFirstDirectoryFromOutput(module, actionLabel, output);
+            }
 
             var shouldOpenInManager = resultMode is "open_in_manager" or "manager_url";
             if (shouldOpenInManager)
@@ -3822,6 +3826,83 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                 ex.Message);
             return false;
         }
+    }
+
+    private bool OpenFirstDirectoryFromOutput(NymphModuleViewModel module, string actionLabel, string output)
+    {
+        var directory = ExtractDirectoryPath(output);
+        if (string.IsNullOrWhiteSpace(directory))
+        {
+            AppendActivity($"{module.Name} {actionLabel} did not return a directory.");
+            SetModuleActionFeedback(
+                $"{module.Name}: no directory returned",
+                "The module command finished, but it did not print a directory for the manager to open.");
+            return false;
+        }
+
+        var explorerPath = NormalizeModuleDirectoryForExplorer(directory);
+        try
+        {
+            Directory.CreateDirectory(explorerPath);
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = "explorer.exe",
+                Arguments = explorerPath,
+                UseShellExecute = true,
+            });
+            AppendActivity($"{module.Name} {actionLabel} opened: {explorerPath}");
+            SetModuleActionFeedback(
+                $"{module.Name}: {actionLabel} opened",
+                explorerPath);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            AppendActivity($"Could not open {module.Name} directory: {ex.Message}");
+            SetModuleActionFeedback(
+                $"{module.Name}: directory open failed",
+                ex.Message);
+            return false;
+        }
+    }
+
+    private string NormalizeModuleDirectoryForExplorer(string directory)
+    {
+        var normalized = directory.Trim().Trim('"', '\'');
+        if (normalized.StartsWith("/", StringComparison.Ordinal))
+        {
+            var segments = normalized
+                .TrimStart('/')
+                .Split('/', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            return BuildManagedDistroPath(segments);
+        }
+
+        return normalized;
+    }
+
+    private static string ExtractDirectoryPath(string output)
+    {
+        foreach (var line in output.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            var trimmed = line.Trim();
+            var parts = trimmed.Split('=', 2, StringSplitOptions.TrimEntries);
+            if (parts.Length == 2 &&
+                (parts[0].Equals("directory", StringComparison.OrdinalIgnoreCase) ||
+                 parts[0].Equals("dir", StringComparison.OrdinalIgnoreCase) ||
+                 parts[0].Equals("path", StringComparison.OrdinalIgnoreCase)))
+            {
+                return parts[1].Trim();
+            }
+
+            if (trimmed.StartsWith("/", StringComparison.Ordinal) ||
+                trimmed.StartsWith(@"\\", StringComparison.Ordinal) ||
+                Regex.IsMatch(trimmed, @"^[A-Za-z]:[\\/]", RegexOptions.CultureInvariant))
+            {
+                return trimmed;
+            }
+        }
+
+        return string.Empty;
     }
 
     private void UninstallModule(NymphModuleViewModel? module)

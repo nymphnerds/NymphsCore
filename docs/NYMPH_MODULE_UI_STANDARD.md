@@ -258,6 +258,8 @@ Standard rules:
 - Interactive terminal actions, such as Brain's model manager, may use `result:
   "open_terminal"` when the module declares an installed entrypoint and the user
   needs a real terminal session.
+- Module-owned folder shortcuts, such as Brain's LLM directory, may use
+  `result: "open_directory"` and print `directory=/absolute/linux/path`.
 - A successful smoke test must say `SMOKE TEST PASSED` or equivalent. `finished`
   is too vague for a test result.
 - The details pane should preserve the latest action result long enough for the
