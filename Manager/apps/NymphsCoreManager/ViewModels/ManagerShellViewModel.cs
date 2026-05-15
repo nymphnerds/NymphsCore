@@ -2619,11 +2619,15 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             ApplyModuleHuggingFaceTokenArgument(args);
         }
 
-        IsBusy = true;
-        StatusMessage = $"Running {module.Name} {normalizedAction}...";
-        ModuleUiStatus = args.Count == 0
-            ? $"Running {normalizedAction}..."
-            : $"Running {normalizedAction} {string.Join(" ", args)}...";
+        var isQuietInlineQuery = normalizedAction is "job_status";
+        if (!isQuietInlineQuery)
+        {
+            IsBusy = true;
+            StatusMessage = $"Running {module.Name} {normalizedAction}...";
+            ModuleUiStatus = args.Count == 0
+                ? $"Running {normalizedAction}..."
+                : $"Running {normalizedAction} {string.Join(" ", args)}...";
+        }
 
         try
         {
@@ -2634,31 +2638,43 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                 args,
                 new Progress<string>(line =>
                 {
-                    if (!string.IsNullOrWhiteSpace(line))
+                    if (!isQuietInlineQuery && !string.IsNullOrWhiteSpace(line))
                     {
                         ModuleUiStatus = line.Trim();
                     }
                 }),
                 CancellationToken.None).ConfigureAwait(true);
 
-            ModuleUiStatus = BuildModuleActionFeedbackDetail(output);
+            if (!isQuietInlineQuery)
+            {
+                ModuleUiStatus = BuildModuleActionFeedbackDetail(output);
+            }
             if (normalizedAction is not "logs" and not "open" and not "job_status")
             {
                 await RefreshModuleStateAsync().ConfigureAwait(true);
             }
 
-            StatusMessage = $"{module.Name} {normalizedAction} finished.";
+            if (!isQuietInlineQuery)
+            {
+                StatusMessage = $"{module.Name} {normalizedAction} finished.";
+            }
             return ModuleUiActionResult.Success(requestId, normalizedAction, output);
         }
         catch (Exception ex)
         {
-            ModuleUiStatus = ex.Message;
-            StatusMessage = $"{module.Name} {normalizedAction} needs attention.";
+            if (!isQuietInlineQuery)
+            {
+                ModuleUiStatus = ex.Message;
+                StatusMessage = $"{module.Name} {normalizedAction} needs attention.";
+            }
             return ModuleUiActionResult.Failure(requestId, normalizedAction, ex.Message);
         }
         finally
         {
-            IsBusy = false;
+            if (!isQuietInlineQuery)
+            {
+                IsBusy = false;
+            }
         }
     }
 
