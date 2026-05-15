@@ -2149,6 +2149,8 @@
               <Grid Grid.Row="1"
                     Grid.Column="2"
                     Width="138"
+                    Height="228"
+                    ClipToBounds="False"
                     VerticalAlignment="Top"
                     HorizontalAlignment="Right">
                 <Grid.RowDefinitions>
