@@ -220,7 +220,7 @@ public sealed class NymphModuleViewModel : ViewModelBase
     public bool CanRepair => IsInstalled ||
                              StateLabel.Contains("repair", StringComparison.OrdinalIgnoreCase);
 
-    public bool CanUninstall => IsInstalled || CanRepair;
+    public bool CanUninstall => true;
 
     public bool CanUpdate => IsInstalled && (HasUpdate || IsRemoteVersionNewer(VersionLabel, RemoteVersionLabel));
 
