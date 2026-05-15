@@ -410,6 +410,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             {
                 if (string.Equals(DisplayedModule.Id, "lora", StringComparison.OrdinalIgnoreCase))
                 {
+                    var loraManagerActions = DisplayedModule.ManagerActions.ToArray();
                     var loraActions = DisplayedModule.ManagerActions
                         .Where(action =>
                             !string.Equals(action.Id, "fetch_assets", StringComparison.OrdinalIgnoreCase) &&
@@ -418,7 +419,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
                     if (CurrentPageKind == ManagerPageKind.ModuleUi)
                     {
-                        return new[]
+                        var moduleUiActions = new List<NymphModuleActionInfo>
                         {
                             new NymphModuleActionInfo(
                                 "close_ui",
@@ -426,6 +427,15 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                                 CloseModuleUiActionName,
                                 "manager_close")
                         };
+                        var guideAction = loraManagerActions.FirstOrDefault(action =>
+                            string.Equals(action.Id, "guide", StringComparison.OrdinalIgnoreCase) ||
+                            string.Equals(action.ActionName, "guide", StringComparison.OrdinalIgnoreCase));
+                        if (guideAction is not null)
+                        {
+                            moduleUiActions.Add(guideAction);
+                        }
+
+                        return moduleUiActions;
                     }
 
                     return loraActions;
