@@ -3318,6 +3318,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         SetModuleActionFeedback(
             $"{module.Name}: {actionLabel} started",
             "Command sent to the managed WSL distro. Waiting for module output...");
+        await Task.Yield();
         if ((resultMode is "show_logs" or "logs") && normalizedAction is "logs")
         {
             SelectPrimaryPage(ManagerPageKind.Logs);
@@ -3745,6 +3746,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         SetModuleActionFeedback(
             $"{module.Name}: running {actionLabel}",
             $"Command sent to the managed WSL distro. Waiting for {actionLabel} output...");
+        await Task.Yield();
 
         var liveLines = new List<string>();
         try
@@ -4014,6 +4016,12 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
     private static string BuildModuleActionFeedbackDetail(string output)
     {
+        var fetchAssetsDetail = BuildFetchAssetsFeedbackDetail(output);
+        if (!string.IsNullOrWhiteSpace(fetchAssetsDetail))
+        {
+            return fetchAssetsDetail;
+        }
+
         var downloadDetail = BuildModelDownloadFeedbackDetail(output);
         if (!string.IsNullOrWhiteSpace(downloadDetail))
         {
@@ -4030,11 +4038,47 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             : string.Join(Environment.NewLine, lines);
     }
 
+    private static string? BuildFetchAssetsFeedbackDetail(string output)
+    {
+        var lines = output.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var progressLines = lines
+            .Where(line => line.Contains("FETCH_ASSETS_PROGRESS", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+        if (progressLines.Count == 0)
+        {
+            return null;
+        }
+
+        var latestProgress = progressLines[^1];
+        var status = ExtractLogValue(latestProgress, "status") ?? "running";
+        var phase = ExtractLogValue(latestProgress, "phase");
+        var waitingOn = ExtractLogValue(latestProgress, "waiting_on");
+        var friendlyState = status.Equals("complete", StringComparison.OrdinalIgnoreCase)
+            ? "ready"
+            : status.Equals("failed", StringComparison.OrdinalIgnoreCase)
+                ? "failed"
+                : "downloading";
+
+        var detail = new List<string>
+        {
+            $"Training assets: {friendlyState}",
+        };
+        AddFeedbackLine(detail, "Phase", phase);
+        AddFeedbackLine(detail, "Waiting on", waitingOn);
+
+        detail.Add("");
+        detail.Add("Latest output:");
+        detail.AddRange(lines.TakeLast(8));
+        return string.Join(Environment.NewLine, detail);
+    }
+
     private static string? BuildModelDownloadFeedbackDetail(string output)
     {
         var lines = output.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         var downloadLines = lines
-            .Where(line => line.Contains("MODEL DOWNLOAD", StringComparison.OrdinalIgnoreCase))
+            .Where(line =>
+                line.Contains("MODEL DOWNLOAD", StringComparison.OrdinalIgnoreCase) &&
+                !line.Contains("FETCH_ASSETS_PROGRESS", StringComparison.OrdinalIgnoreCase))
             .ToList();
         if (downloadLines.Count == 0)
         {
