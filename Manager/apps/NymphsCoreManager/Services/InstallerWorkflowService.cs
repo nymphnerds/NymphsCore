@@ -5308,6 +5308,7 @@ meta:
         InstallSettings settings,
         string moduleId,
         bool purge,
+        bool dataOnly,
         IProgress<string> progress,
         CancellationToken cancellationToken)
     {
@@ -5333,8 +5334,14 @@ meta:
         {
             scriptArguments.Add("--purge");
         }
+        else if (dataOnly)
+        {
+            scriptArguments.Add("--data-only");
+        }
 
-        progress.Report(purge
+        progress.Report(dataOnly
+            ? $"Deleting module data for '{moduleId}' from the managed distro..."
+            : purge
             ? $"Deleting module '{moduleId}' from the managed distro..."
             : $"Uninstalling module '{moduleId}' from the managed distro...");
 

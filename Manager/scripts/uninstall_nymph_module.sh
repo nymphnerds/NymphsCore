@@ -3,11 +3,12 @@ set -euo pipefail
 
 usage() {
   cat <<'EOF'
-Usage: uninstall_nymph_module.sh --module <id> [--install-root <path>] [--dry-run] [--yes] [--purge]
+Usage: uninstall_nymph_module.sh --module <id> [--install-root <path>] [--dry-run] [--yes] [--purge] [--data-only]
 
 Default uninstall removes the module install folder and moves known user data
 to ~/NymphsModuleBackups/<module>-<timestamp>. Use --purge to delete the whole
-module folder including module data.
+module folder including module data. Use --data-only to delete known data folders
+while keeping the installed runtime.
 EOF
 }
 
@@ -16,6 +17,7 @@ INSTALL_ROOT_OVERRIDE=""
 DRY_RUN=0
 YES=0
 PURGE=0
+DATA_ONLY=0
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -39,6 +41,10 @@ while [[ $# -gt 0 ]]; do
       PURGE=1
       shift
       ;;
+    --data-only)
+      DATA_ONLY=1
+      shift
+      ;;
     -h|--help)
       usage
       exit 0
@@ -53,6 +59,12 @@ done
 
 if [[ -z "${MODULE_ID}" ]]; then
   echo "Missing --module." >&2
+  usage >&2
+  exit 2
+fi
+
+if [[ "${PURGE}" -eq 1 && "${DATA_ONLY}" -eq 1 ]]; then
+  echo "Choose only one of --purge or --data-only." >&2
   usage >&2
   exit 2
 fi
@@ -125,10 +137,12 @@ else
   INSTALL_ROOT="${HOME}/${MODULE_ID}"
 fi
 PRESERVE_NAMES=("data" "projects" "config" "logs" "outputs" "models" "datasets" "loras" "jobs" "secrets")
+DATA_NAMES=("data" "projects" "config" "logs" "outputs" "models" "datasets" "loras" "jobs" "secrets")
 
 echo "module=${MODULE_ID}"
 echo "install_root=${INSTALL_ROOT}"
 echo "purge=${PURGE}"
+echo "data_only=${DATA_ONLY}"
 
 mkdir -p "${ACTION_ROOT}"
 ACTION_STATE_FILE="${ACTION_ROOT}/${MODULE_ID}.state"
@@ -182,11 +196,15 @@ PY
   chmod +x "${uninstall_script}"
   echo "module_uninstall_entrypoint=${uninstall_entrypoint}"
   if [[ "${DRY_RUN}" -eq 1 ]]; then
-    if [[ "${PURGE}" -eq 1 ]]; then
+    if [[ "${DATA_ONLY}" -eq 1 ]]; then
+      "${uninstall_script}" --dry-run --data-only
+    elif [[ "${PURGE}" -eq 1 ]]; then
       "${uninstall_script}" --dry-run --purge
     else
       "${uninstall_script}" --dry-run
     fi
+  elif [[ "${DATA_ONLY}" -eq 1 ]]; then
+    "${uninstall_script}" --yes --data-only
   elif [[ "${PURGE}" -eq 1 ]]; then
     "${uninstall_script}" --yes --purge
   else
@@ -208,7 +226,9 @@ fi
 
 if [[ "${DRY_RUN}" -eq 1 ]]; then
   echo "dry_run=yes"
-  if [[ "${PURGE}" -eq 1 ]]; then
+  if [[ "${DATA_ONLY}" -eq 1 ]]; then
+    echo "would_delete_known_data=${DATA_NAMES[*]}"
+  elif [[ "${PURGE}" -eq 1 ]]; then
     echo "would_delete=${INSTALL_ROOT}"
   else
     echo "would_backup_known_data=${PRESERVE_NAMES[*]}"
@@ -222,7 +242,9 @@ if [[ "${YES}" -ne 1 ]]; then
   exit 3
 fi
 
-if [[ "${PURGE}" -eq 1 ]]; then
+if [[ "${DATA_ONLY}" -eq 1 ]]; then
+  write_action_state "delete-data" "running" "Deleting ${MODULE_ID} data from the managed WSL distro."
+elif [[ "${PURGE}" -eq 1 ]]; then
   write_action_state "delete" "running" "Deleting ${MODULE_ID} from the managed WSL distro."
 else
   write_action_state "uninstall" "running" "Uninstalling ${MODULE_ID} from the managed WSL distro."
@@ -235,7 +257,27 @@ stop_known_processes() {
   fi
 }
 
-stop_known_processes
+if [[ "${DATA_ONLY}" -ne 1 ]]; then
+  stop_known_processes
+fi
+
+if [[ "${DATA_ONLY}" -eq 1 ]]; then
+  deleted=0
+  for name in "${DATA_NAMES[@]}"; do
+    if [[ -e "${INSTALL_ROOT}/${name}" ]]; then
+      rm -rf -- "${INSTALL_ROOT:?}/${name}"
+      echo "Deleted data ${INSTALL_ROOT}/${name}."
+      deleted=1
+    fi
+  done
+
+  if [[ "${deleted}" -eq 0 ]]; then
+    echo "No known module data was found to delete."
+  fi
+
+  echo "Deleted data for ${MODULE_ID}."
+  exit 0
+fi
 
 if [[ "${PURGE}" -eq 1 ]]; then
   rm -rf -- "${INSTALL_ROOT}" || true

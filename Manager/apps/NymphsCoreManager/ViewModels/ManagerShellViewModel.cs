@@ -4028,10 +4028,10 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
     private void DeleteModule(NymphModuleViewModel? module)
     {
-        _ = RunModuleUninstallAsync(module, purge: true);
+        _ = RunModuleUninstallAsync(module, purge: false, dataOnly: true);
     }
 
-    private async Task RunModuleUninstallAsync(NymphModuleViewModel? module, bool purge)
+    private async Task RunModuleUninstallAsync(NymphModuleViewModel? module, bool purge, bool dataOnly = false)
     {
         if (module is null || !module.CanUninstall || IsBusy)
         {
@@ -4041,11 +4041,13 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         var targetId = module.Id;
         var targetName = module.Name;
 
-        var prompt = purge
+        var prompt = dataOnly
+            ? $"Delete data for {targetName}?\n\nThis deletes datasets, outputs, jobs, logs, config, model downloads, and other module data, but keeps the module runtime and venv when installed."
+            : purge
             ? $"Delete {targetName} completely?\n\nThis removes the module install folder and its module data from the managed WSL distro."
             : $"Uninstall {targetName}?\n\nThis removes the module install folder but saves known user data to ~/NymphsModuleBackups inside the managed WSL distro.";
-        var caption = purge ? "Delete Module + Data" : "Uninstall Module";
-        var icon = purge ? MessageBoxImage.Warning : MessageBoxImage.Question;
+        var caption = dataOnly ? "Delete Module Data" : purge ? "Delete Module + Data" : "Uninstall Module";
+        var icon = dataOnly || purge ? MessageBoxImage.Warning : MessageBoxImage.Question;
         var confirmation = MessageBox.Show(prompt, caption, MessageBoxButton.YesNo, icon);
         if (confirmation != MessageBoxResult.Yes)
         {
@@ -4055,24 +4057,30 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
         IsBusy = true;
         _modulesWithActiveLifecycle.Add(targetId);
-        StatusMessage = purge
+        StatusMessage = dataOnly
+            ? $"Deleting {targetName} data from the managed distro..."
+            : purge
             ? $"Deleting {targetName} from the managed distro..."
             : $"Uninstalling {targetName} from the managed distro...";
         ShowModuleLogs = false;
         var uninstallLines = new List<string>();
-        var actionLabel = purge ? "delete" : "uninstall";
+        var actionLabel = dataOnly ? "delete-data" : purge ? "delete" : "uninstall";
         ApplyModuleLifecycleState(
             module,
-            purge ? "Deleting" : "Uninstalling",
+            dataOnly ? "Deleting data" : purge ? "Deleting" : "Uninstalling",
             "#D9B36B",
             module.VersionLabel,
-            purge
+            dataOnly
+                ? $"{targetName} data deletion is running inside the managed WSL distro."
+                : purge
                 ? $"{targetName} delete is running inside the managed WSL distro."
                 : $"{targetName} uninstall is running inside the managed WSL distro.",
             "Status refresh is paused for this module until the lifecycle action finishes.");
         SetModuleActionFeedback(
             $"{targetName}: {actionLabel} in progress",
-            purge
+            dataOnly
+                ? "Deleting module data while preserving the installed runtime when present..."
+                : purge
                 ? "Deleting the module install folder and data from the managed WSL distro..."
                 : "Uninstalling the module while preserving known data when available...");
 
@@ -4083,16 +4091,21 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                 _settings,
                 targetId,
                 purge,
+                dataOnly,
                 CreateModuleLiveProgress(module, actionLabel, uninstallLines),
                 _operationCancellation.Token).ConfigureAwait(true);
 
-            AppendActivity(purge
+            AppendActivity(dataOnly
+                ? $"{targetName} data delete completed."
+                : purge
                 ? $"{targetName} delete completed."
                 : $"{targetName} uninstall completed.");
             ApplyImmediateModuleInstallResult(
                 module,
-                isInstalled: false,
-                purge
+                isInstalled: dataOnly && module.IsInstalled,
+                dataOnly
+                    ? "Module data was deleted. Runtime was left in place when present."
+                    : purge
                     ? "Module and data were deleted. Registry install remains available."
                     : "Module was uninstalled. Preserved data was moved to the module backup area when available.");
             SetModuleActionFeedback(
@@ -4109,12 +4122,14 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                 AppendActivity($"{targetName} uninstall completed, but state refresh needs attention: {refreshException.Message}");
             }
 
-            if (!module.IsInstalled && CurrentPageKind == ManagerPageKind.Module)
+            if (!dataOnly && !module.IsInstalled && CurrentPageKind == ManagerPageKind.Module)
             {
                 SelectPrimaryPage(ManagerPageKind.Home);
             }
 
-            StatusMessage = purge
+            StatusMessage = dataOnly
+                ? $"{targetName} data deleted."
+                : purge
                 ? $"{targetName} deleted."
                 : $"{targetName} uninstalled.";
         }
