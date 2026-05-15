@@ -366,6 +366,15 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
     public bool ShowModuleUiAction => DisplayedModule?.HasInstalledModuleUi == true;
 
+    public NymphModuleActionInfo? ModuleDetailPrimaryAction => ResolveModuleDetailPrimaryAction(DisplayedModule);
+
+    public bool ShowModuleDetailPrimaryAction => ModuleDetailPrimaryAction is not null;
+
+    public string ModuleDetailPrimaryActionHeading => "NEXT STEP:";
+
+    public string ModuleDetailPrimaryActionHelp =>
+        "Required before training. Downloads or resumes the Z-Image Turbo training model and adapter.";
+
     public IReadOnlyList<NymphModuleActionInfo> DisplayedModuleContractActions
     {
         get
@@ -412,6 +421,28 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
             return actions;
         }
+    }
+
+    private static NymphModuleActionInfo? ResolveModuleDetailPrimaryAction(NymphModuleViewModel? module)
+    {
+        if (module is null || !module.IsInstalled)
+        {
+            return null;
+        }
+
+        var needsAssets =
+            string.Equals(module.Id, "lora", StringComparison.OrdinalIgnoreCase) &&
+            (module.StateLabel.Contains("asset", StringComparison.OrdinalIgnoreCase) ||
+             module.Detail.Contains("asset", StringComparison.OrdinalIgnoreCase) ||
+             module.SecondaryDetail.Contains("asset", StringComparison.OrdinalIgnoreCase));
+        if (!needsAssets)
+        {
+            return null;
+        }
+
+        return module.ManagerActions.FirstOrDefault(action =>
+            string.Equals(action.Id, "fetch_assets", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(action.ActionName, "fetch_assets", StringComparison.OrdinalIgnoreCase));
     }
 
     public IReadOnlyList<NymphModuleActionFieldInfo> DisplayedModuleInstallFields =>
@@ -530,6 +561,10 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                 OnPropertyChanged(nameof(ShowInstalledModuleActions));
                 OnPropertyChanged(nameof(ShowInstalledModuleActionGroups));
                 OnPropertyChanged(nameof(ShowModuleUiAction));
+                OnPropertyChanged(nameof(ModuleDetailPrimaryAction));
+                OnPropertyChanged(nameof(ShowModuleDetailPrimaryAction));
+                OnPropertyChanged(nameof(ModuleDetailPrimaryActionHeading));
+                OnPropertyChanged(nameof(ModuleDetailPrimaryActionHelp));
                 OnPropertyChanged(nameof(DisplayedModuleContractActions));
                 OnPropertyChanged(nameof(DisplayedModuleInstallFields));
                 OnPropertyChanged(nameof(DisplayedModuleActionGroups));
@@ -1979,6 +2014,8 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             if (DisplayedModule is not null && string.Equals(DisplayedModule.Id, module.Id, StringComparison.OrdinalIgnoreCase))
             {
                 OnPropertyChanged(nameof(ShowModuleUiAction));
+                OnPropertyChanged(nameof(ModuleDetailPrimaryAction));
+                OnPropertyChanged(nameof(ShowModuleDetailPrimaryAction));
                 OnPropertyChanged(nameof(DisplayedModuleContractActions));
                 OnPropertyChanged(nameof(ShowInstalledModuleActionGroups));
                 OnPropertyChanged(nameof(DisplayedModuleActionGroups));
@@ -2007,6 +2044,8 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         if (DisplayedModule is not null && string.Equals(DisplayedModule.Id, module.Id, StringComparison.OrdinalIgnoreCase))
         {
             OnPropertyChanged(nameof(ShowModuleUiAction));
+            OnPropertyChanged(nameof(ModuleDetailPrimaryAction));
+            OnPropertyChanged(nameof(ShowModuleDetailPrimaryAction));
             OnPropertyChanged(nameof(DisplayedModuleContractActions));
             OnPropertyChanged(nameof(ShowInstalledModuleActionGroups));
             OnPropertyChanged(nameof(DisplayedModuleActionGroups));
@@ -4315,6 +4354,8 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(DisplayedModuleActionGroups));
         OnPropertyChanged(nameof(ShowDeleteModuleData));
         OnPropertyChanged(nameof(ShowModuleUiAction));
+        OnPropertyChanged(nameof(ModuleDetailPrimaryAction));
+        OnPropertyChanged(nameof(ShowModuleDetailPrimaryAction));
         _repairModuleCommand.RaiseCanExecuteChanged();
         _runModuleActionCommand.RaiseCanExecuteChanged();
         _runModuleActionGroupCommand.RaiseCanExecuteChanged();

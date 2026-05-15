@@ -2194,8 +2194,38 @@
 	                      <ScrollViewer.Resources>
 	                        <Style TargetType="ScrollBar"
 	                               BasedOn="{StaticResource PaneScrollBarStyle}" />
-	                      </ScrollViewer.Resources>
+                      </ScrollViewer.Resources>
                       <StackPanel>
+                        <Border Margin="0,0,0,12"
+                                Padding="10"
+                                CornerRadius="6"
+                                Background="#0D2021"
+                                BorderBrush="#25585A"
+                                BorderThickness="1"
+                                Visibility="{Binding ShowModuleDetailPrimaryAction, Converter={StaticResource BoolToVisibilityConverter}}">
+                          <StackPanel>
+                            <TextBlock Text="{Binding ModuleDetailPrimaryActionHeading}"
+                                       Style="{StaticResource MonoLabelStyle}"
+                                       Foreground="{StaticResource LimeBrush}"
+                                       FontSize="12" />
+                            <Button Margin="0,8,0,0"
+                                    HorizontalAlignment="Left"
+                                    Style="{StaticResource ModuleActionButtonStyle}"
+                                    Command="{Binding RunModuleActionCommand}"
+                                    CommandParameter="{Binding ModuleDetailPrimaryAction}">
+                              <TextBlock Text="// Fetch Training Assets"
+                                         Foreground="#23E7DB"
+                                         FontFamily="Cascadia Mono"
+                                         FontSize="12"
+                                         FontWeight="Bold" />
+                            </Button>
+                            <TextBlock Margin="0,8,0,0"
+                                       Text="{Binding ModuleDetailPrimaryActionHelp}"
+                                       Foreground="#9AB8B4"
+                                       FontSize="12"
+                                       TextWrapping="Wrap" />
+                          </StackPanel>
+                        </Border>
                         <TextBlock Text="{Binding ModuleActionFeedbackDetail}"
                                    Foreground="#9AB8B4"
                                    FontSize="12"
