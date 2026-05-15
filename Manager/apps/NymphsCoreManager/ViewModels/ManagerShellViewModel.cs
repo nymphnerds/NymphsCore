@@ -3206,20 +3206,30 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         }
 
         var normalizedAction = actionInfo.ActionName.Trim().ToLowerInvariant();
+        var isPassiveAction = IsPassiveModuleActionResultMode(actionInfo.ResultMode);
+        var isDetailPrimaryAction = IsDisplayedModuleDetailPrimaryAction(actionInfo);
         if (normalizedAction == CloseModuleUiActionName)
         {
             return CurrentPageKind == ManagerPageKind.ModuleUi &&
                    DisplayedModule.IsInstalled;
         }
 
-        if (IsBusy &&
+        if (IsModuleDetailProgressActive(DisplayedModule) &&
             normalizedAction is not "stop" and not "logs" &&
-            !IsPassiveModuleActionResultMode(actionInfo.ResultMode))
+            !isPassiveAction)
         {
             return false;
         }
 
-        if (IsDisplayedModuleDetailPrimaryAction(actionInfo))
+        if (IsBusy &&
+            normalizedAction is not "stop" and not "logs" &&
+            !isPassiveAction &&
+            !isDetailPrimaryAction)
+        {
+            return false;
+        }
+
+        if (isDetailPrimaryAction)
         {
             return DisplayedModule.IsInstalled;
         }
@@ -3671,7 +3681,15 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             ? "show_output"
             : actionInfo.ResultMode.Trim().ToLowerInvariant();
         var isPassiveAction = IsPassiveModuleActionResultMode(resultMode);
-        var canRunWhileBusy = normalizedAction is "stop" or "logs" || isPassiveAction;
+        var isDetailPrimaryAction = IsDisplayedModuleDetailPrimaryAction(actionInfo);
+        if (IsModuleDetailProgressActive(module) &&
+            normalizedAction is not "stop" and not "logs" &&
+            !isPassiveAction)
+        {
+            return;
+        }
+
+        var canRunWhileBusy = normalizedAction is "stop" or "logs" || isPassiveAction || isDetailPrimaryAction;
         if (IsBusy && !canRunWhileBusy)
         {
             return;
