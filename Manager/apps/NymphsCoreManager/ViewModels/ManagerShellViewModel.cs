@@ -3323,7 +3323,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             ? string.Empty
             : resultMode.Trim().ToLowerInvariant();
 
-        return normalizedResultMode is "open_directory" or "open_folder" or "directory" or "folder";
+        return normalizedResultMode is "open_directory" or "open_folder" or "directory" or "folder" or "open_module_ui" or "module_ui";
     }
 
     private void ApplySecretFieldToInvocation(NymphModuleActionFieldInfo field, IDictionary<string, string> environment)
@@ -3487,6 +3487,28 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                     $"{module.Name}: {actionLabel} terminal failed",
                     BuildModuleActionFeedbackDetail(ex.Message));
                 AppendActivity($"{module.Name} terminal action warning: {ex.Message}");
+            }
+
+            return;
+        }
+
+        if (resultMode is "open_module_ui" or "module_ui")
+        {
+            if (module.HasInstalledModuleUi)
+            {
+                OpenModuleUi(module);
+                StatusMessage = $"{module.Name} {actionLabel} opened.";
+                SetModuleActionFeedback(
+                    $"{module.Name}: {actionLabel} opened",
+                    "Loaded the module-owned UI in the Manager.");
+                AppendActivity($"{module.Name} {actionLabel} opened in Manager.");
+            }
+            else
+            {
+                StatusMessage = $"{module.Name} {actionLabel} is not available.";
+                SetModuleActionFeedback(
+                    $"{module.Name}: {actionLabel} unavailable",
+                    "The installed module does not expose a Manager UI yet. Run Update or Repair for this module.");
             }
 
             return;
