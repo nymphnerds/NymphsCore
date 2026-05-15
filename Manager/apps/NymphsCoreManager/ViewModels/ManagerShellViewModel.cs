@@ -95,6 +95,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
     private string _moduleActionFeedbackTitle = "No module command has run yet.";
     private string _moduleActionFeedbackDetail = "Use the manager contract buttons below to run this module's live commands.";
     private string _stickyModuleActionFeedbackModuleId = string.Empty;
+    private string _activeModuleDetailProgressModuleId = string.Empty;
     private DateTime _stickyModuleActionFeedbackUntilUtc = DateTime.MinValue;
     private string _moduleLogsTitle = "No module logs loaded.";
     private string _moduleLogsDetail = string.Empty;
@@ -368,9 +369,9 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
     public NymphModuleActionInfo? ModuleDetailPrimaryAction => ResolveModuleDetailPrimaryAction(DisplayedModule);
 
-    public bool ShowModuleDetailPrimaryAction => ModuleDetailPrimaryAction is not null && !IsBusy;
+    public bool ShowModuleDetailPrimaryAction => ModuleDetailPrimaryAction is not null && !ShowModuleDetailProgress;
 
-    public bool ShowModuleDetailProgress => IsBusy && DisplayedModule?.IsInstalled == true;
+    public bool ShowModuleDetailProgress => IsModuleDetailProgressActive(DisplayedModule);
 
     public string ModuleDetailPrimaryActionHeading => "NEXT STEP:";
 
@@ -3236,9 +3237,14 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             : actionGroup.SubmitLabel;
         var (args, environment) = BuildActionGroupInvocation(actionGroup);
         var ownsBusyState = !IsBusy && !isPassiveAction;
+        var showDetailProgress = !isPassiveAction && normalizedAction is not "logs" and not "stop";
         if (ownsBusyState)
         {
             IsBusy = true;
+        }
+        if (showDetailProgress)
+        {
+            BeginModuleDetailProgress(module);
         }
 
         StatusMessage = $"Running {module.Name} {actionLabel}...";
@@ -3303,6 +3309,10 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             else if (string.Equals(normalizedAction, "stop", StringComparison.OrdinalIgnoreCase))
             {
                 IsBusy = false;
+            }
+            if (showDetailProgress)
+            {
+                EndModuleDetailProgress(module);
             }
         }
     }
@@ -3369,6 +3379,36 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
     private bool IsModuleLifecycleActive(NymphModuleViewModel? module)
     {
         return module is not null && _modulesWithActiveLifecycle.Contains(module.Id);
+    }
+
+    private bool IsModuleDetailProgressActive(NymphModuleViewModel? module)
+    {
+        return module is not null &&
+            string.Equals(_activeModuleDetailProgressModuleId, module.Id, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private void BeginModuleDetailProgress(NymphModuleViewModel module)
+    {
+        if (string.Equals(_activeModuleDetailProgressModuleId, module.Id, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        _activeModuleDetailProgressModuleId = module.Id;
+        OnPropertyChanged(nameof(ShowModuleDetailProgress));
+        OnPropertyChanged(nameof(ShowModuleDetailPrimaryAction));
+    }
+
+    private void EndModuleDetailProgress(NymphModuleViewModel module)
+    {
+        if (!string.Equals(_activeModuleDetailProgressModuleId, module.Id, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        _activeModuleDetailProgressModuleId = string.Empty;
+        OnPropertyChanged(nameof(ShowModuleDetailProgress));
+        OnPropertyChanged(nameof(ShowModuleDetailPrimaryAction));
     }
 
     private static string BuildInstallFieldFeedback(
@@ -3613,9 +3653,14 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         }
 
         var ownsBusyState = !IsBusy && !isPassiveAction;
+        var showDetailProgress = !isPassiveAction && normalizedAction is not "logs" and not "stop";
         if (ownsBusyState)
         {
             IsBusy = true;
+        }
+        if (showDetailProgress)
+        {
+            BeginModuleDetailProgress(module);
         }
         StatusMessage = $"Running {module.Name} {actionLabel}...";
         if (!string.Equals(normalizedAction, "logs", StringComparison.OrdinalIgnoreCase))
@@ -3628,17 +3673,18 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             $"{module.Name}: running {actionLabel}",
             $"Command sent to the managed WSL distro. Waiting for {actionLabel} output...");
 
+        var liveLines = new List<string>();
         try
         {
             var output = await _workflowService.RunNymphModuleActionAsync(
                 _settings,
                 module.Id,
                 normalizedAction,
-                new Progress<string>(AppendActivity),
+                CreateModuleLiveProgress(module, actionLabel, liveLines),
                 CancellationToken.None).ConfigureAwait(true);
 
             AppendModuleActionOutput(module, normalizedAction, output);
-            var successDetail = BuildModuleActionFeedbackDetail(output);
+            var successDetail = BuildModuleActionFeedbackDetail(string.Join(Environment.NewLine, liveLines.Append(output)));
             SetStickyModuleActionFeedback(
                 module,
                 BuildModuleActionSuccessTitle(module, actionLabel, normalizedAction),
@@ -3740,6 +3786,10 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             if (ownsBusyState)
             {
                 IsBusy = false;
+            }
+            if (showDetailProgress)
+            {
+                EndModuleDetailProgress(module);
             }
         }
     }
