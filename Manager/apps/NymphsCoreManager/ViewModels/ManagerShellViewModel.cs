@@ -3882,40 +3882,6 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         {
             if (module.HasInstalledModuleUi)
             {
-                StatusMessage = $"Opening {module.Name} {actionLabel}...";
-                ModuleUiStatus = $"Preparing {actionLabel}...";
-                try
-                {
-                    var output = await _workflowService.RunNymphModuleActionAsync(
-                        _settings,
-                        module.Id,
-                        normalizedAction,
-                        new Progress<string>(line =>
-                        {
-                            if (!string.IsNullOrWhiteSpace(line))
-                            {
-                                ModuleUiStatus = line.Trim();
-                            }
-                        }),
-                        CancellationToken.None).ConfigureAwait(true);
-
-                    AppendModuleActionOutput(module, normalizedAction, output);
-                    if (normalizedAction is not "logs" and not "open")
-                    {
-                        await RefreshModuleStateAsync().ConfigureAwait(true);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    ModuleUiStatus = ex.Message;
-                    StatusMessage = $"{module.Name} {actionLabel} needs attention.";
-                    SetModuleActionFeedback(
-                        $"{module.Name}: {actionLabel} unavailable",
-                        BuildModuleActionFeedbackDetail(ex.Message));
-                    AppendActivity($"{module.Name} {actionLabel} warning: {ex.Message}");
-                    return;
-                }
-
                 OpenModuleUi(module);
                 StatusMessage = $"{module.Name} {actionLabel} opened.";
                 SetModuleActionFeedback(
