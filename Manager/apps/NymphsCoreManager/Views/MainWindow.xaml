@@ -2370,7 +2370,7 @@
                              HorizontalScrollBarVisibility="Disabled">
                       <TextBox.Resources>
                         <Style TargetType="ScrollBar"
-                               BasedOn="{StaticResource LogScrollBarStyle}" />
+                               BasedOn="{StaticResource PaneScrollBarStyle}" />
                       </TextBox.Resources>
                     </TextBox>
 	                  </StackPanel>
