@@ -8,7 +8,7 @@ namespace NymphsCoreManager;
 
 public partial class App : Application
 {
-    private const string BuildMarker = "module-rail-fixed-rows-20260515-1345";
+    private const string BuildMarker = "module-rail-stack-standard-20260515-1400";
 
     private static readonly string LogDirectory = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),

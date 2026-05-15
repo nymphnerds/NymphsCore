@@ -24,8 +24,8 @@ Changed in source:
   code-behind click handler, so WPF command state cannot remove the visible slot
 - bumped the Manager startup build marker for this rail fix so tester logs show
   whether the live EXE is the corrected build
-- rebuilt the standard rail as fixed rows so every lifecycle slot is always
-  measured and visible in the documented order
+- rebuilt the standard rail as a simple unclipped vertical stack so every
+  lifecycle slot stays visible in the documented order at normal Manager sizes
 - clarified that universal `Delete Data` preserves shared model/cache folders;
   shared weights need module-owned scoped cleanup actions
 
