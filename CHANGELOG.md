@@ -8,6 +8,28 @@ This file focuses on user-facing and system-level changes rather than package-by
 
 Newest entries first.
 
+### 2026-05-15 Retained module data stays manageable after uninstall
+Source: live LoRA uninstall/data testing in the modular Manager shell.
+
+Changed in source:
+
+- split module install state from retained data state for every module:
+  - modules that report `data_present=true` keep `Delete Data` available even
+    when the runtime is uninstalled
+  - `Delete Data` can run independently of `Uninstall`
+  - normal uninstall no longer implies a data wipe
+- updated the generic status resolver so module-owned status scripts get first
+  chance to report preserved data before the Manager falls back to repair state
+- clarified the normal uninstall confirmation text: uninstall removes runtime
+  and tools, while `Delete Data` is the separate wipe action
+- rebuilt the Win x64 published Manager EXE with the retained-data behavior
+
+Validated locally:
+
+- Manager builds with `dotnet build -c Release -p:EnableWindowsTargeting=true`
+- Manager publishes the Win x64 EXE to
+  `Manager/apps/NymphsCoreManager/publish/win-x64/NymphsCoreManager.exe`
+
 ### 2026-05-15 Faster startup update checks and Easy LoRA entry point
 Source: live LoRA install/update testing in the modular Manager shell.
 

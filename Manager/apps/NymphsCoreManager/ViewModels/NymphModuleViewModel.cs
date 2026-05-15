@@ -19,6 +19,7 @@ public sealed class NymphModuleViewModel : ViewModelBase
     private string _updateDetail = "No module update check has run yet.";
     private string _repositoryUrl = "";
     private bool _hasInstalledModuleUi;
+    private bool _hasRetainedData;
     private string _moduleUiTitle = "Module UI";
     private IReadOnlyList<NymphModuleActionLinkInfo> _overviewLinks = Array.Empty<NymphModuleActionLinkInfo>();
     private InstalledNymphModuleUiInfo? _installedModuleUiInfo;
@@ -211,9 +212,13 @@ public sealed class NymphModuleViewModel : ViewModelBase
 
     public string NavigationSubtitle => IsInstalled ? DisplayStateLabel : "Available";
 
-    public string InstallPathLabel => IsInstalled ? InstallPath : "Not installed in managed distro";
+    public string InstallPathLabel => IsInstalled
+        ? InstallPath
+        : HasRetainedData
+            ? $"{InstallPath} (retained data)"
+            : "Not installed in managed distro";
 
-    public bool CanOpenInstallPath => IsInstalled;
+    public bool CanOpenInstallPath => IsInstalled || HasRetainedData;
 
     public bool CanInstall => !IsInstalled;
 
@@ -222,7 +227,13 @@ public sealed class NymphModuleViewModel : ViewModelBase
 
     public bool CanUninstall => IsInstalled || CanRepair;
 
-    public bool CanDeleteData => true;
+    public bool HasRetainedData
+    {
+        get => _hasRetainedData;
+        private set => SetProperty(ref _hasRetainedData, value);
+    }
+
+    public bool CanDeleteData => IsInstalled || HasRetainedData;
 
     public bool CanUpdate => IsInstalled && (HasUpdate || IsRemoteVersionNewer(VersionLabel, RemoteVersionLabel));
 
@@ -259,6 +270,14 @@ public sealed class NymphModuleViewModel : ViewModelBase
         {
             ApplyInstalledModuleUi(null);
         }
+    }
+
+    public void ApplyRetainedDataState(bool hasRetainedData)
+    {
+        HasRetainedData = hasRetainedData;
+        OnPropertyChanged(nameof(InstallPathLabel));
+        OnPropertyChanged(nameof(CanOpenInstallPath));
+        OnPropertyChanged(nameof(CanDeleteData));
     }
 
     public void ApplyInstalledModuleUi(InstalledNymphModuleUiInfo? uiInfo)

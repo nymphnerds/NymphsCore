@@ -6223,9 +6223,6 @@ meta:
                   "fi; "
                 : string.Empty) +
             "ENTRYPOINT=\"\"; " +
-            (isStatusAction
-                ? $"if [[ ! -f {ToBashSingleQuoted(versionMarkerPath)} ]]; then if [[ -e {ToBashSingleQuoted(installRoot)} ]]; then {repairNeededStatus} else {unavailableStatus} fi; fi; "
-                : string.Empty) +
             $"if [[ -f {ToBashSingleQuoted(installedConventionalEntrypointPath)} ]]; then " +
             $"ENTRYPOINT={ToBashSingleQuoted(conventionalEntrypoint)}; " +
             "fi; " +
@@ -6268,7 +6265,7 @@ meta:
             $"  {commandTimeoutPrefix}{ToBashSingleQuoted(installRootBinEntrypoint)}{quotedActionArguments}; " +
             "else " +
             (isStatusAction
-                ? $"  {unavailableStatus}"
+                ? $"  if [[ -e {ToBashSingleQuoted(installRoot)} ]]; then {repairNeededStatus} else {unavailableStatus} fi; "
                 : $"  echo {ToBashSingleQuoted($"Module action is not available: {normalizedModuleId}/{normalizedAction}")} >&2; " +
                   $"  echo checked_installed_manifest={ToBashSingleQuoted(installedManifestPath)} >&2; " +
                   $"  echo checked_cached_manifest={ToBashSingleQuoted(manifestPath)} >&2; " +

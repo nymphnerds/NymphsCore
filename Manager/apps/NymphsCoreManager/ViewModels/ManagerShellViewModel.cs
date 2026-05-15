@@ -1936,6 +1936,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             secondaryParts.Count == 0
                 ? "Status came from the module-owned status entrypoint."
                 : string.Join(Environment.NewLine, secondaryParts));
+        module.ApplyRetainedDataState(string.Equals(dataPresent, "true", StringComparison.OrdinalIgnoreCase));
         if (ShouldLogModuleStatusSnapshot(snapshot))
         {
             AppendActivity(BuildModuleStatusLogLine(module, snapshot));
@@ -1943,6 +1944,12 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
         RefreshInstalledModuleUiInfo(module);
         _updateModuleCommand.RaiseCanExecuteChanged();
+        _openModuleInstallPathCommand.RaiseCanExecuteChanged();
+        _deleteModuleCommand.RaiseCanExecuteChanged();
+        if (DisplayedModule is not null && string.Equals(DisplayedModule.Id, module.Id, StringComparison.OrdinalIgnoreCase))
+        {
+            RefreshDisplayedModuleActionState();
+        }
     }
 
     private static bool IsNormalUnavailableModuleStatus(string? message)
@@ -4339,7 +4346,12 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
     private async Task RunModuleUninstallAsync(NymphModuleViewModel? module, bool purge, bool dataOnly = false)
     {
-        if (module is null || !module.CanUninstall || IsBusy)
+        if (module is null || IsBusy)
+        {
+            return;
+        }
+
+        if (dataOnly ? !module.CanDeleteData : !module.CanUninstall)
         {
             return;
         }
@@ -4351,7 +4363,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             ? $"Delete data for {targetName}?\n\nThis deletes datasets, outputs, jobs, logs, config, model downloads, and other module data, but keeps the module runtime and venv when installed."
             : purge
             ? $"Delete {targetName} completely?\n\nThis removes the module install folder and its module data from the managed WSL distro."
-            : $"Uninstall {targetName}?\n\nThis removes the module install folder but saves known user data to ~/NymphsModuleBackups inside the managed WSL distro.";
+            : $"Uninstall {targetName}?\n\nThis removes the module runtime and tools but preserves known module data. Use Delete Data separately if you want to wipe datasets, outputs, logs, model downloads, and config.";
         var caption = dataOnly ? "Delete Module Data" : purge ? "Delete Module + Data" : "Uninstall Module";
         var icon = dataOnly || purge ? MessageBoxImage.Warning : MessageBoxImage.Question;
         var confirmation = MessageBox.Show(prompt, caption, MessageBoxButton.YesNo, icon);
@@ -4413,7 +4425,11 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                     ? "Module data was deleted. Runtime was left in place when present."
                     : purge
                     ? "Module and data were deleted. Registry install remains available."
-                    : "Module was uninstalled. Preserved data was moved to the module backup area when available.");
+                    : "Module was uninstalled. Preserved data remains available for Delete Data.");
+            module.ApplyRetainedDataState(!dataOnly && !purge);
+            RefreshDisplayedModuleActionState();
+            _openModuleInstallPathCommand.RaiseCanExecuteChanged();
+            _deleteModuleCommand.RaiseCanExecuteChanged();
             SetModuleActionFeedback(
                 $"{targetName}: {actionLabel} finished",
                 BuildModuleActionFeedbackDetail(string.Join(Environment.NewLine, uninstallLines.Append(uninstallOutput))));
@@ -4428,7 +4444,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                 AppendActivity($"{targetName} uninstall completed, but state refresh needs attention: {refreshException.Message}");
             }
 
-            if (!dataOnly && !module.IsInstalled && CurrentPageKind == ManagerPageKind.Module)
+            if (!dataOnly && !module.IsInstalled && !module.HasRetainedData && CurrentPageKind == ManagerPageKind.Module)
             {
                 SelectPrimaryPage(ManagerPageKind.Home);
             }
