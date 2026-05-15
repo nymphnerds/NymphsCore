@@ -3065,7 +3065,9 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                    DisplayedModule.IsInstalled;
         }
 
-        if (IsBusy && normalizedAction is not "stop" and not "logs")
+        if (IsBusy &&
+            normalizedAction is not "stop" and not "logs" &&
+            !IsPassiveModuleActionResultMode(actionInfo.ResultMode))
         {
             return false;
         }
@@ -3091,7 +3093,9 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         }
 
         var normalizedAction = actionGroup.EntryPoint.Trim().ToLowerInvariant();
-        if (IsBusy && normalizedAction is not "stop" and not "logs")
+        if (IsBusy &&
+            normalizedAction is not "stop" and not "logs" &&
+            !IsPassiveModuleActionResultMode(actionGroup.ResultMode))
         {
             return false;
         }
@@ -3119,7 +3123,12 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         }
 
         var normalizedAction = actionGroup.EntryPoint.Trim().ToLowerInvariant();
-        if (!module.IsInstalled || (IsBusy && normalizedAction is not "stop" and not "logs"))
+        var resultMode = string.IsNullOrWhiteSpace(actionGroup.ResultMode)
+            ? "show_logs"
+            : actionGroup.ResultMode.Trim().ToLowerInvariant();
+        var isPassiveAction = IsPassiveModuleActionResultMode(resultMode);
+        if (!module.IsInstalled ||
+            (IsBusy && normalizedAction is not "stop" and not "logs" && !isPassiveAction))
         {
             return;
         }
@@ -3127,11 +3136,8 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         var actionLabel = string.IsNullOrWhiteSpace(actionGroup.SubmitLabel)
             ? actionGroup.Title
             : actionGroup.SubmitLabel;
-        var resultMode = string.IsNullOrWhiteSpace(actionGroup.ResultMode)
-            ? "show_logs"
-            : actionGroup.ResultMode.Trim().ToLowerInvariant();
         var (args, environment) = BuildActionGroupInvocation(actionGroup);
-        var ownsBusyState = !IsBusy;
+        var ownsBusyState = !IsBusy && !isPassiveAction;
         if (ownsBusyState)
         {
             IsBusy = true;
@@ -3171,7 +3177,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             AppendModuleActionOutput(module, normalizedAction, output);
             var successDetail = BuildModuleActionFeedbackDetail(string.Join(Environment.NewLine, liveLines.Append(output)));
 
-            if (normalizedAction is not "logs" and not "open")
+            if (!isPassiveAction && normalizedAction is not "logs" and not "open")
             {
                 await RefreshModuleStateAsync().ConfigureAwait(true);
             }
@@ -3311,6 +3317,15 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         return Regex.IsMatch(value, "^[A-Za-z_][A-Za-z0-9_]*$");
     }
 
+    private static bool IsPassiveModuleActionResultMode(string? resultMode)
+    {
+        var normalizedResultMode = string.IsNullOrWhiteSpace(resultMode)
+            ? string.Empty
+            : resultMode.Trim().ToLowerInvariant();
+
+        return normalizedResultMode is "open_directory" or "open_folder" or "directory" or "folder";
+    }
+
     private void ApplySecretFieldToInvocation(NymphModuleActionFieldInfo field, IDictionary<string, string> environment)
     {
         var secretKind = ResolveSharedSecretKind(field);
@@ -3438,7 +3453,8 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         var resultMode = string.IsNullOrWhiteSpace(actionInfo.ResultMode)
             ? "show_output"
             : actionInfo.ResultMode.Trim().ToLowerInvariant();
-        var canRunWhileBusy = normalizedAction is "stop" or "logs";
+        var isPassiveAction = IsPassiveModuleActionResultMode(resultMode);
+        var canRunWhileBusy = normalizedAction is "stop" or "logs" || isPassiveAction;
         if (IsBusy && !canRunWhileBusy)
         {
             return;
@@ -3476,7 +3492,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             return;
         }
 
-        var ownsBusyState = !IsBusy;
+        var ownsBusyState = !IsBusy && !isPassiveAction;
         if (ownsBusyState)
         {
             IsBusy = true;
@@ -3574,7 +3590,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                 ShowModulePage(module);
             }
 
-            if (normalizedAction is not "logs" and not "open")
+            if (!isPassiveAction && normalizedAction is not "logs" and not "open")
             {
                 await RefreshModuleStateAsync().ConfigureAwait(true);
             }

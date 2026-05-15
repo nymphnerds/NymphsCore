@@ -153,8 +153,10 @@ write_action_state "running" "${ACTION^} ${MODULE_ID} from the Nymphs registry."
 trap clear_action_state EXIT
 
 if [[ -d "${REPO_ROOT}/.git" ]]; then
+  git -C "${REPO_ROOT}" remote set-url origin "${REPO_URL}"
   git -C "${REPO_ROOT}" fetch --depth 1 origin "${REPO_BRANCH}"
-  git -C "${REPO_ROOT}" checkout -q FETCH_HEAD
+  git -C "${REPO_ROOT}" reset -q --hard FETCH_HEAD
+  git -C "${REPO_ROOT}" clean -q -fd
 else
   rm -rf "${REPO_ROOT}"
   git clone --depth 1 --branch "${REPO_BRANCH}" "${REPO_URL}" "${REPO_ROOT}"
