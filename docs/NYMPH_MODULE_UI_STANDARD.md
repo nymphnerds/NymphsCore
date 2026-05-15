@@ -187,6 +187,36 @@ If an older installed manifest is missing a requested action, the Manager may re
 
 When a module UI action starts, the Manager switches to the standard Logs page and streams stdout, stderr, and carriage-return progress there. Module UI pages should therefore trigger long jobs with `nymphs-module-action://` and let the module script print useful progress instead of trying to run downloads during page load.
 
+For compact in-place status refreshes, installed module HTML may also use the
+generic WebView2 message bridge. This bridge is only for installed,
+manifest-declared module actions and uses the same action/argument validation as
+the URL bridge. It does not allow arbitrary shell execution.
+
+Request:
+
+```js
+window.chrome.webview.postMessage({
+  type: "module_action",
+  requestId: "status-1",
+  action: "job_status",
+  args: { "lora-name": "my_lora" }
+});
+```
+
+Response:
+
+```js
+window.chrome.webview.addEventListener("message", event => {
+  if (event.data?.type === "module_action_result") {
+    // event.data.ok, requestId, action, output, error
+  }
+});
+```
+
+Use this for short, non-destructive queries such as status/log polling. Long or
+heavy actions should still use `nymphs-module-action://` so the Manager can show
+standard logs and lifecycle feedback.
+
 ### Shutdown Contract
 
 Closing the Manager cancels active module action and lifecycle process trees.

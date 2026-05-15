@@ -13,6 +13,21 @@ using NymphsCoreManager.Services;
 
 namespace NymphsCoreManager.ViewModels;
 
+public sealed record ModuleUiActionResult(
+    string Type,
+    string RequestId,
+    string Action,
+    bool Ok,
+    string Output,
+    string Error)
+{
+    public static ModuleUiActionResult Success(string requestId, string action, string output) =>
+        new("module_action_result", requestId, action, true, output, string.Empty);
+
+    public static ModuleUiActionResult Failure(string requestId, string action, string error) =>
+        new("module_action_result", requestId, action, false, string.Empty, error);
+}
+
 public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 {
     private const string CloseModuleUiActionName = "__close_module_ui";
@@ -2574,6 +2589,79 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         return true;
     }
 
+    public async Task<ModuleUiActionResult> RunModuleUiActionInlineAsync(
+        string requestId,
+        string action,
+        IReadOnlyDictionary<string, string> arguments)
+    {
+        var module = DisplayedModule;
+        var normalizedAction = NormalizeModuleUiActionName(action);
+        if (module is null || !module.IsInstalled)
+        {
+            return ModuleUiActionResult.Failure(requestId, normalizedAction, "No installed module UI is active.");
+        }
+
+        if (IsBusy)
+        {
+            return ModuleUiActionResult.Failure(requestId, normalizedAction, "Manager is busy with another module action.");
+        }
+
+        if (string.IsNullOrWhiteSpace(normalizedAction) ||
+            !module.Capabilities.Any(capability => string.Equals(capability, normalizedAction, StringComparison.OrdinalIgnoreCase)))
+        {
+            return ModuleUiActionResult.Failure(requestId, normalizedAction, $"Unsupported module UI action: {normalizedAction}");
+        }
+
+        var args = ResolveModuleUiActionArguments(arguments).ToList();
+        if (args.Any(argument => string.Equals(argument, "--hf_token", StringComparison.OrdinalIgnoreCase) ||
+                                 string.Equals(argument, "--hf-token", StringComparison.OrdinalIgnoreCase)))
+        {
+            ApplyModuleHuggingFaceTokenArgument(args);
+        }
+
+        IsBusy = true;
+        StatusMessage = $"Running {module.Name} {normalizedAction}...";
+        ModuleUiStatus = args.Count == 0
+            ? $"Running {normalizedAction}..."
+            : $"Running {normalizedAction} {string.Join(" ", args)}...";
+
+        try
+        {
+            var output = await _workflowService.RunNymphModuleActionAsync(
+                _settings,
+                module.Id,
+                normalizedAction,
+                args,
+                new Progress<string>(line =>
+                {
+                    if (!string.IsNullOrWhiteSpace(line))
+                    {
+                        ModuleUiStatus = line.Trim();
+                    }
+                }),
+                CancellationToken.None).ConfigureAwait(true);
+
+            ModuleUiStatus = BuildModuleActionFeedbackDetail(output);
+            if (normalizedAction is not "logs" and not "open" and not "job_status")
+            {
+                await RefreshModuleStateAsync().ConfigureAwait(true);
+            }
+
+            StatusMessage = $"{module.Name} {normalizedAction} finished.";
+            return ModuleUiActionResult.Success(requestId, normalizedAction, output);
+        }
+        catch (Exception ex)
+        {
+            ModuleUiStatus = ex.Message;
+            StatusMessage = $"{module.Name} {normalizedAction} needs attention.";
+            return ModuleUiActionResult.Failure(requestId, normalizedAction, ex.Message);
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
     private async Task RunModuleUiActionAsync(Uri uri)
     {
         var module = DisplayedModule;
@@ -2655,7 +2743,12 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             ? uri.AbsolutePath.Trim('/')
             : uri.Host;
 
-        action = action.Trim().ToLowerInvariant();
+        return NormalizeModuleUiActionName(action);
+    }
+
+    private static string NormalizeModuleUiActionName(string? action)
+    {
+        action = (action ?? string.Empty).Trim().ToLowerInvariant();
         return Regex.IsMatch(action, "^[a-z0-9][a-z0-9_-]{0,39}$", RegexOptions.CultureInvariant)
             ? action
             : string.Empty;
@@ -2680,6 +2773,34 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             }
 
             var value = parts.Length > 1 ? Uri.UnescapeDataString(parts[1]).Trim() : string.Empty;
+            var isHuggingFaceToken = string.Equals(key, "hf_token", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(key, "hf-token", StringComparison.OrdinalIgnoreCase);
+            if ((!isHuggingFaceToken && string.IsNullOrWhiteSpace(value)) ||
+                value.Any(char.IsControl) ||
+                value.Length > 256)
+            {
+                continue;
+            }
+
+            args.Add($"--{key}");
+            args.Add(value);
+        }
+
+        return args;
+    }
+
+    private static IReadOnlyList<string> ResolveModuleUiActionArguments(IReadOnlyDictionary<string, string> arguments)
+    {
+        var args = new List<string>();
+        foreach (var pair in arguments)
+        {
+            var key = pair.Key.Trim().ToLowerInvariant();
+            if (!Regex.IsMatch(key, "^[a-z0-9][a-z0-9_-]{0,39}$", RegexOptions.CultureInvariant))
+            {
+                continue;
+            }
+
+            var value = (pair.Value ?? string.Empty).Trim();
             var isHuggingFaceToken = string.Equals(key, "hf_token", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(key, "hf-token", StringComparison.OrdinalIgnoreCase);
             if ((!isHuggingFaceToken && string.IsNullOrWhiteSpace(value)) ||

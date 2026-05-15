@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Diagnostics;
@@ -430,15 +431,90 @@ public partial class MainWindow : Window
         _moduleUiWebMessageAttached = true;
     }
 
-    private void ModuleUiBrowser_WebMessageReceived(object? sender, CoreWebView2WebMessageReceivedEventArgs e)
+    private async void ModuleUiBrowser_WebMessageReceived(object? sender, CoreWebView2WebMessageReceivedEventArgs e)
     {
-        if (!string.Equals(e.TryGetWebMessageAsString(), "back", StringComparison.OrdinalIgnoreCase) ||
-            _viewModel?.DisplayedModule is null)
+        if (_viewModel?.DisplayedModule is null)
         {
             return;
         }
 
-        _viewModel.OpenModuleCommand.Execute(_viewModel.DisplayedModule);
+        try
+        {
+            using var message = JsonDocument.Parse(e.WebMessageAsJson);
+            if (message.RootElement.ValueKind == JsonValueKind.String &&
+                string.Equals(message.RootElement.GetString(), "back", StringComparison.OrdinalIgnoreCase))
+            {
+                _viewModel.OpenModuleCommand.Execute(_viewModel.DisplayedModule);
+                return;
+            }
+
+            if (message.RootElement.ValueKind != JsonValueKind.Object)
+            {
+                return;
+            }
+
+            var type = GetJsonString(message.RootElement, "type");
+            if (!string.Equals(type, "module_action", StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+
+            var requestId = GetJsonString(message.RootElement, "requestId") ?? string.Empty;
+            var action = GetJsonString(message.RootElement, "action") ?? string.Empty;
+            var arguments = ReadModuleUiActionArguments(message.RootElement);
+            var result = await _viewModel.RunModuleUiActionInlineAsync(requestId, action, arguments).ConfigureAwait(true);
+            PostModuleUiActionResult(result);
+        }
+        catch (Exception ex)
+        {
+            PostModuleUiActionResult(ModuleUiActionResult.Failure(string.Empty, string.Empty, ex.Message));
+        }
+    }
+
+    private void PostModuleUiActionResult(ModuleUiActionResult result)
+    {
+        var payloadJson = JsonSerializer.Serialize(new
+        {
+            type = result.Type,
+            requestId = result.RequestId,
+            action = result.Action,
+            ok = result.Ok,
+            output = result.Output,
+            error = result.Error,
+        });
+        ModuleUiBrowser.CoreWebView2?.PostWebMessageAsJson(payloadJson);
+    }
+
+    private static IReadOnlyDictionary<string, string> ReadModuleUiActionArguments(JsonElement root)
+    {
+        var arguments = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        if (!root.TryGetProperty("args", out var argsElement) ||
+            argsElement.ValueKind != JsonValueKind.Object)
+        {
+            return arguments;
+        }
+
+        foreach (var property in argsElement.EnumerateObject().Take(24))
+        {
+            if (property.Value.ValueKind == JsonValueKind.String)
+            {
+                arguments[property.Name] = property.Value.GetString() ?? string.Empty;
+            }
+            else if (property.Value.ValueKind is JsonValueKind.Number or JsonValueKind.True or JsonValueKind.False)
+            {
+                arguments[property.Name] = property.Value.ToString();
+            }
+        }
+
+        return arguments;
+    }
+
+    private static string? GetJsonString(JsonElement element, string propertyName)
+    {
+        return element.TryGetProperty(propertyName, out var property) &&
+               property.ValueKind == JsonValueKind.String
+            ? property.GetString()
+            : null;
     }
 
     private static string BuildModuleUiErrorHtml(string message)
