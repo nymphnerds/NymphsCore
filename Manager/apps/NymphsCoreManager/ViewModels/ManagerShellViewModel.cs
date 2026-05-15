@@ -419,6 +419,9 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                     if (CurrentPageKind == ManagerPageKind.ModuleUi)
                     {
                         return loraActions
+                            .Where(action =>
+                                !string.Equals(action.Id, "easy_lora", StringComparison.OrdinalIgnoreCase) &&
+                                !string.Equals(action.ActionName, "easy_lora", StringComparison.OrdinalIgnoreCase))
                             .Prepend(new NymphModuleActionInfo(
                                 "close_easy_lora",
                                 "Close Easy LoRA",
