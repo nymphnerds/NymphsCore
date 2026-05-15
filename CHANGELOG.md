@@ -24,6 +24,8 @@ Changed in source:
   and tools, while `Delete Data` is the separate wipe action
 - kept the right-rail `Delete Data` button visible like the other module
   lifecycle buttons; live status now only enables/disables it
+- stopped global Manager busy/refresh state from disabling `Delete Data` when
+  retained data exists; only that module's own lifecycle action blocks it
 - rebuilt the Win x64 published Manager EXE with the retained-data behavior
 
 Validated locally:

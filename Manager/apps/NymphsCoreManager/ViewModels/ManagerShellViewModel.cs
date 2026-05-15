@@ -165,7 +165,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         _runModuleDevActionCommand = new RelayCommand<string>(RunSelectedModuleDevAction, CanRunSelectedModuleDevAction);
         _toggleDeveloperModeCommand = new RelayCommand(ToggleDeveloperMode);
         _uninstallModuleCommand = new RelayCommand<NymphModuleViewModel>(UninstallModule, module => module?.CanUninstall == true && !IsBusy);
-        _deleteModuleCommand = new RelayCommand<NymphModuleViewModel>(DeleteModule, module => module?.CanDeleteData == true && !IsBusy);
+        _deleteModuleCommand = new RelayCommand<NymphModuleViewModel>(DeleteModule, module => module?.CanDeleteData == true && !IsModuleLifecycleActive(module));
 
         LoadSidebarArtwork();
         LoadHistoricalLogs();
@@ -4346,7 +4346,19 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
     private async Task RunModuleUninstallAsync(NymphModuleViewModel? module, bool purge, bool dataOnly = false)
     {
-        if (module is null || IsBusy)
+        if (module is null)
+        {
+            return;
+        }
+
+        if (dataOnly)
+        {
+            if (IsModuleLifecycleActive(module))
+            {
+                return;
+            }
+        }
+        else if (IsBusy)
         {
             return;
         }
@@ -4373,7 +4385,11 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             return;
         }
 
-        IsBusy = true;
+        var ownsBusyState = !IsBusy;
+        if (ownsBusyState)
+        {
+            IsBusy = true;
+        }
         _modulesWithActiveLifecycle.Add(targetId);
         StatusMessage = dataOnly
             ? $"Deleting {targetName} data from the managed distro..."
@@ -4466,7 +4482,15 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         finally
         {
             _modulesWithActiveLifecycle.Remove(targetId);
-            IsBusy = false;
+            if (ownsBusyState)
+            {
+                IsBusy = false;
+            }
+            else
+            {
+                RefreshDisplayedModuleActionState();
+                _deleteModuleCommand.RaiseCanExecuteChanged();
+            }
         }
     }
 
