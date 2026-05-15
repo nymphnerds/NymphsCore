@@ -310,25 +310,11 @@
       </Setter>
     </Style>
 
-    <Style TargetType="TextBlock" x:Key="ManageTextLinkStyle">
-      <Setter Property="Margin" Value="0,4,0,3" />
-      <Setter Property="HorizontalAlignment" Value="Right" />
-      <Setter Property="Foreground" Value="#EEF9F6" />
-      <Setter Property="FontFamily" Value="Segoe UI Semibold" />
-      <Setter Property="FontSize" Value="14" />
-      <Setter Property="FontWeight" Value="Normal" />
-      <Setter Property="TextOptions.TextFormattingMode" Value="Display" />
-      <Setter Property="TextOptions.TextRenderingMode" Value="ClearType" />
-      <Setter Property="Cursor" Value="Hand" />
-      <Style.Triggers>
-        <Trigger Property="IsMouseOver" Value="True">
-          <Setter Property="Foreground" Value="{StaticResource AccentBrush}" />
-        </Trigger>
-        <Trigger Property="IsEnabled" Value="False">
-          <Setter Property="Foreground" Value="#5E7A75" />
-          <Setter Property="Cursor" Value="Arrow" />
-        </Trigger>
-      </Style.Triggers>
+    <Style TargetType="Button" x:Key="ManageRailButtonStyle" BasedOn="{StaticResource ManageLinkButtonStyle}">
+      <Setter Property="Margin" Value="0" />
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="Height" Value="28" />
+      <Setter Property="VerticalAlignment" Value="Center" />
     </Style>
 
     <Style TargetType="TextBlock" x:Key="RightFactTextStyle">
@@ -1337,39 +1323,57 @@
                   Background="#0A1415"
                   BorderBrush="#284446"
                   BorderThickness="1">
-            <StackPanel>
-              <TextBlock Text="// MANAGE"
+            <Grid Width="130">
+              <Grid.RowDefinitions>
+                <RowDefinition Height="28" />
+                <RowDefinition Height="28" />
+                <RowDefinition Height="28" />
+                <RowDefinition Height="28" />
+                <RowDefinition Height="28" />
+                <RowDefinition Height="28" />
+                <RowDefinition Height="28" />
+                <RowDefinition Height="28" />
+              </Grid.RowDefinitions>
+              <TextBlock Grid.Row="0"
+                         Text="// MANAGE"
                          Style="{StaticResource MonoLabelStyle}"
                          Foreground="{StaticResource LimeBrush}"
                          FontSize="12" />
-              <Button Style="{StaticResource ManageLinkButtonStyle}"
+              <Button Grid.Row="1"
+                      Style="{StaticResource ManageRailButtonStyle}"
                       Command="{Binding OpenGuideCommand}"
                       Content="Guide" />
-	              <Button Style="{StaticResource ManageLinkButtonStyle}"
-                          IsEnabled="{Binding ShowInstallModuleAction}"
-                          Click="InstallModuleButton_Click"
-	                      Content="Install" />
-	              <Button Style="{StaticResource ManageLinkButtonStyle}"
-	                      Command="{Binding UpdateModuleCommand}"
-	                      CommandParameter="{Binding DisplayedModule}"
-	                      Content="Update" />
-		                <Button Style="{StaticResource ManageLinkButtonStyle}"
-		                        Command="{Binding RepairModuleCommand}"
-		                        CommandParameter="{Binding DisplayedModule}"
+              <Button Grid.Row="2"
+                      Style="{StaticResource ManageRailButtonStyle}"
+                      IsEnabled="{Binding ShowInstallModuleAction}"
+                      Click="InstallModuleButton_Click"
+                      Content="Install" />
+              <Button Grid.Row="3"
+                      Style="{StaticResource ManageRailButtonStyle}"
+                      Command="{Binding UpdateModuleCommand}"
+                      CommandParameter="{Binding DisplayedModule}"
+                      Content="Update" />
+              <Button Grid.Row="4"
+                      Style="{StaticResource ManageRailButtonStyle}"
+                      Command="{Binding RepairModuleCommand}"
+                      CommandParameter="{Binding DisplayedModule}"
                       Content="Repair" />
-              <Button Style="{StaticResource ManageLinkButtonStyle}"
+              <Button Grid.Row="5"
+                      Style="{StaticResource ManageRailButtonStyle}"
                       Command="{Binding OpenModuleInstallPathCommand}"
                       CommandParameter="{Binding DisplayedModule}"
                       Content="Directory" />
-              <Button Style="{StaticResource ManageLinkButtonStyle}"
+              <Button Grid.Row="6"
+                      Style="{StaticResource ManageRailButtonStyle}"
                       Command="{Binding UninstallModuleCommand}"
                       CommandParameter="{Binding DisplayedModule}"
                       Content="Uninstall" />
-              <TextBlock Style="{StaticResource ManageTextLinkStyle}"
-                         IsEnabled="{Binding ShowDeleteModuleData}"
-                         MouseLeftButtonUp="DeleteModuleDataButton_Click"
-                         Text="Delete Data" />
-            </StackPanel>
+              <Button Grid.Row="7"
+                      Style="{StaticResource ManageRailButtonStyle}"
+                      IsEnabled="{Binding ShowDeleteModuleData}"
+                      Click="DeleteModuleDataButton_Click"
+                      Content="Delete Data" />
+            </Grid>
           </Border>
         </Popup>
 
@@ -2142,44 +2146,61 @@
                 </StackPanel>
               </Grid>
 
-              <StackPanel Grid.Row="1"
-                          Grid.Column="2"
-                          VerticalAlignment="Top"
-                          HorizontalAlignment="Right"
-                          Margin="0,0,0,0">
-                <TextBlock Text="// MANAGE"
-                           Margin="0,0,0,8"
+              <Grid Grid.Row="1"
+                    Grid.Column="2"
+                    Width="138"
+                    VerticalAlignment="Top"
+                    HorizontalAlignment="Right">
+                <Grid.RowDefinitions>
+                  <RowDefinition Height="32" />
+                  <RowDefinition Height="28" />
+                  <RowDefinition Height="28" />
+                  <RowDefinition Height="28" />
+                  <RowDefinition Height="28" />
+                  <RowDefinition Height="28" />
+                  <RowDefinition Height="28" />
+                  <RowDefinition Height="28" />
+                </Grid.RowDefinitions>
+                <TextBlock Grid.Row="0"
+                           Text="// MANAGE"
                            HorizontalAlignment="Right"
                            Style="{StaticResource MonoLabelStyle}"
                            Foreground="{StaticResource LimeBrush}" />
-		                <Button Style="{StaticResource ManageLinkButtonStyle}"
-		                        Command="{Binding OpenGuideCommand}"
-		                        Content="Guide" />
-		                <Button Style="{StaticResource ManageLinkButtonStyle}"
-                                IsEnabled="{Binding ShowInstallModuleAction}"
-                                Click="InstallModuleButton_Click"
-		                        Content="Install" />
-		                <Button Style="{StaticResource ManageLinkButtonStyle}"
-		                        Command="{Binding UpdateModuleCommand}"
-		                        CommandParameter="{Binding DisplayedModule}"
-		                        Content="Update" />
-		                <Button Style="{StaticResource ManageLinkButtonStyle}"
-		                        Command="{Binding RepairModuleCommand}"
-		                        CommandParameter="{Binding DisplayedModule}"
-		                        Content="Repair" />
-		                <Button Style="{StaticResource ManageLinkButtonStyle}"
-		                        Command="{Binding OpenModuleInstallPathCommand}"
-		                        CommandParameter="{Binding DisplayedModule}"
-	                        Content="Directory" />
-		                <Button Style="{StaticResource ManageLinkButtonStyle}"
-		                        Command="{Binding UninstallModuleCommand}"
-		                        CommandParameter="{Binding DisplayedModule}"
-		                        Content="Uninstall" />
-		                <TextBlock Style="{StaticResource ManageTextLinkStyle}"
-		                           IsEnabled="{Binding ShowDeleteModuleData}"
-		                           MouseLeftButtonUp="DeleteModuleDataButton_Click"
-		                           Text="Delete Data" />
-              </StackPanel>
+                <Button Grid.Row="1"
+                        Style="{StaticResource ManageRailButtonStyle}"
+                        Command="{Binding OpenGuideCommand}"
+                        Content="Guide" />
+                <Button Grid.Row="2"
+                        Style="{StaticResource ManageRailButtonStyle}"
+                        IsEnabled="{Binding ShowInstallModuleAction}"
+                        Click="InstallModuleButton_Click"
+                        Content="Install" />
+                <Button Grid.Row="3"
+                        Style="{StaticResource ManageRailButtonStyle}"
+                        Command="{Binding UpdateModuleCommand}"
+                        CommandParameter="{Binding DisplayedModule}"
+                        Content="Update" />
+                <Button Grid.Row="4"
+                        Style="{StaticResource ManageRailButtonStyle}"
+                        Command="{Binding RepairModuleCommand}"
+                        CommandParameter="{Binding DisplayedModule}"
+                        Content="Repair" />
+                <Button Grid.Row="5"
+                        Style="{StaticResource ManageRailButtonStyle}"
+                        Command="{Binding OpenModuleInstallPathCommand}"
+                        CommandParameter="{Binding DisplayedModule}"
+                        Content="Directory" />
+                <Button Grid.Row="6"
+                        Style="{StaticResource ManageRailButtonStyle}"
+                        Command="{Binding UninstallModuleCommand}"
+                        CommandParameter="{Binding DisplayedModule}"
+                        Content="Uninstall" />
+                <Button Grid.Row="7"
+                        Style="{StaticResource ManageRailButtonStyle}"
+                        IsEnabled="{Binding ShowDeleteModuleData}"
+                        Click="DeleteModuleDataButton_Click"
+                        Content="Delete Data" />
+              </Grid>
 
               <Border Grid.Row="1"
                       Grid.Column="0"

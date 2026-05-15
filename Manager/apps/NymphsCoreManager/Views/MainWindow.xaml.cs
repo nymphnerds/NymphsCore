@@ -796,7 +796,7 @@ window.addEventListener('DOMContentLoaded', function() {
         e.Handled = true;
     }
 
-    private void DeleteModuleDataButton_Click(object sender, MouseButtonEventArgs e)
+    private void DeleteModuleDataButton_Click(object sender, RoutedEventArgs e)
     {
         if (DataContext is ManagerShellViewModel viewModel &&
             viewModel.DisplayedModule is { } module &&

@@ -27,6 +27,11 @@ them from module state. `Delete Data` is backed by
 `uninstall.supports_data_delete=true` plus `uninstall.data_only_arg`, and stays
 separate from normal uninstall.
 
+`Delete Data` is for module-owned user/runtime data. Shared model directories
+and shared Hugging Face caches must not be wiped by the universal rail action;
+those need module-owned scoped actions so one module cannot delete another
+module's required weights.
+
 ## Manifest Contract
 
 An installed module may expose a local Manager UI from its installed `nymph.json`:

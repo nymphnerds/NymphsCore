@@ -176,9 +176,15 @@ and disappear during refresh.
 default when the module supports preservation.
 
 `Delete Data` is the separate wipe action. It deletes preserved datasets,
-outputs, jobs, logs, config, model downloads, and other module-owned data when a
-module reports `data_present=true`. It should remain available after uninstall
-when preserved data remains.
+outputs, jobs, logs, config, and other module-owned data when a module reports
+`data_present=true`. It should remain available after uninstall when preserved
+data remains.
+
+Do not use `Delete Data` to blindly remove shared model/cache folders. If model
+files live in a shared cache such as `$HOME/NymphsData/cache/huggingface`, keep
+that cache preserved and expose module-specific model cleanup through a
+module-owned action such as `Fetch Models`, `Open Weights`, or a scoped model
+delete action.
 
 Modules that support the standard wipe action must declare both
 `uninstall.data_only_arg` and `uninstall.supports_data_delete=true` in

@@ -4372,10 +4372,10 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         var targetName = module.Name;
 
         var prompt = dataOnly
-            ? $"Delete data for {targetName}?\n\nThis deletes datasets, outputs, jobs, logs, config, model downloads, and other module data, but keeps the module runtime and venv when installed."
+            ? $"Delete data for {targetName}?\n\nThis deletes module-owned outputs, jobs, logs, config, and other module data, but keeps the module runtime and venv when installed. Shared model/cache folders are preserved unless the module has a separate model-cache delete action."
             : purge
             ? $"Delete {targetName} completely?\n\nThis removes the module install folder and its module data from the managed WSL distro."
-            : $"Uninstall {targetName}?\n\nThis removes the module runtime and tools but preserves known module data. Use Delete Data separately if you want to wipe datasets, outputs, logs, model downloads, and config.";
+            : $"Uninstall {targetName}?\n\nThis removes the module runtime and tools but preserves known module data. Use Delete Data separately if you want to wipe module-owned outputs, logs, jobs, and config.";
         var caption = dataOnly ? "Delete Module Data" : purge ? "Delete Module + Data" : "Uninstall Module";
         var icon = dataOnly || purge ? MessageBoxImage.Warning : MessageBoxImage.Question;
         var confirmation = MessageBox.Show(prompt, caption, MessageBoxButton.YesNo, icon);
