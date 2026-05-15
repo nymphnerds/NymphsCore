@@ -4345,7 +4345,7 @@ meta:
         progress.Report("Checking Nymphs registry for module updates...");
 
         using var registryDocument = await FetchJsonDocumentAsync(NymphModuleRegistryUrl, cancellationToken).ConfigureAwait(false);
-        var results = new List<NymphModuleUpdateInfo>();
+        var updateTasks = new List<Task<NymphModuleUpdateInfo>>();
 
         foreach (var moduleElement in registryDocument.RootElement.GetProperty("modules").EnumerateArray())
         {
@@ -4358,23 +4358,37 @@ meta:
             var manifestUrl = GetJsonString(moduleElement, "manifest_url")?.Trim();
             if (string.IsNullOrWhiteSpace(manifestUrl))
             {
-                results.Add(new NymphModuleUpdateInfo(moduleId, null, null, false, "Registry entry has no manifest URL."));
+                updateTasks.Add(Task.FromResult(new NymphModuleUpdateInfo(moduleId, null, null, false, "Registry entry has no manifest URL.")));
                 continue;
             }
 
-            using var remoteManifest = await FetchJsonDocumentAsync(manifestUrl, cancellationToken).ConfigureAwait(false);
-            var remoteVersion = GetJsonString(remoteManifest.RootElement, "version");
-            var installedVersion = ReadInstalledModuleVersion(settings, moduleId);
-            var hasUpdate = IsRemoteVersionNewer(installedVersion, remoteVersion);
-            var detail = hasUpdate
-                ? $"{moduleId}: update available {installedVersion ?? "unknown"} -> {remoteVersion ?? "unknown"}"
-                : $"{moduleId}: current ({installedVersion ?? "unknown installed"}, remote {remoteVersion ?? "unknown"})";
+            updateTasks.Add(CheckSingleNymphModuleUpdateAsync(settings, moduleId, manifestUrl, cancellationToken));
+        }
 
-            progress.Report(detail);
-            results.Add(new NymphModuleUpdateInfo(moduleId, installedVersion, remoteVersion, hasUpdate, detail));
+        var results = await Task.WhenAll(updateTasks).ConfigureAwait(false);
+        foreach (var result in results)
+        {
+            progress.Report(result.Detail);
         }
 
         return results;
+    }
+
+    private async Task<NymphModuleUpdateInfo> CheckSingleNymphModuleUpdateAsync(
+        InstallSettings settings,
+        string moduleId,
+        string manifestUrl,
+        CancellationToken cancellationToken)
+    {
+        using var remoteManifest = await FetchJsonDocumentAsync(manifestUrl, cancellationToken).ConfigureAwait(false);
+        var remoteVersion = GetJsonString(remoteManifest.RootElement, "version");
+        var installedVersion = ReadInstalledModuleVersion(settings, moduleId);
+        var hasUpdate = IsRemoteVersionNewer(installedVersion, remoteVersion);
+        var detail = hasUpdate
+            ? $"{moduleId}: update available {installedVersion ?? "unknown"} -> {remoteVersion ?? "unknown"}"
+            : $"{moduleId}: current ({installedVersion ?? "unknown installed"}, remote {remoteVersion ?? "unknown"})";
+
+        return new NymphModuleUpdateInfo(moduleId, installedVersion, remoteVersion, hasUpdate, detail);
     }
 
     public string? GetInstalledNymphModuleVersion(InstallSettings settings, string moduleId)
@@ -4671,7 +4685,7 @@ meta:
         CancellationToken cancellationToken)
     {
         using var registryDocument = await FetchJsonDocumentAsync(NymphModuleRegistryUrl, cancellationToken).ConfigureAwait(false);
-        var modules = new List<NymphModuleManifestInfo>();
+        var manifestTasks = new List<Task<NymphModuleManifestInfo?>>();
 
         foreach (var moduleElement in registryDocument.RootElement.GetProperty("modules").EnumerateArray())
         {
@@ -4687,14 +4701,27 @@ meta:
                 continue;
             }
 
-            using var manifestDocument = await FetchJsonDocumentAsync(manifestUrl, cancellationToken).ConfigureAwait(false);
-            modules.Add(BuildNymphModuleManifestInfo(moduleElement, manifestDocument.RootElement, manifestUrl));
+            manifestTasks.Add(FetchNymphModuleManifestInfoAsync(moduleElement.Clone(), manifestUrl, cancellationToken));
         }
+
+        var modules = (await Task.WhenAll(manifestTasks).ConfigureAwait(false))
+            .Where(module => module is not null)
+            .Cast<NymphModuleManifestInfo>()
+            .ToList();
 
         return modules
             .OrderBy(module => module.SortOrder)
             .ThenBy(module => module.Name, StringComparer.OrdinalIgnoreCase)
             .ToList();
+    }
+
+    private async Task<NymphModuleManifestInfo?> FetchNymphModuleManifestInfoAsync(
+        JsonElement registryElement,
+        string manifestUrl,
+        CancellationToken cancellationToken)
+    {
+        using var manifestDocument = await FetchJsonDocumentAsync(manifestUrl, cancellationToken).ConfigureAwait(false);
+        return BuildNymphModuleManifestInfo(registryElement, manifestDocument.RootElement, manifestUrl);
     }
 
     private static NymphModuleManifestInfo BuildNymphModuleManifestInfo(

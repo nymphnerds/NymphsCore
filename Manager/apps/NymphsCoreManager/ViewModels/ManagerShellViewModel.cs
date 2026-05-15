@@ -1146,6 +1146,13 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
     private async Task CheckForUpdatesOnStartupAsync()
     {
+        if (_hasRunStartupUpdateCheck)
+        {
+            return;
+        }
+
+        ApplyLoadedManifestUpdateCheckOnStartup();
+
         if (_hasRunStartupUpdateCheck || IsBusy || _allModules.All(module => !module.IsInstalled))
         {
             return;
@@ -1153,6 +1160,44 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
         _hasRunStartupUpdateCheck = true;
         await CheckForUpdatesAsync().ConfigureAwait(true);
+    }
+
+    private void ApplyLoadedManifestUpdateCheckOnStartup()
+    {
+        if (_hasRunStartupUpdateCheck)
+        {
+            return;
+        }
+
+        var installedModules = _allModules
+            .Where(module => module.IsInstalled)
+            .ToList();
+        if (installedModules.Count == 0)
+        {
+            return;
+        }
+
+        var updateResults = installedModules
+            .Select(module =>
+            {
+                var hasUpdate = module.CanUpdate;
+                var installedVersion = module.VersionLabel;
+                var remoteVersion = module.RemoteVersionLabel;
+                var detail = hasUpdate
+                    ? $"{module.Id}: update available {installedVersion} -> {remoteVersion}"
+                    : $"{module.Id}: current ({installedVersion}, remote {remoteVersion})";
+
+                return new NymphModuleUpdateInfo(module.Id, installedVersion, remoteVersion, hasUpdate, detail);
+            })
+            .ToList();
+
+        _hasRunStartupUpdateCheck = true;
+        ApplyModuleUpdateResults(updateResults);
+        var updateCount = updateResults.Count(result => result.IsUpdateAvailable);
+        UpdateSummary = updateCount > 0
+            ? $"{updateCount} module update(s) available."
+            : $"All installed modules current at {DateTime.Now:HH:mm:ss}.";
+        AppendActivity($"Startup update check used loaded registry manifests. {UpdateSummary}");
     }
 
     private bool CanSetupBaseRuntime()
@@ -1548,6 +1593,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         RebuildModuleCollections();
         RebuildModuleNavigation();
         HasLoadedModuleState = true;
+        ApplyLoadedManifestUpdateCheckOnStartup();
 
         if (CurrentPageKind == ManagerPageKind.Module && !string.IsNullOrWhiteSpace(selectedModuleId))
         {
