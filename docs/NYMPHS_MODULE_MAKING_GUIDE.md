@@ -161,12 +161,28 @@ Guide
 Install
 Update
 Repair
-Model Cache
 Directory
 Uninstall
+Delete Data
 ```
 
 These are install/admin buttons. You do not define these in your module.
+
+Right-rail buttons should stay visually stable. The Manager should enable or
+disable them based on module state instead of making individual buttons appear
+and disappear during refresh.
+
+`Uninstall` removes the installed runtime/tools. It must preserve module data by
+default when the module supports preservation.
+
+`Delete Data` is the separate wipe action. It deletes preserved datasets,
+outputs, jobs, logs, config, model downloads, and other module-owned data when a
+module reports `data_present=true`. It should remain available after uninstall
+when preserved data remains.
+
+Do not use a universal `Model Cache` rail button. Model, weight, output, and
+data folders are module-specific and should be exposed by module-owned actions
+such as `Open Weights`, `Open Outputs`, `Open Datasets`, or `Open LoRAs`.
 
 ### Module-Owned Controls
 

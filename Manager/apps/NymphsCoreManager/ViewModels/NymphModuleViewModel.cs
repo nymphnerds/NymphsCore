@@ -222,8 +222,9 @@ public sealed class NymphModuleViewModel : ViewModelBase
 
     public bool CanInstall => !IsInstalled;
 
-    public bool CanRepair => IsInstalled ||
-                             StateLabel.Contains("repair", StringComparison.OrdinalIgnoreCase);
+    public bool CanRepair => StateLabel.Contains("repair", StringComparison.OrdinalIgnoreCase) ||
+                             StateLabel.Contains("attention", StringComparison.OrdinalIgnoreCase) ||
+                             StatusBrush.Equals("#B7791F", StringComparison.OrdinalIgnoreCase);
 
     public bool CanUninstall => IsInstalled || CanRepair;
 
