@@ -3189,6 +3189,11 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             return false;
         }
 
+        if (IsDisplayedModuleDetailPrimaryAction(actionInfo))
+        {
+            return DisplayedModule.IsInstalled;
+        }
+
         if (!DisplayedModule.Capabilities.Any(capability => string.Equals(capability, normalizedAction, StringComparison.OrdinalIgnoreCase)))
         {
             return false;
@@ -3200,6 +3205,14 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             "uninstall" => false,
             _ => DisplayedModule.IsInstalled,
         };
+    }
+
+    private bool IsDisplayedModuleDetailPrimaryAction(NymphModuleActionInfo actionInfo)
+    {
+        var primaryAction = ModuleDetailPrimaryAction;
+        return primaryAction is not null &&
+            string.Equals(primaryAction.Id, actionInfo.Id, StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(primaryAction.ActionName, actionInfo.ActionName, StringComparison.OrdinalIgnoreCase);
     }
 
     private bool CanRunSelectedModuleActionGroup(NymphModuleActionGroupInfo? actionGroup)
