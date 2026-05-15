@@ -421,8 +421,8 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                         return new[]
                         {
                             new NymphModuleActionInfo(
-                                "back_to_lora",
-                                "Back to LoRA",
+                                "close_ui",
+                                "Close UI",
                                 CloseModuleUiActionName,
                                 "manager_close")
                         };
