@@ -164,7 +164,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         _runModuleDevActionCommand = new RelayCommand<string>(RunSelectedModuleDevAction, CanRunSelectedModuleDevAction);
         _toggleDeveloperModeCommand = new RelayCommand(ToggleDeveloperMode);
         _uninstallModuleCommand = new RelayCommand<NymphModuleViewModel>(UninstallModule, module => module?.CanUninstall == true && !IsBusy);
-        _deleteModuleCommand = new RelayCommand<NymphModuleViewModel>(DeleteModule, module => module?.CanUninstall == true && !IsBusy);
+        _deleteModuleCommand = new RelayCommand<NymphModuleViewModel>(DeleteModule, module => module?.CanDeleteData == true && !IsBusy);
 
         LoadSidebarArtwork();
         LoadHistoricalLogs();
@@ -349,7 +349,9 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
     public bool ShowDevContract => IsDeveloperMode && DisplayedModule?.DevCapabilities.Count > 0;
 
-    public bool ShowDeleteModuleData => DisplayedModule?.CanUninstall == true;
+    public bool ShowUninstallModuleAction => DisplayedModule?.CanUninstall == true && !IsModuleLifecycleActive(DisplayedModule);
+
+    public bool ShowDeleteModuleData => DisplayedModule?.CanDeleteData == true && !IsModuleLifecycleActive(DisplayedModule);
 
     public bool ShowInstallModuleAction => DisplayedModule?.CanInstall == true && !IsModuleLifecycleActive(DisplayedModule);
 
@@ -521,6 +523,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                 OnPropertyChanged(nameof(HasSelectedModule));
                 OnPropertyChanged(nameof(ShowDevContract));
                 OnPropertyChanged(nameof(ShowDeleteModuleData));
+                OnPropertyChanged(nameof(ShowUninstallModuleAction));
                 OnPropertyChanged(nameof(ShowInstallModuleAction));
                 OnPropertyChanged(nameof(ShowModuleInstallFields));
                 OnPropertyChanged(nameof(DisplayedModuleInstallOptionsTitle));
@@ -4218,6 +4221,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
     private void RefreshDisplayedModuleActionState()
     {
         OnPropertyChanged(nameof(ShowInstallModuleAction));
+        OnPropertyChanged(nameof(ShowUninstallModuleAction));
         OnPropertyChanged(nameof(ShowModuleInstallFields));
         OnPropertyChanged(nameof(DisplayedModuleInstallOptionsTitle));
         OnPropertyChanged(nameof(ShowInstalledModuleActions));
