@@ -1346,8 +1346,7 @@
               <Button Style="{StaticResource ManageLinkButtonStyle}"
                       Command="{Binding UninstallModuleCommand}"
                       CommandParameter="{Binding DisplayedModule}"
-                      Content="Uninstall"
-                      Visibility="{Binding ShowUninstallModuleAction, Converter={StaticResource BoolToVisibilityConverter}}" />
+                      Content="Uninstall" />
               <Button Style="{StaticResource ManageLinkButtonStyle}"
                       Command="{Binding DeleteModuleCommand}"
                       CommandParameter="{Binding DisplayedModule}"
@@ -2161,8 +2160,7 @@
 		                <Button Style="{StaticResource ManageLinkButtonStyle}"
 		                        Command="{Binding UninstallModuleCommand}"
 		                        CommandParameter="{Binding DisplayedModule}"
-		                        Content="Uninstall"
-		                        Visibility="{Binding ShowUninstallModuleAction, Converter={StaticResource BoolToVisibilityConverter}}" />
+		                        Content="Uninstall" />
 		                <Button Style="{StaticResource ManageLinkButtonStyle}"
 		                        Command="{Binding DeleteModuleCommand}"
 		                        CommandParameter="{Binding DisplayedModule}"
