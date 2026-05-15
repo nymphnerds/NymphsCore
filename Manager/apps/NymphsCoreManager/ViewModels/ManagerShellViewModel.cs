@@ -395,6 +395,15 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
             if (!string.Equals(DisplayedModule.Id, "brain", StringComparison.OrdinalIgnoreCase))
             {
+                if (string.Equals(DisplayedModule.Id, "lora", StringComparison.OrdinalIgnoreCase))
+                {
+                    return DisplayedModule.ManagerActions
+                        .Where(action =>
+                            !string.Equals(action.Id, "fetch_assets", StringComparison.OrdinalIgnoreCase) &&
+                            !string.Equals(action.ActionName, "fetch_assets", StringComparison.OrdinalIgnoreCase))
+                        .ToArray();
+                }
+
                 return DisplayedModule.ManagerActions;
             }
 
