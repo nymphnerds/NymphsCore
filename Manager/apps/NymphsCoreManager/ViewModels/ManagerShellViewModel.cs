@@ -4313,7 +4313,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                line.Contains("id=lora", StringComparison.OrdinalIgnoreCase) ||
                line.Contains("id=trellis", StringComparison.OrdinalIgnoreCase) ||
                line.Contains("install_root=/home/nymph/Nymphs-Brain", StringComparison.OrdinalIgnoreCase) ||
-               line.Contains("install_root=/home/nymph/ZImage-Trainer", StringComparison.OrdinalIgnoreCase) ||
+               line.Contains("install_root=/home/nymph/LoRA", StringComparison.OrdinalIgnoreCase) ||
                line.Contains("install_root=/home/nymph/TRELLIS.2", StringComparison.OrdinalIgnoreCase);
     }
 

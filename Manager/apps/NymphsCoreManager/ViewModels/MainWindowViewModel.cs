@@ -674,7 +674,7 @@ public sealed class MainWindowViewModel : ViewModelBase
 
     public string ZImageTrainerInstallSummary =>
         InstallZImageTrainer
-            ? "Z-Image Trainer will install as a separate AI Toolkit sidecar at /home/nymph/ZImage-Trainer and keep datasets, jobs, and LoRAs together under that folder."
+            ? "Z-Image Trainer will install as a separate AI Toolkit sidecar at /home/nymph/LoRA and keep datasets, jobs, and LoRAs together under that folder."
             : "Z-Image Trainer is optional and can be installed later from the Z-Image Trainer page.";
 
     public bool DownloadBrainModelNow
@@ -1094,7 +1094,7 @@ public sealed class MainWindowViewModel : ViewModelBase
         ZImageTrainerStatus.Installed ? "Repair Trainer" : "Install Trainer";
 
     public string ZImageTrainerSummary =>
-        "Default method: Z-Image Turbo LoRA training with AI Toolkit and the Turbo training adapter. Edit caption drafts in metadata.csv, then click Add Job to mirror them into the per-image .txt files AI Toolkit trains from. Trainer datasets, jobs, and LoRAs live under /home/nymph/ZImage-Trainer/.";
+        "Default method: Z-Image Turbo LoRA training with AI Toolkit and the Turbo training adapter. Edit caption drafts in metadata.csv, then click Add Job to mirror them into the per-image .txt files AI Toolkit trains from. Trainer datasets, jobs, and LoRAs live under /home/nymph/LoRA/.";
 
     public bool CanStartZImageTrainingUi => CanCreateZImageTrainerJob();
 
@@ -1866,7 +1866,7 @@ public sealed class MainWindowViewModel : ViewModelBase
             ZImageTrainerStatus = await _workflowService.GetZImageTrainerStatusAsync(settings, progress, CancellationToken.None, ZImageTrainerLoraName).ConfigureAwait(true);
             await RefreshExistingZImageTrainerDatasetsAsync(settings).ConfigureAwait(true);
             await TryImportZImageTrainerJobSettingsAsync(settings).ConfigureAwait(true);
-            PostInstallActionSummary = "Z-Image Trainer sidecar is installed. Use the generated AI Toolkit template under /home/nymph/ZImage-Trainer/config/ for Z-Image Turbo LoRA jobs.";
+            PostInstallActionSummary = "Z-Image Trainer sidecar is installed. Use the generated AI Toolkit template under /home/nymph/LoRA/config/ for Z-Image Turbo LoRA jobs.";
             RuntimeToolsSummary = "Z-Image Trainer sidecar installed.";
             StatusMessage = "Z-Image Trainer install completed.";
             LogLines.Add("Z-Image Trainer repair completed successfully.");
@@ -4712,7 +4712,7 @@ public sealed class MainWindowViewModel : ViewModelBase
             ? $" Experimental Nymphs-Brain was installed to {settings.BrainInstallRoot}."
             : " Experimental Nymphs-Brain was skipped.";
         var trainerTail = settings.InstallZImageTrainer
-            ? " Z-Image Trainer was installed to /home/nymph/ZImage-Trainer."
+            ? " Z-Image Trainer was installed to /home/nymph/LoRA."
             : " Z-Image Trainer was skipped.";
 
         if (settings.RepairExistingDistro)
@@ -4921,7 +4921,7 @@ public sealed class MainWindowViewModel : ViewModelBase
     private static string BuildZImageTrainerInstallLogLine(InstallSettings settings)
     {
         return settings.InstallZImageTrainer
-            ? "Z-Image Trainer: enabled, install root=/home/nymph/ZImage-Trainer, datasets=/home/nymph/ZImage-Trainer/datasets, outputs=/home/nymph/ZImage-Trainer/loras."
+            ? "Z-Image Trainer: enabled, install root=/home/nymph/LoRA, datasets=/home/nymph/LoRA/datasets, outputs=/home/nymph/LoRA/loras."
             : "Z-Image Trainer: skipped.";
     }
 

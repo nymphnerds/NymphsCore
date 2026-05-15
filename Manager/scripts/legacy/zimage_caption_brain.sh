@@ -8,8 +8,8 @@ CAPTION_MODE="${ZIMAGE_CAPTION_MODE:-fill_blanks}"
 TRAINING_FOCUS="${ZIMAGE_TRAINING_FOCUS:-character}"
 LLMS_START_PATH="${INSTALL_ROOT}/bin/lms-start"
 LMS_STOP_PATH="${INSTALL_ROOT}/bin/lms-stop"
-PYTHON_HELPER="${HOME}/ZImage-Trainer/bin/zimage-caption-brain.py"
-TRAINER_PYTHON="${HOME}/ZImage-Trainer/ai-toolkit/venv/bin/python"
+PYTHON_HELPER="${HOME}/LoRA/bin/zimage-caption-brain.py"
+TRAINER_PYTHON="${HOME}/LoRA/ai-toolkit/venv/bin/python"
 MODELS_DIR="${INSTALL_ROOT}/models"
 
 if [[ -z "${DATASET_DIR}" || -z "${METADATA_PATH}" ]]; then

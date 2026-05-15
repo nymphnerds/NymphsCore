@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-TRAINER_ROOT="${ZIMAGE_TRAINER_ROOT:-$HOME/ZImage-Trainer}"
+TRAINER_ROOT="${ZIMAGE_TRAINER_ROOT:-$HOME/LoRA}"
 REPO_DIR="${ZIMAGE_TRAINER_REPO_DIR:-$TRAINER_ROOT/ai-toolkit}"
 VENV_DIR="${ZIMAGE_TRAINER_VENV:-$REPO_DIR/venv}"
 DATASET_ROOT="${ZIMAGE_DATASET_ROOT:-$TRAINER_ROOT/datasets}"
@@ -85,7 +85,7 @@ if [[ "$running" != "yes" && -f "$PID_FILE" ]]; then
   fi
 fi
 
-if [[ "$running" != "yes" ]] && pgrep -A -u "$(id -u)" -f "run.py .*ZImage-Trainer/jobs/|ztrain-run-config|ztrain_run_config.sh|python run.py" >/dev/null 2>&1; then
+if [[ "$running" != "yes" ]] && pgrep -A -u "$(id -u)" -f "run.py .*LoRA/jobs/|ztrain-run-config|ztrain_run_config.sh|python run.py" >/dev/null 2>&1; then
   running="yes"
 fi
 

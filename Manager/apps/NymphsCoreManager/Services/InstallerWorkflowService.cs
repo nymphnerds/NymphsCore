@@ -576,9 +576,9 @@ public sealed class InstallerWorkflowService
             $"export HOME={ToBashSingleQuoted($"/home/{settings.LinuxUser}")}; " +
             $"export USER={ToBashSingleQuoted(settings.LinuxUser)}; " +
             $"export LOGNAME={ToBashSingleQuoted(settings.LinuxUser)}; " +
-            "export ZIMAGE_TRAINER_ROOT=\"$HOME/ZImage-Trainer\"; " +
-            "export ZIMAGE_DATASET_ROOT=\"$HOME/ZImage-Trainer/datasets\"; " +
-            "export ZIMAGE_LORA_ROOT=\"$HOME/ZImage-Trainer/loras\"; " +
+            "export ZIMAGE_TRAINER_ROOT=\"$HOME/LoRA\"; " +
+            "export ZIMAGE_DATASET_ROOT=\"$HOME/LoRA/datasets\"; " +
+            "export ZIMAGE_LORA_ROOT=\"$HOME/LoRA/loras\"; " +
             $"bash {ToBashSingleQuoted(wslTrainerScriptPath)}";
 
         progress.Report("Z-Image Trainer: installing AI Toolkit sidecar in an isolated venv.");
@@ -608,9 +608,9 @@ public sealed class InstallerWorkflowService
             $"export HOME={ToBashSingleQuoted($"/home/{settings.LinuxUser}")}; " +
             $"export USER={ToBashSingleQuoted(settings.LinuxUser)}; " +
             $"export LOGNAME={ToBashSingleQuoted(settings.LinuxUser)}; " +
-            "export ZIMAGE_TRAINER_ROOT=\"$HOME/ZImage-Trainer\"; " +
-            "export ZIMAGE_DATASET_ROOT=\"$HOME/ZImage-Trainer/datasets\"; " +
-            "export ZIMAGE_LORA_ROOT=\"$HOME/ZImage-Trainer/loras\"; " +
+            "export ZIMAGE_TRAINER_ROOT=\"$HOME/LoRA\"; " +
+            "export ZIMAGE_DATASET_ROOT=\"$HOME/LoRA/datasets\"; " +
+            "export ZIMAGE_LORA_ROOT=\"$HOME/LoRA/loras\"; " +
             $"bash {ToBashSingleQuoted(wslStatusScriptPath)}";
 
         var result = await RunWslBashAsync(settings, bashCommand, progress: null, cancellationToken).ConfigureAwait(false);
@@ -633,7 +633,7 @@ public sealed class InstallerWorkflowService
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        var datasetsWindowsPath = ToWindowsWslPath(settings, $"/home/{settings.LinuxUser}/ZImage-Trainer/datasets");
+        var datasetsWindowsPath = ToWindowsWslPath(settings, $"/home/{settings.LinuxUser}/LoRA/datasets");
         if (string.IsNullOrWhiteSpace(datasetsWindowsPath) || !Directory.Exists(datasetsWindowsPath))
         {
             return Task.FromResult<IReadOnlyList<string>>(Array.Empty<string>());
@@ -759,7 +759,7 @@ public sealed class InstallerWorkflowService
         InstallSettings settings,
         string normalizedLora)
     {
-        var jobWindowsPath = ToWindowsWslPath(settings, $"/home/{settings.LinuxUser}/ZImage-Trainer/jobs/{normalizedLora}.yaml");
+        var jobWindowsPath = ToWindowsWslPath(settings, $"/home/{settings.LinuxUser}/LoRA/jobs/{normalizedLora}.yaml");
         if (string.IsNullOrWhiteSpace(jobWindowsPath) || !File.Exists(jobWindowsPath))
         {
             return null;
@@ -800,7 +800,7 @@ public sealed class InstallerWorkflowService
         string loraName,
         CancellationToken cancellationToken)
     {
-        var uiDbPath = $"/home/{settings.LinuxUser}/ZImage-Trainer/ai-toolkit/aitk_db.db";
+        var uiDbPath = $"/home/{settings.LinuxUser}/LoRA/ai-toolkit/aitk_db.db";
         var bashCommand =
             "set -euo pipefail; " +
             $"UI_DB_PATH={ToBashSingleQuoted(uiDbPath)} " +
@@ -1032,7 +1032,7 @@ public sealed class InstallerWorkflowService
         IProgress<string>? progress,
         CancellationToken cancellationToken)
     {
-        var scriptPath = $"/home/{settings.LinuxUser}/ZImage-Trainer/bin/{scriptName}";
+        var scriptPath = $"/home/{settings.LinuxUser}/LoRA/bin/{scriptName}";
         var bashCommand =
             "set -euo pipefail; " +
             $"export HOME={ToBashSingleQuoted($"/home/{settings.LinuxUser}")}; " +
@@ -1056,7 +1056,7 @@ public sealed class InstallerWorkflowService
         IProgress<string>? progress,
         CancellationToken cancellationToken)
     {
-        var scriptPath = $"/home/{settings.LinuxUser}/ZImage-Trainer/bin/{scriptName}";
+        var scriptPath = $"/home/{settings.LinuxUser}/LoRA/bin/{scriptName}";
         var bashCommand =
             "set -euo pipefail; " +
             $"export HOME={ToBashSingleQuoted($"/home/{settings.LinuxUser}")}; " +
@@ -1115,9 +1115,9 @@ public sealed class InstallerWorkflowService
     {
         var normalizedDataset = NormalizeTrainerName(datasetName, "dataset");
         var normalizedLora = NormalizeTrainerName(loraName, "LoRA");
-        var datasetPath = $"/home/{settings.LinuxUser}/ZImage-Trainer/datasets/{normalizedDataset}";
-        var jobPath = $"/home/{settings.LinuxUser}/ZImage-Trainer/jobs/{normalizedLora}.yaml";
-        var loraOutputPath = $"/home/{settings.LinuxUser}/ZImage-Trainer/loras/{normalizedLora}";
+        var datasetPath = $"/home/{settings.LinuxUser}/LoRA/datasets/{normalizedDataset}";
+        var jobPath = $"/home/{settings.LinuxUser}/LoRA/jobs/{normalizedLora}.yaml";
+        var loraOutputPath = $"/home/{settings.LinuxUser}/LoRA/loras/{normalizedLora}";
         var loraMetadataPath = $"{loraOutputPath}/nymphs_lora.json";
         var metadataPath = $"{datasetPath}/metadata.csv";
         await SyncZImageTrainerSupportFilesAsync(settings, progress, cancellationToken).ConfigureAwait(false);
@@ -1148,7 +1148,7 @@ public sealed class InstallerWorkflowService
 
         var bashCommand =
             "set -euo pipefail; " +
-            $"mkdir -p {ToBashSingleQuoted(datasetPath)} {ToBashSingleQuoted($"/home/{settings.LinuxUser}/ZImage-Trainer/jobs")} {ToBashSingleQuoted($"/home/{settings.LinuxUser}/ZImage-Trainer/loras")} {ToBashSingleQuoted(loraOutputPath)}; " +
+            $"mkdir -p {ToBashSingleQuoted(datasetPath)} {ToBashSingleQuoted($"/home/{settings.LinuxUser}/LoRA/jobs")} {ToBashSingleQuoted($"/home/{settings.LinuxUser}/LoRA/loras")} {ToBashSingleQuoted(loraOutputPath)}; " +
             $"cat > {ToBashSingleQuoted(jobPath)} <<'{jobHeredocMarker}'\n" +
             $"{jobScript}\n" +
             $"{jobHeredocMarker}\n" +
@@ -1347,7 +1347,7 @@ public sealed class InstallerWorkflowService
         string loraName)
     {
         var normalizedLora = NormalizeTrainerName(loraName, "LoRA");
-        var finalCheckpointLinuxPath = $"/home/{settings.LinuxUser}/ZImage-Trainer/loras/{normalizedLora}/{normalizedLora}.safetensors";
+        var finalCheckpointLinuxPath = $"/home/{settings.LinuxUser}/LoRA/loras/{normalizedLora}/{normalizedLora}.safetensors";
         var finalCheckpointWindowsPath = ToWindowsWslPath(settings, finalCheckpointLinuxPath);
         return File.Exists(finalCheckpointWindowsPath);
     }
@@ -1399,7 +1399,7 @@ public sealed class InstallerWorkflowService
         CancellationToken cancellationToken)
     {
         var normalizedLora = NormalizeTrainerName(loraName, "LoRA");
-        var datasetPath = $"/home/{settings.LinuxUser}/ZImage-Trainer/datasets/{normalizedLora}";
+        var datasetPath = $"/home/{settings.LinuxUser}/LoRA/datasets/{normalizedLora}";
         var bashCommand =
             "set -euo pipefail; " +
             $"mkdir -p {ToBashSingleQuoted(datasetPath)}; " +
@@ -1419,7 +1419,7 @@ public sealed class InstallerWorkflowService
         CancellationToken cancellationToken)
     {
         var normalizedDataset = NormalizeTrainerName(datasetName, "dataset");
-        var datasetPath = $"/home/{settings.LinuxUser}/ZImage-Trainer/datasets/{normalizedDataset}";
+        var datasetPath = $"/home/{settings.LinuxUser}/LoRA/datasets/{normalizedDataset}";
         var metadataPath = $"{datasetPath}/metadata.csv";
         var bootstrapCommand =
             "set -euo pipefail; " +
@@ -1466,9 +1466,9 @@ public sealed class InstallerWorkflowService
         CancellationToken cancellationToken)
     {
         var normalizedAdapterVersion = NormalizeZImageTrainerAdapterVersion(adapterVersion);
-        var adapterRepoDir = $"/home/{settings.LinuxUser}/ZImage-Trainer/adapters/zimage_turbo_training_adapter";
+        var adapterRepoDir = $"/home/{settings.LinuxUser}/LoRA/adapters/zimage_turbo_training_adapter";
         var adapterPathFile = $"{adapterRepoDir}/selected_adapter_path_{normalizedAdapterVersion}.txt";
-        var trainerPython = $"/home/{settings.LinuxUser}/ZImage-Trainer/ai-toolkit/venv/bin/python";
+        var trainerPython = $"/home/{settings.LinuxUser}/LoRA/ai-toolkit/venv/bin/python";
         var bashCommand =
             "set -euo pipefail; " +
             $"mkdir -p {ToBashSingleQuoted(adapterRepoDir)}; " +
@@ -1579,7 +1579,7 @@ public sealed class InstallerWorkflowService
             throw new InvalidOperationException("Add training pictures first.");
         }
 
-        var captionScriptPath = $"/home/{settings.LinuxUser}/ZImage-Trainer/bin/zimage-caption-brain.sh";
+        var captionScriptPath = $"/home/{settings.LinuxUser}/LoRA/bin/zimage-caption-brain.sh";
         var bashCommand =
             "set -euo pipefail; " +
             $"export HOME={ToBashSingleQuoted($"/home/{settings.LinuxUser}")}; " +
@@ -1619,12 +1619,12 @@ public sealed class InstallerWorkflowService
         var captionBrainPythonScript = RequireScript("zimage_caption_brain.py");
         var wslCaptionBrainPythonScriptPath = ConvertWindowsPathToWsl(captionBrainPythonScript)
             ?? throw new InvalidOperationException($"Could not convert script path for WSL: {captionBrainPythonScript}");
-        var captionShellTargetPath = $"/home/{settings.LinuxUser}/ZImage-Trainer/bin/zimage-caption-brain.sh";
-        var captionPythonTargetPath = $"/home/{settings.LinuxUser}/ZImage-Trainer/bin/zimage-caption-brain.py";
-        var trainerPythonPath = $"/home/{settings.LinuxUser}/ZImage-Trainer/ai-toolkit/venv/bin/python";
+        var captionShellTargetPath = $"/home/{settings.LinuxUser}/LoRA/bin/zimage-caption-brain.sh";
+        var captionPythonTargetPath = $"/home/{settings.LinuxUser}/LoRA/bin/zimage-caption-brain.py";
+        var trainerPythonPath = $"/home/{settings.LinuxUser}/LoRA/ai-toolkit/venv/bin/python";
         var bashCommand =
             "set -euo pipefail; " +
-            $"mkdir -p {ToBashSingleQuoted($"/home/{settings.LinuxUser}/ZImage-Trainer/bin")}; " +
+            $"mkdir -p {ToBashSingleQuoted($"/home/{settings.LinuxUser}/LoRA/bin")}; " +
             $"install -m 755 {ToBashSingleQuoted(wslCaptionBrainScriptPath)} {ToBashSingleQuoted(captionShellTargetPath)}; " +
             $"install -m 755 {ToBashSingleQuoted(wslCaptionBrainPythonScriptPath)} {ToBashSingleQuoted(captionPythonTargetPath)}; " +
             $"if ! {ToBashSingleQuoted(trainerPythonPath)} -c {ToBashSingleQuoted("import PIL")} >/dev/null 2>&1; then " +
@@ -2470,8 +2470,8 @@ config:
   name: '{{EscapeYamlSingleQuoted(loraName)}}'
   process:
     - type: 'sd_trainer'
-      training_folder: '/home/{{linuxUser}}/ZImage-Trainer/loras'
-      sqlite_db_path: '/home/{{linuxUser}}/ZImage-Trainer/ai-toolkit/aitk_db.db'
+      training_folder: '/home/{{linuxUser}}/LoRA/loras'
+      sqlite_db_path: '/home/{{linuxUser}}/LoRA/ai-toolkit/aitk_db.db'
       device: cuda:0
       network:
         type: "lora"
@@ -2485,7 +2485,7 @@ config:
         log_every: 1
         use_ui_logger: true
       datasets:
-        - folder_path: '/home/{{linuxUser}}/ZImage-Trainer/datasets/{{EscapeYamlSingleQuoted(datasetName)}}'
+        - folder_path: '/home/{{linuxUser}}/LoRA/datasets/{{EscapeYamlSingleQuoted(datasetName)}}'
           caption_ext: "txt"
           caption_dropout_rate: 0.05
           cache_latents_to_disk: false
@@ -2519,7 +2519,7 @@ config:
         switch_boundary_every: 1
         loss_type: "mse"
       model:
-        name_or_path: '/home/{{linuxUser}}/ZImage-Trainer/models/Tongyi-MAI/Z-Image-Turbo'
+        name_or_path: '/home/{{linuxUser}}/LoRA/models/Tongyi-MAI/Z-Image-Turbo'
         quantize: false
         qtype: "qfloat8"
         quantize_te: false
@@ -2567,8 +2567,8 @@ meta:
                     new
                     {
                         type = "sd_trainer",
-                        training_folder = $"/home/{linuxUser}/ZImage-Trainer/loras",
-                        sqlite_db_path = $"/home/{linuxUser}/ZImage-Trainer/ai-toolkit/aitk_db.db",
+                        training_folder = $"/home/{linuxUser}/LoRA/loras",
+                        sqlite_db_path = $"/home/{linuxUser}/LoRA/ai-toolkit/aitk_db.db",
                         device = "cuda:0",
                         network = new
                         {
@@ -2591,7 +2591,7 @@ meta:
                         {
                             new
                             {
-                                folder_path = $"/home/{linuxUser}/ZImage-Trainer/datasets/{datasetName}",
+                                folder_path = $"/home/{linuxUser}/LoRA/datasets/{datasetName}",
                                 caption_ext = "txt",
                                 caption_dropout_rate = 0.05,
                                 cache_latents_to_disk = false,
@@ -2634,7 +2634,7 @@ meta:
                         },
                         model = new
                         {
-                            name_or_path = $"/home/{linuxUser}/ZImage-Trainer/models/Tongyi-MAI/Z-Image-Turbo",
+                            name_or_path = $"/home/{linuxUser}/LoRA/models/Tongyi-MAI/Z-Image-Turbo",
                             quantize = false,
                             qtype = "qfloat8",
                             quantize_te = false,
@@ -2836,8 +2836,8 @@ meta:
         InstallSettings settings,
         CancellationToken cancellationToken)
     {
-        var desiredTrainingFolder = $"/home/{settings.LinuxUser}/ZImage-Trainer/loras";
-        var desiredDatasetsFolder = $"/home/{settings.LinuxUser}/ZImage-Trainer/datasets";
+        var desiredTrainingFolder = $"/home/{settings.LinuxUser}/LoRA/loras";
+        var desiredDatasetsFolder = $"/home/{settings.LinuxUser}/LoRA/datasets";
 
         var settingsJson = await SendAiToolkitApiRequestAsync(HttpMethod.Get, "/api/settings", null, cancellationToken).ConfigureAwait(false);
         using var response = JsonDocument.Parse(settingsJson);
@@ -4021,29 +4021,29 @@ meta:
 #if LEGACY_MANAGER_MODULE_TOOLS
     public void OpenZImageTrainerDatasetsFolder(InstallSettings settings)
     {
-        OpenWslFolder(settings, $"/home/{settings.LinuxUser}/ZImage-Trainer/datasets");
+        OpenWslFolder(settings, $"/home/{settings.LinuxUser}/LoRA/datasets");
     }
 
     public void OpenZImageTrainerPicturesFolder(InstallSettings settings, string loraName)
     {
         var normalizedLora = NormalizeTrainerName(loraName, "LoRA");
-        OpenWslFolder(settings, $"/home/{settings.LinuxUser}/ZImage-Trainer/datasets/{normalizedLora}");
+        OpenWslFolder(settings, $"/home/{settings.LinuxUser}/LoRA/datasets/{normalizedLora}");
     }
 
     public void OpenZImageTrainerMetadataFile(InstallSettings settings, string datasetName)
     {
         var normalizedDataset = NormalizeTrainerName(datasetName, "dataset");
-        OpenWslPath(settings, $"/home/{settings.LinuxUser}/ZImage-Trainer/datasets/{normalizedDataset}/metadata.csv");
+        OpenWslPath(settings, $"/home/{settings.LinuxUser}/LoRA/datasets/{normalizedDataset}/metadata.csv");
     }
 
     public void OpenZImageTrainerJobsFolder(InstallSettings settings)
     {
-        OpenWslFolder(settings, "/home/nymph/ZImage-Trainer/jobs");
+        OpenWslFolder(settings, $"/home/{settings.LinuxUser}/LoRA/jobs");
     }
 
     public void OpenZImageTrainerLorasFolder(InstallSettings settings)
     {
-        OpenWslFolder(settings, $"/home/{settings.LinuxUser}/ZImage-Trainer/loras");
+        OpenWslFolder(settings, $"/home/{settings.LinuxUser}/LoRA/loras");
     }
 
     private static void OpenWslFolder(InstallSettings settings, string linuxPath)
@@ -5406,7 +5406,7 @@ meta:
             "brain" => $"{homePath}/Nymphs-Brain",
             "zimage" => $"{homePath}/Z-Image",
             "trellis" => $"{homePath}/TRELLIS.2",
-            "lora" or "ai-toolkit" => $"{homePath}/ZImage-Trainer",
+            "lora" or "ai-toolkit" => $"{homePath}/LoRA",
             "worbi" => $"{homePath}/worbi",
             _ => $"{homePath}/{normalizedModuleId}",
         };

@@ -5,8 +5,8 @@ This reads only safetensors headers, so it is safe to run on large LoRAs
 without loading tensor payloads into memory.
 
 Examples:
-  python3 compare_zimage_loras.py /home/nymph/ZImage-Trainer/loras/GroupTest
-  python3 compare_zimage_loras.py /home/nymph/ZImage-Trainer/loras/GroupTest /home/nymph/ZImage-Trainer/loras/yamamoto
+  python3 compare_zimage_loras.py /home/nymph/LoRA/loras/GroupTest
+  python3 compare_zimage_loras.py /home/nymph/LoRA/loras/GroupTest /home/nymph/LoRA/loras/yamamoto
   python3 compare_zimage_loras.py a.safetensors b.safetensors
 """
 

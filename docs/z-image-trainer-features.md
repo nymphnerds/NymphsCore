@@ -12,7 +12,7 @@ They do not guarantee that the same sidecar is present in a separate developer W
 
 The trainer now uses an isolated AI Toolkit sidecar under:
 
-- `/home/nymph/ZImage-Trainer`
+- `/home/nymph/LoRA`
 
 It is designed to cover the whole flow from dataset prep to LoRA training and then hand the resulting LoRA over to the Z-Image runtime and Blender addon.
 
@@ -58,14 +58,14 @@ The trainer install currently prepares:
 
 The sidecar keeps its main assets together under:
 
-- `/home/nymph/ZImage-Trainer/datasets`
-- `/home/nymph/ZImage-Trainer/jobs`
-- `/home/nymph/ZImage-Trainer/loras`
-- `/home/nymph/ZImage-Trainer/logs`
-- `/home/nymph/ZImage-Trainer/models`
-- `/home/nymph/ZImage-Trainer/adapters`
-- `/home/nymph/ZImage-Trainer/bin`
-- `/home/nymph/ZImage-Trainer/config`
+- `/home/nymph/LoRA/datasets`
+- `/home/nymph/LoRA/jobs`
+- `/home/nymph/LoRA/loras`
+- `/home/nymph/LoRA/logs`
+- `/home/nymph/LoRA/models`
+- `/home/nymph/LoRA/adapters`
+- `/home/nymph/LoRA/bin`
+- `/home/nymph/LoRA/config`
 
 This is the current source of truth for trainer datasets and outputs.
 
@@ -395,7 +395,7 @@ For the most practical end-to-end validation, use this order:
 5. test `Caption with Brain`
 6. review captions manually
 7. run `Baseline` or `Style` with adapter `v1`
-8. confirm `.safetensors` output appears under `/home/nymph/ZImage-Trainer/loras`
+8. confirm `.safetensors` output appears under `/home/nymph/LoRA/loras`
 9. test that LoRA in Z-Image and Blender
 
 ## Related Docs
