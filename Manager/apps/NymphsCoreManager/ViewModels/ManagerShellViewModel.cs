@@ -1834,25 +1834,38 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
     private void ApplyModuleSnapshot(NymphModuleViewModel module, NymphStatusSnapshot snapshot)
     {
         var modelsReady = snapshot.Get("models_ready");
+        var isBrainModule = string.Equals(module.Id, "brain", StringComparison.OrdinalIgnoreCase);
+        var isLoraModule = string.Equals(module.Id, "lora", StringComparison.OrdinalIgnoreCase);
         var modelDownloadNeeded = snapshot.IsInstalled &&
             string.Equals(modelsReady, "false", StringComparison.OrdinalIgnoreCase);
+        var trainingAssetsNeeded = isLoraModule &&
+            snapshot.IsInstalled &&
+            string.Equals(snapshot.Get("assets_ready"), "false", StringComparison.OrdinalIgnoreCase);
         var repairNeeded = !snapshot.IsInstalled &&
             (string.Equals(snapshot.State, "repair_needed", StringComparison.OrdinalIgnoreCase) ||
              string.Equals(snapshot.Health, "repair-needed", StringComparison.OrdinalIgnoreCase));
-        var stateLabel = modelDownloadNeeded
+        var stateLabel = trainingAssetsNeeded
+            ? "Needs assets"
+            : modelDownloadNeeded
             ? "Model download needed"
             : repairNeeded
                 ? "Repair needed"
-            : NormalizeModuleStateLabel(snapshot.State, snapshot.IsInstalled, snapshot.IsRunning);
+                : NormalizeModuleStateLabel(snapshot.State, snapshot.IsInstalled, snapshot.IsRunning);
         var statusBrush = snapshot.IsRunning
             ? "#6FD96C"
             : snapshot.IsInstalled
-                ? modelDownloadNeeded ? "#D49A2A" : StateNeedsAttention(snapshot.State, snapshot.Health) ? "#B7791F" : "#4CD0C1"
+                ? trainingAssetsNeeded || modelDownloadNeeded ? "#D49A2A" : StateNeedsAttention(snapshot.State, snapshot.Health) ? "#B7791F" : "#4CD0C1"
                 : repairNeeded ? "#D49A2A" : "#6E745A";
 
         var secondaryParts = new List<string>();
-        var isBrainModule = string.Equals(module.Id, "brain", StringComparison.OrdinalIgnoreCase);
-        if (modelDownloadNeeded)
+        if (trainingAssetsNeeded)
+        {
+            var assetState = string.Equals(snapshot.Get("training_assets_present"), "true", StringComparison.OrdinalIgnoreCase)
+                ? "partial"
+                : "missing";
+            secondaryParts.Add($"Training assets: {assetState}");
+        }
+        else if (modelDownloadNeeded)
         {
             secondaryParts.Add("Models: download needed");
         }
@@ -1864,6 +1877,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         if (snapshot.IsInstalled &&
             !string.IsNullOrWhiteSpace(snapshot.Health) &&
             !modelDownloadNeeded &&
+            !trainingAssetsNeeded &&
             !isBrainModule)
         {
             secondaryParts.Add($"Health: {snapshot.Health}");
@@ -1882,7 +1896,19 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         }
 
         var dataPresent = snapshot.Get("data_present");
-        if (!isBrainModule && string.Equals(dataPresent, "true", StringComparison.OrdinalIgnoreCase))
+        if (isLoraModule)
+        {
+            if (string.Equals(snapshot.Get("assets_ready"), "true", StringComparison.OrdinalIgnoreCase))
+            {
+                secondaryParts.Add("Training assets: ready");
+            }
+
+            if (string.Equals(snapshot.Get("user_data_present"), "true", StringComparison.OrdinalIgnoreCase))
+            {
+                secondaryParts.Add("User data: present");
+            }
+        }
+        else if (!isBrainModule && string.Equals(dataPresent, "true", StringComparison.OrdinalIgnoreCase))
         {
             secondaryParts.Add($"Data: {dataPresent}");
         }
@@ -1956,6 +1982,10 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         AddStatusValue(parts, "runtime_present", snapshot.Get("runtime_present"));
         AddStatusValue(parts, "env_ready", snapshot.Get("env_ready"));
         AddStatusValue(parts, "models_ready", snapshot.Get("models_ready"));
+        AddStatusValue(parts, "assets_ready", snapshot.Get("assets_ready"));
+        AddStatusValue(parts, "asset_marker_ready", snapshot.Get("asset_marker_ready"));
+        AddStatusValue(parts, "training_assets_present", snapshot.Get("training_assets_present"));
+        AddStatusValue(parts, "user_data_present", snapshot.Get("user_data_present"));
         AddStatusValue(parts, "recommended_precision", snapshot.Get("recommended_precision"));
         AddStatusValue(parts, "gpu_vram_mb", snapshot.Get("gpu_vram_mb"));
         AddStatusValue(parts, "llm_running", snapshot.Get("llm_running"));
