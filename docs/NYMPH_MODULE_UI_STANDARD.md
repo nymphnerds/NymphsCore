@@ -10,6 +10,23 @@ Installed modules own any custom frontend.
 
 The Manager must not hardcode custom UI for Brain, Z-Image, LoRA, TRELLIS, WORBI, or future modules. Before a module is installed, the Manager can only show registry and manifest metadata plus standard lifecycle controls.
 
+The module page right rail is fixed and universal for all modules:
+
+```text
+Guide
+Install
+Update
+Repair
+Directory
+Uninstall
+Delete Data
+```
+
+Modules do not add or remove these rail buttons. The Manager enables or disables
+them from module state. `Delete Data` is backed by
+`uninstall.supports_data_delete=true` plus `uninstall.data_only_arg`, and stays
+separate from normal uninstall.
+
 ## Manifest Contract
 
 An installed module may expose a local Manager UI from its installed `nymph.json`:

@@ -8,6 +8,19 @@ This file focuses on user-facing and system-level changes rather than package-by
 
 Newest entries first.
 
+### 2026-05-15 Universal module data-control contract
+Source: cross-module rail consistency testing for LoRA, Z-Image, TRELLIS, Brain, and WORBI.
+
+Changed in source:
+
+- made `supports_data_delete=true` explicit in every first-party module
+  manifest that implements `--data-only`
+- kept the Manager rail as a fixed seven-button standard for every module page:
+  `Guide`, `Install`, `Update`, `Repair`, `Directory`, `Uninstall`,
+  `Delete Data`
+- increased disabled rail-button contrast so unavailable actions read as
+  intentionally greyed out rather than disappearing
+
 ### 2026-05-15 Retained module data stays manageable after uninstall
 Source: live LoRA uninstall/data testing in the modular Manager shell.
 

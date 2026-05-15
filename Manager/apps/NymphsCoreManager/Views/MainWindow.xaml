@@ -301,8 +301,8 @@
                 <Setter TargetName="ButtonChrome" Property="Background" Value="#081314" />
               </Trigger>
               <Trigger Property="IsEnabled" Value="False">
-                <Setter Property="Foreground" Value="#4D6461" />
-                <Setter Property="Opacity" Value="0.72" />
+                <Setter Property="Foreground" Value="#5E7A75" />
+                <Setter Property="Opacity" Value="1" />
               </Trigger>
             </ControlTemplate.Triggers>
           </ControlTemplate>

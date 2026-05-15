@@ -180,6 +180,11 @@ outputs, jobs, logs, config, model downloads, and other module-owned data when a
 module reports `data_present=true`. It should remain available after uninstall
 when preserved data remains.
 
+Modules that support the standard wipe action must declare both
+`uninstall.data_only_arg` and `uninstall.supports_data_delete=true` in
+`nymph.json`. The Manager owns the rail button; modules only provide the
+data-only uninstall behavior.
+
 Do not use a universal `Model Cache` rail button. Model, weight, output, and
 data folders are module-specific and should be exposed by module-owned actions
 such as `Open Weights`, `Open Outputs`, `Open Datasets`, or `Open LoRAs`.
