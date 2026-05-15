@@ -3500,6 +3500,11 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                    DisplayedModule.IsInstalled;
         }
 
+        if (normalizedAction == OpenLoraGuideActionName)
+        {
+            return string.Equals(DisplayedModule.Id, "lora", StringComparison.OrdinalIgnoreCase);
+        }
+
         if (normalizedAction == "stop" && !DisplayedModule.IsRunning)
         {
             return false;
