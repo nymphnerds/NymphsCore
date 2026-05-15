@@ -310,6 +310,27 @@
       </Setter>
     </Style>
 
+    <Style TargetType="TextBlock" x:Key="ManageTextLinkStyle">
+      <Setter Property="Margin" Value="0,4,0,3" />
+      <Setter Property="HorizontalAlignment" Value="Right" />
+      <Setter Property="Foreground" Value="#EEF9F6" />
+      <Setter Property="FontFamily" Value="Segoe UI Semibold" />
+      <Setter Property="FontSize" Value="14" />
+      <Setter Property="FontWeight" Value="Normal" />
+      <Setter Property="TextOptions.TextFormattingMode" Value="Display" />
+      <Setter Property="TextOptions.TextRenderingMode" Value="ClearType" />
+      <Setter Property="Cursor" Value="Hand" />
+      <Style.Triggers>
+        <Trigger Property="IsMouseOver" Value="True">
+          <Setter Property="Foreground" Value="{StaticResource AccentBrush}" />
+        </Trigger>
+        <Trigger Property="IsEnabled" Value="False">
+          <Setter Property="Foreground" Value="#5E7A75" />
+          <Setter Property="Cursor" Value="Arrow" />
+        </Trigger>
+      </Style.Triggers>
+    </Style>
+
     <Style TargetType="TextBlock" x:Key="RightFactTextStyle">
       <Setter Property="Foreground" Value="#9AB8B4" />
       <Setter Property="FontSize" Value="11" />
@@ -1344,10 +1365,10 @@
                       Command="{Binding UninstallModuleCommand}"
                       CommandParameter="{Binding DisplayedModule}"
                       Content="Uninstall" />
-              <Button Style="{StaticResource ManageLinkButtonStyle}"
-                      Command="{Binding DeleteModuleCommand}"
-                      CommandParameter="{Binding DisplayedModule}"
-                      Content="Delete Data" />
+              <TextBlock Style="{StaticResource ManageTextLinkStyle}"
+                         IsEnabled="{Binding ShowDeleteModuleData}"
+                         MouseLeftButtonUp="DeleteModuleDataButton_Click"
+                         Text="Delete Data" />
             </StackPanel>
           </Border>
         </Popup>
@@ -2154,10 +2175,10 @@
 		                        Command="{Binding UninstallModuleCommand}"
 		                        CommandParameter="{Binding DisplayedModule}"
 		                        Content="Uninstall" />
-		                <Button Style="{StaticResource ManageLinkButtonStyle}"
-		                        Command="{Binding DeleteModuleCommand}"
-		                        CommandParameter="{Binding DisplayedModule}"
-		                        Content="Delete Data" />
+		                <TextBlock Style="{StaticResource ManageTextLinkStyle}"
+		                           IsEnabled="{Binding ShowDeleteModuleData}"
+		                           MouseLeftButtonUp="DeleteModuleDataButton_Click"
+		                           Text="Delete Data" />
               </StackPanel>
 
               <Border Grid.Row="1"

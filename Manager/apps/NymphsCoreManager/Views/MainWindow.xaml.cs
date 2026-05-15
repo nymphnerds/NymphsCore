@@ -796,6 +796,18 @@ window.addEventListener('DOMContentLoaded', function() {
         e.Handled = true;
     }
 
+    private void DeleteModuleDataButton_Click(object sender, MouseButtonEventArgs e)
+    {
+        if (DataContext is ManagerShellViewModel viewModel &&
+            viewModel.DisplayedModule is { } module &&
+            viewModel.DeleteModuleCommand.CanExecute(module))
+        {
+            viewModel.DeleteModuleCommand.Execute(module);
+        }
+
+        e.Handled = true;
+    }
+
     private static IReadOnlyList<InstallFieldSelection> SyncModuleOptionComboBoxes(DependencyObject root)
     {
         var selections = new List<InstallFieldSelection>();

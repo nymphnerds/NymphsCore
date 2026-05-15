@@ -20,6 +20,10 @@ Changed in source:
   `Delete Data`
 - increased disabled rail-button contrast so unavailable actions read as
   intentionally greyed out rather than disappearing
+- hardened `Delete Data` rendering by making it a fixed rail text action with a
+  code-behind click handler, so WPF command state cannot remove the visible slot
+- bumped the Manager startup build marker for this rail fix so tester logs show
+  whether the live EXE is the corrected build
 
 ### 2026-05-15 Retained module data stays manageable after uninstall
 Source: live LoRA uninstall/data testing in the modular Manager shell.
