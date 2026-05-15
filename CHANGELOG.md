@@ -8,6 +8,65 @@ This file focuses on user-facing and system-level changes rather than package-by
 
 Newest entries first.
 
+### 2026-05-15 Module update cleanup, data actions, and LoRA install pass
+Source: live LoRA module install testing, Z-Image/TRELLIS/WORBI action testing,
+and modular Manager details-pane cleanup.
+
+Changed in source:
+
+- split LoRA install from large training-asset downloads:
+  - Install now prepares the trainer runtime first
+  - `Prepare Training Assets` downloads/resumes the large Z-Image Turbo training
+    model bundle and adapter later
+  - asset fetch logs now surface clearer progress instead of looking hung
+- added LoRA data cleanup support:
+  - `Uninstall` removes the module/runtime/venv while preserving user data
+  - `Delete Data` removes datasets, jobs, generated LoRAs, logs, config, models,
+    and adapters without uninstalling the runtime
+- kept all right-rail lifecycle buttons stable:
+  - `Uninstall` remains visible and disabled when unavailable
+  - `Delete Data` stays separate from uninstall
+  - removed the universal `Model Cache` rail action because module data/weights
+    folders are module-specific
+- added module-owned data/weight/output folder actions:
+  - Z-Image: `Open Weights`, `Open Outputs`
+  - TRELLIS.2: `Open Weights`, `Open Outputs`
+  - WORBI: `Open Data`
+  - LoRA already exposes `Open LoRAs`, `Open Datasets`, and `Open Jobs`
+- made folder-opening module actions passive in the Manager:
+  - they no longer set global busy state
+  - they no longer force a module state refresh after opening a directory
+  - action buttons no longer grey/hide just because a directory was opened
+- fixed registry update cache handling:
+  - disposable cached module repos now hard-refresh with `git reset --hard` and
+    `git clean -fd`
+  - dirty cache files no longer make Update fail with "local changes would be
+    overwritten by checkout"
+- added lightweight module update entrypoints:
+  - Brain already had this pattern
+  - Z-Image, TRELLIS.2, WORBI, and LoRA now update manifests/wrappers/scripts
+    without rerunning full dependency installs
+- rebuilt the Win x64 published Manager EXE with the passive action and cache
+  update fixes
+
+Validated locally:
+
+- Manager builds with `dotnet build -c Release -p:EnableWindowsTargeting=true`
+- Manager publishes the Win x64 EXE to
+  `Manager/apps/NymphsCoreManager/publish/win-x64/NymphsCoreManager.exe`
+- dirty cached Z-Image repo update test now refreshes cleanly and runs
+  `scripts/zimage_update.sh`
+- lightweight update scripts were syntax-checked and smoke-tested against temp
+  install roots for Z-Image, TRELLIS.2, WORBI, and LoRA
+
+Pushed:
+
+- `nymphnerds/NymphsCore` modular through `cb3c657`
+- `nymphnerds/zimage` main `3daef29`
+- `nymphnerds/trellis` main `0f9ba85`
+- `nymphnerds/worbi` main `c9926e0`
+- `nymphnerds/lora` main `de81a91`
+
 ### 2026-05-14 Brain module native Manager page and shared action layout
 Source: live Brain module testing in the modular Manager shell after the
 TRELLIS.2 and Z-Image native action-group proofs.
