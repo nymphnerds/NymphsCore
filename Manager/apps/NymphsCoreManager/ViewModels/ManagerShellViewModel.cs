@@ -418,16 +418,14 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
                     if (CurrentPageKind == ManagerPageKind.ModuleUi)
                     {
-                        return loraActions
-                            .Where(action =>
-                                !string.Equals(action.Id, "easy_lora", StringComparison.OrdinalIgnoreCase) &&
-                                !string.Equals(action.ActionName, "easy_lora", StringComparison.OrdinalIgnoreCase))
-                            .Prepend(new NymphModuleActionInfo(
-                                "close_easy_lora",
-                                "Close Easy LoRA",
+                        return new[]
+                        {
+                            new NymphModuleActionInfo(
+                                "back_to_lora",
+                                "Back to LoRA",
                                 CloseModuleUiActionName,
-                                "manager_close"))
-                            .ToArray();
+                                "manager_close")
+                        };
                     }
 
                     return loraActions;
@@ -1871,7 +1869,9 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         var repairNeeded = !snapshot.IsInstalled &&
             (string.Equals(snapshot.State, "repair_needed", StringComparison.OrdinalIgnoreCase) ||
              string.Equals(snapshot.Health, "repair-needed", StringComparison.OrdinalIgnoreCase));
-        var stateLabel = trainingAssetsNeeded
+        var stateLabel = isLoraModule
+            ? BuildLoraModuleStateLabel(snapshot, trainingAssetsNeeded, repairNeeded)
+            : trainingAssetsNeeded
             ? "Needs assets"
             : modelDownloadNeeded
             ? "Model download needed"
@@ -1885,7 +1885,11 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                 : repairNeeded ? "#D49A2A" : "#6E745A";
 
         var secondaryParts = new List<string>();
-        if (trainingAssetsNeeded)
+        if (isLoraModule)
+        {
+            AddLoraModuleStatusDetails(secondaryParts, snapshot, trainingAssetsNeeded);
+        }
+        else if (trainingAssetsNeeded)
         {
             var assetState = string.Equals(snapshot.Get("training_assets_present"), "true", StringComparison.OrdinalIgnoreCase)
                 ? "partial"
@@ -1901,7 +1905,8 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             secondaryParts.Add("Install: repair needed");
         }
 
-        if (snapshot.IsInstalled &&
+        if (!isLoraModule &&
+            snapshot.IsInstalled &&
             !string.IsNullOrWhiteSpace(snapshot.Health) &&
             !modelDownloadNeeded &&
             !trainingAssetsNeeded &&
@@ -1917,25 +1922,15 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         }
 
         var runtimePresent = snapshot.Get("runtime_present");
-        if (!isBrainModule && string.Equals(runtimePresent, "true", StringComparison.OrdinalIgnoreCase))
+        if (!isLoraModule &&
+            !isBrainModule &&
+            string.Equals(runtimePresent, "true", StringComparison.OrdinalIgnoreCase))
         {
             secondaryParts.Add($"Runtime: {runtimePresent}");
         }
 
         var dataPresent = snapshot.Get("data_present");
-        if (isLoraModule)
-        {
-            if (string.Equals(snapshot.Get("assets_ready"), "true", StringComparison.OrdinalIgnoreCase))
-            {
-                secondaryParts.Add("Training assets: ready");
-            }
-
-            if (string.Equals(snapshot.Get("user_data_present"), "true", StringComparison.OrdinalIgnoreCase))
-            {
-                secondaryParts.Add("User data: present");
-            }
-        }
-        else if (!isBrainModule && string.Equals(dataPresent, "true", StringComparison.OrdinalIgnoreCase))
+        if (!isLoraModule && !isBrainModule && string.Equals(dataPresent, "true", StringComparison.OrdinalIgnoreCase))
         {
             secondaryParts.Add($"Data: {dataPresent}");
         }
@@ -1951,7 +1946,9 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             AddBrainModuleStatusDetails(secondaryParts, snapshot);
         }
 
-        var detail = isBrainModule && snapshot.IsInstalled
+        var detail = isLoraModule
+            ? BuildLoraModuleDetail(snapshot, trainingAssetsNeeded, repairNeeded)
+            : isBrainModule && snapshot.IsInstalled
             ? "Live Brain status"
             : snapshot.Detail;
 
@@ -2037,6 +2034,116 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         return string.Join(" ", parts);
     }
 
+    private static string BuildLoraModuleStateLabel(
+        NymphStatusSnapshot snapshot,
+        bool trainingAssetsNeeded,
+        bool repairNeeded)
+    {
+        var activeState = snapshot.Get("active_state");
+        if (string.Equals(activeState, "running", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Training active";
+        }
+
+        if (string.Equals(activeState, "queued", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Training queued";
+        }
+
+        if (trainingAssetsNeeded)
+        {
+            return "Needs assets";
+        }
+
+        if (repairNeeded)
+        {
+            return "Repair needed";
+        }
+
+        if (snapshot.IsRunning)
+        {
+            return "AI Toolkit running";
+        }
+
+        return snapshot.IsInstalled ? "Ready" : NormalizeModuleStateLabel(snapshot.State, snapshot.IsInstalled, snapshot.IsRunning);
+    }
+
+    private static string BuildLoraModuleDetail(
+        NymphStatusSnapshot snapshot,
+        bool trainingAssetsNeeded,
+        bool repairNeeded)
+    {
+        var activeState = snapshot.Get("active_state");
+        var activeInfo = snapshot.Get("active_info");
+        if (string.Equals(activeState, "running", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(activeState, "queued", StringComparison.OrdinalIgnoreCase))
+        {
+            return string.IsNullOrWhiteSpace(activeInfo)
+                ? $"AI Toolkit training job is {activeState}."
+                : activeInfo.Trim();
+        }
+
+        if (trainingAssetsNeeded)
+        {
+            return "LoRA is installed, but the Z-Image training model and adapter are not ready yet. Run Fetch Training Assets before creating jobs.";
+        }
+
+        if (repairNeeded)
+        {
+            return "LoRA runtime files need repair before training can start.";
+        }
+
+        if (snapshot.IsRunning)
+        {
+            return "AI Toolkit is running in the background. Easy LoRA can create jobs, start training, and poll logs.";
+        }
+
+        if (snapshot.IsInstalled)
+        {
+            return "LoRA is ready. Open Easy LoRA to start AI Toolkit when you need it.";
+        }
+
+        return snapshot.Detail;
+    }
+
+    private static void AddLoraModuleStatusDetails(
+        ICollection<string> parts,
+        NymphStatusSnapshot snapshot,
+        bool trainingAssetsNeeded)
+    {
+        if (!snapshot.IsInstalled)
+        {
+            return;
+        }
+
+        parts.Add(
+            $"AI Toolkit: UI {FormatRunningState(snapshot.Get("official_ui_running"))}, " +
+            $"worker {FormatRunningState(snapshot.Get("worker_running"))}");
+
+        if (trainingAssetsNeeded)
+        {
+            var assetState = string.Equals(snapshot.Get("training_assets_present"), "true", StringComparison.OrdinalIgnoreCase)
+                ? "partly downloaded"
+                : "missing";
+            parts.Add($"Training assets: {assetState}");
+        }
+        else
+        {
+            parts.Add($"Training assets: {FormatReadyState(snapshot.Get("assets_ready"))}");
+        }
+
+        parts.Add(
+            $"Datasets: {ValueOrFallback(snapshot.Get("dataset_count"), "0")}   |   " +
+            $"Jobs: {ValueOrFallback(snapshot.Get("job_count"), "0")}   |   " +
+            $"LoRAs: {ValueOrFallback(snapshot.Get("lora_count"), "0")}");
+
+        var installRoot = snapshot.Get("install_root");
+        if (!string.IsNullOrWhiteSpace(installRoot))
+        {
+            parts.Add($"Folder: {installRoot.Trim()}");
+        }
+    }
+
     private static void AddBrainModuleStatusDetails(ICollection<string> parts, NymphStatusSnapshot snapshot)
     {
         parts.Add(
@@ -2054,6 +2161,15 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             ? "Running"
             : string.Equals(value, "false", StringComparison.OrdinalIgnoreCase)
                 ? "Stopped"
+                : ValueOrFallback(value, "Unknown");
+    }
+
+    private static string FormatReadyState(string? value)
+    {
+        return string.Equals(value, "true", StringComparison.OrdinalIgnoreCase)
+            ? "Ready"
+            : string.Equals(value, "false", StringComparison.OrdinalIgnoreCase)
+                ? "Not ready"
                 : ValueOrFallback(value, "Unknown");
     }
 
