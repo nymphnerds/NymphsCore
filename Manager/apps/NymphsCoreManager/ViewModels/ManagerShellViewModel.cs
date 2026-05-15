@@ -410,11 +410,24 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             {
                 if (string.Equals(DisplayedModule.Id, "lora", StringComparison.OrdinalIgnoreCase))
                 {
-                    return DisplayedModule.ManagerActions
+                    var loraActions = DisplayedModule.ManagerActions
                         .Where(action =>
                             !string.Equals(action.Id, "fetch_assets", StringComparison.OrdinalIgnoreCase) &&
                             !string.Equals(action.ActionName, "fetch_assets", StringComparison.OrdinalIgnoreCase))
                         .ToArray();
+
+                    if (CurrentPageKind == ManagerPageKind.ModuleUi)
+                    {
+                        return loraActions
+                            .Prepend(new NymphModuleActionInfo(
+                                "close_easy_lora",
+                                "Close Easy LoRA",
+                                CloseModuleUiActionName,
+                                "manager_close"))
+                            .ToArray();
+                    }
+
+                    return loraActions;
                 }
 
                 return DisplayedModule.ManagerActions;
@@ -3869,6 +3882,40 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         {
             if (module.HasInstalledModuleUi)
             {
+                StatusMessage = $"Opening {module.Name} {actionLabel}...";
+                ModuleUiStatus = $"Preparing {actionLabel}...";
+                try
+                {
+                    var output = await _workflowService.RunNymphModuleActionAsync(
+                        _settings,
+                        module.Id,
+                        normalizedAction,
+                        new Progress<string>(line =>
+                        {
+                            if (!string.IsNullOrWhiteSpace(line))
+                            {
+                                ModuleUiStatus = line.Trim();
+                            }
+                        }),
+                        CancellationToken.None).ConfigureAwait(true);
+
+                    AppendModuleActionOutput(module, normalizedAction, output);
+                    if (normalizedAction is not "logs" and not "open")
+                    {
+                        await RefreshModuleStateAsync().ConfigureAwait(true);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    ModuleUiStatus = ex.Message;
+                    StatusMessage = $"{module.Name} {actionLabel} needs attention.";
+                    SetModuleActionFeedback(
+                        $"{module.Name}: {actionLabel} unavailable",
+                        BuildModuleActionFeedbackDetail(ex.Message));
+                    AppendActivity($"{module.Name} {actionLabel} warning: {ex.Message}");
+                    return;
+                }
+
                 OpenModuleUi(module);
                 StatusMessage = $"{module.Name} {actionLabel} opened.";
                 SetModuleActionFeedback(
