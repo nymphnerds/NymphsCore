@@ -215,6 +215,11 @@ public partial class MainWindow : Window
         Dispatcher.BeginInvoke(ScrollUnifiedLogToLatest, DispatcherPriority.ContextIdle);
     }
 
+    private void ModuleLogTextBox_TextChanged(object sender, TextChangedEventArgs e)
+    {
+        Dispatcher.BeginInvoke(ScrollModuleLogToLatest, DispatcherPriority.ContextIdle);
+    }
+
     private void UnifiedLogTextBox_PreviewMouseDown(object sender, MouseButtonEventArgs e)
     {
         if (sender is TextBox textBox && !textBox.IsKeyboardFocusWithin)
@@ -533,6 +538,23 @@ public partial class MainWindow : Window
         }
 
         UnifiedLogTextBox.ScrollToEnd();
+    }
+
+    private void ScrollModuleLogToLatest()
+    {
+        if (ModuleLogTextBox is null)
+        {
+            return;
+        }
+
+        if (ModuleLogTextBox.IsKeyboardFocusWithin ||
+            ModuleLogTextBox.SelectionLength > 0 ||
+            Mouse.LeftButton == MouseButtonState.Pressed)
+        {
+            return;
+        }
+
+        ModuleLogTextBox.ScrollToEnd();
     }
 
     private void ScrollMainContentToTop()

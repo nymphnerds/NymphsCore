@@ -2347,21 +2347,32 @@
                                Foreground="#D8EAE6"
                                FontWeight="SemiBold"
                                TextWrapping="Wrap" />
-                    <ScrollViewer Margin="0,10,0,0"
-                                  MaxHeight="210"
-                                  VerticalScrollBarVisibility="Hidden">
-                      <TextBox Text="{Binding ModuleLogsDetail, Mode=OneWay}"
-                               IsReadOnly="True"
-                               BorderThickness="0"
-                               Background="Transparent"
-                               Foreground="#7FF7EF"
-                               FontFamily="Cascadia Mono"
-                               FontSize="11"
-                               TextWrapping="Wrap"
-                               AcceptsReturn="True"
-                               VerticalScrollBarVisibility="Disabled"
-                               HorizontalScrollBarVisibility="Disabled" />
-	                    </ScrollViewer>
+                    <TextBox x:Name="ModuleLogTextBox"
+                             Margin="0,10,0,0"
+                             MaxHeight="210"
+                             Text="{Binding ModuleLogsDetail, Mode=OneWay}"
+                             TextChanged="ModuleLogTextBox_TextChanged"
+                             IsReadOnly="True"
+                             BorderThickness="0"
+                             Padding="0"
+                             Background="Transparent"
+                             Foreground="#8FD7D0"
+                             CaretBrush="#23E7DB"
+                             SelectionBrush="#1B6568"
+                             SelectionOpacity="0.95"
+                             FontFamily="Consolas"
+                             FontSize="11"
+                             FontWeight="Light"
+                             TextWrapping="Wrap"
+                             AcceptsReturn="True"
+                             IsReadOnlyCaretVisible="True"
+                             VerticalScrollBarVisibility="Visible"
+                             HorizontalScrollBarVisibility="Disabled">
+                      <TextBox.Resources>
+                        <Style TargetType="ScrollBar"
+                               BasedOn="{StaticResource LogScrollBarStyle}" />
+                      </TextBox.Resources>
+                    </TextBox>
 	                  </StackPanel>
                 </Border>
 
