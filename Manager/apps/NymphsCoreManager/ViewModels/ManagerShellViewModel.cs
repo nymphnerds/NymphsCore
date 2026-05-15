@@ -368,12 +368,18 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
     public NymphModuleActionInfo? ModuleDetailPrimaryAction => ResolveModuleDetailPrimaryAction(DisplayedModule);
 
-    public bool ShowModuleDetailPrimaryAction => ModuleDetailPrimaryAction is not null;
+    public bool ShowModuleDetailPrimaryAction => ModuleDetailPrimaryAction is not null && !IsBusy;
+
+    public bool ShowModuleDetailProgress => IsBusy && DisplayedModule?.IsInstalled == true;
 
     public string ModuleDetailPrimaryActionHeading => "NEXT STEP:";
 
     public string ModuleDetailPrimaryActionHelp =>
         "Required before training. Downloads or resumes the Z-Image Turbo training model and adapter.";
+
+    public string ModuleDetailProgressHeading => "PROGRESS:";
+
+    public string ModuleDetailProgressHelp => "The module action is running. Live output appears below.";
 
     public IReadOnlyList<NymphModuleActionInfo> DisplayedModuleContractActions
     {
@@ -563,8 +569,11 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                 OnPropertyChanged(nameof(ShowModuleUiAction));
                 OnPropertyChanged(nameof(ModuleDetailPrimaryAction));
                 OnPropertyChanged(nameof(ShowModuleDetailPrimaryAction));
+                OnPropertyChanged(nameof(ShowModuleDetailProgress));
                 OnPropertyChanged(nameof(ModuleDetailPrimaryActionHeading));
                 OnPropertyChanged(nameof(ModuleDetailPrimaryActionHelp));
+                OnPropertyChanged(nameof(ModuleDetailProgressHeading));
+                OnPropertyChanged(nameof(ModuleDetailProgressHelp));
                 OnPropertyChanged(nameof(DisplayedModuleContractActions));
                 OnPropertyChanged(nameof(DisplayedModuleInstallFields));
                 OnPropertyChanged(nameof(DisplayedModuleActionGroups));
@@ -913,6 +922,8 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             _uninstallModuleCommand.RaiseCanExecuteChanged();
             _deleteModuleCommand.RaiseCanExecuteChanged();
             OnPropertyChanged(nameof(CanChooseBaseRuntimeDrive));
+            OnPropertyChanged(nameof(ShowModuleDetailPrimaryAction));
+            OnPropertyChanged(nameof(ShowModuleDetailProgress));
         }
     }
 
@@ -2016,6 +2027,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                 OnPropertyChanged(nameof(ShowModuleUiAction));
                 OnPropertyChanged(nameof(ModuleDetailPrimaryAction));
                 OnPropertyChanged(nameof(ShowModuleDetailPrimaryAction));
+                OnPropertyChanged(nameof(ShowModuleDetailProgress));
                 OnPropertyChanged(nameof(DisplayedModuleContractActions));
                 OnPropertyChanged(nameof(ShowInstalledModuleActionGroups));
                 OnPropertyChanged(nameof(DisplayedModuleActionGroups));
@@ -2046,6 +2058,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             OnPropertyChanged(nameof(ShowModuleUiAction));
             OnPropertyChanged(nameof(ModuleDetailPrimaryAction));
             OnPropertyChanged(nameof(ShowModuleDetailPrimaryAction));
+            OnPropertyChanged(nameof(ShowModuleDetailProgress));
             OnPropertyChanged(nameof(DisplayedModuleContractActions));
             OnPropertyChanged(nameof(ShowInstalledModuleActionGroups));
             OnPropertyChanged(nameof(DisplayedModuleActionGroups));
@@ -4356,6 +4369,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(ShowModuleUiAction));
         OnPropertyChanged(nameof(ModuleDetailPrimaryAction));
         OnPropertyChanged(nameof(ShowModuleDetailPrimaryAction));
+        OnPropertyChanged(nameof(ShowModuleDetailProgress));
         _repairModuleCommand.RaiseCanExecuteChanged();
         _runModuleActionCommand.RaiseCanExecuteChanged();
         _runModuleActionGroupCommand.RaiseCanExecuteChanged();
