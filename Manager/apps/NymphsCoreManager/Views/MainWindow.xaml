@@ -1347,6 +1347,11 @@
                       Command="{Binding UninstallModuleCommand}"
                       CommandParameter="{Binding DisplayedModule}"
                       Content="Uninstall" />
+              <Button Style="{StaticResource ManageLinkButtonStyle}"
+                      Command="{Binding DeleteModuleCommand}"
+                      CommandParameter="{Binding DisplayedModule}"
+                      Content="Delete + Data"
+                      Visibility="{Binding ShowDeleteModuleData, Converter={StaticResource BoolToVisibilityConverter}}" />
             </StackPanel>
           </Border>
         </Popup>
@@ -2156,6 +2161,11 @@
 		                        Command="{Binding UninstallModuleCommand}"
 		                        CommandParameter="{Binding DisplayedModule}"
 		                        Content="Uninstall" />
+		                <Button Style="{StaticResource ManageLinkButtonStyle}"
+		                        Command="{Binding DeleteModuleCommand}"
+		                        CommandParameter="{Binding DisplayedModule}"
+		                        Content="Delete + Data"
+		                        Visibility="{Binding ShowDeleteModuleData, Converter={StaticResource BoolToVisibilityConverter}}" />
               </StackPanel>
 
               <Border Grid.Row="1"

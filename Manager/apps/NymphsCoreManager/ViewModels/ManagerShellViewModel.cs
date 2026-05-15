@@ -164,7 +164,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         _runModuleDevActionCommand = new RelayCommand<string>(RunSelectedModuleDevAction, CanRunSelectedModuleDevAction);
         _toggleDeveloperModeCommand = new RelayCommand(ToggleDeveloperMode);
         _uninstallModuleCommand = new RelayCommand<NymphModuleViewModel>(UninstallModule, module => module?.CanUninstall == true && !IsBusy);
-        _deleteModuleCommand = new RelayCommand<NymphModuleViewModel>(DeleteModule, module => module?.IsInstalled == true && !IsBusy);
+        _deleteModuleCommand = new RelayCommand<NymphModuleViewModel>(DeleteModule, module => module?.CanUninstall == true && !IsBusy);
 
         LoadSidebarArtwork();
         LoadHistoricalLogs();
@@ -349,7 +349,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
     public bool ShowDevContract => IsDeveloperMode && DisplayedModule?.DevCapabilities.Count > 0;
 
-    public bool ShowDeleteModuleData => string.Equals(DisplayedModule?.Id, "worbi", StringComparison.OrdinalIgnoreCase);
+    public bool ShowDeleteModuleData => DisplayedModule?.CanUninstall == true;
 
     public bool ShowInstallModuleAction => DisplayedModule?.CanInstall == true && !IsModuleLifecycleActive(DisplayedModule);
 
@@ -4040,16 +4040,6 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
         var targetId = module.Id;
         var targetName = module.Name;
-
-        if (purge && !string.Equals(targetId, "worbi", StringComparison.OrdinalIgnoreCase))
-        {
-            const string detail = "Delete Module + Data is temporarily disabled for repo/runtime modules while module routing is being audited. Use Uninstall Module only.";
-            StatusMessage = $"{targetName} delete blocked.";
-            AppendActivity($"Blocked destructive delete for {targetName} ({targetId}).");
-            SetModuleActionFeedback($"{targetName}: delete blocked", detail);
-            MessageBox.Show(detail, "Delete Disabled", MessageBoxButton.OK, MessageBoxImage.Warning);
-            return;
-        }
 
         var prompt = purge
             ? $"Delete {targetName} completely?\n\nThis removes the module install folder and its module data from the managed WSL distro."
