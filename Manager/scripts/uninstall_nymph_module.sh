@@ -5,10 +5,10 @@ usage() {
   cat <<'EOF'
 Usage: uninstall_nymph_module.sh --module <id> [--install-root <path>] [--dry-run] [--yes] [--purge] [--data-only]
 
-Default uninstall removes the module install folder and moves known user data
-to ~/NymphsModuleBackups/<module>-<timestamp>. Use --purge to delete the whole
-module folder including module data. Use --data-only to delete known data folders
-while keeping the installed runtime.
+Default uninstall removes runtime files while preserving known module data when
+the module supports preservation. Use --purge to delete the whole module folder
+including module data. Use --data-only to delete known data folders while
+keeping the installed runtime.
 EOF
 }
 

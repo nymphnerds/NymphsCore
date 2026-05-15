@@ -28,6 +28,9 @@ Changed in source:
   retained data exists; only that module's own lifecycle action blocks it
 - stopped `Repair` being enabled for every installed module; it now only
   enables when the module reports repair/attention/degraded state
+- cleaned and republished the Win x64 Manager EXE after the right-rail changes
+- aligned Brain, WORBI, Z-Image, and TRELLIS module repos with the universal
+  `Delete Data` contract by adding module-owned `--data-only` uninstall support
 - rebuilt the Win x64 published Manager EXE with the retained-data behavior
 
 Validated locally:
