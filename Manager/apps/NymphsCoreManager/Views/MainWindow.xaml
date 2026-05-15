@@ -2219,18 +2219,6 @@
                                      FontSize="12"
                                      TextWrapping="Wrap" />
                         </StackPanel>
-                        <StackPanel Margin="0,0,0,12"
-                                    Visibility="{Binding ShowModuleDetailProgress, Converter={StaticResource BoolToVisibilityConverter}}">
-                          <TextBlock Text="{Binding ModuleDetailProgressHeading}"
-                                     Style="{StaticResource MonoLabelStyle}"
-                                     Foreground="{StaticResource LimeBrush}"
-                                     FontSize="12" />
-                          <TextBlock Margin="4,6,0,0"
-                                     Text="{Binding ModuleDetailProgressHelp}"
-                                     Foreground="#9AB8B4"
-                                     FontSize="12"
-                                     TextWrapping="Wrap" />
-                        </StackPanel>
                         <TextBlock Text="{Binding ModuleActionFeedbackDetail}"
                                    Foreground="#9AB8B4"
                                    FontSize="12"

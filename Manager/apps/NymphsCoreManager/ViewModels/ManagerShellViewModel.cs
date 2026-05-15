@@ -3245,14 +3245,22 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         if (showDetailProgress)
         {
             BeginModuleDetailProgress(module);
+            ShowModuleLogs = true;
+            ModuleLogsTitle = $"{module.Name} {actionLabel} live output";
+            ModuleLogsDetail = "Waiting for module output...";
         }
 
         StatusMessage = $"Running {module.Name} {actionLabel}...";
-        ShowModuleLogs = false;
+        if (!showDetailProgress)
+        {
+            ShowModuleLogs = false;
+        }
         ClearStickyModuleActionFeedback();
         SetModuleActionFeedback(
             $"{module.Name}: {actionLabel} started",
-            "Command sent to the managed WSL distro. Waiting for module output...");
+            showDetailProgress
+                ? "Command sent to the managed WSL distro. Live output is shown in // MODULE LOGS below."
+                : "Command sent to the managed WSL distro. Waiting for module output...");
         if ((resultMode is "show_logs" or "logs") && normalizedAction is "logs")
         {
             SelectPrimaryPage(ManagerPageKind.Logs);
@@ -3661,9 +3669,12 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         if (showDetailProgress)
         {
             BeginModuleDetailProgress(module);
+            ShowModuleLogs = true;
+            ModuleLogsTitle = $"{module.Name} {actionLabel} live output";
+            ModuleLogsDetail = "Waiting for module output...";
         }
         StatusMessage = $"Running {module.Name} {actionLabel}...";
-        if (!string.Equals(normalizedAction, "logs", StringComparison.OrdinalIgnoreCase))
+        if (!showDetailProgress && !string.Equals(normalizedAction, "logs", StringComparison.OrdinalIgnoreCase))
         {
             ShowModuleLogs = false;
         }
@@ -3671,7 +3682,9 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         ClearStickyModuleActionFeedback();
         SetModuleActionFeedback(
             $"{module.Name}: running {actionLabel}",
-            $"Command sent to the managed WSL distro. Waiting for {actionLabel} output...");
+            showDetailProgress
+                ? "Command sent to the managed WSL distro. Live output is shown in // MODULE LOGS below."
+                : $"Command sent to the managed WSL distro. Waiting for {actionLabel} output...");
 
         var liveLines = new List<string>();
         try
@@ -3828,9 +3841,19 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             liveLines.RemoveAt(0);
         }
 
+        if (ShowModuleLogs &&
+            DisplayedModule is not null &&
+            string.Equals(DisplayedModule.Id, module.Id, StringComparison.OrdinalIgnoreCase))
+        {
+            ModuleLogsTitle = $"{module.Name} {action} live output";
+            ModuleLogsDetail = string.Join(Environment.NewLine, liveLines);
+        }
+
         SetModuleActionFeedback(
             $"{module.Name}: {action} in progress",
-            BuildModuleActionFeedbackDetail(string.Join(Environment.NewLine, liveLines)));
+            IsModuleDetailProgressActive(module)
+                ? "Live output is shown in // MODULE LOGS below."
+                : BuildModuleActionFeedbackDetail(string.Join(Environment.NewLine, liveLines)));
     }
 
     private void SetModuleActionFeedback(string title, string detail)
