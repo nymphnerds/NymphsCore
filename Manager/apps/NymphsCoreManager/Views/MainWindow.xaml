@@ -1337,9 +1337,6 @@
 		                        CommandParameter="{Binding DisplayedModule}"
                       Content="Repair" />
               <Button Style="{StaticResource ManageLinkButtonStyle}"
-                      Command="{Binding OpenModelCacheCommand}"
-                      Content="Model Cache" />
-              <Button Style="{StaticResource ManageLinkButtonStyle}"
                       Command="{Binding OpenModuleInstallPathCommand}"
                       CommandParameter="{Binding DisplayedModule}"
                       Content="Directory" />
@@ -2150,9 +2147,6 @@
 		                        Command="{Binding RepairModuleCommand}"
 		                        CommandParameter="{Binding DisplayedModule}"
 		                        Content="Repair" />
-		                <Button Style="{StaticResource ManageLinkButtonStyle}"
-		                        Command="{Binding OpenModelCacheCommand}"
-		                        Content="Model Cache" />
 		                <Button Style="{StaticResource ManageLinkButtonStyle}"
 		                        Command="{Binding OpenModuleInstallPathCommand}"
 		                        CommandParameter="{Binding DisplayedModule}"
