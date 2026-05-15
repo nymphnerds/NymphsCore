@@ -22,6 +22,8 @@ Changed in source:
   chance to report preserved data before the Manager falls back to repair state
 - clarified the normal uninstall confirmation text: uninstall removes runtime
   and tools, while `Delete Data` is the separate wipe action
+- kept the right-rail `Delete Data` button visible like the other module
+  lifecycle buttons; live status now only enables/disables it
 - rebuilt the Win x64 published Manager EXE with the retained-data behavior
 
 Validated locally:

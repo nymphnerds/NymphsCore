@@ -1347,8 +1347,7 @@
               <Button Style="{StaticResource ManageLinkButtonStyle}"
                       Command="{Binding DeleteModuleCommand}"
                       CommandParameter="{Binding DisplayedModule}"
-                      Content="Delete Data"
-                      Visibility="{Binding ShowDeleteModuleData, Converter={StaticResource BoolToVisibilityConverter}}" />
+                      Content="Delete Data" />
             </StackPanel>
           </Border>
         </Popup>
@@ -2158,8 +2157,7 @@
 		                <Button Style="{StaticResource ManageLinkButtonStyle}"
 		                        Command="{Binding DeleteModuleCommand}"
 		                        CommandParameter="{Binding DisplayedModule}"
-		                        Content="Delete Data"
-		                        Visibility="{Binding ShowDeleteModuleData, Converter={StaticResource BoolToVisibilityConverter}}" />
+		                        Content="Delete Data" />
               </StackPanel>
 
               <Border Grid.Row="1"
