@@ -220,6 +220,8 @@ public sealed class NymphModuleViewModel : ViewModelBase
     public bool CanRepair => IsInstalled ||
                              StateLabel.Contains("repair", StringComparison.OrdinalIgnoreCase);
 
+    public bool CanUninstall => IsInstalled || CanRepair;
+
     public bool CanUpdate => IsInstalled && (HasUpdate || IsRemoteVersionNewer(VersionLabel, RemoteVersionLabel));
 
     public void ApplyState(
@@ -245,6 +247,7 @@ public sealed class NymphModuleViewModel : ViewModelBase
         OnPropertyChanged(nameof(CanOpenInstallPath));
         OnPropertyChanged(nameof(CanInstall));
         OnPropertyChanged(nameof(CanRepair));
+        OnPropertyChanged(nameof(CanUninstall));
         OnPropertyChanged(nameof(CanUpdate));
         OnPropertyChanged(nameof(DisplayStateLabel));
         OnPropertyChanged(nameof(DisplayStatusBrush));

@@ -3,7 +3,7 @@ set -euo pipefail
 
 usage() {
   cat <<'EOF'
-Usage: uninstall_nymph_module.sh --module <id> [--dry-run] [--yes] [--purge]
+Usage: uninstall_nymph_module.sh --module <id> [--install-root <path>] [--dry-run] [--yes] [--purge]
 
 Default uninstall removes the module install folder and moves known user data
 to ~/NymphsModuleBackups/<module>-<timestamp>. Use --purge to delete the whole
@@ -12,6 +12,7 @@ EOF
 }
 
 MODULE_ID=""
+INSTALL_ROOT_OVERRIDE=""
 DRY_RUN=0
 YES=0
 PURGE=0
@@ -20,6 +21,10 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --module)
       MODULE_ID="${2:-}"
+      shift 2
+      ;;
+    --install-root)
+      INSTALL_ROOT_OVERRIDE="${2:-}"
       shift 2
       ;;
     --dry-run)
@@ -88,7 +93,33 @@ print(root)
 PY
 }
 
-if manifest_install_root="$(read_manifest_install_root 2>/dev/null)"; then
+normalize_install_root_override() {
+  local root="${INSTALL_ROOT_OVERRIDE}"
+  [[ -n "${root}" ]] || return 1
+
+  root="${root//\\//}"
+  root="${root%/}"
+
+  case "${root}" in
+    "\$HOME") root="${HOME}" ;;
+    "\$HOME/"*) root="${HOME}/${root#\$HOME/}" ;;
+    "~") root="${HOME}" ;;
+    "~/"*) root="${HOME}/${root#~/}" ;;
+  esac
+
+  local parts
+  IFS='/' read -r -a parts <<< "${root}"
+  for part in "${parts[@]}"; do
+    [[ "${part}" != ".." ]] || return 1
+  done
+
+  [[ "${root}" == "${HOME}" || "${root}" == "${HOME}/"* ]] || return 1
+  printf '%s\n' "${root}"
+}
+
+if override_install_root="$(normalize_install_root_override 2>/dev/null)"; then
+  INSTALL_ROOT="${override_install_root}"
+elif manifest_install_root="$(read_manifest_install_root 2>/dev/null)"; then
   INSTALL_ROOT="${manifest_install_root}"
 else
   INSTALL_ROOT="${HOME}/${MODULE_ID}"

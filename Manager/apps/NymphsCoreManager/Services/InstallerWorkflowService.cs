@@ -5324,6 +5324,8 @@ meta:
         {
             "--module",
             normalizedModuleId,
+            "--install-root",
+            installRoot,
             "--yes",
         };
 

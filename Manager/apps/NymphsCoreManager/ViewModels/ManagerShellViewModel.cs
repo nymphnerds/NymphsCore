@@ -163,7 +163,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         _clearModuleActionSecretCommand = new RelayCommand<NymphModuleActionFieldInfo>(ClearModuleActionSecret, field => field is not null && field.IsSecret);
         _runModuleDevActionCommand = new RelayCommand<string>(RunSelectedModuleDevAction, CanRunSelectedModuleDevAction);
         _toggleDeveloperModeCommand = new RelayCommand(ToggleDeveloperMode);
-        _uninstallModuleCommand = new RelayCommand<NymphModuleViewModel>(UninstallModule, module => module?.IsInstalled == true && !IsBusy);
+        _uninstallModuleCommand = new RelayCommand<NymphModuleViewModel>(UninstallModule, module => module?.CanUninstall == true && !IsBusy);
         _deleteModuleCommand = new RelayCommand<NymphModuleViewModel>(DeleteModule, module => module?.IsInstalled == true && !IsBusy);
 
         LoadSidebarArtwork();
@@ -4033,7 +4033,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
     private async Task RunModuleUninstallAsync(NymphModuleViewModel? module, bool purge)
     {
-        if (module is null || !module.IsInstalled || IsBusy)
+        if (module is null || !module.CanUninstall || IsBusy)
         {
             return;
         }
