@@ -8,6 +8,43 @@ This file focuses on user-facing and system-level changes rather than package-by
 
 Newest entries first.
 
+### 2026-05-15 Faster startup update checks and Easy LoRA entry point
+Source: live LoRA install/update testing in the modular Manager shell.
+
+Changed in source:
+
+- made startup module update checks feel immediate:
+  - update availability is now computed from registry manifests already loaded
+    during module roster startup
+  - installed marker versions are used for the initial comparison
+  - startup no longer waits for every module status script before showing update
+    availability
+  - registry manifest downloads are fetched in parallel instead of serially
+- kept manual Check for Updates available for a full explicit registry refresh
+- added Manager support for module action result `open_module_ui`
+- exposed LoRA's intended beginner entry point:
+  - `Easy LoRA` is now the first LoRA module action
+  - `Easy LoRA` opens the module-owned local HTML UI in the Manager
+  - install/update copy the Easy LoRA HTML into the installed module root
+- rewrote the LoRA details pane for beginners:
+  - explains what a LoRA is
+  - explains that Install prepares tools only
+  - tells users to run `Prepare Training Assets` once before first training
+  - separates beginner Easy LoRA flow from advanced AI Toolkit use
+
+Validated locally:
+
+- Manager builds with `dotnet build -c Release -p:EnableWindowsTargeting=true`
+- Manager publishes the Win x64 EXE to
+  `Manager/apps/NymphsCoreManager/publish/win-x64/NymphsCoreManager.exe`
+- LoRA manifest parses as JSON and lightweight update copies the Easy LoRA UI
+  into a temp install root
+
+Pushed:
+
+- `nymphnerds/NymphsCore` modular through `f0359f6`
+- `nymphnerds/lora` main through `f6f5c0f`
+
 ### 2026-05-15 Module update cleanup, data actions, and LoRA install pass
 Source: live LoRA module install testing, Z-Image/TRELLIS/WORBI action testing,
 and modular Manager details-pane cleanup.
