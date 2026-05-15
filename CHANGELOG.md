@@ -29,6 +29,9 @@ Changed in source:
 - bound the module page body to the visible scroll viewer width and matched the
   rail column width to the rail content so actions cannot clip off the right
   edge at narrower Manager window sizes
+- fixed LoRA's details-pane next-step resolver so `Fetch Training Assets` only
+  appears while the module state is actually `Needs assets`; `Training assets:
+  ready` no longer re-triggers the setup CTA
 - clarified that universal `Delete Data` preserves shared model/cache folders;
   shared weights need module-owned scoped cleanup actions
 

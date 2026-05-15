@@ -448,9 +448,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
         var needsAssets =
             string.Equals(module.Id, "lora", StringComparison.OrdinalIgnoreCase) &&
-            (module.StateLabel.Contains("asset", StringComparison.OrdinalIgnoreCase) ||
-             module.Detail.Contains("asset", StringComparison.OrdinalIgnoreCase) ||
-             module.SecondaryDetail.Contains("asset", StringComparison.OrdinalIgnoreCase));
+            module.StateLabel.Contains("Needs assets", StringComparison.OrdinalIgnoreCase);
         if (!needsAssets)
         {
             return null;
