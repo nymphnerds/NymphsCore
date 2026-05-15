@@ -25,6 +25,8 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
     private readonly string _sidebarPortraitOverrideFileName = "NymphMycelium1.png";
     private readonly List<NymphModuleViewModel> _allModules;
     private readonly HashSet<string> _modulesWithActiveLifecycle = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, string> _activeModuleLiveLogText = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, string> _activeModuleLiveActionLabels = new(StringComparer.OrdinalIgnoreCase);
     private readonly CancellationTokenSource _operationCancellation = new();
     private bool _shutdownStarted;
     private bool _hasRunStartupUpdateCheck;
@@ -2965,9 +2967,16 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         CurrentPageTitle = module.Name;
         CurrentPageSubtitle = module.Description;
         ModuleUiSource = string.Empty;
-        ShowModuleLogs = false;
-        ModuleLogsTitle = $"{module.Name} module logs";
-        ModuleLogsDetail = "Click // logs to load this module's recent logs.";
+        if (IsModuleDetailProgressActive(module))
+        {
+            ShowActiveModuleLiveLogs(module);
+        }
+        else
+        {
+            ShowModuleLogs = false;
+            ModuleLogsTitle = $"{module.Name} module logs";
+            ModuleLogsDetail = "Click // logs to load this module's recent logs.";
+        }
         SetModuleDetailPaneFeedback(module);
         _ = LoadModuleManifestInfoAsync(module);
     }
@@ -3244,10 +3253,8 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         }
         if (showDetailProgress)
         {
-            BeginModuleDetailProgress(module);
-            ShowModuleLogs = true;
-            ModuleLogsTitle = $"{module.Name} {actionLabel} live output";
-            ModuleLogsDetail = "Waiting for module output...";
+            BeginModuleDetailProgress(module, actionLabel);
+            ShowActiveModuleLiveLogs(module);
         }
 
         StatusMessage = $"Running {module.Name} {actionLabel}...";
@@ -3395,7 +3402,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             string.Equals(_activeModuleDetailProgressModuleId, module.Id, StringComparison.OrdinalIgnoreCase);
     }
 
-    private void BeginModuleDetailProgress(NymphModuleViewModel module)
+    private void BeginModuleDetailProgress(NymphModuleViewModel module, string actionLabel)
     {
         if (string.Equals(_activeModuleDetailProgressModuleId, module.Id, StringComparison.OrdinalIgnoreCase))
         {
@@ -3403,6 +3410,8 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         }
 
         _activeModuleDetailProgressModuleId = module.Id;
+        _activeModuleLiveActionLabels[module.Id] = actionLabel;
+        _activeModuleLiveLogText[module.Id] = "Waiting for module output...";
         OnPropertyChanged(nameof(ShowModuleDetailProgress));
         OnPropertyChanged(nameof(ShowModuleDetailPrimaryAction));
     }
@@ -3415,8 +3424,18 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         }
 
         _activeModuleDetailProgressModuleId = string.Empty;
+        _activeModuleLiveActionLabels.Remove(module.Id);
+        _activeModuleLiveLogText.Remove(module.Id);
         OnPropertyChanged(nameof(ShowModuleDetailProgress));
         OnPropertyChanged(nameof(ShowModuleDetailPrimaryAction));
+    }
+
+    private void ShowActiveModuleLiveLogs(NymphModuleViewModel module)
+    {
+        var actionLabel = _activeModuleLiveActionLabels.GetValueOrDefault(module.Id, "module action");
+        ModuleLogsTitle = $"{module.Name} {actionLabel} live output";
+        ModuleLogsDetail = _activeModuleLiveLogText.GetValueOrDefault(module.Id, "Waiting for module output...");
+        ShowModuleLogs = true;
     }
 
     private static string BuildInstallFieldFeedback(
@@ -3668,10 +3687,8 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         }
         if (showDetailProgress)
         {
-            BeginModuleDetailProgress(module);
-            ShowModuleLogs = true;
-            ModuleLogsTitle = $"{module.Name} {actionLabel} live output";
-            ModuleLogsDetail = "Waiting for module output...";
+            BeginModuleDetailProgress(module, actionLabel);
+            ShowActiveModuleLiveLogs(module);
         }
         StatusMessage = $"Running {module.Name} {actionLabel}...";
         if (!showDetailProgress && !string.Equals(normalizedAction, "logs", StringComparison.OrdinalIgnoreCase))
@@ -3841,12 +3858,15 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             liveLines.RemoveAt(0);
         }
 
+        _activeModuleLiveActionLabels[module.Id] = action;
+        _activeModuleLiveLogText[module.Id] = string.Join(Environment.NewLine, liveLines);
+
         if (ShowModuleLogs &&
             DisplayedModule is not null &&
             string.Equals(DisplayedModule.Id, module.Id, StringComparison.OrdinalIgnoreCase))
         {
             ModuleLogsTitle = $"{module.Name} {action} live output";
-            ModuleLogsDetail = string.Join(Environment.NewLine, liveLines);
+            ModuleLogsDetail = _activeModuleLiveLogText[module.Id];
         }
 
         SetModuleActionFeedback(
