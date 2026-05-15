@@ -31,6 +31,8 @@ public sealed record ModuleUiActionResult(
 public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 {
     private const string CloseModuleUiActionName = "__close_module_ui";
+    private const string OpenLoraGuideActionName = "__open_lora_guide";
+    private const string LoraGuideUrl = "https://nymphnerds.github.io/NymphsCore/home/guides/training.html";
     private readonly InstallerWorkflowService _workflowService;
     private readonly SharedSecretsService _sharedSecretsService = new();
     private readonly InstallSettings _settings;
@@ -271,7 +273,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
     public RelayCommand<NymphModuleViewModel> DeleteModuleCommand => _deleteModuleCommand;
 
-    public RelayCommand OpenGuideCommand => new(() => SafeRun(_workflowService.OpenGuide, "Guide opened."));
+    public RelayCommand OpenGuideCommand => new(() => SafeRun(OpenContextGuide, "Guide opened."));
 
     public RelayCommand OpenReadmeCommand => new(() => SafeRun(_workflowService.OpenReadme, "README opened."));
 
@@ -410,7 +412,6 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             {
                 if (string.Equals(DisplayedModule.Id, "lora", StringComparison.OrdinalIgnoreCase))
                 {
-                    var loraManagerActions = DisplayedModule.ManagerActions.ToArray();
                     var loraActions = DisplayedModule.ManagerActions
                         .Where(action =>
                             !string.Equals(action.Id, "fetch_assets", StringComparison.OrdinalIgnoreCase) &&
@@ -425,15 +426,13 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                                 "close_ui",
                                 "Close UI",
                                 CloseModuleUiActionName,
-                                "manager_close")
+                                "manager_close"),
+                            new NymphModuleActionInfo(
+                                "lora_guide",
+                                "Guide",
+                                OpenLoraGuideActionName,
+                                "open_external_browser")
                         };
-                        var guideAction = loraManagerActions.FirstOrDefault(action =>
-                            string.Equals(action.Id, "guide", StringComparison.OrdinalIgnoreCase) ||
-                            string.Equals(action.ActionName, "guide", StringComparison.OrdinalIgnoreCase));
-                        if (guideAction is not null)
-                        {
-                            moduleUiActions.Add(guideAction);
-                        }
 
                         return moduleUiActions;
                     }
@@ -3957,6 +3956,12 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             return;
         }
 
+        if (normalizedAction == OpenLoraGuideActionName)
+        {
+            OpenLoraGuide();
+            return;
+        }
+
         var resultMode = string.IsNullOrWhiteSpace(actionInfo.ResultMode)
             ? "show_output"
             : actionInfo.ResultMode.Trim().ToLowerInvariant();
@@ -5099,6 +5104,28 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         {
             AppendActivity($"Action warning: {ex.Message}");
         }
+    }
+
+    private void OpenContextGuide()
+    {
+        if (string.Equals(DisplayedModule?.Id, "lora", StringComparison.OrdinalIgnoreCase))
+        {
+            OpenLoraGuide();
+            return;
+        }
+
+        _workflowService.OpenGuide();
+    }
+
+    private void OpenLoraGuide()
+    {
+        Process.Start(new ProcessStartInfo
+        {
+            FileName = LoraGuideUrl,
+            UseShellExecute = true,
+        });
+        StatusMessage = "LoRA guide opened.";
+        AppendActivity("LoRA guide opened.");
     }
 
     private static string BuildAppVersionLabel()
