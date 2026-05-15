@@ -2649,6 +2649,10 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             {
                 ModuleUiStatus = BuildModuleActionFeedbackDetail(output);
             }
+            if (ShouldOpenPathForModuleUiAction(normalizedAction))
+            {
+                OpenFirstPathFromOutput(module, normalizedAction, output);
+            }
             if (normalizedAction is not "logs" and not "open" and not "job_status")
             {
                 await RefreshModuleStateAsync().ConfigureAwait(true);
@@ -2701,6 +2705,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             ApplyModuleHuggingFaceTokenArgument(args);
         }
 
+        var shouldOpenPath = ShouldOpenPathForModuleUiAction(action);
         IsBusy = true;
         StatusMessage = $"Running {module.Name} {action}...";
         ModuleUiStatus = args.Count == 0
@@ -2711,7 +2716,10 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         SetModuleActionFeedback(
             $"{module.Name}: {action} in progress",
             "Waiting for module output...");
-        SelectPrimaryPage(ManagerPageKind.Logs);
+        if (!shouldOpenPath)
+        {
+            SelectPrimaryPage(ManagerPageKind.Logs);
+        }
 
         try
         {
@@ -2734,6 +2742,10 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             SetModuleActionFeedback(
                 $"{module.Name}: {action} finished",
                 BuildModuleActionFeedbackDetail(string.Join(Environment.NewLine, liveLines.Append(output))));
+            if (shouldOpenPath)
+            {
+                OpenFirstPathFromOutput(module, action, output);
+            }
             if (action is not "logs" and not "open")
             {
                 await RefreshModuleStateAsync().ConfigureAwait(true);
@@ -4430,9 +4442,70 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         }
     }
 
+    private bool OpenFirstPathFromOutput(NymphModuleViewModel module, string actionLabel, string output)
+    {
+        var path = ExtractOpenPath(output, actionLabel);
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            AppendActivity($"{module.Name} {actionLabel} did not return a path.");
+            SetModuleActionFeedback(
+                $"{module.Name}: no path returned",
+                "The module command finished, but it did not print a path for the manager to open.");
+            return false;
+        }
+
+        var explorerPath = NormalizeModulePathForExplorer(path);
+        try
+        {
+            if (LooksLikeDirectoryPath(explorerPath))
+            {
+                Directory.CreateDirectory(explorerPath);
+            }
+            else
+            {
+                var parent = Path.GetDirectoryName(explorerPath);
+                if (!string.IsNullOrWhiteSpace(parent))
+                {
+                    Directory.CreateDirectory(parent);
+                }
+            }
+
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = "explorer.exe",
+                Arguments = explorerPath,
+                UseShellExecute = true,
+            });
+            AppendActivity($"{module.Name} {actionLabel} opened: {explorerPath}");
+            SetModuleActionFeedback(
+                $"{module.Name}: {actionLabel} opened",
+                explorerPath);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            AppendActivity($"Could not open {module.Name} path: {ex.Message}");
+            SetModuleActionFeedback(
+                $"{module.Name}: path open failed",
+                ex.Message);
+            return false;
+        }
+    }
+
+    private static bool ShouldOpenPathForModuleUiAction(string action)
+    {
+        return action.StartsWith("open_", StringComparison.OrdinalIgnoreCase) &&
+               !string.Equals(action, "open", StringComparison.OrdinalIgnoreCase);
+    }
+
     private string NormalizeModuleDirectoryForExplorer(string directory)
     {
-        var normalized = directory.Trim().Trim('"', '\'');
+        return NormalizeModulePathForExplorer(directory);
+    }
+
+    private string NormalizeModulePathForExplorer(string path)
+    {
+        var normalized = path.Trim().Trim('"', '\'');
         if (normalized.StartsWith("/", StringComparison.Ordinal))
         {
             var segments = normalized
@@ -4442,6 +4515,17 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         }
 
         return normalized;
+    }
+
+    private static bool LooksLikeDirectoryPath(string path)
+    {
+        var trimmed = path.Trim().TrimEnd('\\', '/');
+        if (string.IsNullOrWhiteSpace(Path.GetExtension(trimmed)))
+        {
+            return true;
+        }
+
+        return Directory.Exists(path);
     }
 
     private static string ExtractDirectoryPath(string output)
@@ -4458,6 +4542,46 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                 return parts[1].Trim();
             }
 
+            if (trimmed.StartsWith("/", StringComparison.Ordinal) ||
+                trimmed.StartsWith(@"\\", StringComparison.Ordinal) ||
+                Regex.IsMatch(trimmed, @"^[A-Za-z]:[\\/]", RegexOptions.CultureInvariant))
+            {
+                return trimmed;
+            }
+        }
+
+        return string.Empty;
+    }
+
+    private static string ExtractOpenPath(string output, string actionLabel)
+    {
+        if (string.Equals(actionLabel, "open_captions", StringComparison.OrdinalIgnoreCase))
+        {
+            var captionsPath = ExtractOpenPathByKeys(output, "metadata", "file", "path");
+            if (!string.IsNullOrWhiteSpace(captionsPath))
+            {
+                return captionsPath;
+            }
+        }
+
+        return ExtractOpenPathByKeys(output, "directory", "dir", "path", "file", "metadata");
+    }
+
+    private static string ExtractOpenPathByKeys(string output, params string[] keys)
+    {
+        foreach (var line in output.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            var trimmed = line.Trim();
+            var parts = trimmed.Split('=', 2, StringSplitOptions.TrimEntries);
+            if (parts.Length == 2 && keys.Any(key => parts[0].Equals(key, StringComparison.OrdinalIgnoreCase)))
+            {
+                return parts[1].Trim();
+            }
+        }
+
+        foreach (var line in output.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            var trimmed = line.Trim();
             if (trimmed.StartsWith("/", StringComparison.Ordinal) ||
                 trimmed.StartsWith(@"\\", StringComparison.Ordinal) ||
                 Regex.IsMatch(trimmed, @"^[A-Za-z]:[\\/]", RegexOptions.CultureInvariant))
