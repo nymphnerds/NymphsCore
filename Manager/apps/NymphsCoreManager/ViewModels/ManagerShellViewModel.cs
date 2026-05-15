@@ -3359,6 +3359,11 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                    DisplayedModule.IsInstalled;
         }
 
+        if (normalizedAction == "stop" && !DisplayedModule.IsRunning)
+        {
+            return false;
+        }
+
         if (IsModuleDetailProgressActive(DisplayedModule) &&
             normalizedAction is not "stop" and not "logs" &&
             !isPassiveAction)
@@ -3681,7 +3686,9 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             ? string.Empty
             : resultMode.Trim().ToLowerInvariant();
 
-        return normalizedResultMode is "open_directory" or "open_folder" or "directory" or "folder" or "open_module_ui" or "module_ui";
+        return normalizedResultMode is "open_directory" or "open_folder" or "directory" or "folder" or
+            "open_module_ui" or "module_ui" or
+            "open_external_browser" or "external_browser";
     }
 
     private void ApplySecretFieldToInvocation(NymphModuleActionFieldInfo field, IDictionary<string, string> environment)
@@ -3985,7 +3992,8 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                 ShowModulePage(module);
             }
 
-            if (!isPassiveAction && normalizedAction is not "logs" and not "open")
+            if ((!isPassiveAction || normalizedAction is "start" or "stop") &&
+                normalizedAction is not "logs" and not "open")
             {
                 await RefreshModuleStateAsync().ConfigureAwait(true);
             }
