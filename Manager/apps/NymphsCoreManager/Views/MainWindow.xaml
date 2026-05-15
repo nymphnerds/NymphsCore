@@ -2056,13 +2056,14 @@
           </Grid>
 
           <Grid Visibility="{Binding IsModulePage, Converter={StaticResource BoolToVisibilityConverter}}">
-            <Grid Height="{Binding ActualHeight, ElementName=MainContentScrollViewer}"
+            <Grid Width="{Binding ActualWidth, ElementName=MainContentScrollViewer}"
+                  Height="{Binding ActualHeight, ElementName=MainContentScrollViewer}"
                   MinHeight="0"
                   Visibility="{Binding HasSelectedModule, Converter={StaticResource BoolToVisibilityConverter}}">
               <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" MinWidth="0" />
                 <ColumnDefinition Width="14" />
-                <ColumnDefinition Width="138" />
+                <ColumnDefinition Width="150" />
               </Grid.ColumnDefinitions>
               <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
@@ -2130,6 +2131,7 @@
               </Grid>
 
               <StackPanel Grid.Row="1"
+                          Grid.RowSpan="2"
                           Grid.Column="2"
                           Width="150"
                           ClipToBounds="False"

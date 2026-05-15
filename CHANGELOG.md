@@ -26,6 +26,9 @@ Changed in source:
   whether the live EXE is the corrected build
 - rebuilt the standard rail as a simple unclipped vertical stack so every
   lifecycle slot stays visible in the documented order at normal Manager sizes
+- bound the module page body to the visible scroll viewer width and matched the
+  rail column width to the rail content so actions cannot clip off the right
+  edge at narrower Manager window sizes
 - clarified that universal `Delete Data` preserves shared model/cache folders;
   shared weights need module-owned scoped cleanup actions
 
