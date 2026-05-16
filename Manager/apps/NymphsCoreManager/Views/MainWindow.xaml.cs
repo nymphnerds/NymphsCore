@@ -29,6 +29,7 @@ public partial class MainWindow : Window
     private const int DwmwaCaptionColor = 35;
     private const int DwmwaTextColor = 36;
     private const double SidebarOnlyMonitorWidth = 360;
+    private const double CompactSidebarHeight = 560;
     private const double MonitorModeWidth = 240;
     private const double MonitorModeHeight = 470;
     private const double MinimumFullModeWidth = 820;
@@ -59,6 +60,7 @@ public partial class MainWindow : Window
         {
             _viewModel.PropertyChanged += OnViewModelPropertyChanged;
             _viewModel.UnifiedLogLines.CollectionChanged += OnUnifiedLogLinesChanged;
+            _viewModel.ModuleUiActionProgressed += OnModuleUiActionProgressed;
         }
     }
 
@@ -122,6 +124,7 @@ public partial class MainWindow : Window
         {
             _viewModel.PropertyChanged -= OnViewModelPropertyChanged;
             _viewModel.UnifiedLogLines.CollectionChanged -= OnUnifiedLogLinesChanged;
+            _viewModel.ModuleUiActionProgressed -= OnModuleUiActionProgressed;
             _viewModel.Dispose();
         }
 
@@ -172,7 +175,10 @@ public partial class MainWindow : Window
         }
 
         var sidebarOnlyMode = _isMonitorMode || ActualWidth < SidebarOnlyMonitorWidth;
-        var verticallyCompact = _isMonitorMode;
+        var sidebarHeight = SidebarRoot.ActualHeight > 0 ? SidebarRoot.ActualHeight : ActualHeight;
+        var heightCompact = sidebarHeight > 0 && sidebarHeight < CompactSidebarHeight;
+        var verticallyCompact = _isMonitorMode ||
+            heightCompact;
 
         if (_isSidebarCollapsed && !sidebarOnlyMode)
         {
@@ -483,6 +489,21 @@ public partial class MainWindow : Window
             error = result.Error,
         });
         ModuleUiBrowser.CoreWebView2?.PostWebMessageAsJson(payloadJson);
+    }
+
+    private void OnModuleUiActionProgressed(ModuleUiActionProgress progress)
+    {
+        Dispatcher.InvokeAsync(() =>
+        {
+            var payloadJson = JsonSerializer.Serialize(new
+            {
+                type = progress.Type,
+                requestId = progress.RequestId,
+                action = progress.Action,
+                line = progress.Line,
+            });
+            ModuleUiBrowser.CoreWebView2?.PostWebMessageAsJson(payloadJson);
+        });
     }
 
     private static IReadOnlyDictionary<string, string> ReadModuleUiActionArguments(JsonElement root)

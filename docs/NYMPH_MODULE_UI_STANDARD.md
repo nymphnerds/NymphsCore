@@ -217,6 +217,11 @@ Use this for short, non-destructive queries such as status/log polling. Long or
 heavy actions should still use `nymphs-module-action://` so the Manager can show
 standard logs and lifecycle feedback.
 
+Module detail-pane `Logs` buttons are not the same as the Manager's left-sidebar
+Logs page. A module `logs` action should declare `result: "open_notepad"` and
+print `last_log=/absolute/path/to/file.log`; the Manager opens that real log
+file in Notepad.
+
 ### Shutdown Contract
 
 Closing the Manager cancels active module action and lifecycle process trees.

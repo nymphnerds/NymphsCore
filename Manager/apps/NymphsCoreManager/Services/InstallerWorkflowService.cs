@@ -742,9 +742,11 @@ public sealed class InstallerWorkflowService
                 return ("LLM: Offline", $"Local: {ValueOrDash(snapshot.LocalModel)}", $"Remote: {ValueOrDash(snapshot.RemoteModel)}", "Context: -", "TPS: -");
             }
 
+            var displayedLocalModel = FirstMonitorValue(snapshot.LocalModel, snapshot.Model);
+
             return (
                 "LLM: Running",
-                $"Local: {ValueOrDash(snapshot.LocalModel)}",
+                $"Local: {displayedLocalModel}",
                 $"Remote: {ValueOrDash(snapshot.RemoteModel)}",
                 $"Context: {ValueOrDash(snapshot.Context)}",
                 $"TPS: {ValueOrDash(snapshot.TokensPerSecond)}");
@@ -1691,8 +1693,17 @@ public sealed class InstallerWorkflowService
         var isRunning = !string.IsNullOrWhiteSpace(pid) || !string.IsNullOrWhiteSpace(modelsJson);
         var localModel = await QueryNymphsBrainMonitorValueAsync(settings, installedMonitorScriptPath, "local-model", cancellationToken)
             .ConfigureAwait(false);
+        if (ValueOrDash(localModel) == "-")
+        {
+            localModel = await QueryNymphsBrainSelectedLocalModelAsync(settings, cancellationToken).ConfigureAwait(false);
+        }
+
         var remoteModel = await QueryNymphsBrainMonitorValueAsync(settings, installedMonitorScriptPath, "remote-model", cancellationToken)
             .ConfigureAwait(false);
+        if (ValueOrDash(remoteModel) == "-")
+        {
+            remoteModel = await QueryNymphsBrainSelectedRemoteModelAsync(settings, cancellationToken).ConfigureAwait(false);
+        }
 
         if (!isRunning)
         {
@@ -1701,6 +1712,11 @@ public sealed class InstallerWorkflowService
 
         var model = await QueryNymphsBrainMonitorValueAsync(settings, installedMonitorScriptPath, "model", cancellationToken)
             .ConfigureAwait(false);
+        if (ValueOrDash(model) == "-")
+        {
+            model = TryReadFirstBrainModelId(modelsJson);
+        }
+
         var context = await QueryNymphsBrainMonitorValueAsync(settings, installedMonitorScriptPath, "context", cancellationToken)
             .ConfigureAwait(false);
         var vram = await QueryNymphsBrainMonitorValueAsync(settings, installedMonitorScriptPath, "gpu-vram", cancellationToken)
@@ -1751,6 +1767,122 @@ public sealed class InstallerWorkflowService
         }
 
         return result.CombinedOutput.Trim();
+    }
+
+    private async Task<string> QueryNymphsBrainSelectedLocalModelAsync(
+        InstallSettings settings,
+        CancellationToken cancellationToken)
+    {
+        var startScriptPath = $"{settings.BrainInstallRoot}/bin/lms-start";
+        var bashCommand =
+            "set -euo pipefail; " +
+            "sed -n 's/^MODEL_KEY=\"\\([^\"]*\\)\".*/\\1/p' " +
+            ToBashSingleQuoted(startScriptPath) +
+            " 2>/dev/null | head -n 1";
+
+        var result = await RunWslBashAsync(settings, bashCommand, progress: null, cancellationToken).ConfigureAwait(false);
+        return result.ExitCode == 0 ? CleanMonitorModelValue(result.CombinedOutput) : string.Empty;
+    }
+
+    private async Task<string> QueryNymphsBrainSelectedRemoteModelAsync(
+        InstallSettings settings,
+        CancellationToken cancellationToken)
+    {
+        var envPath = $"{settings.BrainInstallRoot}/secrets/llm-wrapper.env";
+        var bashCommand =
+            "set -euo pipefail; " +
+            "sed -n 's/^REMOTE_LLM_MODEL=//p' " +
+            ToBashSingleQuoted(envPath) +
+            " 2>/dev/null | tail -n 1";
+
+        var result = await RunWslBashAsync(settings, bashCommand, progress: null, cancellationToken).ConfigureAwait(false);
+        return result.ExitCode == 0 ? CleanMonitorModelValue(result.CombinedOutput) : string.Empty;
+    }
+
+    private static string TryReadFirstBrainModelId(string modelsJson)
+    {
+        if (string.IsNullOrWhiteSpace(modelsJson))
+        {
+            return string.Empty;
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(modelsJson);
+            if (!TryGetModelArray(document.RootElement, out var models))
+            {
+                return string.Empty;
+            }
+
+            foreach (var item in models.EnumerateArray())
+            {
+                if (item.ValueKind != JsonValueKind.Object)
+                {
+                    continue;
+                }
+
+                var value = GetStringProperty(item, "id") ??
+                            GetStringProperty(item, "name") ??
+                            GetStringProperty(item, "model");
+                if (!string.IsNullOrWhiteSpace(value))
+                {
+                    return value.Trim();
+                }
+            }
+        }
+        catch
+        {
+            return string.Empty;
+        }
+
+        return string.Empty;
+    }
+
+    private static bool TryGetModelArray(JsonElement root, out JsonElement models)
+    {
+        if (root.ValueKind == JsonValueKind.Object &&
+            root.TryGetProperty("data", out models) &&
+            models.ValueKind == JsonValueKind.Array)
+        {
+            return true;
+        }
+
+        if (root.ValueKind == JsonValueKind.Object &&
+            root.TryGetProperty("models", out models) &&
+            models.ValueKind == JsonValueKind.Array)
+        {
+            return true;
+        }
+
+        models = default;
+        return false;
+    }
+
+    private static string CleanMonitorModelValue(string value)
+    {
+        var trimmed = (value ?? string.Empty).Trim();
+        if (trimmed.Length >= 2 &&
+            ((trimmed[0] == '"' && trimmed[^1] == '"') ||
+             (trimmed[0] == '\'' && trimmed[^1] == '\'')))
+        {
+            trimmed = trimmed[1..^1].Trim();
+        }
+
+        return trimmed;
+    }
+
+    private static string FirstMonitorValue(params string[] values)
+    {
+        foreach (var value in values)
+        {
+            var normalized = ValueOrDash(CleanMonitorModelValue(value));
+            if (normalized != "-")
+            {
+                return normalized;
+            }
+        }
+
+        return "-";
     }
 
     private async Task<string> QueryNymphsBrainModelsEndpointAsync(

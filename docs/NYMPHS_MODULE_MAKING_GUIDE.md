@@ -210,6 +210,23 @@ what the Manager should do with the script output
 The Manager renders these buttons and safely runs the entrypoint you declare.
 The Manager should not hardcode a universal button set for every module.
 
+### Module Logs Action
+
+`Logs` inside a module detail pane is a module-owned action, separate from the
+Manager's left-sidebar Logs page. It should open the module's actual `.log`
+file in Windows Notepad.
+
+Declare the action with `id: "logs"`, `entrypoint: "logs"`, and
+`result: "open_notepad"`. The logs script must print a stable absolute log file
+path using `last_log=/absolute/path/to/file.log`. It may also print
+`logs_dir=...`, `server_log=...`, or `client_log=...` for context, but
+`last_log` is the preferred path the Manager opens.
+
+The logs script should create the log directory and touch the selected log file
+if it does not exist yet. Do not route module `Logs` actions to the Manager Logs
+page, and do not open a temporary copy of stdout when a real module log file is
+known.
+
 ## Module Repo Layout
 
 Recommended repo layout:

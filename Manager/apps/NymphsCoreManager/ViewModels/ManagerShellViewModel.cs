@@ -28,6 +28,16 @@ public sealed record ModuleUiActionResult(
         new("module_action_result", requestId, action, false, string.Empty, error);
 }
 
+public sealed record ModuleUiActionProgress(
+    string Type,
+    string RequestId,
+    string Action,
+    string Line)
+{
+    public static ModuleUiActionProgress FromLine(string requestId, string action, string line) =>
+        new("module_action_progress", requestId, action, line);
+}
+
 public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 {
     private const string CloseModuleUiActionName = "__close_module_ui";
@@ -204,6 +214,8 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         _runtimeMonitorTimer.Tick += OnRuntimeMonitorTimerTick;
         _runtimeMonitorTimer.Start();
     }
+
+    public event Action<ModuleUiActionProgress>? ModuleUiActionProgressed;
 
     public ObservableCollection<ShellNavigationItemViewModel> PrimaryNavigationItems { get; }
 
@@ -2781,7 +2793,9 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                 {
                     if (!isQuietInlineQuery && !string.IsNullOrWhiteSpace(line))
                     {
-                        ModuleUiStatus = line.Trim();
+                        var trimmed = line.Trim();
+                        ModuleUiStatus = trimmed;
+                        ModuleUiActionProgressed?.Invoke(ModuleUiActionProgress.FromLine(requestId, normalizedAction, trimmed));
                     }
                 }),
                 CancellationToken.None).ConfigureAwait(true);
@@ -3484,6 +3498,57 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         }
     }
 
+    private bool OpenModuleLogInNotepad(NymphModuleViewModel module, string actionLabel, string output)
+    {
+        var logPath = ExtractLogFilePath(output);
+        if (string.IsNullOrWhiteSpace(logPath))
+        {
+            AppendActivity($"{module.Name} {actionLabel} did not return a log file path.");
+            OpenTextInNotepad($"{module.Id}-logs", BuildModuleActionFeedbackDetail(output));
+            SetModuleActionFeedback(
+                $"{module.Name}: no log file returned",
+                "The module logs action did not print a last_log, log_file, server_log, or client_log path. Opened the command output instead.");
+            return false;
+        }
+
+        var notepadPath = NormalizeModulePathForExplorer(logPath);
+        try
+        {
+            var parent = Path.GetDirectoryName(notepadPath);
+            if (!string.IsNullOrWhiteSpace(parent))
+            {
+                Directory.CreateDirectory(parent);
+            }
+
+            if (!File.Exists(notepadPath))
+            {
+                using (File.Create(notepadPath))
+                {
+                }
+            }
+
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = "notepad.exe",
+                Arguments = $"\"{notepadPath}\"",
+                UseShellExecute = true,
+            });
+            AppendActivity($"{module.Name} {actionLabel} opened in Notepad: {notepadPath}");
+            SetModuleActionFeedback(
+                $"{module.Name}: logs opened",
+                notepadPath);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            AppendActivity($"Could not open {module.Name} log in Notepad: {ex.Message}");
+            SetModuleActionFeedback(
+                $"{module.Name}: log open failed",
+                ex.Message);
+            return false;
+        }
+    }
+
     private bool CanRunSelectedModuleAction(NymphModuleActionInfo? actionInfo)
     {
         if (DisplayedModule is null || actionInfo is null || string.IsNullOrWhiteSpace(actionInfo.ActionName))
@@ -3615,10 +3680,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         }
 
         StatusMessage = $"Running {module.Name} {actionLabel}...";
-        if (!string.Equals(normalizedAction, "logs", StringComparison.OrdinalIgnoreCase))
-        {
-            ShowModuleLogs = false;
-        }
+        ShowModuleLogs = false;
         ClearStickyModuleActionFeedback();
         SetModuleActionFeedback(
             $"{module.Name}: {actionLabel} started",
@@ -3655,6 +3717,11 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             if (!isPassiveAction && normalizedAction is not "logs" and not "open")
             {
                 await RefreshModuleStateAsync().ConfigureAwait(true);
+            }
+
+            if (string.Equals(normalizedAction, "logs", StringComparison.OrdinalIgnoreCase))
+            {
+                OpenModuleLogInNotepad(module, actionLabel, output);
             }
 
             SetStickyModuleActionFeedback(
@@ -3833,7 +3900,9 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             : resultMode.Trim().ToLowerInvariant();
 
         return normalizedResultMode is "open_directory" or "open_folder" or "directory" or "folder" or
+            "open_notepad" or "notepad" or
             "open_module_ui" or "module_ui" or
+            "open_in_manager" or "manager_url" or
             "open_external_browser" or "external_browser";
     }
 
@@ -4050,10 +4119,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             BeginModuleDetailProgress(module, actionLabel);
         }
         StatusMessage = $"Running {module.Name} {actionLabel}...";
-        if (!string.Equals(normalizedAction, "logs", StringComparison.OrdinalIgnoreCase))
-        {
-            ShowModuleLogs = false;
-        }
+        ShowModuleLogs = false;
 
         ClearStickyModuleActionFeedback();
         SetModuleActionFeedback(
@@ -4078,21 +4144,16 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                 BuildModuleActionSuccessTitle(module, actionLabel, normalizedAction),
                 BuildModuleActionSuccessDetail(normalizedAction, successDetail));
 
-            if (resultMode is "open_notepad" or "notepad")
+            if (string.Equals(normalizedAction, "logs", StringComparison.OrdinalIgnoreCase))
+            {
+                OpenModuleLogInNotepad(module, actionLabel, output);
+            }
+            else if (resultMode is "open_notepad" or "notepad")
             {
                 OpenTextInNotepad($"{module.Id}-{actionInfo.Id}", BuildModuleActionFeedbackDetail(output));
                 SetModuleActionFeedback(
                     $"{module.Name}: {actionLabel} opened",
                     "Action output opened in Notepad.");
-            }
-            else if (string.Equals(normalizedAction, "logs", StringComparison.OrdinalIgnoreCase))
-            {
-                ShowModuleLogs = true;
-                ModuleLogsTitle = $"{module.Name} module logs";
-                ModuleLogsDetail = BuildModuleActionFeedbackDetail(output);
-                SetModuleActionFeedback(
-                    $"{module.Name}: logs loaded",
-                    "Module logs are shown below.");
             }
             else if (resultMode is "open_directory" or "open_folder" or "directory" or "folder")
             {
@@ -4725,6 +4786,60 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         }
 
         return ExtractOpenPathByKeys(output, "directory", "dir", "path", "file", "metadata");
+    }
+
+    private static string ExtractLogFilePath(string output)
+    {
+        var preferredKeys = new[]
+        {
+            "last_log",
+            "log_file",
+            "server_log",
+            "client_log",
+            "log",
+        };
+
+        foreach (var line in output.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            var trimmed = line.Trim();
+            var parts = trimmed.Split('=', 2, StringSplitOptions.TrimEntries);
+            if (parts.Length == 2 &&
+                preferredKeys.Any(key => parts[0].Equals(key, StringComparison.OrdinalIgnoreCase)) &&
+                LooksLikeLogFilePath(parts[1]))
+            {
+                return parts[1].Trim();
+            }
+        }
+
+        foreach (var line in output.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            var trimmed = line.Trim();
+            var parts = trimmed.Split('=', 2, StringSplitOptions.TrimEntries);
+            if (parts.Length == 2 && LooksLikeLogFilePath(parts[1]))
+            {
+                return parts[1].Trim();
+            }
+
+            if (LooksLikeLogFilePath(trimmed))
+            {
+                return trimmed;
+            }
+        }
+
+        return string.Empty;
+    }
+
+    private static bool LooksLikeLogFilePath(string path)
+    {
+        var trimmed = path.Trim().Trim('"', '\'');
+        if (string.IsNullOrWhiteSpace(trimmed) ||
+            trimmed.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
+            trimmed.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        return string.Equals(Path.GetExtension(trimmed), ".log", StringComparison.OrdinalIgnoreCase);
     }
 
     private static string ExtractOpenPathByKeys(string output, params string[] keys)

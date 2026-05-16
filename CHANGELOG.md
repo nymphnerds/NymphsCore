@@ -8,6 +8,30 @@ This file focuses on user-facing and system-level changes rather than package-by
 
 Newest entries first.
 
+### 2026-05-16 Modular LoRA validation and Manager module UI polish
+Source: real Easy LoRA validation against the managed `NymphsCore` WSL distro.
+
+Changed in source:
+
+- added WebView2 module-action progress events so embedded module UIs can show
+  live action output without navigating away from the page
+- standardized module detail-pane `Logs` actions so module manifests can return
+  `open_notepad` and open a real `last_log=...` file instead of showing stdout
+- documented the module logs contract in the Module Making Guide and Module UI
+  Standard
+- fixed the sidebar monitor compact behavior so Home/Logs/Guide only collapse
+  for explicit monitor mode or genuinely short vertical windows
+- rebuilt the Win x64 Manager EXE and ZIP with the module UI bridge and monitor
+  fixes
+- kept the old Manager LoRA behavior as the parity target while validating the
+  modular LoRA module's AI Toolkit job handoff
+
+Validated locally:
+
+- Manager builds with `dotnet build -c Debug -p:EnableWindowsTargeting=true`
+- Manager publishes the Win x64 EXE to
+  `Manager/apps/NymphsCoreManager/publish/win-x64/NymphsCoreManager.exe`
+
 ### 2026-05-15 Universal module data-control contract
 Source: cross-module rail consistency testing for LoRA, Z-Image, TRELLIS, Brain, and WORBI.
 

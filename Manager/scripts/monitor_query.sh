@@ -7,6 +7,34 @@ set -euo pipefail
 LOG_FILE="$HOME/Nymphs-Brain/logs/lms.log"
 LMS_START="$HOME/Nymphs-Brain/bin/lms-start"
 
+query_loaded_model() {
+    curl -fsS --connect-timeout 1 --max-time 3 "http://127.0.0.1:8000/v1/models" 2>/dev/null | \
+        python3 -c '
+import json
+import sys
+
+try:
+    data = json.load(sys.stdin)
+except Exception:
+    raise SystemExit(0)
+
+models = data.get("data") if isinstance(data, dict) else None
+if not isinstance(models, list) or not models:
+    models = data.get("models") if isinstance(data, dict) else None
+
+if not isinstance(models, list):
+    raise SystemExit(0)
+
+for item in models:
+    if not isinstance(item, dict):
+        continue
+    value = item.get("id") or item.get("name") or item.get("model")
+    if value:
+        print(value)
+        break
+'
+}
+
 case "${1:-}" in
     pid)
         ss -ltnp 2>/dev/null | awk '
@@ -17,7 +45,10 @@ case "${1:-}" in
         ;;
 
     model)
-        model=$(grep 'general.name str' "$LOG_FILE" 2>/dev/null | tail -1 | sed 's/.*= //' || true)
+        model=$(query_loaded_model || true)
+        if [ -z "$model" ]; then
+            model=$(grep 'general.name str' "$LOG_FILE" 2>/dev/null | tail -1 | sed 's/.*= //' || true)
+        fi
         if [ -n "$model" ]; then
             echo "$model"
         else
