@@ -1,4 +1,4 @@
-# brain-train Module Handoff
+# Brain Trainer Module Handoff
 
 Date: 2026-05-16
 Branch context: `modular`
@@ -9,7 +9,7 @@ local Brain coding/game-dev adapters.
 Working module name:
 
 ```text
-brain-train
+Brain Trainer
 ```
 
 Suggested repo id:
@@ -21,7 +21,7 @@ brain-train
 Suggested install root:
 
 ```text
-/home/nymph/brain-train
+/home/nymph/Brain-Trainer
 ```
 
 ## Goal
@@ -70,7 +70,7 @@ Reference runtime folders:
 ```text
 Brain runtime:      /home/nymph/Nymphs-Brain
 LoRA runtime:       /home/nymph/LoRA
-Future trainer:     /home/nymph/brain-train
+Future trainer:     /home/nymph/Brain-Trainer
 Managed WSL distro: NymphsCore
 ```
 
@@ -148,7 +148,7 @@ llm_running=...
 model_configured=...
 ```
 
-brain-train should read Brain state through module actions/status files or
+Brain Trainer should read Brain state through module actions/status files or
 stable Brain runtime config. It should not hardcode Manager internals.
 
 ### LoRA
@@ -159,7 +159,7 @@ LoRA is currently a training module at:
 /home/nymph/NymphsModules/lora
 ```
 
-It proves the most important workflow shape for brain-train:
+It proves the most important workflow shape for Brain Trainer:
 
 ```text
 form values
@@ -187,12 +187,12 @@ scripts/lora_logs.sh
 scripts/_lora_common.sh
 ```
 
-brain-train should copy the pattern, not the image-specific behavior.
+Brain Trainer should copy the pattern, not the image-specific behavior.
 
 ## Proposed Runtime Layout
 
 ```text
-/home/nymph/brain-train
+/home/nymph/Brain-Trainer
   .nymph-module-version
   bin/
   venv/
@@ -276,28 +276,28 @@ Start with a normal installable module manifest:
 {
   "manifest_version": 1,
   "id": "brain-train",
-  "name": "brain-train",
+  "name": "Brain Trainer",
   "short_name": "BT",
   "version": "0.1.0",
   "description": "Local LoRA/QLoRA trainer for Brain coding and game-development adapters.",
   "category": "training",
   "packaging": "repo",
   "install": {
-    "root": "$HOME/brain-train",
+    "root": "$HOME/Brain-Trainer",
     "entrypoint": "scripts/install_brain_trainer.sh",
-    "version_marker": "$HOME/brain-train/.nymph-module-version",
+    "version_marker": "$HOME/Brain-Trainer/.nymph-module-version",
     "installed_markers": [
-      "$HOME/brain-train/.nymph-module-version"
+      "$HOME/Brain-Trainer/.nymph-module-version"
     ]
   },
   "artifacts": {
-    "install_root": "$HOME/brain-train",
-    "sources_root": "$HOME/brain-train/sources",
-    "datasets_root": "$HOME/brain-train/datasets",
-    "jobs_root": "$HOME/brain-train/jobs",
-    "adapters_root": "$HOME/brain-train/adapters",
-    "indexes_root": "$HOME/brain-train/indexes",
-    "logs_root": "$HOME/brain-train/logs"
+    "install_root": "$HOME/Brain-Trainer",
+    "sources_root": "$HOME/Brain-Trainer/sources",
+    "datasets_root": "$HOME/Brain-Trainer/datasets",
+    "jobs_root": "$HOME/Brain-Trainer/jobs",
+    "adapters_root": "$HOME/Brain-Trainer/adapters",
+    "indexes_root": "$HOME/Brain-Trainer/indexes",
+    "logs_root": "$HOME/Brain-Trainer/logs"
   },
   "entrypoints": {
     "install": "scripts/install_brain_trainer.sh",
@@ -321,13 +321,13 @@ Start with a normal installable module manifest:
     "standard_lifecycle_rail": true,
     "manager_ui": {
       "type": "local_html",
-      "title": "brain-train",
+      "title": "Brain Trainer",
       "entrypoint": "ui/manager.html"
     },
     "manager_actions": [
       {
         "id": "open_trainer",
-        "label": "brain-train",
+        "label": "Brain Trainer",
         "entrypoint": "open_trainer",
         "result": "open_module_ui"
       },
@@ -355,7 +355,7 @@ Start with a normal installable module manifest:
 ```
 
 The exact action ids can change, but keep them module-owned and manifest
-declared. Do not add brain-train-specific UI code to the Manager.
+declared. Do not add Brain Trainer-specific UI code to the Manager.
 
 ## Backend Recommendation
 
@@ -657,7 +657,7 @@ form values
 ```
 
 Unlike image LoRA, Axolotl may not provide the same UI/API queue as AI Toolkit.
-That is okay. brain-train can own a local job registry and process runner, as
+That is okay. Brain Trainer can own a local job registry and process runner, as
 long as the user-facing flow remains:
 
 ```text
@@ -686,7 +686,7 @@ Suggested key/value fields:
 
 ```text
 id=brain-train
-name=brain-train
+name=Brain Trainer
 installed=true|false
 runtime_present=true|false
 data_present=true|false
@@ -703,10 +703,10 @@ job_count=0
 adapter_count=0
 active_state=idle|queued|running|stopping|finished|failed
 active_job=...
-install_root=/home/nymph/brain-train
-datasets=/home/nymph/brain-train/datasets
-adapters=/home/nymph/brain-train/adapters
-logs_dir=/home/nymph/brain-train/logs
+install_root=/home/nymph/Brain-Trainer
+datasets=/home/nymph/Brain-Trainer/datasets
+adapters=/home/nymph/Brain-Trainer/adapters
+logs_dir=/home/nymph/Brain-Trainer/logs
 detail=...
 ```
 
@@ -754,8 +754,8 @@ Follow the current module standard:
 The script must create and print a real log file:
 
 ```text
-last_log=/home/nymph/brain-train/logs/brain-train.log
-logs_dir=/home/nymph/brain-train/logs
+last_log=/home/nymph/Brain-Trainer/logs/brain-train.log
+logs_dir=/home/nymph/Brain-Trainer/logs
 ```
 
 Do not route module `Logs` to the Manager left-sidebar Logs page.
@@ -767,7 +767,7 @@ First version should not rewrite Brain internals.
 Recommended first integration:
 
 ```text
-brain-train writes adapter metadata under its own adapters folder.
+Brain Trainer writes adapter metadata under its own adapters folder.
 Install Into Brain writes a small Brain-readable adapter registry file.
 Brain later learns how to list/use that registry.
 ```
@@ -785,9 +785,9 @@ Example adapter metadata:
   "id": "my_project_coder",
   "name": "My Project Coder",
   "base_model": "selected Brain local model",
-  "adapter_path": "/home/nymph/brain-train/adapters/my_project_coder",
-  "dataset_path": "/home/nymph/brain-train/datasets/my_project_coder/review.jsonl",
-  "index_path": "/home/nymph/brain-train/indexes/my_project_coder",
+  "adapter_path": "/home/nymph/Brain-Trainer/adapters/my_project_coder",
+  "dataset_path": "/home/nymph/Brain-Trainer/datasets/my_project_coder/review.jsonl",
+  "index_path": "/home/nymph/Brain-Trainer/indexes/my_project_coder",
   "created_at": "2026-05-16T00:00:00Z",
   "engine_pack": "unreal"
 }
@@ -801,7 +801,7 @@ loading contract.
 
 Plan for this early, even if it is not in v0.1.
 
-brain-train should eventually create:
+Brain Trainer should eventually create:
 
 ```text
 adapter -> style/conventions/patterns
@@ -811,9 +811,9 @@ index   -> exact code/docs/project facts
 Possible future artifacts:
 
 ```text
-/home/nymph/brain-train/indexes/<name>/chunks.jsonl
-/home/nymph/brain-train/indexes/<name>/vectors.sqlite
-/home/nymph/brain-train/indexes/<name>/index_manifest.json
+/home/nymph/Brain-Trainer/indexes/<name>/chunks.jsonl
+/home/nymph/Brain-Trainer/indexes/<name>/vectors.sqlite
+/home/nymph/Brain-Trainer/indexes/<name>/index_manifest.json
 ```
 
 This can become a Brain MCP tool or Open WebUI/RAG integration later.
@@ -829,7 +829,7 @@ This can become a Brain MCP tool or Open WebUI/RAG integration later.
 
 ### Milestone 1: Install/Status/Logs Shell
 
-- Install creates `/home/nymph/brain-train` layout.
+- Install creates `/home/nymph/Brain-Trainer` layout.
 - Write `.nymph-module-version`.
 - Add uninstall with preserve-by-default data behavior.
 - Add `logs` with `open_notepad` contract.
@@ -877,7 +877,7 @@ This can become a Brain MCP tool or Open WebUI/RAG integration later.
 ### Milestone 7: Install Into Brain
 
 - Write a Brain adapter registry descriptor.
-- Show installed/link state in brain-train.
+- Show installed/link state in Brain Trainer.
 - Add a safe test prompt flow if Brain is running.
 - Keep Brain changes small and documented.
 
@@ -903,11 +903,11 @@ Only after this should the module be advertised in the registry.
 
 Do not:
 
-- put brain-train UI into Manager source
+- put Brain Trainer UI into Manager source
 - mutate Brain runtime startup scripts without a stable Brain adapter contract
 - train directly against random huge repo dumps without review
 - delete user code/source folders
-- delete Brain models or shared caches from brain-train Delete Job
+- delete Brain models or shared caches from Brain Trainer Delete Job
 - download base models during base install
 - require OpenRouter/cloud services for the local training path
 - hide logs/progress during long dataset/training actions
