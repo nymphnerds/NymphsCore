@@ -167,6 +167,25 @@ The Manager is currently unsigned.
 
 ---
 
+## Blender Addon Extension Repo
+
+Install the Blender addon directly from Blender through the Extensions remote
+repository system. Blender needs the raw feed URL, not the normal GitHub
+repository page:
+
+```text
+https://raw.githubusercontent.com/nymphnerds/NymphsExt/main/index.json
+```
+
+In Blender, open `Edit > Preferences > Extensions`, add that URL as a remote
+repository, refresh remote data, then install `Nymphs`.
+
+The extension feed repository is:
+
+[nymphnerds/NymphsExt](https://github.com/nymphnerds/NymphsExt)
+
+---
+
 ## Requirements
 
 Recommended baseline:
