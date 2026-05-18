@@ -26,9 +26,9 @@
 
   body {
     background:
-      radial-gradient(circle at 82% 10%, rgba(99,227,95,0.10) 0%, transparent 24%),
-      radial-gradient(circle at 12% 74%, rgba(85,223,240,0.08) 0%, transparent 24%),
-      linear-gradient(180deg, #0a0d0b 0%, #0d0d0d 48%, #0b0e0d 100%);
+      linear-gradient(180deg, #07100c 0%, #0d0d0d 38%, #0b0f0d 72%, #080908 100%);
+    background-attachment: fixed;
+    background-color: var(--dark);
     color: var(--light);
     font-family: var(--font-body);
     font-weight: 300;
@@ -159,19 +159,27 @@
   .btn-ghost:hover { transform: translateY(-2px); }
 
   .section {
-    padding: 158px 60px 56px;
+    padding: 124px 60px 56px;
   }
 
   .wiki-intro {
-    position: fixed;
-    top: 94px;
-    left: 60px;
-    right: 60px;
-    z-index: 30;
     color: var(--lime);
     font-size: 18px;
     line-height: 1.6;
-    pointer-events: none;
+    margin-bottom: 24px;
+    max-width: 900px;
+  }
+
+  .wiki-title {
+    display: inline-block;
+    font-family: var(--font-head);
+    font-size: 28px;
+    line-height: 1;
+    margin-bottom: 22px;
+    background: linear-gradient(90deg, var(--lime), var(--teal));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
   }
 
   .section-tag {
@@ -286,10 +294,10 @@
 
   .wiki-sidebar {
     position: fixed;
-    top: 158px;
+    top: 124px;
     left: 60px;
     width: 205px;
-    max-height: calc(100vh - 178px);
+    max-height: calc(100vh - 144px);
     overflow: hidden;
     z-index: 20;
   }
@@ -370,6 +378,14 @@
     line-height: 1.8;
     margin-bottom: 12px;
     max-width: 760px;
+  }
+
+  .wiki-entry .wiki-intro {
+    color: var(--lime);
+    font-size: 18px;
+    line-height: 1.6;
+    margin-bottom: 24px;
+    max-width: 900px;
   }
 
   .wiki-entry h4 {
@@ -565,18 +581,13 @@
     }
     .nav-links a { font-size: 13px; }
     .nav-cta { padding: 6px 14px; font-size: 12px; }
-    .section { padding: 174px 24px 48px; }
-    .wiki-intro {
-      top: 132px;
-      left: 24px;
-      right: 24px;
-      font-size: 15px;
-    }
+    .section { padding: 132px 24px 48px; }
+    .wiki-intro { font-size: 15px; }
     .wiki-sidebar {
       left: 24px;
-      top: 202px;
+      top: 132px;
       width: min(118px, 30vw);
-      max-height: calc(100vh - 220px);
+      max-height: calc(100vh - 150px);
     }
     .wiki-content {
       margin-left: calc(min(118px, 30vw) + 10px);
@@ -585,6 +596,10 @@
       font-size: 10px;
       letter-spacing: 0.06em;
       margin-top: 10px;
+    }
+    .wiki-title {
+      font-size: 23px;
+      margin-bottom: 18px;
     }
     .wiki-nav-sub {
       padding-left: 6px;
@@ -625,6 +640,9 @@
     .wiki-nav-heading {
       font-size: 9px;
     }
+    .wiki-title {
+      font-size: 20px;
+    }
     .wiki-nav a {
       font-size: 11px;
     }
@@ -646,9 +664,9 @@
 </nav>
 
 <section class="section" id="wiki">
-  <p class="wiki-intro">Reference docs for installing NymphsCore, using modules, and working with the Blender addon.</p>
   <div class="wiki-shell">
     <aside class="wiki-sidebar">
+      <div class="wiki-title">Wiki</div>
       <ul class="wiki-nav">
         <li class="wiki-nav-heading">// NymphsCore Manager</li>
         <li class="wiki-nav-sub"><a href="#wiki-manager-install">Install Manager</a></li>
@@ -672,6 +690,7 @@
 
     <div class="wiki-content">
       <div class="wiki-entry" id="wiki-manager">
+        <p class="wiki-intro">Reference docs for installing NymphsCore, using modules, and working with the Blender addon.</p>
         <h3>NymphsCore Manager</h3>
         <p>The Windows Manager installs and maintains the local NymphsCore runtime. It is the place to install the Base Runtime, add modules, open module pages, check logs, and repair interrupted setup work.</p>
         <h4 id="wiki-manager-install">Install Manager</h4>
