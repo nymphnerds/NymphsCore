@@ -432,6 +432,14 @@
     margin: 18px 0 16px;
   }
 
+  .wiki-figure-pair {
+    max-width: 720px;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    margin: 18px 0 16px;
+  }
+
   .wiki-figure img,
   .wiki-figure video {
     width: 100%;
@@ -447,6 +455,10 @@
     font-size: 12px;
     line-height: 1.6;
     margin-top: 8px;
+  }
+
+  .wiki-figure-pair .wiki-figure {
+    margin: 0;
   }
 
   .wiki-entry a {
@@ -614,6 +626,9 @@
       font-size: 13px;
       line-height: 1.65;
     }
+    .wiki-figure-pair {
+      grid-template-columns: 1fr;
+    }
     footer {
       padding: 24px;
       flex-direction: column;
@@ -687,14 +702,16 @@
           <li>Run <code>NymphsCoreManager.exe</code> from the extracted folder.</li>
           <li>If Windows SmartScreen appears, use <code>More info</code>, then <code>Run anyway</code>.</li>
         </ul>
-        <figure class="wiki-figure">
-          <img src="assets/wiki/manager-smartscreen-more-info.png" alt="Windows SmartScreen warning with More info link">
-          <figcaption>Choose <code>More info</code> if SmartScreen blocks the unsigned Manager.</figcaption>
-        </figure>
-        <figure class="wiki-figure">
-          <img src="assets/wiki/manager-smartscreen-run-anyway.png" alt="Windows SmartScreen warning showing Run anyway">
-          <figcaption>Then choose <code>Run anyway</code> to start <code>NymphsCoreManager.exe</code>.</figcaption>
-        </figure>
+        <div class="wiki-figure-pair">
+          <figure class="wiki-figure">
+            <img src="assets/wiki/manager-smartscreen-more-info.png" alt="Windows SmartScreen warning with More info link">
+            <figcaption>Choose <code>More info</code>.</figcaption>
+          </figure>
+          <figure class="wiki-figure">
+            <img src="assets/wiki/manager-smartscreen-run-anyway.png" alt="Windows SmartScreen warning showing Run anyway">
+            <figcaption>Then choose <code>Run anyway</code>.</figcaption>
+          </figure>
+        </div>
         <p>Do not run the Manager from inside the zip. Windows can block scripts and bundled files when the app is launched that way.</p>
         <h4>Manager layout</h4>
         <p>The Manager window can be resized. If a page looks cut off, expand the window or scroll the main content area before assuming a control is missing.</p>
