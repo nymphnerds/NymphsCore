@@ -153,9 +153,9 @@
   }
 
   h1 {
-    font-size: clamp(52px, 8vw, 108px);
+    font-size: clamp(42px, 5.8vw, 76px);
     line-height: 0.93;
-    margin-bottom: 32px;
+    margin-bottom: 24px;
     max-width: 960px;
   }
 
@@ -397,6 +397,36 @@
     max-width: 760px;
   }
 
+  .wiki-entry h4 {
+    color: var(--teal);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin: 18px 0 8px;
+  }
+
+  .wiki-entry ul {
+    display: grid;
+    gap: 8px;
+    list-style: none;
+    margin: 8px 0 14px;
+    max-width: 760px;
+  }
+
+  .wiki-entry li {
+    color: var(--muted);
+    font-size: 15px;
+    line-height: 1.7;
+  }
+
+  .wiki-entry li::before {
+    content: ">";
+    color: var(--lime);
+    font-family: var(--font-mono);
+    margin-right: 10px;
+  }
+
   .wiki-entry a {
     color: var(--light);
     text-decoration: none;
@@ -555,19 +585,33 @@
     <div class="wiki-content">
       <div class="wiki-entry" id="wiki-manager">
         <h3>NymphsCore Manager</h3>
-        <p>The Windows Manager installs and maintains the local NymphsCore runtime. Download the zip, extract it, and run <code>NymphsCoreManager.exe</code>.</p>
+        <p>The Windows Manager installs and maintains the local NymphsCore runtime. It is the place to install the Base Runtime, add modules, open module pages, check logs, and repair interrupted setup work.</p>
+        <h4>Install</h4>
+        <ul>
+          <li>Download <code>NymphsCoreManager-win-x64.zip</code>.</li>
+          <li>Extract the zip to a normal Windows folder.</li>
+          <li>Run <code>NymphsCoreManager.exe</code> from the extracted folder.</li>
+          <li>If Windows SmartScreen appears, use <code>More info</code>, then <code>Run anyway</code>.</li>
+        </ul>
+        <p>Do not run the Manager from inside the zip. Windows can block scripts and bundled files when the app is launched that way.</p>
         <div class="wiki-entry-links">
           <a href="https://github.com/nymphnerds/NymphsCore/raw/main/Manager/apps/NymphsCoreManager/publish/NymphsCoreManager-win-x64.zip">Download Manager</a>
-          <a href="guides/install-and-first-launch.html">Open guide</a>
         </div>
       </div>
 
       <div class="wiki-entry" id="wiki-base-distro">
         <h3>Install WSL Base Distro</h3>
-        <p>The base distro is the managed WSL environment used by NymphsCore. Install it from the Manager before adding modules.</p>
-        <div class="wiki-entry-links">
-          <a href="guides/install-and-first-launch.html">Open guide</a>
-        </div>
+        <p>The base distro is the managed WSL environment used by NymphsCore. Install or repair it before adding modules.</p>
+        <h4>Order</h4>
+        <ul>
+          <li>Open <code>Base Runtime</code> in the Manager.</li>
+          <li>Check <code>Current State</code>.</li>
+          <li>If Windows WSL is not ready, run the WSL setup action first and restart Windows if asked.</li>
+          <li>Choose an install drive.</li>
+          <li>Run <code>Install Base Runtime</code> or <code>Repair Base Runtime</code>.</li>
+          <li>Return Home and install modules from their cards.</li>
+        </ul>
+        <p>The managed distro is named <code>NymphsCore</code>. If a compatible existing distro is present, the Manager can reuse it for repair and module lifecycle actions.</p>
       </div>
 
       <div class="wiki-entry" id="wiki-zimage">
