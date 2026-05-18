@@ -1,6 +1,6 @@
 # NymphsCore Manager
 
-This folder contains the Windows Manager app for the modular `NymphsCore` runtime.
+This folder contains the Windows Manager app for the `NymphsCore` runtime.
 
 ## What To Download
 
@@ -10,7 +10,7 @@ You need:
 
 Current manager download:
 
-- [NymphsCoreManager-win-x64.zip](https://github.com/nymphnerds/NymphsCore/raw/modular/Manager/apps/NymphsCoreManager/publish/NymphsCoreManager-win-x64.zip)
+- [NymphsCoreManager-win-x64.zip](https://github.com/nymphnerds/NymphsCore/raw/main/Manager/apps/NymphsCoreManager/publish/NymphsCoreManager-win-x64.zip)
 
 The manager bootstraps a fresh Ubuntu WSL base locally for Base Runtime. Optional modules are installed later from registry cards.
 

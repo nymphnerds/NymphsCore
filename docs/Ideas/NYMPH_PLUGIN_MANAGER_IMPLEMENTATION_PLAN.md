@@ -1,7 +1,7 @@
 # Nymph Plugin Manager Implementation Plan
 
 Date: 2026-05-10
-Branch: `modular`
+Branch context: former `modular` work, now promoted to `main`
 
 ## Purpose
 

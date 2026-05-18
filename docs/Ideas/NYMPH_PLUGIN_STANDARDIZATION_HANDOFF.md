@@ -3,19 +3,19 @@
 Date: 2026-05-10
 Branch context: `modular`
 
-`modular` is the future-main path for the registry-driven Manager. Keep the current `main` branch available as the old-manager UI/workflow reference until module-owned frontend surfaces replace those hardcoded pages.
+The registry-driven Manager work from the former `modular` branch has been promoted to `main`.
 
 Promotion checklist for when `modular` becomes `main`:
 
 ```text
 README.md
 - Download link:
-  https://github.com/nymphnerds/NymphsCore/raw/modular/Manager/apps/NymphsCoreManager/publish/NymphsCoreManager-win-x64.zip
+  https://github.com/nymphnerds/NymphsCore/raw/main/Manager/apps/NymphsCoreManager/publish/NymphsCoreManager-win-x64.zip
   -> raw/main/...
 
 Manager/apps/NymphsCoreManager/Services/InstallerWorkflowService.cs
 - GuideUrl:
-  blob/modular/docs/GETTING_STARTED.md
+  blob/main/docs/GETTING_STARTED.md
   -> blob/main/docs/GETTING_STARTED.md
 
 Bundled Manager lifecycle wrappers:

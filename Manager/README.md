@@ -34,7 +34,7 @@ http://localhost:8080
 
 Download the manager zip from the repo:
 
-- [NymphsCoreManager-win-x64.zip](https://github.com/nymphnerds/NymphsCore/raw/modular/Manager/apps/NymphsCoreManager/publish/NymphsCoreManager-win-x64.zip)
+- [NymphsCoreManager-win-x64.zip](https://github.com/nymphnerds/NymphsCore/raw/main/Manager/apps/NymphsCoreManager/publish/NymphsCoreManager-win-x64.zip)
 
 The manager can bootstrap its own fresh Ubuntu WSL base locally.
 
@@ -81,7 +81,7 @@ For the detailed disk story, read:
 
 ## Manager Flow
 
-The current modular Manager surfaces are:
+The current Manager surfaces are:
 
 - `Home`: system overview and registry-provided module cards
 - `Base Runtime`: WSL readiness, managed runtime install/repair, progress, current state, and unregister

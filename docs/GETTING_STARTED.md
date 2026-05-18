@@ -6,7 +6,7 @@ You do not need to know Linux or WSL. The manager app handles the WSL distro, CU
 
 The Blender addon is installed separately after the backend is ready:
 
-- [Blender Addon User Guide](https://github.com/nymphnerds/NymphsCore/blob/modular/docs/BLENDER_ADDON_USER_GUIDE.md)
+- [Blender Addon User Guide](https://github.com/nymphnerds/NymphsCore/blob/main/docs/BLENDER_ADDON_USER_GUIDE.md)
 - Blender addon: available on Superhive (temporary URL)
 
 ## What You Are Installing
@@ -59,7 +59,7 @@ More detail:
 
 Download the manager zip:
 
-- [NymphsCoreManager-win-x64.zip](https://github.com/nymphnerds/NymphsCore/raw/modular/Manager/apps/NymphsCoreManager/publish/NymphsCoreManager-win-x64.zip)
+- [NymphsCoreManager-win-x64.zip](https://github.com/nymphnerds/NymphsCore/raw/main/Manager/apps/NymphsCoreManager/publish/NymphsCoreManager-win-x64.zip)
 
 The manager can bootstrap its own fresh Ubuntu WSL base locally. A compatible `NymphsCore.tar` can still be placed beside the manager as an optional faster prebuilt path, but it is no longer required.
 
@@ -165,7 +165,7 @@ With prefetch off:
 
 The optional Hugging Face token box is only for downloads that need your Hugging Face account access. The Manager saves it in your Windows user profile so future Manager downloads and addon-launched local runtimes can reuse it; it is not written permanently into the WSL distro.
 
-On the modular Manager, installed module pages such as Z-Image Fetch Models can
+In the current Manager, installed module pages such as Z-Image Fetch Models can
 also show an `HF Token` field. It uses the same saved token file:
 
 ```text
@@ -282,7 +282,7 @@ Use `Z-Image` for:
 
 Install the Blender addon:
 
-- [Blender Addon User Guide](https://github.com/nymphnerds/NymphsCore/blob/modular/docs/BLENDER_ADDON_USER_GUIDE.md)
+- [Blender Addon User Guide](https://github.com/nymphnerds/NymphsCore/blob/main/docs/BLENDER_ADDON_USER_GUIDE.md)
 - Blender addon: available on Superhive (temporary URL)
 
 Then:

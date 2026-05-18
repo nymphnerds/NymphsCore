@@ -17,7 +17,7 @@ public sealed class InstallerWorkflowService
     public const string ManagedLinuxUser = "nymph";
     public const string WslAvailabilityCheckKey = "wsl_availability";
     public const string ExistingWslDistrosCheckKey = "existing_wsl_distros";
-    public const string GuideUrl = "https://github.com/nymphnerds/NymphsCore/blob/modular/docs/GETTING_STARTED.md";
+    public const string GuideUrl = "https://github.com/nymphnerds/NymphsCore/blob/main/docs/GETTING_STARTED.md";
     public const string ReadmeUrl = "https://github.com/nymphnerds/NymphsCore/blob/main/Manager/README.md";
     public const string SourceRepoUrl = "https://github.com/nymphnerds/NymphsCore";
     public const string FootprintDocUrl = "https://github.com/nymphnerds/NymphsCore/blob/main/docs/FOOTPRINT.md";

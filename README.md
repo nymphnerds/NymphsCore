@@ -2,325 +2,80 @@
   <img src="Graphics/NymphsCoreLogo.png" alt="NymphsCore" width="960">
 </p>
 
-NymphsCore is the local runtime and Manager shell for NymphNerds game-development AI pipelines.
-
-This repository contains the Windows Manager, WSL runtime scripts, Blender addon source, and standardization notes for turning the old hardcoded tool stack into a registry-driven module system.
-
----
-
-## Current Branch State
-
-Branch: `modular`
-
-Manager build: `v0.9.13`
-
-This branch is an active module-standardization checkpoint. It is the current place to test the registry-driven Manager, Base Runtime separation, module lifecycle contract, and installed-module UI hosting.
-
-### Branch Promotion Notes
-
-`modular` is intended to become `main` once the registry-driven Manager is stable.
-
-Keep current `main` for now. It is still the old-manager UI/workflow reference.
-
-Before promoting `modular` to `main`, change:
-
-| Place | Current | Promote to |
-| --- | --- | --- |
-| README download link | `raw/modular/.../NymphsCoreManager-win-x64.zip` | `raw/main/...` |
-| `GuideUrl` | `blob/modular/docs/GETTING_STARTED.md` | `blob/main/docs/GETTING_STARTED.md` |
-| docs branch labels | `modular` | `main` or remove label |
-
-Manager runtime wrappers are bundled in the EXE zip under `scripts/`:
-
-- `Manager/scripts/install_nymph_module_from_registry.sh`
-- `Manager/scripts/uninstall_nymph_module.sh`
-
-The Manager stages those bundled files into the managed `NymphsCore` distro at action time. It should not fetch generic lifecycle wrappers from this repo over the network during normal EXE use.
-
-The Manager is no longer meant to install every tool through one hardcoded install flow. The new shape is:
-
-```text
-Install Base Runtime -> load module cards from registry -> install modules one at a time
-```
-
-What works now:
-
-- Manager shell loads official module cards from `nymphs-registry`.
-- Base Runtime is a first-class system card for creating or unregistering the managed `NymphsCore` WSL distro.
-- The old hardcoded module surfaces have been removed from the active shell.
-- Module status is parsed through generic `key=value` snapshots.
-- WORBI is the first live proof module for the new lifecycle contract.
-- Z-Image is the current heavy-runtime proof path for installed module state, native model fetch, installed module-owned actions, and smoke-test feedback.
-- Startup installed-module detection now uses fast Windows-side marker reads against the real managed `NymphsCore` runtime distro, so marker-installed modules appear immediately without waiting on backend health checks.
-- Installed modules can expose `ui.manager_ui` from their installed `nymph.json`; the Manager hosts current `local_html` pages through WebView2 while keeping the standard shell and Back bar.
-- Modules can expose compact native `ui.manager_action_groups` for simple installed controls such as model fetch, without needing a WebView2 page.
-- Z-Image Fetch Models now supports all published Nunchaku Turbo weights, clearly explains the large base-model download, and can persist an optional Hugging Face token under the Windows user profile.
-- Z-Image Smoke Test now reports `SMOKE TEST PASSED` when the backend starts, answers `/server_info`, and stops cleanly.
-- The packaged Manager release is rebuilt under:
-
-```text
-Manager/apps/NymphsCoreManager/publish/win-x64/NymphsCoreManager.exe
-Manager/apps/NymphsCoreManager/publish/NymphsCoreManager-win-x64.zip
-```
-
-Still in proof phase:
-
-- Brain, LoRA, and TRELLIS still need the full install/status/start/stop/open/logs/uninstall validation loop under the new module contract.
-- Z-Image has been live-tested far enough to prove installed-state recovery, native model fetching through the module-owned `fetch_models` action, direct installed action execution, and smoke-test pass/fail feedback. It still needs the same full abuse pass as the rest of the official modules, including Blender addon follow-up.
-- TRELLIS is the next backend to port to the same native model-fetch and smoke-test standard.
-- Current custom module UI support is intentionally narrow: installed `local_html` only. `local_web_app`, `served_web_app`, and external browser flows are planned but should not be promoted before they are timed and visually verified.
-- `Delete Module + Data` remains conservative until each module declares safe purge scopes.
-
-Cleaned repo layout:
-
-- `Manager/` is the active Windows Manager and packaged release.
-- `Graphics/` holds shared logo/source assets.
-- `docs/` holds public docs and module standards.
-- Old prototype roots (`ManagerFEUI/`, `Monitor/`, `WORBI-installer/`, and the static `home/` site) were removed from this branch.
-
-The forward-facing community module standard is:
-
-[Nymphs Module Making Guide](docs/NYMPHS_MODULE_MAKING_GUIDE.md)
-
-For future Manager/module UI work, read this first:
-
-[Nymph Module UI Standard](docs/NYMPH_MODULE_UI_STANDARD.md)
-
----
-
-## Module Contract Rule
-
-The current standard is:
-
-```text
-registry -> nymph.json manifest -> entrypoints -> status key/value snapshot -> Manager UI truth
-```
-
-Installed state must be based on the version marker:
-
-```text
-installed runtime == .nymph-module-version exists
-installed runtime != install folder exists
-installed runtime != preserved data exists
-```
-
-Installers should:
-
-- install into a temp/staging folder first
-- install dependencies inside staging
-- swap into the real install root only after success
-- write `.nymph-module-version` last
-- leave a clean not-installed state if interrupted
-- avoid random backup folders in `/home/nymph`
-- preserve only manifest-declared user data
-- expose bounded, fast status checks
-- declare log paths so the Manager can find module logs
-
----
-
-## Quick Start For This Branch
-
-1. Download or build the Manager release from this branch.
-2. Extract the zip to a normal Windows folder.
-3. Run `NymphsCoreManager.exe`.
-4. Open `Base Runtime`.
-5. Confirm Windows WSL is ready.
-6. Install Base Runtime.
-7. Return Home and install modules from their cards.
-
-The managed WSL distro is named:
-
-```text
-NymphsCore
-```
-
-The managed Linux user is:
-
-```text
-nymph
-```
-
-Important WSL boundary:
-
-```text
-NymphsCore_Lite = dev/source WSL
-NymphsCore      = managed runtime WSL
-```
-
-Runtime setup must not make the managed `NymphsCore` distro execute scripts from `NymphsCore_Lite` paths.
-
----
+# NymphsCore
 
 ## Download
 
-Current `modular` build:
+[Download NymphsCoreManager-win-x64.zip](https://github.com/nymphnerds/NymphsCore/raw/main/Manager/apps/NymphsCoreManager/publish/NymphsCoreManager-win-x64.zip)
 
-[NymphsCoreManager-win-x64.zip](https://github.com/nymphnerds/NymphsCore/raw/modular/Manager/apps/NymphsCoreManager/publish/NymphsCoreManager-win-x64.zip)
+Extract the zip, run `NymphsCoreManager.exe`, install `Base Runtime`, then add the modules you want from the Manager home screen.
 
-After downloading:
+The Manager is currently unsigned. If Windows SmartScreen appears, choose `More info`, then `Run anyway`.
 
-1. Extract the zip.
-2. Run `NymphsCoreManager.exe`.
-3. If Windows SmartScreen appears, choose `More info`, then `Run anyway`.
+## What It Is
 
-The Manager is currently unsigned.
+NymphsCore is a Windows Manager for local creative AI tools. It creates a dedicated `NymphsCore` WSL runtime, then installs optional modules one at a time from the official registry.
 
----
+The Manager handles WSL setup, runtime scripts, module install actions, logs, and module controls so users do not have to manually build Python, CUDA, model, or service environments.
 
-## Blender Addon Extension Repo
+## Quick Start
 
-Install the Blender addon directly from Blender through the Extensions remote
-repository system. Blender needs the raw feed URL, not the normal GitHub
-repository page:
+1. Download `NymphsCoreManager-win-x64.zip`.
+2. Extract it to a normal Windows folder.
+3. Run `NymphsCoreManager.exe`.
+4. Open `Base Runtime`.
+5. Install or repair the Base Runtime.
+6. Return Home and install modules from their cards.
 
-```text
-https://raw.githubusercontent.com/nymphnerds/NymphsExt/main/index.json
-```
+Do not run the Manager from inside the zip. Extract it first.
 
-In Blender, open `Edit > Preferences > Extensions`, add that URL as a remote
-repository, refresh remote data, then install `Nymphs`.
+## Modules
 
-The extension feed repository is:
+Current official modules:
 
-[nymphnerds/NymphsExt](https://github.com/nymphnerds/NymphsExt)
+- `Brain`: local assistant, Open WebUI, llama-server, and MCP tooling.
+- `Z-Image Turbo`: local image generation backend.
+- `LoRA`: Z-Image Turbo LoRA training workspace.
+- `TRELLIS.2`: local image-to-3D generation backend.
+- `WORBI`: local-first worldbuilding workspace.
 
----
+Heavy modules may require separate model downloads after install.
 
 ## Requirements
-
-Recommended baseline:
 
 - Windows 10 or Windows 11
 - WSL available on the machine
 - NVIDIA GPU with current drivers for GPU-heavy modules
 - reliable internet connection
-- enough free disk space for the base runtime plus module-specific models/assets
+- enough free disk space for the modules and model weights you choose
 
-Disk usage now depends on which modules you install. Base Runtime is intentionally separate from optional modules.
+See [Install Disk And Model Footprint](docs/FOOTPRINT.md) before installing large model modules.
 
-Model and artifact path standardization is still part of the next module-contract pass.
+## Blender Addon
 
----
-
-## Manager Screens
-
-Current shell:
-
-- `Home`: system overview and registry-provided module cards
-- `Base Runtime`: Windows WSL readiness, managed runtime install, progress, current state, and unregister
-- module detail pages: registry/manifest facts, lifecycle actions, logs, install/update/uninstall controls, and module-owned UI entry when available
-- module UI host: standard Manager sidebar plus a standard Back bar above the installed module's WebView2 content
-- `Logs`: selectable Manager log stream
-- `Guide`: lightweight user guidance
-- compact monitor mode: sidebar-only runtime monitor with optional always-on-top behavior
-
-Module cards open a detail page first. Install is a deliberate action from the detail page.
-
-Module UI performance rule: do not move first-load navigation, WebView2 profile setup, cache refresh, or navigation filtering without timing the result. The Z-Image UI proof found that Dispatcher priority, `NavigateToString`, `data:` navigation allowance, local WebView2 user-data folders, preserving newer cached HTML over older installed source files, content-aware navigation reloads, and avoiding background-status reloads are all load-time critical.
-
-Native model fetch rule: simple model selection/download UI belongs in
-`ui.manager_action_groups`, not in a module-specific Manager page. The Manager
-renders the compact controls; the module owns the script, validation, cache
-paths, progress output, and selected-model persistence.
-
-Z-Image model fetch rule: Z-Image owns model fetching in its module repo through
-`scripts/zimage_fetch_models.sh`. After install, the Manager must run the
-installed module-owned script directly and must not stage or run bundled legacy
-prefetch scripts for this module.
-
-Z-Image Fetch Models currently offers:
-
-- INT4 r32/r128/r256
-- FP4 r32/r128
-- All weights
-
-Those options are Nunchaku generation weights for Z-Image Turbo. They are not
-LoRA training precision; LoRA training uses BF16 separately. The optional HF
-Token field is saved to `%LOCALAPPDATA%\NymphsCore\shared-secrets.json` and
-passed to model downloads without printing the token to logs.
-
-Smoke test rule: validation actions must show obvious pass/fail wording. A
-successful backend smoke test should report `SMOKE TEST PASSED`, not just
-`finished`. The lightweight Z-Image smoke test can pass with `loaded_model_id`
-set to `null` because it validates backend startup and `/server_info`, not full
-generation.
-
----
-
-## Official Modules
-
-Registry cards currently cover:
-
-- Brain
-- Z-Image Turbo
-- LoRA
-- TRELLIS.2
-- WORBI
-
-Proof order:
+Install the Blender addon through Blender's Extensions remote repository system:
 
 ```text
-WORBI -> Z-Image -> TRELLIS -> LoRA -> Brain
+https://raw.githubusercontent.com/nymphnerds/NymphsExt/main/index.json
 ```
 
-WORBI is currently the cleanest lifecycle-contract proof. Z-Image is the heavy-runtime proof for native model fetch, installed action routing, and smoke-test feedback. TRELLIS should follow the same marker, staging, bounded-status, native model-fetch, and smoke-test rules next.
+Guide: [Blender Addon User Guide](docs/BLENDER_ADDON_USER_GUIDE.md)
 
----
+## Docs
 
-## Build Manager
+- [Getting Started](docs/GETTING_STARTED.md)
+- [Absolute Beginner Install Guide](docs/ABSOLUTE_BEGINNER_INSTALL_GUIDE.md)
+- [Blender Addon User Guide](docs/BLENDER_ADDON_USER_GUIDE.md)
+- [Features](docs/FEATURES.md)
+- [Roadmap](docs/ROADMAP.md)
+- [Nymphs Module Making Guide](docs/NYMPHS_MODULE_MAKING_GUIDE.md)
 
-From Windows PowerShell:
+## Troubleshooting
 
-```powershell
-powershell -ExecutionPolicy Bypass -File "\\wsl.localhost\NymphsCore_Lite\home\nymph\NymphsCore\Manager\apps\NymphsCoreManager\build-release.ps1"
-```
-
-From the WSL dev shell, the project lives at:
-
-```text
-/home/nymph/NymphsCore/Manager/apps/NymphsCoreManager
-```
-
-The release build produces:
-
-```text
-Manager/apps/NymphsCoreManager/publish/win-x64/NymphsCoreManager.exe
-Manager/apps/NymphsCoreManager/publish/NymphsCoreManager-win-x64.zip
-```
-
----
-
-## Logs
-
-Windows Manager logs are written under:
+Logs are written under:
 
 ```text
 %LOCALAPPDATA%\NymphsCore\
 ```
 
-Module logs should be standardized through module manifests and status output. This is part of the community module contract work.
-
----
-
-## Important Docs
-
-- [Nymph Module Making Guide](docs/NYMPHS_MODULE_MAKING_GUIDE.md)
-- [Nymph Module UI Standard](docs/NYMPH_MODULE_UI_STANDARD.md)
-- [Plugin Manager Implementation Plan](docs/Ideas/NYMPH_PLUGIN_MANAGER_IMPLEMENTATION_PLAN.md)
-- [Install Disk And Model Footprint](docs/FOOTPRINT.md)
-
----
-
-## Status
-
-This branch is useful for testing the new Manager shell and module lifecycle contract.
-
-It should not be treated as the final stable public installer until the official modules have each passed the same install/status/start/stop/open/logs/uninstall loop from registry cards.
-
-Latest pushed checkpoint:
-
-```text
-NymphsCore modular:       5cb78e1 Clean public README docs links
-NymphsCore functional:    4e7b2e4 Standardize module-owned fetch and smoke test flow
-Z-Image module:           371b410 Refine module-owned Z-Image model fetch
-```
+If something fails, open the Manager `Logs` page and check the newest `installer-run-*.log`.
