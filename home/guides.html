@@ -386,6 +386,8 @@
     display: grid;
     gap: 22px;
     margin-left: 215px;
+    position: relative;
+    z-index: 25;
   }
 
   .wiki-entry {
@@ -417,6 +419,80 @@
     line-height: 1.6;
     margin-bottom: 24px;
     max-width: 900px;
+  }
+
+  .wiki-home-hero {
+    max-width: 900px;
+    margin-bottom: 28px;
+  }
+
+  .wiki-home-headline {
+    font-family: var(--font-head);
+    font-size: clamp(24px, 3vw, 38px);
+    line-height: 1.08;
+    letter-spacing: 0;
+    margin: 0 0 22px;
+    max-width: 760px;
+    background: linear-gradient(90deg, var(--lime), var(--teal));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .wiki-home-headline .wiki-home-nymphs {
+    color: var(--light);
+    -webkit-text-fill-color: var(--light);
+  }
+
+  .wiki-home-line {
+    display: block;
+  }
+
+  .wiki-home-line-1 { color: #fff; }
+  .wiki-home-line-2 { color: #d7eaff; }
+  .wiki-home-line-3 { color: #9ef7ff; }
+
+  .wiki-home-blender-row {
+    display: block;
+    font-style: normal;
+  }
+
+  .wiki-home-in {
+    display: inline-block;
+    background: linear-gradient(90deg, #55dff0 0%, #63e35f 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .wiki-home-blender-lockup {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.08em;
+    margin-left: 0.1em;
+    transform: translateY(0.1em);
+  }
+
+  .wiki-home-blender-icon {
+    display: inline-block;
+    width: 1.02em;
+    height: 0.82em;
+    overflow: hidden;
+    flex: 0 0 1.02em;
+  }
+
+  .wiki-home-blender-icon img {
+    width: auto;
+    height: 100%;
+    max-width: none;
+  }
+
+  .wiki-home-blender-text {
+    display: inline-block;
+    background: linear-gradient(90deg, #63e35f 0%, #55dff0 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
   }
 
   .wiki-entry h4 {
@@ -692,7 +768,6 @@
     <img src="assets/NymphsCore_logo.png" alt="NymphsCore logo">
   </a>
   <ul class="nav-links">
-    <li><a href="index.html">Home</a></li>
     <li><a href="#wiki">Wiki</a></li>
     <li><a href="alpha.html?v=20260426b">Feedback</a></li>
     <li><a href="https://github.com/nymphnerds/NymphsCore/raw/main/Manager/apps/NymphsCoreManager/publish/NymphsCoreManager-win-x64.zip" class="nav-cta">Download Manager</a></li>
@@ -707,16 +782,16 @@
       </div>
       <div class="wiki-title">Wiki</div>
       <ul class="wiki-nav">
+        <li class="wiki-nav-heading">// What is NymphsCore</li>
+        <li class="wiki-nav-sub"><a href="#wiki-what-is">Overview</a></li>
+        <li class="wiki-nav-sub"><a href="#wiki-local-runtime">Managed Runtime</a></li>
+        <li class="wiki-nav-sub"><a href="#wiki-module-system">Modules</a></li>
+        <li class="wiki-nav-sub"><a href="#wiki-creative-clients">Creative Clients</a></li>
+
         <li class="wiki-nav-heading">// NymphsCore Manager</li>
-        <li class="wiki-nav-sub"><a href="#wiki-manager-intro">Intro</a></li>
-        <li class="wiki-nav-sub"><a href="#wiki-wsl">What is WSL?</a></li>
-        <li class="wiki-nav-sub"><a href="#wiki-system-needs">System Needs</a></li>
-        <li class="wiki-nav-sub"><a href="#wiki-footprint">Blender Pipeline Footprint</a></li>
-        <li class="wiki-nav-sub"><a href="#wiki-module-footprints">Other Module Footprints</a></li>
+        <li class="wiki-nav-sub"><a href="#wiki-manager">What is WSL?</a></li>
+        <li class="wiki-nav-sub"><a href="#wiki-footprint">Footprint</a></li>
         <li class="wiki-nav-sub"><a href="#wiki-manager-install">Install Manager</a></li>
-        <li class="wiki-nav-sub"><a href="#wiki-manager-layout">Manager Layout</a></li>
-        <li class="wiki-nav-sub"><a href="#wiki-system-checks">System Checks</a></li>
-        <li class="wiki-nav-sub"><a href="#wiki-base-distro">Install WSL Base Distro</a></li>
 
         <li class="wiki-nav-heading">// Modules</li>
         <li class="wiki-nav-sub"><a href="#wiki-zimage">Z-Image Turbo</a></li>
@@ -726,6 +801,7 @@
         <li class="wiki-nav-sub"><a href="#wiki-lora">LoRA</a></li>
 
         <li class="wiki-nav-heading">// Blender Addon</li>
+        <li class="wiki-nav-sub"><a href="#wiki-addon">About</a></li>
         <li class="wiki-nav-sub"><a href="#wiki-server-panel">Server Panel</a></li>
         <li class="wiki-nav-sub"><a href="#wiki-image-panel">Image Panel</a></li>
         <li class="wiki-nav-sub"><a href="#wiki-shape-panel">Shape Panel</a></li>
@@ -734,6 +810,33 @@
     </aside>
 
     <div class="wiki-content">
+      <div class="wiki-entry" id="wiki-what-is">
+        <div class="wiki-home-hero">
+          <div class="wiki-home-headline"><span class="wiki-home-nymphs">Nymphs</span>Core is a curated local AI pipeline system for game devs.</div>
+        </div>
+
+        <h4>Overview</h4>
+        <p>NymphsCore is the managed local backend for Nymphs creative tools. It brings together the Windows Manager, a dedicated WSL runtime, registry modules, model downloads, service launchers, logs, smoke tests, and repair paths so local AI pipelines can be installed and run without hand-building CUDA, Python, model, and server environments.</p>
+        <p>The system is built around game-development workflows: fast visual direction, local image generation and editing, image-to-3D drafts, texture passes, LoRA training paths, local assistant tooling, and worldbuilding modules. Blender is the first full creative client, but NymphsCore itself is the runtime and module layer underneath it.</p>
+
+        <h4 id="wiki-local-runtime">Managed runtime</h4>
+        <p>The Manager creates a dedicated <code>NymphsCore</code> WSL distro and Linux user so the AI stack stays isolated from normal Windows installs. That managed runtime is where CUDA support, Python environments, module repos, model caches, launch scripts, and local services live.</p>
+        <ul>
+          <li><code>Base Runtime</code>: WSL readiness, install/repair, system packages, scripts, and shared runtime layout.</li>
+          <li><code>Module lifecycle</code>: install, update, repair, uninstall, data cleanup, start, stop, status, logs, and module-owned UI actions.</li>
+          <li><code>Model handling</code>: module-specific model fetch flows, Hugging Face token handling, cached model folders, and output folders.</li>
+          <li><code>Diagnostics</code>: system checks, runtime monitor, GPU/VRAM signals, logs, smoke tests, and repeatable repair paths.</li>
+        </ul>
+
+        <h4 id="wiki-module-system">Modules</h4>
+        <p>NymphsCore modules are focused capability packs owned by their own manifests and scripts. Current first-party modules cover local image generation with <code>Z-Image Turbo</code>, image-to-3D and texture work with <code>TRELLIS.2</code>, Z-Image LoRA training, optional local assistant services with <code>Nymphs-Brain</code>, and local-first worldbuilding with <code>WORBI</code>.</p>
+        <p>Large modules can have separate install and model-fetch steps. That keeps the base runtime smaller and makes disk use, repairs, logs, and retained data clearer per workflow.</p>
+
+        <h4 id="wiki-creative-clients">Creative clients</h4>
+        <p>The Blender addon is the current main client. It talks to the managed local services from Blender's sidebar so artists can generate references, use prompt/object/style presets, send selected images into shape and texture workflows, import draft meshes, and retexture selected objects inside the scene.</p>
+        <p>The wider direction is to keep building curated local AI pipelines that can be brought into creative and game-dev software without each tool needing its own backend setup. Blender comes first; the runtime is designed so future addons or plugins can call the same managed system.</p>
+      </div>
+
       <div class="wiki-entry" id="wiki-manager">
         <h3>NymphsCore Manager</h3>
         <h4 id="wiki-manager-intro">Intro</h4>
@@ -905,28 +1008,61 @@
       </div>
 
       <div class="wiki-entry" id="wiki-addon">
-        <h3>Blender Addon</h3>
-        <p>Blender-side interface for working with NymphsCore.</p>
+        <h3>About</h3>
+        <p>The Nymphs Blender addon is the current creative client for NymphsCore. It gives Blender a direct control surface for the managed local AI runtime, so asset drafts can move from prompt, to reference image, to generated mesh, to texture pass without leaving the scene or hand-running backend servers.</p>
+        <p>This matters because draft asset work is iterative. You can keep a model or scene open, generate visual directions from object and style presets, reuse the strongest image as a source, import the resulting mesh back into Blender, select a result, run another texture pass, and inspect saved outputs and metadata from the same sidebar.</p>
+        <p>The heavy work still happens in the Manager-installed <code>NymphsCore</code> WSL runtime. The addon starts and checks the local services, sends requests to the image and 3D modules, imports returned assets, and keeps status, progress, GPU/VRAM signals, folders, and repair-friendly runtime controls where the artist is already working.</p>
       </div>
 
       <div class="wiki-entry" id="wiki-server-panel">
         <h3>Server Panel</h3>
-        <p>Runtime status and backend controls for the Blender addon.</p>
+        <p><code>Nymphs Server</code> is the addon control panel for the managed local runtimes. It shows the current backend state, active services, image backend, running job, progress, and GPU/VRAM telemetry when available.</p>
+        <ul>
+          <li><code>Runtimes</code> starts, stops, refreshes, or stops all managed services from Blender.</li>
+          <li><code>Z-Image</code> is the local image service, normally on port <code>8090</code>.</li>
+          <li><code>TRELLIS.2</code> is the shape, texture, and retexture service, normally on port <code>8094</code>.</li>
+          <li><code>Config Details</code> exposes service ports, backend paths, loaded model/runtime summaries, and live job details for repair or developer machines.</li>
+          <li><code>Advanced</code> shows the WSL distro/user target, API root, runtime guidance, terminal launch option, and GPU refresh tools.</li>
+        </ul>
+        <p>Use this panel when Blender needs to know whether the backend is ready, launching, busy, or stopped. It is also the safest place to stop unused runtimes before switching tasks or freeing VRAM.</p>
       </div>
 
       <div class="wiki-entry" id="wiki-image-panel">
         <h3>Image Panel</h3>
-        <p>Image generation and image-editing controls for the Blender addon.</p>
+        <p><code>Nymphs Image</code> creates the reference images that drive the rest of the Blender workflow. It supports local <code>Z-Image</code> generation from the managed runtime and <code>Gemini Flash</code> generation through OpenRouter when online access is enabled.</p>
+        <ul>
+          <li><code>Z-Image</code> handles local text-to-image, variants, seeds, generation profiles, size, steps, guidance, and image-to-image from a picked guide image.</li>
+          <li><code>Gemini Flash</code> supports OpenRouter-backed image generation, guide images, aspect ratio controls, and the character part extraction workflow.</li>
+          <li>Subject presets, style presets, saved prompts, editor tools, quick edit, preview, and preset folders keep prompt work reusable instead of buried in one-off text boxes.</li>
+          <li><code>Image Part Extraction</code> can plan and generate separate references for base body, clothing, hair, accessories, weapons, props, face choices, and optional eyeball parts from one master character image.</li>
+          <li>Generated images and metadata can be opened or cleared from the panel, so reference output stays reachable while working in Blender.</li>
+        </ul>
+        <p>The image panel is where the visual direction starts: prompt, preset, style, guide image, or master character reference first, then use the strongest output as the source for shape, texture, or modular part work.</p>
       </div>
 
       <div class="wiki-entry" id="wiki-shape-panel">
         <h3>Shape Panel</h3>
-        <p>Image-to-3D controls for creating shape outputs from source images.</p>
+        <p><code>Nymphs Shape</code> turns one chosen reference image into an imported Blender mesh through the <code>TRELLIS.2</code> runtime. It is the main image-to-3D lane for draft asset creation.</p>
+        <ul>
+          <li>Pick a clean source image, ideally a front or three-quarter view with the full subject visible and a simple background.</li>
+          <li><code>Auto Remove Background</code> is available for normal plain-background references.</li>
+          <li><code>Generate Shape</code> creates the mesh; <code>Generate Shape + Texture</code> asks TRELLIS.2 for the first texture pass too.</li>
+          <li>Presets cover common TRELLIS.2 settings, while advanced controls expose resolution, seed, token budget, structure pass, shape pass, texture pass, export faces, remesh, and texture size.</li>
+          <li>The latest generated mesh is imported into the current Blender scene and recorded under the addon shape output folder.</li>
+        </ul>
+        <p>Use this panel once an image is strong enough to become a draft object. The goal is not final production topology; it is a fast, inspectable mesh and texture direction inside the same Blender project.</p>
       </div>
 
       <div class="wiki-entry" id="wiki-texture-panel">
         <h3>Texture Panel</h3>
-        <p>Texture and retexture controls for selected mesh workflows.</p>
+        <p><code>Nymphs Texture</code> retextures an existing selected mesh with a guidance image through <code>TRELLIS.2</code>. It is useful when the shape is acceptable but the surface needs a different visual direction or another pass.</p>
+        <ul>
+          <li>Select one mesh in Blender before running the request.</li>
+          <li>Choose a texture guidance image and leave <code>Auto Remove Background</code> on for normal references.</li>
+          <li>Control texture resolution, texture size, seed, steps, image-follow strength, decimation, and advanced GGUF texture options where available.</li>
+          <li><code>Retexture Selected Mesh</code> sends the selected object and guidance image to the local runtime, then imports the result back near the source transform when possible.</li>
+        </ul>
+        <p>This lets texture iteration happen on the asset you are already looking at, instead of exporting to a separate tool, rebuilding context, and manually reconnecting the result.</p>
       </div>
     </div>
   </div>
@@ -960,18 +1096,21 @@
     if (!targets.length) return;
     setActive(targets[0].id);
 
-    const observer = new IntersectionObserver((entries) => {
-      const visible = entries
-        .filter((entry) => entry.isIntersecting)
-        .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+    const topOffset = 128;
+    const targetTop = (target) => target.getBoundingClientRect().top + window.scrollY - topOffset;
+    const updateActive = () => {
+      const position = window.scrollY;
+      let current = targets[0];
+      for (const target of targets) {
+        if (targetTop(target) <= position) current = target;
+      }
+      setActive(current.id);
+    };
 
-      if (visible) setActive(visible.target.id);
-    }, {
-      rootMargin: '-24% 0px -62% 0px',
-      threshold: [0.05, 0.2, 0.5, 0.8]
-    });
-
-    targets.forEach((target) => observer.observe(target));
+    window.addEventListener('scroll', updateActive, { passive: true });
+    window.addEventListener('resize', updateActive);
+    window.addEventListener('hashchange', () => window.setTimeout(updateActive, 60));
+    window.setTimeout(updateActive, 60);
   })();
 </script>
 
