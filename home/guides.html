@@ -500,15 +500,13 @@
 
 <nav>
   <a class="nav-logo" href="index.html" aria-label="NymphsCore home">
-    <img src="assets/NymphsCoreLogo.png" alt="NymphsCore logo">
+    <img src="assets/NymphsCore_logo.png" alt="NymphsCore logo">
   </a>
   <ul class="nav-links">
-    <li><a href="videos.html">Video Demos</a></li>
+    <li><a href="index.html">Home</a></li>
     <li><a href="#wiki">Wiki</a></li>
-    <li><a href="flash.html">FlashAddon</a></li>
-    <li><a href="#wiki-install">Start Here</a></li>
-    <li><a href="alpha.html?v=20260426b">Bug Reports</a></li>
-    <li><a href="guides/install-and-first-launch.html" class="nav-cta">Open First Guide</a></li>
+    <li><a href="alpha.html?v=20260426b">Feedback</a></li>
+    <li><a href="https://github.com/nymphnerds/NymphsCore/raw/main/Manager/apps/NymphsCoreManager/publish/NymphsCoreManager-win-x64.zip" class="nav-cta">Download Manager</a></li>
   </ul>
 </nav>
 
@@ -516,14 +514,13 @@
   <div class="hero-copy">
     <div class="badge-row">
       <div class="badge"><span class="badge-dot"></span>Guide hub</div>
-      <div class="badge">video demos</div>
       <div class="badge">wiki</div>
     </div>
-    <h1>User guides.<em>Learn the workflow.</em></h1>
-    <p class="hero-sub">Go from first launch to image, refinement, and shape with clear step-by-step guides for the main workflow.</p>
+    <h1>User guides.<em>Start here.</em></h1>
+    <p class="hero-sub">Use the wiki to install NymphsCore Manager, prepare the base runtime, add modules, and find help when something stops making sense.</p>
     <div class="cta-row">
-      <a href="videos.html" class="btn-primary">Watch short demos</a>
-      <a href="guides/install-and-first-launch.html" class="btn-ghost">Start with install</a>
+      <a href="#wiki-install-manager" class="btn-primary">Start with Manager</a>
+      <a href="#wiki-video-help" class="btn-ghost">Video help</a>
       <a href="index.html" class="btn-ghost">Back to home</a>
     </div>
   </div>
@@ -536,141 +533,91 @@
 
   <div class="wiki-shell">
     <ul class="wiki-nav">
-      <li><a href="#wiki-install">Install NymphsCore Manager</a></li>
-      <li><a href="#wiki-first-launch">Finish first launch setup</a></li>
-      <li><a href="#wiki-runtime">Check runtime health</a><span class="wiki-status">coming soon</span></li>
-      <li><a href="#wiki-blender">Open the addon in Blender</a><span class="wiki-status">coming soon</span></li>
-      <li><a href="#wiki-first-image">Generate your first reference image</a></li>
-      <li><a href="#wiki-refine">Refine with guide images</a></li>
-      <li><a href="#wiki-extraction-prep">Prepare an image for extraction</a><span class="wiki-status">coming soon</span></li>
-      <li><a href="#wiki-extract">Extract modular parts</a><span class="wiki-status">coming soon</span></li>
-      <li><a href="#wiki-shape-pick">Choose the best image for shape</a></li>
-      <li><a href="#wiki-shape-run">Run image to shape</a></li>
-      <li><a href="#wiki-train-setup">Set up the Z-Image training job</a></li>
-      <li><a href="#wiki-train-first-run">Add and start the Z-Image training job</a></li>
-      <li><a href="#wiki-shape-read">Understand the first 3D draft</a><span class="wiki-status">coming soon</span></li>
-      <li><a href="#wiki-shape-fix">What to do when shape output is weak</a><span class="wiki-status">coming soon</span></li>
-      <li><a href="#wiki-troubleshoot-install">Troubleshooting install issues</a><span class="wiki-status">coming soon</span></li>
-      <li><a href="#wiki-troubleshoot-runtime">Troubleshooting runtime issues</a><span class="wiki-status">coming soon</span></li>
-      <li><a href="#wiki-troubleshoot-addon">Troubleshooting Blender addon issues</a><span class="wiki-status">coming soon</span></li>
-      <li><a href="#wiki-report">Send a bug report</a></li>
+      <li><a href="#wiki-install-manager">Install NymphsCore Manager</a></li>
+      <li><a href="#wiki-base-runtime">Install Base Runtime</a></li>
+      <li><a href="#wiki-zimage-install">Install Z-Image Turbo</a></li>
+      <li><a href="#wiki-zimage-models">Fetch Z-Image Models</a></li>
+      <li><a href="#wiki-trellis-install">Install TRELLIS.2</a></li>
+      <li><a href="#wiki-trellis-models">Fetch TRELLIS Models</a></li>
+      <li><a href="#wiki-blender-install">Install Blender Addon</a><span class="wiki-status">coming soon</span></li>
+      <li><a href="#wiki-blender-open">Open Blender Addon</a><span class="wiki-status">coming soon</span></li>
+      <li><a href="#wiki-video-help">Video Help</a><span class="wiki-status">coming soon</span></li>
+      <li><a href="#wiki-other-modules">Other Modules</a><span class="wiki-status">coming soon</span></li>
+      <li><a href="#wiki-troubleshooting">Troubleshooting</a><span class="wiki-status">coming soon</span></li>
+      <li><a href="#wiki-report">Send a Bug Report</a></li>
     </ul>
 
     <div class="wiki-content">
-      <div class="wiki-entry" id="wiki-install">
+      <div class="wiki-entry" id="wiki-install-manager">
         <h3>Install NymphsCore Manager</h3>
-        <p>Start with the manager and let it finish preparing the local runtime. The first successful install matters because every later workflow assumes the backend is already sane.</p>
+        <p>Download the Manager zip, extract it, and run <code>NymphsCoreManager.exe</code>. Do not run the Manager from inside the zip.</p>
         <div class="wiki-entry-links">
-          <a href="guides/install-and-first-launch.html">Open full guide</a>
+          <a href="https://github.com/nymphnerds/NymphsCore/raw/main/Manager/apps/NymphsCoreManager/publish/NymphsCoreManager-win-x64.zip">Download Manager</a>
+          <a href="guides/install-and-first-launch.html">Open guide</a>
         </div>
       </div>
 
-      <div class="wiki-entry" id="wiki-first-launch">
-        <h3>Finish first launch setup</h3>
-        <p>Do not treat the app opening as the same thing as setup being complete. Wait for the environment prep to finish and make sure the manager no longer looks stalled before moving into Blender.</p>
+      <div class="wiki-entry" id="wiki-base-runtime">
+        <h3>Install Base Runtime</h3>
+        <p>Use the Manager order: get Windows WSL ready, install the NymphsCore Base Runtime, then add modules from their cards.</p>
         <div class="wiki-entry-links">
-          <a href="guides/install-and-first-launch.html">Open full guide</a>
+          <a href="guides/install-and-first-launch.html">Open guide</a>
         </div>
       </div>
 
-      <div class="wiki-entry" id="wiki-runtime">
-        <h3>Check runtime health</h3>
-        <p>This page will cover the quickest way to confirm that the local runtime is actually ready, not just installed.</p>
+      <div class="wiki-entry" id="wiki-zimage-install">
+        <h3>Install Z-Image Turbo</h3>
+        <p>Install Z-Image Turbo from its module card after the Base Runtime is ready. This installs the local image-generation backend.</p>
       </div>
 
-      <div class="wiki-entry" id="wiki-blender">
-        <h3>Open the addon in Blender</h3>
-        <p>This page will cover the first Blender-side checks so users can tell whether the addon is seeing the local backend correctly.</p>
+      <div class="wiki-entry" id="wiki-zimage-models">
+        <h3>Fetch Z-Image Models</h3>
+        <p>After Z-Image is installed, use Fetch Models on the Z-Image module card. The fetch downloads the base Z-Image Turbo model and the selected Nunchaku weight.</p>
       </div>
 
-      <div class="wiki-entry" id="wiki-first-image">
-        <h3>Generate your first reference image</h3>
-        <p>Use the first image stage to create a reference worth keeping, not just to prove that the button works. A clear silhouette and readable design direction matter more than chasing a flashy first result.</p>
+      <div class="wiki-entry" id="wiki-trellis-install">
+        <h3>Install TRELLIS.2</h3>
+        <p>Install TRELLIS.2 from its module card after the Base Runtime is ready. This installs the local image-to-3D backend.</p>
+      </div>
+
+      <div class="wiki-entry" id="wiki-trellis-models">
+        <h3>Fetch TRELLIS Models</h3>
+        <p>After TRELLIS.2 is installed, use Fetch Models on the TRELLIS.2 module card. Start with the recommended default unless you know you need a different quant.</p>
+      </div>
+
+      <div class="wiki-entry" id="wiki-blender-install">
+        <h3>Install Blender Addon</h3>
+        <p>Install the Blender addon after the Manager, Base Runtime, and required modules are ready. This section will be expanded once the public addon install flow is confirmed.</p>
+      </div>
+
+      <div class="wiki-entry" id="wiki-blender-open">
+        <h3>Open Blender Addon</h3>
+        <p>This section will cover the first Blender-side checks once the addon install flow and current panels are confirmed.</p>
+      </div>
+
+      <div class="wiki-entry" id="wiki-video-help">
+        <h3>Video Help</h3>
+        <p>Short help videos should match the same order as the wiki: Manager, Base Runtime, Z-Image, TRELLIS.2, Blender addon, then troubleshooting.</p>
         <div class="wiki-entry-links">
-          <a href="guides/generate-your-first-image.html">Open full guide</a>
+          <a href="videos.html">Open video page</a>
         </div>
       </div>
 
-      <div class="wiki-entry" id="wiki-refine">
-        <h3>Refine with guide images</h3>
-        <p>Move into editing when the base image is close but not there yet. This is where you tighten the design, correct drift, and bring the image closer to the asset you actually want to carry forward.</p>
-        <div class="wiki-entry-links">
-          <a href="guides/refine-with-guide-images.html">Open full guide</a>
-        </div>
+      <div class="wiki-entry" id="wiki-other-modules">
+        <h3>Other Modules</h3>
+        <p>Brain, LoRA, and WORBI are additional modules. Their public wiki entries can stay simple until their user-facing pages are ready.</p>
       </div>
 
-      <div class="wiki-entry" id="wiki-extraction-prep">
-        <h3>Prepare an image for extraction</h3>
-        <p>This page will focus on choosing or refining images that are clean enough to split into useful modular parts.</p>
-      </div>
-
-      <div class="wiki-entry" id="wiki-extract">
-        <h3>Extract modular parts</h3>
-        <p>This page will explain how modular extraction fits into the workflow before the shape stage and how to judge whether the extracted pieces are useful.</p>
-      </div>
-
-      <div class="wiki-entry" id="wiki-shape-pick">
-        <h3>Choose the best image for shape</h3>
-        <p>The best shape input is usually the clearest, most stable image from the earlier stages. If the source is muddy, the 3D result often inherits that confusion.</p>
-        <div class="wiki-entry-links">
-          <a href="guides/go-from-image-to-shape.html">Open full guide</a>
-        </div>
-      </div>
-
-      <div class="wiki-entry" id="wiki-shape-run">
-        <h3>Run image to shape</h3>
-        <p>Treat the first 3D result as a draft with a job to do: preserve the major read of the source image and give you something usable enough to evaluate and continue from.</p>
-        <div class="wiki-entry-links">
-          <a href="guides/go-from-image-to-shape.html">Open full guide</a>
-        </div>
-      </div>
-
-      <div class="wiki-entry" id="wiki-train-setup">
-        <h3>Set up the Z-Image training job</h3>
-        <p>Start in the trainer screen. Use Open Pictures Folder to build or update the dataset, review captions only if you need them, then choose the preset, adapter, prompt, steps, checkpoints, learning rate, and rank before creating the job.</p>
-        <div class="wiki-entry-links">
-          <a href="guides/training.html#settings">Open full guide</a>
-        </div>
-      </div>
-
-      <div class="wiki-entry" id="wiki-train-first-run">
-        <h3>Add and start the Z-Image training job</h3>
-        <p>Add Job saves the current trainer state into the real AI Toolkit job. Start Job runs that saved job. Once the run begins, judge it by the preview samples and checkpoints instead of trying to reason it out from settings alone.</p>
-        <div class="wiki-entry-links">
-          <a href="guides/training.html#run-job">Open full guide</a>
-        </div>
-      </div>
-
-      <div class="wiki-entry" id="wiki-shape-read">
-        <h3>Understand the first 3D draft</h3>
-        <p>This page will cover what counts as a good early draft, what can be ignored, and what problems usually mean the workflow needs to step back earlier.</p>
-      </div>
-
-      <div class="wiki-entry" id="wiki-shape-fix">
-        <h3>What to do when shape output is weak</h3>
-        <p>This page will focus on deciding whether the fix belongs in the shape stage or whether the real problem started with the source image.</p>
-      </div>
-
-      <div class="wiki-entry" id="wiki-troubleshoot-install">
-        <h3>Troubleshooting install issues</h3>
-        <p>This page will collect setup failures, stalls, and missing dependency problems in one place.</p>
-      </div>
-
-      <div class="wiki-entry" id="wiki-troubleshoot-runtime">
-        <h3>Troubleshooting runtime issues</h3>
-        <p>This page will cover failed starts, unhealthy runtime states, and cases where the manager looks ready but the backend still is not usable.</p>
-      </div>
-
-      <div class="wiki-entry" id="wiki-troubleshoot-addon">
-        <h3>Troubleshooting Blender addon issues</h3>
-        <p>This page will focus on cases where Blender, the addon, and the local runtime stop lining up cleanly.</p>
+      <div class="wiki-entry" id="wiki-troubleshooting">
+        <h3>Troubleshooting</h3>
+        <p>This section will collect install problems, model download problems, runtime start failures, and Blender connection issues.</p>
       </div>
 
       <div class="wiki-entry" id="wiki-report">
-        <h3>Send a bug report</h3>
-        <p>If the workflow stops making sense before you can finish a guide, use the bug report page and capture the exact point where confidence dropped.</p>
+        <h3>Send a Bug Report</h3>
+        <p>If the workflow stops making sense, use the feedback page and include the exact step where the problem happened.</p>
         <div class="wiki-entry-links">
-          <a href="alpha.html?v=20260426b">Open bug reports</a>
+          <a href="alpha.html?v=20260426b">Open feedback</a>
         </div>
       </div>
     </div>
