@@ -8,6 +8,8 @@
 
 [Download NymphsCoreManager-win-x64.zip](https://github.com/nymphnerds/NymphsCore/raw/main/Manager/apps/NymphsCoreManager/publish/NymphsCoreManager-win-x64.zip)
 
+[Open the NymphsCore homepage](https://nymphnerds.github.io/NymphsCore/)
+
 Extract the zip, run `NymphsCoreManager.exe`, install `Base Runtime`, then add the modules you want from the Manager home screen.
 
 The Manager is currently unsigned. If Windows SmartScreen appears, choose `More info`, then `Run anyway`.
