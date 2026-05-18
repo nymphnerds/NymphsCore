@@ -363,6 +363,12 @@
     padding-bottom: 2px;
     font-size: 15px;
     line-height: 1.7;
+    transition: color 140ms ease, border-color 140ms ease;
+  }
+
+  .wiki-nav a.is-active {
+    color: var(--lime);
+    border-color: rgba(99,227,95,0.75);
   }
 
   .wiki-status {
@@ -828,6 +834,37 @@
   <div>Nymphs<span style="color:var(--lime);">Core</span></div>
   <div>Wiki guides</div>
 </footer>
+
+<script>
+  (() => {
+    const navLinks = Array.from(document.querySelectorAll('.wiki-nav a[href^="#"]'));
+    const targets = navLinks
+      .map((link) => document.querySelector(link.getAttribute('href')))
+      .filter(Boolean);
+
+    const setActive = (id) => {
+      navLinks.forEach((link) => {
+        link.classList.toggle('is-active', link.getAttribute('href') === `#${id}`);
+      });
+    };
+
+    if (!targets.length) return;
+    setActive(targets[0].id);
+
+    const observer = new IntersectionObserver((entries) => {
+      const visible = entries
+        .filter((entry) => entry.isIntersecting)
+        .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+
+      if (visible) setActive(visible.target.id);
+    }, {
+      rootMargin: '-24% 0px -62% 0px',
+      threshold: [0.05, 0.2, 0.5, 0.8]
+    });
+
+    targets.forEach((target) => observer.observe(target));
+  })();
+</script>
 
 </body>
 </html>
