@@ -4,6 +4,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Windows;
@@ -49,7 +50,6 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
     private readonly DispatcherTimer _sidebarArtTimer;
     private readonly DispatcherTimer _runtimeMonitorTimer;
     private readonly List<string> _sidebarArtPaths = [];
-    private readonly string _sidebarPortraitOverrideFileName = "NymphMycelium1.png";
     private readonly List<NymphModuleViewModel> _allModules;
     private readonly HashSet<string> _modulesWithActiveLifecycle = new(StringComparer.OrdinalIgnoreCase);
     private readonly CancellationTokenSource _operationCancellation = new();
@@ -2522,22 +2522,15 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
     private void LoadSidebarArtwork()
     {
         var artFolder = ResolveSidebarArtFolder();
-        var overridePath = Path.Combine(artFolder, _sidebarPortraitOverrideFileName);
 
         _sidebarArtPaths.Clear();
-
-        if (File.Exists(overridePath))
-        {
-            CurrentSidebarArtPath = overridePath;
-            return;
-        }
 
         if (Directory.Exists(artFolder))
         {
             _sidebarArtPaths.AddRange(
-                Directory.GetFiles(artFolder, "*.png", SearchOption.TopDirectoryOnly)
-                    .Where(path => !string.Equals(Path.GetFileName(path), _sidebarPortraitOverrideFileName, StringComparison.OrdinalIgnoreCase))
-                    .OrderBy(path => path, StringComparer.OrdinalIgnoreCase));
+                Enumerable.Range(1, 5)
+                    .Select(index => Path.Combine(artFolder, $"Nymph{index}.png"))
+                    .Where(File.Exists));
         }
 
         if (_sidebarArtPaths.Count == 0)
@@ -2546,7 +2539,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             return;
         }
 
-        AdvanceSidebarArt();
+        CurrentSidebarArtPath = _sidebarArtPaths[RandomNumberGenerator.GetInt32(_sidebarArtPaths.Count)];
     }
 
     private static string ResolveSidebarArtFolder()

@@ -45,8 +45,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Content Include="AppAssets/SidebarPortraits/NymphMycelium1.png">
+    <Content Include="AppAssets/SidebarPortraits/Nymph?.png">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </Content>
     <Content Include="../../scripts/**/*">
       <Link>scripts/%(RecursiveDir)%(Filename)%(Extension)</Link>

@@ -955,26 +955,25 @@
           <Rectangle Fill="#020708" />
 
           <Grid IsHitTestVisible="False"
-                Margin="0">
+                Margin="0"
+                Opacity="0.34">
+            <Grid.Triggers>
+              <EventTrigger RoutedEvent="FrameworkElement.Loaded">
+                <BeginStoryboard>
+                  <Storyboard AutoReverse="True"
+                              RepeatBehavior="Forever">
+                    <DoubleAnimation Storyboard.TargetProperty="Opacity"
+                                     From="0.12"
+                                     To="0.48"
+                                     Duration="0:0:5.0" />
+                  </Storyboard>
+                </BeginStoryboard>
+              </EventTrigger>
+            </Grid.Triggers>
             <Image Source="{Binding CurrentSidebarArtPath}"
                    Stretch="Uniform"
                    HorizontalAlignment="Left"
-                   VerticalAlignment="Top"
-                   Opacity="0.30">
-              <Image.Triggers>
-                <EventTrigger RoutedEvent="FrameworkElement.Loaded">
-                  <BeginStoryboard>
-                    <Storyboard AutoReverse="True"
-                                RepeatBehavior="Forever">
-                      <DoubleAnimation Storyboard.TargetProperty="Opacity"
-                                       From="0.18"
-                                       To="0.36"
-                                       Duration="0:0:4.2" />
-                    </Storyboard>
-                  </BeginStoryboard>
-                </EventTrigger>
-              </Image.Triggers>
-            </Image>
+                   VerticalAlignment="Top" />
           </Grid>
         </Grid>
 
