@@ -165,8 +165,13 @@
   .wiki-intro {
     color: var(--lime);
     font-size: 18px;
-    line-height: 1.7;
-    margin-bottom: 34px;
+    line-height: 1.6;
+    margin-bottom: 24px;
+    position: sticky;
+    top: 92px;
+    z-index: 20;
+    padding: 10px 0 12px;
+    background: linear-gradient(180deg, rgba(10,13,11,0.98), rgba(10,13,11,0.90));
   }
 
   .section-tag {
@@ -276,15 +281,15 @@
 
   .wiki-shell {
     display: grid;
-    grid-template-columns: 255px minmax(0, 1fr);
-    gap: 14px;
+    grid-template-columns: 205px minmax(0, 1fr);
+    gap: 10px;
     align-items: start;
   }
 
   .wiki-sidebar {
     position: sticky;
-    top: 104px;
-    max-height: calc(100vh - 122px);
+    top: 166px;
+    max-height: calc(100vh - 184px);
     overflow: hidden;
   }
 
@@ -514,7 +519,7 @@
   @media (max-width: 980px) {
     .plan-shell { grid-template-columns: 1fr; }
     .wiki-shell {
-      grid-template-columns: 190px minmax(0, 1fr);
+      grid-template-columns: 170px minmax(0, 1fr);
       gap: 8px;
     }
     .wiki-nav {
@@ -560,13 +565,17 @@
     .nav-links a { font-size: 13px; }
     .nav-cta { padding: 6px 14px; font-size: 12px; }
     .section { padding: 132px 24px 48px; }
+    .wiki-intro {
+      top: 124px;
+      font-size: 15px;
+    }
     .wiki-shell {
-      grid-template-columns: minmax(132px, 34vw) minmax(0, 1fr);
+      grid-template-columns: minmax(118px, 30vw) minmax(0, 1fr);
       gap: 8px;
     }
     .wiki-sidebar {
       gap: 7px;
-      top: 18px;
+      top: 196px;
     }
     .wiki-nav-heading {
       font-size: 10px;
@@ -604,7 +613,7 @@
 
   @media (max-width: 640px) {
     .wiki-shell {
-      grid-template-columns: 118px minmax(0, 1fr);
+      grid-template-columns: 104px minmax(0, 1fr);
       gap: 8px;
     }
     .wiki-nav-heading {
@@ -631,9 +640,9 @@
 </nav>
 
 <section class="section" id="wiki">
+  <p class="wiki-intro">Reference docs for installing NymphsCore, using modules, and working with the Blender addon.</p>
   <div class="wiki-shell">
     <aside class="wiki-sidebar">
-      <p class="wiki-intro">Reference docs for installing NymphsCore, using modules, and working with the Blender addon.</p>
       <ul class="wiki-nav">
         <li class="wiki-nav-heading">// NymphsCore Manager</li>
         <li class="wiki-nav-sub"><a href="#wiki-manager-install">Install Manager</a></li>
