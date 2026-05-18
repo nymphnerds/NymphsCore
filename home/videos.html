@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NymphsCore Video Demos</title>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@900&family=DM+Mono:wght@400;500&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --lime: #63e35f;
+    --teal: #55dff0;
+    --dark: #0d0d0d;
+    --dark3: #1e1e1e;
+    --dark4: #2a2a2a;
+    --muted: #888;
+    --light: #f0ede6;
+    --font-head: "Archivo", sans-serif;
+    --font-mono: "DM Mono", monospace;
+    --font-body: "Inter", sans-serif;
+  }
+
+  html { font-size: 16px; scroll-behavior: smooth; }
+
+  body {
+    background:
+      radial-gradient(circle at 82% 10%, rgba(99,227,95,0.10) 0%, transparent 24%),
+      radial-gradient(circle at 12% 74%, rgba(85,223,240,0.08) 0%, transparent 24%),
+      linear-gradient(180deg, #0a0d0b 0%, #0d0d0d 48%, #0b0e0d 100%);
+    color: var(--light);
+    font-family: var(--font-body);
+    font-weight: 300;
+    line-height: 1.6;
+    overflow-x: hidden;
+  }
+
+  nav {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    background: rgba(13,13,13,0.88);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    padding: 16px 60px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--dark4);
+    z-index: 100;
+  }
+
+  .nav-logo { display: inline-flex; align-items: center; color: var(--light); text-decoration: none; }
+  .nav-logo img { width: 210px; height: auto; display: block; }
+  .nav-links { display: flex; gap: 32px; align-items: center; list-style: none; }
+  .nav-links a { color: var(--muted); text-decoration: none; font-size: 14px; transition: color 0.15s; }
+  .nav-links a:hover { color: var(--light); }
+  .nav-cta { background: var(--lime) !important; color: var(--dark) !important; padding: 8px 20px; border-radius: 5px; font-family: var(--font-head); font-size: 13px; font-weight: 900; }
+
+  .hero {
+    padding: 152px 60px 28px;
+    position: relative;
+  }
+
+  .hero-copy {
+    max-width: 860px;
+  }
+
+  .badge-row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 28px; }
+  .badge { display: inline-flex; align-items: center; gap: 8px; background: var(--dark3); border: 1px solid var(--dark4); border-radius: 100px; padding: 6px 16px; font-family: var(--font-mono); font-size: 11px; color: var(--lime); letter-spacing: 0.08em; text-transform: uppercase; }
+  .badge-dot { width: 6px; height: 6px; background: var(--lime); border-radius: 50%; }
+
+  h1, h2, h3 { font-family: var(--font-head); letter-spacing: -0.02em; }
+  h1 { font-size: clamp(52px, 8vw, 108px); line-height: 0.93; margin-bottom: 32px; max-width: 960px; }
+  h1 em { font-style: normal; display: block; background: linear-gradient(90deg, var(--teal) 0%, var(--lime) 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .hero-sub { max-width: 660px; color: var(--muted); font-size: 18px; line-height: 1.7; margin-bottom: 36px; }
+
+  .cta-row { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; }
+  .btn-primary, .btn-ghost { display: inline-block; padding: 14px 28px; border-radius: 6px; text-decoration: none; transition: transform 0.15s, border-color 0.15s, background 0.15s; }
+  .btn-primary { background: var(--lime); color: var(--dark); font-family: var(--font-head); font-size: 15px; font-weight: 900; }
+  .btn-ghost { border: 1px solid var(--dark4); color: var(--light); }
+  .btn-primary:hover, .btn-ghost:hover { transform: translateY(-2px); }
+
+  .section { padding: 56px 60px; }
+  .section-tag { font-family: var(--font-mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--lime); margin-bottom: 18px; }
+  .section-title { font-size: clamp(34px, 4.5vw, 58px); line-height: 0.98; margin-bottom: 14px; }
+  .section-sub { max-width: 760px; color: var(--muted); font-size: 16px; line-height: 1.75; margin-bottom: 42px; }
+
+  .demo-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 20px; }
+  .demo-card { background: linear-gradient(180deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.02) 100%); border: 1px solid var(--dark4); border-radius: 18px; padding: 26px; }
+  .demo-label { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--teal); margin-bottom: 12px; }
+  .demo-frame { aspect-ratio: 16 / 9; border-radius: 14px; border: 1px dashed rgba(85,223,240,0.35); background: radial-gradient(circle at 20% 20%, rgba(99,227,95,0.06), transparent 28%), radial-gradient(circle at 80% 80%, rgba(85,223,240,0.07), transparent 30%), #111; display: flex; align-items: center; justify-content: center; text-align: center; color: var(--light); font-family: var(--font-head); font-size: 26px; line-height: 1.1; margin-bottom: 18px; padding: 20px; }
+  .demo-card h3 { font-size: 24px; margin-bottom: 10px; }
+  .demo-card p { color: var(--muted); font-size: 14px; line-height: 1.7; }
+
+  footer { border-top: 1px solid var(--dark4); padding: 30px 60px; display: flex; justify-content: space-between; gap: 20px; color: #5d5d5d; font-family: var(--font-mono); font-size: 12px; }
+
+  @media (max-width: 800px) {
+    nav { padding: 14px 24px; flex-direction: column; align-items: flex-start; gap: 12px; }
+    .nav-logo img { width: 184px; }
+    .nav-links { display: flex; width: 100%; flex-wrap: wrap; gap: 10px 16px; align-items: center; }
+    .nav-links a { font-size: 13px; }
+    .nav-cta { padding: 6px 14px; font-size: 12px; }
+    .hero, .section { padding-left: 24px; padding-right: 24px; }
+    .hero { padding-top: 212px; padding-bottom: 24px; }
+    footer { padding: 24px; flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <a class="nav-logo" href="index.html" aria-label="NymphsCore home">
+    <img src="assets/NymphsCoreLogo.png" alt="NymphsCore logo">
+  </a>
+  <ul class="nav-links">
+    <li><a href="guides.html">Wiki</a></li>
+    <li><a href="flash.html">FlashAddon</a></li>
+    <li><a href="guides.html#wiki-install">Start Here</a></li>
+    <li><a href="alpha.html?v=20260426b">Bug Reports</a></li>
+    <li><a href="guides/install-and-first-launch.html" class="nav-cta">Open First Guide</a></li>
+  </ul>
+</nav>
+
+<section class="hero">
+  <div class="hero-copy">
+    <div class="badge-row">
+      <div class="badge"><span class="badge-dot"></span>Video demos</div>
+      <div class="badge">workflow help</div>
+    </div>
+    <h1>Video demos.<em>Watch the workflow.</em></h1>
+    <p class="hero-sub">Short demo slots for the main NymphsCore workflows. Use these beside the written Wiki entries and guides.</p>
+    <div class="cta-row">
+      <a href="#demos" class="btn-primary">View demos</a>
+      <a href="guides.html" class="btn-ghost">Back to Wiki</a>
+      <a href="index.html" class="btn-ghost">Back to home</a>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="demos">
+  <div class="section-tag">// Video Demos</div>
+  <h2 class="section-title">Demo slots.</h2>
+  <p class="section-sub">These are placeholders for short videos. Keep each video tied to the matching Wiki topic.</p>
+
+  <div class="demo-grid">
+    <div class="demo-card">
+      <div class="demo-label">Install and First Launch</div>
+      <div class="demo-frame">Install and<br>first-run demo</div>
+      <h3>Manager to ready state</h3>
+      <p>Show the shortest possible install-to-ready path so a new user knows what “healthy” looks like.</p>
+    </div>
+
+    <div class="demo-card">
+      <div class="demo-label">Generate Your First Image</div>
+      <div class="demo-frame">First image<br>generation demo</div>
+      <h3>Reference generation</h3>
+      <p>Record one clean pass from prompt to useful reference image, without over-explaining every setting.</p>
+    </div>
+
+    <div class="demo-card">
+      <div class="demo-label">Extract Modular Parts</div>
+      <div class="demo-frame">Extraction<br>before 3D demo</div>
+      <h3>Modular parts workflow</h3>
+      <p>Show the extraction logic clearly so users understand why this happens before the shape stage.</p>
+    </div>
+
+    <div class="demo-card">
+      <div class="demo-label">Go From Image to Shape</div>
+      <div class="demo-frame">Image to shape<br>demo</div>
+      <h3>3D draft output</h3>
+      <p>Record the moment where an image becomes the first 3D draft so expectations are grounded early.</p>
+    </div>
+
+    <div class="demo-card">
+      <div class="demo-label">Train a Z-Image LoRA</div>
+      <div class="demo-frame">Training<br>guide demo</div>
+      <h3>Beginner training pass</h3>
+      <p>Show a small stylized run from captions file to first usable LoRA so new users know what the training loop actually feels like.</p>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div>Nymphs<span style="color:var(--lime);">Core</span></div>
+  <div>Video demos · workflow help · wiki</div>
+</footer>
+
+</body>
+</html>
