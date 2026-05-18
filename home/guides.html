@@ -342,15 +342,19 @@
   }
 
   .wiki-nav-heading {
-    color: var(--lime) !important;
+    color: var(--teal) !important;
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: 13px;
     letter-spacing: 0.08em;
     text-transform: uppercase;
     margin-top: 8px;
   }
 
   .wiki-nav-heading:first-child { margin-top: 0; }
+
+  .wiki-nav-sub {
+    padding-left: 14px;
+  }
 
   .wiki-nav a {
     color: var(--light);
@@ -531,23 +535,21 @@
 <section class="section" id="wiki">
   <div class="wiki-shell">
     <ul class="wiki-nav">
-      <li class="wiki-nav-heading">NymphsCore Manager</li>
-      <li><a href="#wiki-manager">NymphsCore Manager</a></li>
-      <li><a href="#wiki-base-distro">Install WSL Base Distro</a></li>
+      <li class="wiki-nav-heading">// NymphsCore Manager</li>
+      <li class="wiki-nav-sub"><a href="#wiki-base-distro">Install WSL Base Distro</a></li>
 
-      <li class="wiki-nav-heading">Modules</li>
-      <li><a href="#wiki-zimage">Z-Image</a></li>
-      <li><a href="#wiki-trellis">TRELLIS.2</a></li>
-      <li><a href="#wiki-brain">Nymphs Brain</a></li>
-      <li><a href="#wiki-worbi">WORBI</a></li>
-      <li><a href="#wiki-lora">LoRA</a></li>
+      <li class="wiki-nav-heading">// Modules</li>
+      <li class="wiki-nav-sub"><a href="#wiki-zimage">Z-Image</a></li>
+      <li class="wiki-nav-sub"><a href="#wiki-trellis">TRELLIS.2</a></li>
+      <li class="wiki-nav-sub"><a href="#wiki-brain">Nymphs Brain</a></li>
+      <li class="wiki-nav-sub"><a href="#wiki-worbi">WORBI</a></li>
+      <li class="wiki-nav-sub"><a href="#wiki-lora">LoRA</a></li>
 
-      <li class="wiki-nav-heading">Blender Addon</li>
-      <li><a href="#wiki-addon">Blender Addon</a></li>
-      <li><a href="#wiki-server-panel">Server Panel</a></li>
-      <li><a href="#wiki-image-panel">Image Panel</a></li>
-      <li><a href="#wiki-shape-panel">Shape Panel</a></li>
-      <li><a href="#wiki-texture-panel">Texture Panel</a></li>
+      <li class="wiki-nav-heading">// Blender Addon</li>
+      <li class="wiki-nav-sub"><a href="#wiki-server-panel">Server Panel</a></li>
+      <li class="wiki-nav-sub"><a href="#wiki-image-panel">Image Panel</a></li>
+      <li class="wiki-nav-sub"><a href="#wiki-shape-panel">Shape Panel</a></li>
+      <li class="wiki-nav-sub"><a href="#wiki-texture-panel">Texture Panel</a></li>
     </ul>
 
     <div class="wiki-content">
