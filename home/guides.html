@@ -432,11 +432,13 @@
     margin: 18px 0 16px;
   }
 
-  .wiki-figure img {
+  .wiki-figure img,
+  .wiki-figure video {
     width: 100%;
     border: 1px solid var(--dark4);
     border-radius: 8px;
     background: #101010;
+    display: block;
   }
 
   .wiki-figure figcaption {
@@ -706,8 +708,10 @@
           <li>If WSL availability or install drives fail, fix that before starting the Base Runtime install.</li>
         </ul>
         <figure class="wiki-figure">
-          <img src="assets/wiki/manager-system-checks-base-install.gif" alt="NymphsCore Manager System Checks and Base Runtime install flow">
-          <figcaption>System Checks and Base Runtime install flow in the Manager.</figcaption>
+          <video controls muted playsinline preload="metadata" aria-label="NymphsCore Manager System Checks">
+            <source src="assets/wiki/manager-system-checks.mp4" type="video/mp4">
+          </video>
+          <figcaption>System Checks in the Manager.</figcaption>
         </figure>
         <div class="wiki-entry-links">
           <a href="https://github.com/nymphnerds/NymphsCore/raw/main/Manager/apps/NymphsCoreManager/publish/NymphsCoreManager-win-x64.zip">Download Manager</a>
