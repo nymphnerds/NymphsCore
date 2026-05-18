@@ -427,6 +427,26 @@
     margin-right: 10px;
   }
 
+  .wiki-figure {
+    max-width: 720px;
+    margin: 18px 0 16px;
+  }
+
+  .wiki-figure img {
+    width: 100%;
+    border: 1px solid var(--dark4);
+    border-radius: 8px;
+    background: #101010;
+  }
+
+  .wiki-figure figcaption {
+    color: #777;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    line-height: 1.6;
+    margin-top: 8px;
+  }
+
   .wiki-entry a {
     color: var(--light);
     text-decoration: none;
@@ -594,6 +614,12 @@
           <li>If Windows SmartScreen appears, use <code>More info</code>, then <code>Run anyway</code>.</li>
         </ul>
         <p>Do not run the Manager from inside the zip. Windows can block scripts and bundled files when the app is launched that way.</p>
+        <h4>System checks</h4>
+        <p>After first launch, open <code>System Checks</code> from the Home page to confirm Windows, WSL, install drives, and GPU visibility before installing the Base Runtime.</p>
+        <figure class="wiki-figure">
+          <img src="assets/wiki/manager-system-checks.png" alt="NymphsCore Manager System Checks page">
+          <figcaption>System Checks page after launching the Manager.</figcaption>
+        </figure>
         <div class="wiki-entry-links">
           <a href="https://github.com/nymphnerds/NymphsCore/raw/main/Manager/apps/NymphsCoreManager/publish/NymphsCoreManager-win-x64.zip">Download Manager</a>
         </div>
