@@ -26,9 +26,9 @@
 
   body {
     background:
-      linear-gradient(180deg, #07100c 0%, #0d0d0d 38%, #0b0f0d 72%, #080908 100%);
+      linear-gradient(125deg, #020708 0%, #040806 42%, #061008 76%, #07150a 100%);
     background-attachment: fixed;
-    background-color: var(--dark);
+    background-color: #020708;
     color: var(--light);
     font-family: var(--font-body);
     font-weight: 300;
@@ -224,7 +224,7 @@
   .guide-thumb,
   .image-placeholder {
     border-radius: 14px;
-    overflow: hidden;
+    overflow: visible;
     margin-bottom: 18px;
   }
 
@@ -297,9 +297,39 @@
     top: 124px;
     left: 60px;
     width: 205px;
+    height: calc(100vh - 144px);
     max-height: calc(100vh - 144px);
-    overflow: hidden;
+    overflow: visible;
     z-index: 20;
+    background: transparent;
+  }
+
+  .wiki-sidebar-art {
+    position: absolute;
+    inset: -26px auto auto -12px;
+    width: 250px;
+    height: auto;
+    overflow: visible;
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.2;
+  }
+
+  .wiki-sidebar-art img {
+    width: 100%;
+    height: auto;
+    display: block;
+  }
+
+  .wiki-title,
+  .wiki-nav {
+    position: relative;
+    z-index: 1;
+  }
+
+  @keyframes wikiSidebarPulse {
+    from { opacity: 0.12; }
+    to { opacity: 0.48; }
   }
 
   .wiki-nav {
@@ -358,7 +388,7 @@
   }
 
   .wiki-entry {
-    border-left: 1px solid var(--dark4);
+    border-left: 1px solid transparent;
     padding-left: 18px;
     scroll-margin-top: 104px;
   }
@@ -587,6 +617,7 @@
       left: 24px;
       top: 132px;
       width: min(118px, 30vw);
+      height: calc(100vh - 150px);
       max-height: calc(100vh - 150px);
     }
     .wiki-content {
@@ -666,15 +697,24 @@
 <section class="section" id="wiki">
   <div class="wiki-shell">
     <aside class="wiki-sidebar">
+      <div class="wiki-sidebar-art" aria-hidden="true">
+        <img id="wiki-sidebar-portrait" src="assets/wiki/Nymph1.png" alt="">
+      </div>
       <div class="wiki-title">Wiki</div>
       <ul class="wiki-nav">
         <li class="wiki-nav-heading">// NymphsCore Manager</li>
+        <li class="wiki-nav-sub"><a href="#wiki-manager-intro">Intro</a></li>
+        <li class="wiki-nav-sub"><a href="#wiki-wsl">What is WSL?</a></li>
+        <li class="wiki-nav-sub"><a href="#wiki-system-needs">System Needs</a></li>
+        <li class="wiki-nav-sub"><a href="#wiki-footprint">Blender Pipeline Footprint</a></li>
+        <li class="wiki-nav-sub"><a href="#wiki-module-footprints">Other Module Footprints</a></li>
         <li class="wiki-nav-sub"><a href="#wiki-manager-install">Install Manager</a></li>
+        <li class="wiki-nav-sub"><a href="#wiki-manager-layout">Manager Layout</a></li>
         <li class="wiki-nav-sub"><a href="#wiki-system-checks">System Checks</a></li>
         <li class="wiki-nav-sub"><a href="#wiki-base-distro">Install WSL Base Distro</a></li>
 
         <li class="wiki-nav-heading">// Modules</li>
-        <li class="wiki-nav-sub"><a href="#wiki-zimage">Z-Image</a></li>
+        <li class="wiki-nav-sub"><a href="#wiki-zimage">Z-Image Turbo</a></li>
         <li class="wiki-nav-sub"><a href="#wiki-trellis">TRELLIS.2</a></li>
         <li class="wiki-nav-sub"><a href="#wiki-brain">Nymphs Brain</a></li>
         <li class="wiki-nav-sub"><a href="#wiki-worbi">WORBI</a></li>
@@ -690,9 +730,44 @@
 
     <div class="wiki-content">
       <div class="wiki-entry" id="wiki-manager">
-        <p class="wiki-intro">Reference docs for installing NymphsCore, using modules, and working with the Blender addon.</p>
         <h3>NymphsCore Manager</h3>
-        <p>The Windows Manager installs and maintains the local NymphsCore runtime. It is the place to install the Base Runtime, add modules, open module pages, check logs, and repair interrupted setup work.</p>
+        <h4 id="wiki-manager-intro">Intro</h4>
+        <p>NymphsCore Manager powers the curated local AI pipelines for game development. It is the Windows setup, repair, and diagnostics app for the local NymphsCore runtime, creating a dedicated <code>NymphsCore</code> WSL distro, installing registry modules, preparing CUDA and Python environments, downloading model weights, running smoke tests, streaming logs, and exposing module controls so the AI stack can run locally without hand-building servers and environments.</p>
+        <p>That managed runtime is used by multiple Nymphs workflows: Z-Image Turbo for local image generation, TRELLIS.2 for image-to-3D and texture work, LoRA for Z-Image training, WORBI for local-first worldbuilding, and optional Brain services for local LLM, Open WebUI, and MCP tooling. The Blender addon is the current creative client for some of these services, and the platform is constantly evolving toward bringing curated AI pipelines directly inside future creative software and game engines, including possible Godot, Unity, or Unreal integrations, without forcing artists into complex node-based workflow tools.</p>
+        <h4 id="wiki-wsl">What is WSL?</h4>
+        <p>WSL means <code>Windows Subsystem for Linux</code>. WSL 2 lets Windows run a real Linux environment, which is where NymphsCore keeps the CUDA, Python, model, and service stack used by the AI pipeline. The Manager creates a dedicated distro named <code>NymphsCore</code> so that stack stays isolated from normal Windows folders and other Python or CUDA installs.</p>
+        <h4 id="wiki-system-needs">System needs</h4>
+        <ul>
+          <li>Windows 10 or Windows 11, x64.</li>
+          <li>Blender 4.2+ for the addon workflow.</li>
+          <li>WSL 2 available and healthy.</li>
+          <li>NVIDIA CUDA-capable GPU with current Windows drivers and WSL CUDA support.</li>
+          <li><code>16 GB</code> VRAM minimum for the supported full local pipeline.</li>
+          <li><code>24 GB+</code> VRAM recommended for heavier TRELLIS.2 or Z-Image work, larger quants, higher resolution, LoRA workflows, and comfortable multitasking.</li>
+          <li><code>8 GB</code> VRAM can still be useful for lighter paths such as Gemini/OpenRouter-backed image tools, a tiny local Brain model, or the lowest Z-Image quantized weights, but it is not the target for the full local workflow.</li>
+          <li><code>6 GB</code> VRAM should be treated as very limited for local GPU modules; expect out-of-memory errors on heavier jobs.</li>
+          <li>Reliable internet and time for large downloads/build steps.</li>
+          <li><code>120 GB</code> free minimum; <code>150 GB</code> free recommended.</li>
+        </ul>
+        <p>GPU and VRAM matter. The Manager can offer lower-load choices such as smaller TRELLIS.2 GGUF quants or lighter Z-Image weights, but the public workflow should be treated as a serious local AI stack, not a lightweight plugin.</p>
+        <h4 id="wiki-footprint">Blender pipeline footprint</h4>
+        <p>For the Blender addon pipeline, plan around the Base Runtime plus the image and 3D modules it talks to: <code>Z-Image Turbo</code> and <code>TRELLIS.2</code>. This baseline does not include optional WORBI, Brain, or LoRA training installs.</p>
+        <ul>
+          <li><code>Base Runtime</code>: creates the dedicated Ubuntu WSL distro named <code>NymphsCore</code>, the Linux user <code>nymph</code>, system packages, scripts, and CUDA support. CUDA 13.0 alone is about <code>4.9 GB</code>.</li>
+          <li><code>Z-Image Turbo install</code>: prepares <code>/home/nymph/Z-Image</code> and the Nunchaku Python runtime. The local runtime folder is about <code>5.4 GB</code>.</li>
+          <li><code>Z-Image Turbo models</code>: Fetch Models downloads <code>Tongyi-MAI/Z-Image-Turbo</code>, about <code>31 GB</code>, plus your selected Blender/Nunchaku weight from <code>nunchaku-ai/nunchaku-z-image-turbo</code>. Downloading all Z-Image weights is about <code>15 GB</code> locally.</li>
+          <li><code>TRELLIS.2 install</code>: prepares <code>/home/nymph/TRELLIS.2</code>, the 3D runtime, FlashAttention build pieces, and its Python environment. The local runtime folder is about <code>8.7 GB</code>.</li>
+          <li><code>TRELLIS.2 models</code>: Fetch Models downloads <code>Aero-Ex/Trellis2-GGUF</code>, the required <code>microsoft/TRELLIS.2-4B</code> support checkpoint, and <code>rembg u2net</code>. Budget about <code>8.4 GB</code> for the smallest practical GGUF set, about <code>9.2 GB</code> for <code>Q5_K_M</code>, or up to about <code>25 GB</code> if all quants are installed.</li>
+          <li><code>Model prefetch</code>: downloads the Blender pipeline models before first use instead of waiting for the first generation. With Z-Image Turbo, TRELLIS.2, selected GGUF/support files, and helpers, budget about <code>72 GB</code>.</li>
+        </ul>
+        <p>Use <code>120 GB</code> free as the minimum and <code>150 GB</code> as the comfortable target. Generated meshes, textures, previews, logs, Hugging Face snapshots, temporary install files, and future model updates grow over time. If you skip model prefetch, setup is smaller at first, but these model downloads still happen later when the Blender workflow needs them.</p>
+        <h4 id="wiki-module-footprints">Other module footprints</h4>
+        <p>These are separate from the Blender addon pipeline budget. Install them only if you want those workflows.</p>
+        <ul>
+          <li><code>LoRA</code>: installs <code>/home/nymph/LoRA</code> with <code>ostris/ai-toolkit</code>, local Node 20, trainer UIs, datasets, jobs, logs, and LoRA outputs. <code>Fetch Training Assets</code> adds <code>Tongyi-MAI/Z-Image-Turbo</code>, about <code>31 GB</code>, plus <code>ostris/zimage_turbo_training_adapter</code>, about <code>0.5 GB</code>.</li>
+          <li><code>Nymphs-Brain</code>: installs under <code>/home/nymph/Nymphs-Brain</code> with <code>llama-server</code>, LM Studio CLI, Open WebUI, MCP, mcpo, helper tools, and local model folders. This machine's Brain stack is about <code>16 GB</code>; serious use can land closer to <code>20-35 GB</code> depending on the selected local model.</li>
+          <li><code>WORBI</code>: installs under <code>/home/nymph/worbi</code>. This machine's installed WORBI runtime is about <code>34 MB</code> before project data; worlds, notes, exports, logs, and linked project material grow separately.</li>
+        </ul>
         <h4 id="wiki-manager-install">Install Manager</h4>
         <ul>
           <li>Download <code>NymphsCoreManager-win-x64.zip</code>.</li>
@@ -711,14 +786,14 @@
           </figure>
         </div>
         <p>Do not run the Manager from inside the zip. Windows can block scripts and bundled files when the app is launched that way.</p>
-        <h4>Manager layout</h4>
-        <p>The Manager window can be resized. If a page looks cut off, expand the window or scroll the main content area before assuming a control is missing.</p>
+        <h4 id="wiki-manager-layout">Manager layout</h4>
         <figure class="wiki-figure">
           <video controls muted playsinline preload="metadata" aria-label="NymphsCore Manager layout overview">
             <source src="assets/wiki/manager-layout.mp4" type="video/mp4">
           </video>
           <figcaption>Manager layout overview.</figcaption>
         </figure>
+        <p>The Manager window can be resized. If a page looks cut off, expand the window or scroll the main content area before assuming a control is missing.</p>
         <ul>
           <li><code>Home</code> shows system overview cards and available module cards.</li>
           <li><code>Base Runtime</code> is where the managed WSL distro is installed or repaired.</li>
@@ -769,8 +844,39 @@
       </div>
 
       <div class="wiki-entry" id="wiki-zimage">
-        <h3>Z-Image</h3>
-        <p>Z-Image is the local image-generation module. Install it from the Manager, then use Fetch Models on its module card.</p>
+        <h3>Z-Image Turbo</h3>
+        <p>Z-Image Turbo is NymphsCore's local image-generation backend. It is used for fast text-to-image and guide-image variation without sending prompts or images to an external API.</p>
+        <p>Nunchaku is the optimized low-bit runtime used to run Z-Image Turbo locally with lower VRAM and faster inference. It uses quantized Z-Image Turbo weights, which are smaller/faster runtime versions of the model for local generation. NymphNerds forks Nunchaku so the Blender workflow can go beyond basic text-to-image: guide-image editing and LoRAs trained with the LoRA AI Toolkit module can be used through the same local runtime.</p>
+        <p>In the Blender addon, Z-Image Turbo powers the <code>Nymphs Image</code> panel. Use it to create concept art, texture ideas, reference images, or source images that can then be sent into 3D workflows such as TRELLIS.2.</p>
+        <h4>Install from Manager</h4>
+        <p>Install Z-Image Turbo from the Manager after the Base Runtime is ready. The install step prepares <code>~/Z-Image</code> and its Nunchaku runtime; the model files are fetched separately from the installed module page.</p>
+        <figure class="wiki-figure">
+          <video controls muted playsinline preload="metadata" aria-label="Installing Z-Image Turbo from the Manager">
+            <source src="assets/wiki/module-zimage-install.mp4" type="video/mp4">
+          </video>
+          <figcaption>Installing Z-Image Turbo from the Manager.</figcaption>
+        </figure>
+        <ul>
+          <li>Install <code>Z-Image Turbo</code> from the Manager.</li>
+          <li>Wait for the install to finish and the module page to become available.</li>
+          <li>Do not fetch weights until the module install has completed.</li>
+        </ul>
+        <p>This install can take a while. It may add Python 3.11 support, prepare CUDA Toolkit 13.0 for <code>nvcc</code>, build a staged <code>.venv-nunchaku</code>, install Torch, Diffusers, and the NymphNerds Nunchaku fork, then validate text-to-image, image-to-image, and LoRA runtime hooks.</p>
+        <h4>Fetch models</h4>
+        <p>After Z-Image Turbo is installed, open its module page and use <code>Model Fetch</code> to download the actual model files.</p>
+        <ul>
+          <li>Choose a <code>Download</code> option. Use the recommended weight, or <code>All weights</code> if you want Blender to switch presets later.</li>
+          <li>Add a <code>Hugging Face token</code> only if your download needs one.</li>
+          <li>Click <code>Fetch Models</code> to download the base model and selected quantized weight.</li>
+          <li>Use <code>Smoke Test</code> or <code>Start</code> before generating from Blender.</li>
+        </ul>
+        <h4>Source links</h4>
+        <div class="wiki-entry-links">
+          <a href="https://github.com/Tongyi-MAI/Z-Image">Official Z-Image repo</a>
+          <a href="https://huggingface.co/Tongyi-MAI/Z-Image-Turbo">Z-Image Turbo model</a>
+          <a href="https://nunchaku.tech/docs/nunchaku/">Nunchaku docs</a>
+          <a href="https://huggingface.co/nunchaku-ai/nunchaku-z-image-turbo">Nunchaku weights</a>
+        </div>
       </div>
 
       <div class="wiki-entry" id="wiki-trellis">
@@ -828,6 +934,13 @@
 
 <script>
   (() => {
+    const portrait = document.getElementById('wiki-sidebar-portrait');
+    if (portrait) {
+      const portraits = ['Nymph1.png', 'Nymph2.png', 'Nymph4.png', 'Nymph5.png'];
+      const selected = portraits[Math.floor(Math.random() * portraits.length)];
+      portrait.src = `assets/wiki/${selected}`;
+    }
+
     const navLinks = Array.from(document.querySelectorAll('.wiki-nav a[href^="#"]'));
     const targets = navLinks
       .map((link) => document.querySelector(link.getAttribute('href')))
