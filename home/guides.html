@@ -715,6 +715,12 @@
         <p>Do not run the Manager from inside the zip. Windows can block scripts and bundled files when the app is launched that way.</p>
         <h4>Manager layout</h4>
         <p>The Manager window can be resized. If a page looks cut off, expand the window or scroll the main content area before assuming a control is missing.</p>
+        <figure class="wiki-figure">
+          <video controls muted playsinline preload="metadata" aria-label="NymphsCore Manager layout overview">
+            <source src="assets/wiki/manager-layout.mp4" type="video/mp4">
+          </video>
+          <figcaption>Manager layout overview.</figcaption>
+        </figure>
         <ul>
           <li><code>Home</code> shows system overview cards and available module cards.</li>
           <li><code>Base Runtime</code> is where the managed WSL distro is installed or repaired.</li>
@@ -727,17 +733,17 @@
         </ul>
         <h4 id="wiki-system-checks">System checks</h4>
         <p>Open <code>System Checks</code> before installing the Base Runtime. This page checks whether the Manager can run elevated, see usable install drives, reach WSL, detect existing WSL distros, and see the NVIDIA driver.</p>
+        <figure class="wiki-figure">
+          <video controls muted playsinline preload="metadata" aria-label="NymphsCore Manager System Checks">
+            <source src="assets/wiki/manager-system-checks.mp4" type="video/mp4">
+          </video>
+          <figcaption>System Checks in the Manager.</figcaption>
+        </figure>
         <ul>
           <li><code>Pass</code> means the requirement is available.</li>
           <li><code>Warning</code> means the Manager found something worth knowing about, but it may still be safe to continue.</li>
           <li>If WSL availability or install drives fail, fix that before starting the Base Runtime install.</li>
         </ul>
-        <figure class="wiki-figure">
-          <video controls muted playsinline preload="metadata" aria-label="NymphsCore Manager System Checks and Base Runtime install">
-            <source src="assets/wiki/manager-system-checks-base-install.mp4" type="video/mp4">
-          </video>
-          <figcaption>System Checks and Base Runtime install in the Manager.</figcaption>
-        </figure>
         <div class="wiki-entry-links">
           <a href="https://github.com/nymphnerds/NymphsCore/raw/main/Manager/apps/NymphsCoreManager/publish/NymphsCoreManager-win-x64.zip">Download Manager</a>
         </div>
@@ -746,6 +752,12 @@
       <div class="wiki-entry" id="wiki-base-distro">
         <h3>Install WSL Base Distro</h3>
         <p>The base distro is the managed WSL environment used by NymphsCore. Install or repair it before adding modules.</p>
+        <figure class="wiki-figure">
+          <video controls muted playsinline preload="metadata" aria-label="NymphsCore Base Runtime install">
+            <source src="assets/wiki/manager-base-runtime-install.mp4" type="video/mp4">
+          </video>
+          <figcaption>Installing the Base Runtime from the Manager.</figcaption>
+        </figure>
         <h4>Order</h4>
         <ul>
           <li>Open <code>Base Runtime</code> in the Manager.</li>
