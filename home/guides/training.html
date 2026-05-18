@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NymphsCore Guide - Z-Image Training</title>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@900&family=DM+Mono:wght@400;500&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --lime: #63e35f; --teal: #55dff0; --dark: #0d0d0d; --dark2: #161616; --dark3: #1e1e1e; --dark4: #2a2a2a; --muted: #888; --light: #f0ede6;
+    --font-head: "Archivo", sans-serif; --font-mono: "DM Mono", monospace; --font-body: "Inter", sans-serif;
+  }
+  html { font-size: 16px; scroll-behavior: smooth; }
+  body {
+    background:
+      radial-gradient(circle at 82% 10%, rgba(99,227,95,0.10) 0%, transparent 24%),
+      radial-gradient(circle at 12% 74%, rgba(85,223,240,0.08) 0%, transparent 24%),
+      linear-gradient(180deg, #0a0d0b 0%, #0d0d0d 50%, #0b0e0d 100%);
+    color: var(--light);
+    font-family: var(--font-body);
+    line-height: 1.6;
+  }
+  img { max-width: 100%; display: block; }
+  a { color: inherit; }
+  nav { position: fixed; top: 0; left: 0; right: 0; padding: 16px 60px; background: rgba(13,13,13,0.88); backdrop-filter: blur(14px); border-bottom: 1px solid var(--dark4); display: flex; align-items: center; justify-content: space-between; z-index: 100; }
+  .nav-logo { display: inline-flex; align-items: center; text-decoration: none; color: var(--light); }
+  .nav-logo img { width: 210px; height: auto; display: block; }
+  .nav-links { list-style: none; display: flex; gap: 28px; align-items: center; }
+  .nav-links a { text-decoration: none; color: var(--muted); font-size: 14px; }
+  .nav-links a:hover { color: var(--light); }
+  .nav-cta { background: var(--lime); color: var(--dark) !important; padding: 8px 18px; border-radius: 5px; font-family: var(--font-head); font-size: 13px; font-weight: 900; }
+  .hero { padding: 130px 60px 48px; position: relative; overflow: hidden; }
+  .hero::after {
+    content: "";
+    position: absolute;
+    right: -120px;
+    top: -140px;
+    width: 480px;
+    height: 480px;
+    background: radial-gradient(circle, rgba(85,223,240,0.14) 0%, transparent 68%);
+    pointer-events: none;
+  }
+  .eyebrow { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--lime); margin-bottom: 18px; position: relative; z-index: 2; }
+  h1, h2, h3 { font-family: var(--font-head); letter-spacing: -0.02em; }
+  h1 { font-size: clamp(48px, 8vw, 96px); line-height: 0.94; margin-bottom: 20px; max-width: 960px; position: relative; z-index: 2; }
+  h1 em { display: block; font-style: normal; color: var(--teal); }
+  .hero-sub { max-width: 780px; font-size: 18px; color: var(--muted); line-height: 1.75; margin-bottom: 28px; position: relative; z-index: 2; }
+  .hero-sub strong { color: var(--light); font-weight: 500; }
+  .hero-actions { display: flex; flex-wrap: wrap; gap: 16px; position: relative; z-index: 2; }
+  .btn, .ghost { display: inline-block; padding: 14px 28px; border-radius: 6px; text-decoration: none; }
+  .btn { background: var(--lime); color: var(--dark); font-family: var(--font-head); font-weight: 900; }
+  .ghost { border: 1px solid var(--dark4); color: var(--light); }
+  .hero-panel, .step-card, .info-card, .demo-shell, .note-strip { border: 0; border-radius: 0; background: none; }
+  .hero-panel { margin-top: 28px; padding: 0; display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 28px; position: relative; z-index: 2; }
+  .hero-panel h3 { font-size: 28px; margin-bottom: 10px; }
+  .hero-panel p, .hero-panel li, .step-card p, .step-card li, .info-card p { color: var(--muted); font-size: 15px; line-height: 1.8; }
+  .hero-panel ul, .step-card ul { list-style: none; display: grid; gap: 10px; margin-top: 14px; }
+  .hero-panel li::before, .step-card li::before { content: ">"; color: var(--lime); margin-right: 10px; font-family: var(--font-mono); }
+  .signal-box {
+    border: 0;
+    border-radius: 0;
+    background: none;
+    padding: 0;
+    min-height: 100%;
+  }
+  .signal-box .section-tag { margin-bottom: 12px; }
+  .section { padding: 64px 60px; }
+  .section-tag { font-family: var(--font-mono); font-size: 11px; color: var(--lime); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 16px; }
+  .section-title { font-size: clamp(34px, 4.5vw, 56px); line-height: 0.98; margin-bottom: 14px; }
+  .section-sub { max-width: 860px; color: var(--muted); font-size: 16px; line-height: 1.8; margin-bottom: 20px; }
+  .steps { display: grid; gap: 18px; }
+  .step-card { padding: 0; }
+  .step-num { font-family: var(--font-mono); font-size: 11px; color: var(--teal); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 10px; }
+  .step-card h3 { font-size: 24px; margin-bottom: 10px; }
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .info-card { padding: 0; }
+  .info-card h3 { font-size: 28px; margin-bottom: 10px; }
+  .demo-shell { padding: 22px; }
+  .demo-frame {
+    aspect-ratio: 16 / 9;
+    border-radius: 14px;
+    border: 1px dashed rgba(85,223,240,0.35);
+    background: radial-gradient(circle at 20% 20%, rgba(99,227,95,0.06), transparent 28%), radial-gradient(circle at 80% 80%, rgba(85,223,240,0.07), transparent 30%), #111;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    font-family: var(--font-head);
+    font-size: 28px;
+    padding: 20px;
+  }
+  .demo-meta { margin-top: 16px; padding-top: 14px; border-top: 1px solid rgba(255,255,255,0.08); font-family: var(--font-mono); font-size: 12px; color: #777; white-space: pre-line; line-height: 1.7; }
+  .code-shell {
+    margin-top: 18px;
+    border: 0;
+    border-radius: 0;
+    background: none;
+    overflow: visible;
+  }
+  .code-header {
+    padding: 0;
+    border-bottom: 0;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--teal);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+  .code-body {
+    padding: 0;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    line-height: 1.8;
+    color: var(--muted);
+    white-space: pre-wrap;
+  }
+  .pair-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+    margin-top: 20px;
+  }
+  .pair-card {
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 14px;
+    background: rgba(255,255,255,0.02);
+    padding: 18px;
+  }
+  .pair-card h4 {
+    font-family: var(--font-head);
+    font-size: 20px;
+    margin-bottom: 8px;
+    letter-spacing: -0.02em;
+  }
+  .pair-card p {
+    color: var(--muted);
+    font-size: 14px;
+    line-height: 1.75;
+  }
+  .hero-panel .section-tag,
+  .signal-box .section-tag,
+  .info-card .section-tag {
+    display: none;
+  }
+  .note-strip { padding: 0; margin-top: 16px; font-size: 15px; line-height: 1.8; color: var(--muted); }
+  .note-strip strong {
+    color: var(--teal);
+    font-weight: 600;
+  }
+  .wiki-group {
+    margin-top: 28px;
+    padding-top: 22px;
+    border-top: 1px solid rgba(255,255,255,0.08);
+  }
+  .wiki-group h3 {
+    font-size: 24px;
+    margin-bottom: 6px;
+  }
+  .wiki-group p {
+    color: var(--muted);
+    font-size: 15px;
+    line-height: 1.8;
+  }
+  .ref-table {
+    margin-top: 14px;
+    border-top: 1px solid rgba(255,255,255,0.08);
+  }
+  .ref-row {
+    display: grid;
+    grid-template-columns: 240px minmax(0, 1fr);
+    gap: 18px;
+    padding: 14px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+  .ref-key {
+    color: var(--teal);
+    font-family: var(--font-head);
+    font-size: 18px;
+    line-height: 1.35;
+  }
+  .ref-value {
+    color: var(--muted);
+    font-size: 15px;
+    line-height: 1.8;
+  }
+  .ref-value strong {
+    color: var(--light);
+    font-weight: 600;
+  }
+  .settings-list {
+    margin-top: 24px;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 6px 14px;
+    list-style: none;
+  }
+  .settings-list li {
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.5;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: none;
+  }
+  .guide-figure {
+    margin-top: 22px;
+  }
+  .guide-figure img {
+    width: 100%;
+    height: auto;
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 12px;
+  }
+  .guide-figure figcaption {
+    margin-top: 10px;
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.7;
+  }
+  footer { border-top: 1px solid var(--dark4); padding: 28px 60px; display: flex; justify-content: space-between; color: #5d5d5d; font-family: var(--font-mono); font-size: 12px; gap: 16px; }
+  @media (max-width: 1100px) {
+    nav {
+      padding: 14px 24px;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 12px;
+    }
+    .nav-logo img { width: 184px; }
+    .nav-links {
+      display: flex;
+      width: 100%;
+      flex-wrap: wrap;
+      gap: 10px 18px;
+      align-items: center;
+    }
+    .nav-links a { font-size: 13px; }
+    .nav-cta { padding: 6px 14px; font-size: 12px; }
+    .hero { padding-top: 212px; }
+  }
+  @media (max-width: 900px) {
+    .hero, .section { padding-left: 24px; padding-right: 24px; }
+    .hero-panel, .two-col, .pair-grid { grid-template-columns: 1fr; }
+    .ref-row { grid-template-columns: 1fr; gap: 8px; }
+    .ref-key { font-size: 17px; }
+    .settings-list { grid-template-columns: 1fr 1fr; gap: 6px 12px; }
+    footer { padding: 24px; flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+<nav>
+  <a class="nav-logo" href="../index.html" aria-label="NymphsCore home">
+    <img src="../assets/NymphsCoreLogo.png" alt="NymphsCore logo">
+  </a>
+  <ul class="nav-links">
+    <li><a href="../guides.html">Guide Hub</a></li>
+    <li><a href="#settings">Settings</a></li>
+    <li><a href="#run-job">Run Job</a></li>
+    <li><a href="#results">Results</a></li>
+    <li><a href="#blender">Blender</a></li>
+    <li><a href="#advanced">Advanced</a></li>
+    <li><a href="../alpha.html?v=20260426b" class="nav-cta">Bug Reports</a></li>
+  </ul>
+</nav>
+
+<section class="hero">
+  <div class="eyebrow">Guide 05</div>
+  <h1>Z-Image Turbo<em>AI Toolkit LoRA Training Guide</em></h1>
+  <div class="hero-actions">
+    <a class="btn" href="#settings">Choose settings</a>
+    <a class="ghost" href="#run-job">Add and start the job</a>
+    <a class="ghost" href="#advanced">Advanced AI Toolkit</a>
+  </div>
+  <p class="hero-sub">Use the trainer to prepare the dataset, choose the settings, add the job, and start the run.</p>
+</section>
+
+<section class="section" id="settings">
+  <h2 class="section-title">1. Set up the training job.</h2>
+  <p class="section-sub">This is the part that comes before job creation. In the Manager, this is also where you prepare the dataset with <strong>Open Pictures Folder</strong>, then choose the preset, adapter, sample prompt, steps, checkpoints, learning rate, rank, and whether to use <strong>Low VRAM mode</strong>. This section explains the <strong>NymphsCore Manager screen</strong> shown below.</p>
+  <figure class="guide-figure">
+    <img src="../assets/trainer.png" alt="NymphsCore Manager Z-Image Trainer settings screen">
+    <figcaption>The Manager screen is the NymphsCore front end. It simplifies the flow into dataset, optional captions, settings, then <strong>Add Job</strong> and <strong>Start Job</strong>.</figcaption>
+  </figure>
+  <ul class="settings-list">
+    <li>LoRA name</li>
+    <li>Open Pictures Folder</li>
+    <li>Open LoRAs</li>
+    <li>Caption with Brain</li>
+    <li>Caption fill</li>
+    <li>Open Draft CSV</li>
+    <li>Preset</li>
+    <li>Training adapter</li>
+    <li>Sample prompt</li>
+    <li>Steps</li>
+    <li>Checkpoints</li>
+    <li>Learning rate</li>
+    <li>LoRA rank</li>
+    <li>Low VRAM mode</li>
+    <li>Add Job</li>
+    <li>Start Job</li>
+    <li>Stop Job</li>
+    <li>Delete Job</li>
+  </ul>
+  <div class="wiki-group">
+    <h3>Files and dataset</h3>
+    <div class="ref-table">
+      <div class="ref-row">
+        <div class="ref-key">LoRA name</div>
+        <div class="ref-value">This is the training or job name. Keep it short and specific so you can recognize the output files later.</div>
+      </div>
+      <div class="ref-row">
+        <div class="ref-key">Open Pictures Folder</div>
+        <div class="ref-value">This is where dataset prep happens. It opens the image folder for the current LoRA name so you can add, remove, or replace the actual training images.</div>
+      </div>
+      <div class="ref-row">
+        <div class="ref-key">Open LoRAs</div>
+        <div class="ref-value">Opens the output folder where finished LoRAs and checkpoints end up.</div>
+      </div>
+    </div>
+  </div>
+  <div class="wiki-group">
+    <h3>Captions</h3>
+    <div class="ref-table">
+      <div class="ref-row">
+        <div class="ref-key">Caption with Brain</div>
+        <div class="ref-value">Drafts one editable caption per image into <code>metadata.csv</code>. It needs a downloaded local Brain <strong>vision</strong> model first. A good recommendation is <strong>Qwen2.5-VL</strong>, with its matching <code>mmproj</code> file beside the GGUF.</div>
+      </div>
+      <div class="ref-row">
+        <div class="ref-key">Caption fill</div>
+        <div class="ref-value">This only controls how Caption with Brain writes draft rows. <strong>Fill Blank Only</strong> keeps anything you already wrote. <strong>Overwrite All Drafts</strong> regenerates everything.</div>
+      </div>
+      <div class="ref-row">
+        <div class="ref-key">Open Draft CSV</div>
+        <div class="ref-value">Opens the editable caption sheet. When you later click <strong>Add Job</strong>, the app mirrors those captions into the per-image <code>.txt</code> files that AI Toolkit actually trains from.</div>
+      </div>
+      <div class="ref-row">
+        <div class="ref-key">Style captions</div>
+        <div class="ref-value">Describe the content normally instead of padding every line with repeated style labels. The images should teach the rendering style.</div>
+      </div>
+    </div>
+  </div>
+  <div class="wiki-group">
+    <h3>Presets and core controls</h3>
+    <div class="ref-table">
+      <div class="ref-row">
+        <div class="ref-key">Preset choice</div>
+        <div class="ref-value"><strong>Fast Test</strong> is the quickest path when you just want to see whether the LoRA is learning at all. <strong>Baseline</strong> is the safest normal first run. <strong>Style</strong> is the normal style preset. <strong>Strong Style</strong> is the follow-up when the normal style run still feels too polite.</div>
+      </div>
+      <div class="ref-row">
+        <div class="ref-key">Preset meanings</div>
+        <div class="ref-value"><strong>Fast Test:</strong> quick learning check, not a final-quality run. <strong>Baseline:</strong> safest normal first run. <strong>Style:</strong> normal preset for style-focused training. <strong>Strong Style:</strong> harder style push when Style is still too weak.</div>
+      </div>
+      <div class="ref-row">
+        <div class="ref-key">Preset defaults</div>
+        <div class="ref-value"><strong>Fast Test</strong> sets <code>500</code> steps, checkpoints off, <code>1e-4</code> learning rate, rank <code>8</code>. <strong>Baseline</strong> sets <code>3000</code> steps, <code>4</code> checkpoints, <code>1e-4</code> learning rate, rank <code>16</code>. <strong>Style</strong> uses the same numbers as Baseline but switches to style mode. <strong>Strong Style</strong> pushes that to <code>5000</code> steps with <code>4</code> checkpoints and rank <code>16</code>.</div>
+      </div>
+      <div class="ref-row">
+        <div class="ref-key">Adapter choice</div>
+        <div class="ref-value">Stay on <strong>v1 (Recommended)</strong> for the first serious run. Use <strong>v2 (Experimental)</strong> only after the normal path is behaving and you actually want a comparison.</div>
+      </div>
+      <div class="ref-row">
+        <div class="ref-key">Sample prompt</div>
+        <div class="ref-value">AI Toolkit uses this to generate preview samples while the job is running, so it should reflect the kind of image you actually want to judge during training.</div>
+      </div>
+      <div class="ref-row">
+        <div class="ref-key">Steps</div>
+        <div class="ref-value">This is the total training length. A practical starting point is usually <code>3000</code> for a normal run, with <code>500</code> used only for a quick signal check.</div>
+      </div>
+      <div class="ref-row">
+        <div class="ref-key">Checkpoints</div>
+        <div class="ref-value">This controls how many intermediate save points the Manager keeps available for you to test. <strong>Off</strong> means you only care about the final output. <strong>2</strong>, <strong>4</strong>, or <strong>8</strong> gives you fallback versions.</div>
+      </div>
+      <div class="ref-row">
+        <div class="ref-key">Learning rate</div>
+        <div class="ref-value">This is how hard each step pushes the LoRA. A solid starting point for Z-Image Turbo is still <code>1e-4</code>. The Manager also exposes <code>8e-5</code> and <code>5e-5</code> if you want a gentler run.</div>
+      </div>
+      <div class="ref-row">
+        <div class="ref-key">LoRA rank</div>
+        <div class="ref-value">Lower ranks are lighter and can be enough for quick tests. Higher ranks can hold more detail, but they are not automatically better. In this trainer, rank <code>8</code> is the quick-test setting and rank <code>16</code> is the normal default.</div>
+      </div>
+      <div class="ref-row">
+        <div class="ref-key">Low VRAM mode</div>
+        <div class="ref-value">Turn this on when your GPU is the bottleneck and the normal path does not fit comfortably. The tradeoff is speed.</div>
+      </div>
+    </div>
+  </div>
+  <div class="wiki-group">
+    <h3>Job buttons</h3>
+    <div class="ref-table">
+      <div class="ref-row">
+        <div class="ref-key">Add / Start / Stop / Delete</div>
+        <div class="ref-value"><strong>Add Job</strong> writes the current settings into the real AI Toolkit job. <strong>Start Job</strong> runs that saved job. <strong>Stop Job</strong> stops the active run. <strong>Delete Job</strong> removes the saved job entry.</div>
+      </div>
+      <div class="ref-row">
+        <div class="ref-key">Which preset to start with</div>
+        <div class="ref-value">Use <strong>Fast Test</strong> when you just want to see whether the dataset is learning anything at all. Use <strong>Baseline</strong> when you want the safest normal first run.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="run-job">
+  <h2 class="section-title">2. Click Add Job, then Start Job.</h2>
+  <p class="section-sub">These are two separate steps. <strong>Add Job</strong> is the commit point. <strong>Start Job</strong> is the run point. The app is designed around that distinction.</p>
+  <div class="note-strip"><strong>Add Job:</strong> prepares the dataset support files, refreshes <code>metadata.csv</code>, mirrors the captions into per-image <code>.txt</code> files, writes the AI Toolkit YAML job, writes the LoRA metadata, and registers the job with the official AI Toolkit UI.</div>
+  <div class="note-strip"><strong>Start Job:</strong> queues and starts the saved AI Toolkit job. If you changed settings after the last Add Job, the app will stop you and tell you to apply those pending changes first.</div>
+  <div class="code-shell">
+    <div class="code-header">Real Flow</div>
+    <div class="code-body">1. Pick the dataset / LoRA name
+2. Open Pictures Folder and add the images
+3. Optionally use Caption with Brain
+4. Review metadata.csv if needed
+5. Choose preset, adapter, sample prompt, and training settings
+6. Click Add Job
+7. Click Start Job</div>
+  </div>
+</section>
+
+<section class="section" id="results">
+  <h2 class="section-title">3. Use samples and checkpoints to judge the run.</h2>
+  <p class="section-sub">The first run does not need to be perfect to be useful. What matters is whether the samples and checkpoints show the LoRA moving in the right direction. That is the signal you use to decide whether to keep, adjust, or rerun.</p>
+  <div class="note-strip"><strong>What success looks like:</strong> the job finishes cleanly, writes checkpoints or a final LoRA, and the training samples visibly move toward the intended character, style, or concept. Halfway there is still useful information.</div>
+  <div class="note-strip"><strong>What weak results usually mean:</strong> the dataset may need to be cleaner, the style signal may need a stronger preset or longer run, or the sample prompt may not be showing the thing you actually care about.</div>
+  <div class="note-strip"><strong>What overcooked results usually mean:</strong> do not just crank it harder. Look for noisy captions, mixed images, or a dataset that is trying to teach too many different things at once.</div>
+  <div class="note-strip"><strong>Checkpoint testing:</strong> start with the later checkpoint or final file first, then compare backward if it feels too weak or too aggressive.</div>
+</section>
+
+<section class="section" id="blender">
+  <h2 class="section-title">4. Test the LoRA in Blender.</h2>
+  <p class="section-sub">Once the run is done, the Blender side should be simple: enable the LoRA, pick the checkpoint or final file, prompt normally, and only start comparing variations after you have seen one clean first result.</p>
+  <div class="note-strip"><strong>First test:</strong> choose the LoRA in the Z-Image panel, leave the recommended activation on for the first run, and generate once before changing several things at the same time.</div>
+  <div class="note-strip"><strong>Prompting:</strong> prompt the scene or subject normally. The activation phrase is only there to help some LoRAs lean into their learned look more clearly if they need that extra nudge.</div>
+  <div class="note-strip"><strong>Comparison order:</strong> if the result is weak, keep activation on first, then adjust LoRA strength, then compare checkpoints. If the result is already strong, you can try turning activation off to see whether it is still needed.</div>
+</section>
+
+<section class="section" id="advanced">
+  <h2 class="section-title">5. AI Toolkit UI reference.</h2>
+  <p class="section-sub">Use this section only if you want to work directly in the upstream AI Toolkit UI instead of staying in the Manager screen.</p>
+  <div class="ref-table">
+    <div class="ref-row">
+      <div class="ref-key">GPU ID</div>
+      <div class="ref-value">Only matters if the machine has more than one GPU. It tells AI Toolkit which card should do the training job.</div>
+    </div>
+    <div class="ref-row">
+      <div class="ref-key">Trigger word</div>
+      <div class="ref-value">If you set one here, AI Toolkit can prepend it to the training text. Use it when you want a deliberate activation token. Skip it when you want the LoRA to behave more naturally from normal prompting.</div>
+    </div>
+    <div class="ref-row">
+      <div class="ref-key">Starting point</div>
+      <div class="ref-value"><code>AdamW8Bit</code>, <code>1e-4</code> learning rate, <code>weight_decay 1e-4</code>, <code>weighted</code> timesteps, <code>MSE</code> loss, <strong>EMA off</strong>, <strong>cache text embeddings on</strong>, and a <strong>balanced</strong> bias is a solid starting direction.</div>
+    </div>
+    <div class="ref-row">
+      <div class="ref-key">Save dtype</div>
+      <div class="ref-value">This is the precision format used when the checkpoints or LoRA files are written. <code>BF16</code> is a good practical default because it is stable and light enough for most modern training runs.</div>
+    </div>
+    <div class="ref-row">
+      <div class="ref-key">Save every / sample every / sample steps</div>
+      <div class="ref-value"><strong>Save every</strong> controls how often AI Toolkit writes a checkpoint. <strong>Sample every</strong> controls how often it renders preview images. <strong>Sample steps</strong> is the number of denoising steps used for those previews.</div>
+    </div>
+    <div class="ref-row">
+      <div class="ref-key">Batch size / gradient accumulation</div>
+      <div class="ref-value">Batch size is how many images the job sees at once. Gradient accumulation is the slower workaround when you want batch-like behavior without actually fitting that bigger batch in memory.</div>
+    </div>
+    <div class="ref-row">
+      <div class="ref-key">Optimizer / learning rate / weight decay</div>
+      <div class="ref-value"><code>AdamW8Bit</code> is the normal default when VRAM allows it. Learning rate is how hard each step pushes the LoRA. Weight decay is a light anti-overcooking control that helps stop the model from clinging too hard to exact training images.</div>
+    </div>
+    <div class="ref-row">
+      <div class="ref-key">Loss / timestep settings / noise type</div>
+      <div class="ref-value"><code>MSE</code> is the normal loss choice here. <strong>Balanced</strong> is the safe start. <strong>High noise</strong> shifts attention earlier in the denoising process and can help with stronger style takeover. Newer models use <strong>flow match</strong> while older SD-style models use <strong>DDPM</strong>.</div>
+    </div>
+    <div class="ref-row">
+      <div class="ref-key">EMA / EMA decay</div>
+      <div class="ref-value">EMA is a smoothing option. Leaving it off gives a more direct baseline. Turning it on smooths the update path. EMA decay is the strength of that smoothing.</div>
+    </div>
+    <div class="ref-row">
+      <div class="ref-key">Text encoder / cache / unload</div>
+      <div class="ref-value">The text encoder helps the model tie prompt words to the concept more specifically. Caching text embeddings is the convenient speed-and-VRAM choice when the captions are static. Unloading the text encoder saves VRAM, but it slows training because AI Toolkit has to keep reloading that component.</div>
+    </div>
+    <div class="ref-row">
+      <div class="ref-key">Style note</div>
+      <div class="ref-value">For extreme style changes, start from a balanced setup and only later switch toward a <strong>high noise</strong> bias if you need the model to rebuild more of the early composition.</div>
+    </div>
+    <div class="ref-row">
+      <div class="ref-key">Trigger words and captions</div>
+      <div class="ref-value">Trigger words are optional. For style work, it usually makes more sense to caption the content normally and let the images teach the style.</div>
+    </div>
+  </div>
+  <div class="code-shell">
+    <div class="code-header">Direct AI Toolkit UI Order</div>
+    <div class="code-body">1. Datasets -> New Dataset
+2. Add the images
+3. Add captions if you want them
+4. New Job
+5. Set training name and trigger word if using one
+6. Select Z-Image Turbo and the training adapter
+7. Set prompts and training settings
+8. Create Job
+9. Training Queue -> Start
+10. Judge samples and checkpoints</div>
+  </div>
+</section>
+
+<footer>
+  <div>Nymphs<span style="color:var(--lime);">Core</span></div>
+  <div>Guide 05 · Z-Image training</div>
+</footer>
+</body>
+</html>
