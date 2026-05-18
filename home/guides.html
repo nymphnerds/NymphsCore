@@ -341,6 +341,17 @@
     color: var(--muted);
   }
 
+  .wiki-nav-heading {
+    color: var(--lime) !important;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-top: 8px;
+  }
+
+  .wiki-nav-heading:first-child { margin-top: 0; }
+
   .wiki-nav a {
     color: var(--light);
     text-decoration: none;
@@ -520,92 +531,91 @@
 <section class="section" id="wiki">
   <div class="wiki-shell">
     <ul class="wiki-nav">
-      <li><a href="#wiki-install-manager">Install NymphsCore Manager</a></li>
-      <li><a href="#wiki-base-runtime">Install Base Runtime</a></li>
-      <li><a href="#wiki-zimage-install">Install Z-Image Turbo</a></li>
-      <li><a href="#wiki-zimage-models">Fetch Z-Image Models</a></li>
-      <li><a href="#wiki-trellis-install">Install TRELLIS.2</a></li>
-      <li><a href="#wiki-trellis-models">Fetch TRELLIS Models</a></li>
-      <li><a href="#wiki-blender-install">Install Blender Addon</a><span class="wiki-status">coming soon</span></li>
-      <li><a href="#wiki-blender-open">Open Blender Addon</a><span class="wiki-status">coming soon</span></li>
-      <li><a href="#wiki-video-help">Video Help</a><span class="wiki-status">coming soon</span></li>
-      <li><a href="#wiki-other-modules">Other Modules</a><span class="wiki-status">coming soon</span></li>
-      <li><a href="#wiki-troubleshooting">Troubleshooting</a><span class="wiki-status">coming soon</span></li>
-      <li><a href="#wiki-report">Send a Bug Report</a></li>
+      <li class="wiki-nav-heading">NymphsCore Manager</li>
+      <li><a href="#wiki-manager">NymphsCore Manager</a></li>
+      <li><a href="#wiki-base-distro">Install WSL Base Distro</a></li>
+
+      <li class="wiki-nav-heading">Modules</li>
+      <li><a href="#wiki-zimage">Z-Image</a></li>
+      <li><a href="#wiki-trellis">TRELLIS.2</a></li>
+      <li><a href="#wiki-brain">Nymphs Brain</a></li>
+      <li><a href="#wiki-worbi">WORBI</a></li>
+      <li><a href="#wiki-lora">LoRA</a></li>
+
+      <li class="wiki-nav-heading">Blender Addon</li>
+      <li><a href="#wiki-addon">Blender Addon</a></li>
+      <li><a href="#wiki-server-panel">Server Panel</a></li>
+      <li><a href="#wiki-image-panel">Image Panel</a></li>
+      <li><a href="#wiki-shape-panel">Shape Panel</a></li>
+      <li><a href="#wiki-texture-panel">Texture Panel</a></li>
     </ul>
 
     <div class="wiki-content">
-      <div class="wiki-entry" id="wiki-install-manager">
-        <h3>Install NymphsCore Manager</h3>
-        <p>Download the Manager zip, extract it, and run <code>NymphsCoreManager.exe</code>. Do not run the Manager from inside the zip.</p>
+      <div class="wiki-entry" id="wiki-manager">
+        <h3>NymphsCore Manager</h3>
+        <p>The Windows Manager installs and maintains the local NymphsCore runtime. Download the zip, extract it, and run <code>NymphsCoreManager.exe</code>.</p>
         <div class="wiki-entry-links">
           <a href="https://github.com/nymphnerds/NymphsCore/raw/main/Manager/apps/NymphsCoreManager/publish/NymphsCoreManager-win-x64.zip">Download Manager</a>
           <a href="guides/install-and-first-launch.html">Open guide</a>
         </div>
       </div>
 
-      <div class="wiki-entry" id="wiki-base-runtime">
-        <h3>Install Base Runtime</h3>
-        <p>Use the Manager order: get Windows WSL ready, install the NymphsCore Base Runtime, then add modules from their cards.</p>
+      <div class="wiki-entry" id="wiki-base-distro">
+        <h3>Install WSL Base Distro</h3>
+        <p>The base distro is the managed WSL environment used by NymphsCore. Install it from the Manager before adding modules.</p>
         <div class="wiki-entry-links">
           <a href="guides/install-and-first-launch.html">Open guide</a>
         </div>
       </div>
 
-      <div class="wiki-entry" id="wiki-zimage-install">
-        <h3>Install Z-Image Turbo</h3>
-        <p>Install Z-Image Turbo from its module card after the Base Runtime is ready. This installs the local image-generation backend.</p>
+      <div class="wiki-entry" id="wiki-zimage">
+        <h3>Z-Image</h3>
+        <p>Z-Image is the local image-generation module. Install it from the Manager, then use Fetch Models on its module card.</p>
       </div>
 
-      <div class="wiki-entry" id="wiki-zimage-models">
-        <h3>Fetch Z-Image Models</h3>
-        <p>After Z-Image is installed, use Fetch Models on the Z-Image module card. The fetch downloads the base Z-Image Turbo model and the selected Nunchaku weight.</p>
+      <div class="wiki-entry" id="wiki-trellis">
+        <h3>TRELLIS.2</h3>
+        <p>TRELLIS.2 is the local image-to-3D module. Install it from the Manager, then use Fetch Models on its module card.</p>
       </div>
 
-      <div class="wiki-entry" id="wiki-trellis-install">
-        <h3>Install TRELLIS.2</h3>
-        <p>Install TRELLIS.2 from its module card after the Base Runtime is ready. This installs the local image-to-3D backend.</p>
+      <div class="wiki-entry" id="wiki-brain">
+        <h3>Nymphs Brain</h3>
+        <p>Local assistant and service module. Wiki notes coming soon.</p>
       </div>
 
-      <div class="wiki-entry" id="wiki-trellis-models">
-        <h3>Fetch TRELLIS Models</h3>
-        <p>After TRELLIS.2 is installed, use Fetch Models on the TRELLIS.2 module card. Start with the recommended default unless you know you need a different quant.</p>
+      <div class="wiki-entry" id="wiki-worbi">
+        <h3>WORBI</h3>
+        <p>Local worldbuilding module. Wiki notes coming soon.</p>
       </div>
 
-      <div class="wiki-entry" id="wiki-blender-install">
-        <h3>Install Blender Addon</h3>
-        <p>Install the Blender addon after the Manager, Base Runtime, and required modules are ready. This section will be expanded once the public addon install flow is confirmed.</p>
+      <div class="wiki-entry" id="wiki-lora">
+        <h3>LoRA</h3>
+        <p>Training module for Z-Image workflows. Wiki notes coming soon.</p>
       </div>
 
-      <div class="wiki-entry" id="wiki-blender-open">
-        <h3>Open Blender Addon</h3>
-        <p>This section will cover the first Blender-side checks once the addon install flow and current panels are confirmed.</p>
+      <div class="wiki-entry" id="wiki-addon">
+        <h3>Blender Addon</h3>
+        <p>Blender-side interface for working with NymphsCore.</p>
       </div>
 
-      <div class="wiki-entry" id="wiki-video-help">
-        <h3>Video Help</h3>
-        <p>Short help videos should match the same order as the wiki: Manager, Base Runtime, Z-Image, TRELLIS.2, Blender addon, then troubleshooting.</p>
-        <div class="wiki-entry-links">
-          <a href="videos.html">Open video page</a>
-        </div>
+      <div class="wiki-entry" id="wiki-server-panel">
+        <h3>Server Panel</h3>
+        <p>Runtime status and backend controls for the Blender addon.</p>
       </div>
 
-      <div class="wiki-entry" id="wiki-other-modules">
-        <h3>Other Modules</h3>
-        <p>Brain, LoRA, and WORBI are additional modules. Their public wiki entries can stay simple until their user-facing pages are ready.</p>
+      <div class="wiki-entry" id="wiki-image-panel">
+        <h3>Image Panel</h3>
+        <p>Image generation and image-editing controls for the Blender addon.</p>
       </div>
 
-      <div class="wiki-entry" id="wiki-troubleshooting">
-        <h3>Troubleshooting</h3>
-        <p>This section will collect install problems, model download problems, runtime start failures, and Blender connection issues.</p>
+      <div class="wiki-entry" id="wiki-shape-panel">
+        <h3>Shape Panel</h3>
+        <p>Image-to-3D controls for creating shape outputs from source images.</p>
       </div>
 
-      <div class="wiki-entry" id="wiki-report">
-        <h3>Send a Bug Report</h3>
-        <p>If the workflow stops making sense, use the feedback page and include the exact step where the problem happened.</p>
-        <div class="wiki-entry-links">
-          <a href="alpha.html?v=20260426b">Open feedback</a>
-        </div>
+      <div class="wiki-entry" id="wiki-texture-panel">
+        <h3>Texture Panel</h3>
+        <p>Texture and retexture controls for selected mesh workflows.</p>
       </div>
     </div>
   </div>
@@ -613,7 +623,7 @@
 
 <footer>
   <div>Nymphs<span style="color:var(--lime);">Core</span></div>
-  <div>Guide hub · demo videos · wiki</div>
+  <div>Wiki guides</div>
 </footer>
 
 </body>
