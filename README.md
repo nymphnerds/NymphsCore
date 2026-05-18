@@ -1,3 +1,7 @@
+## Homepage
+
+[Open the NymphsCore homepage](https://nymphnerds.github.io/NymphsCore/)
+
 <p align="center">
   <img src="Graphics/NymphsCoreLogo.png" alt="NymphsCore" width="960">
 </p>
@@ -7,8 +11,6 @@
 ## Download
 
 [Download NymphsCoreManager-win-x64.zip](https://github.com/nymphnerds/NymphsCore/raw/main/Manager/apps/NymphsCoreManager/publish/NymphsCoreManager-win-x64.zip)
-
-[Open the NymphsCore homepage](https://nymphnerds.github.io/NymphsCore/)
 
 Extract the zip, run `NymphsCoreManager.exe`, install `Base Runtime`, then add the modules you want from the Manager home screen.
 
