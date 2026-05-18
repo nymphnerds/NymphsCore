@@ -615,7 +615,12 @@
         </ul>
         <p>Do not run the Manager from inside the zip. Windows can block scripts and bundled files when the app is launched that way.</p>
         <h4>System checks</h4>
-        <p>After first launch, open <code>System Checks</code> from the Home page to confirm Windows, WSL, install drives, and GPU visibility before installing the Base Runtime.</p>
+        <p>Open <code>System Checks</code> before installing the Base Runtime. This page checks whether the Manager can run elevated, see usable install drives, reach WSL, detect existing WSL distros, and see the NVIDIA driver.</p>
+        <ul>
+          <li><code>Pass</code> means the requirement is available.</li>
+          <li><code>Warning</code> means the Manager found something worth knowing about, but it may still be safe to continue.</li>
+          <li>If WSL availability or install drives fail, fix that before starting the Base Runtime install.</li>
+        </ul>
         <figure class="wiki-figure">
           <img src="assets/wiki/manager-system-checks.png" alt="NymphsCore Manager System Checks page">
           <figcaption>System Checks page after launching the Manager.</figcaption>
