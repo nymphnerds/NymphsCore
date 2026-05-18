@@ -159,7 +159,19 @@
   .btn-ghost:hover { transform: translateY(-2px); }
 
   .section {
-    padding: 124px 60px 56px;
+    padding: 158px 60px 56px;
+  }
+
+  .wiki-intro {
+    position: fixed;
+    top: 94px;
+    left: 60px;
+    right: 60px;
+    z-index: 30;
+    color: var(--lime);
+    font-size: 18px;
+    line-height: 1.6;
+    pointer-events: none;
   }
 
   .section-tag {
@@ -274,10 +286,10 @@
 
   .wiki-sidebar {
     position: fixed;
-    top: 124px;
+    top: 158px;
     left: 60px;
     width: 205px;
-    max-height: calc(100vh - 144px);
+    max-height: calc(100vh - 178px);
     overflow: hidden;
     z-index: 20;
   }
@@ -553,12 +565,18 @@
     }
     .nav-links a { font-size: 13px; }
     .nav-cta { padding: 6px 14px; font-size: 12px; }
-    .section { padding: 132px 24px 48px; }
+    .section { padding: 174px 24px 48px; }
+    .wiki-intro {
+      top: 132px;
+      left: 24px;
+      right: 24px;
+      font-size: 15px;
+    }
     .wiki-sidebar {
       left: 24px;
-      top: 132px;
+      top: 202px;
       width: min(118px, 30vw);
-      max-height: calc(100vh - 150px);
+      max-height: calc(100vh - 220px);
     }
     .wiki-content {
       margin-left: calc(min(118px, 30vw) + 10px);
@@ -628,6 +646,7 @@
 </nav>
 
 <section class="section" id="wiki">
+  <p class="wiki-intro">Reference docs for installing NymphsCore, using modules, and working with the Blender addon.</p>
   <div class="wiki-shell">
     <aside class="wiki-sidebar">
       <ul class="wiki-nav">
@@ -653,7 +672,6 @@
 
     <div class="wiki-content">
       <div class="wiki-entry" id="wiki-manager">
-        <p>Reference docs for installing NymphsCore, using modules, and working with the Blender addon.</p>
         <h3>NymphsCore Manager</h3>
         <p>The Windows Manager installs and maintains the local NymphsCore runtime. It is the place to install the Base Runtime, add modules, open module pages, check logs, and repair interrupted setup work.</p>
         <h4 id="wiki-manager-install">Install Manager</h4>
