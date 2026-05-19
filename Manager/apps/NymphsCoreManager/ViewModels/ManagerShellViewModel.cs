@@ -4778,7 +4778,8 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         var lines = output.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         var downloadLines = lines
             .Where(line =>
-                line.Contains("MODEL DOWNLOAD", StringComparison.OrdinalIgnoreCase) &&
+                (line.Contains("MODEL DOWNLOAD", StringComparison.OrdinalIgnoreCase) ||
+                 line.Contains("MODEL FETCH", StringComparison.OrdinalIgnoreCase)) &&
                 !line.Contains("FETCH_ASSETS_PROGRESS", StringComparison.OrdinalIgnoreCase))
             .ToList();
         if (downloadLines.Count == 0)
@@ -4790,15 +4791,18 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         var state = "downloading";
         foreach (var line in downloadLines)
         {
-            if (line.Contains("MODEL DOWNLOAD COMPLETE", StringComparison.OrdinalIgnoreCase))
+            if (line.Contains("MODEL DOWNLOAD COMPLETE", StringComparison.OrdinalIgnoreCase) ||
+                line.Contains("MODEL FETCH COMPLETE", StringComparison.OrdinalIgnoreCase))
             {
                 state = "complete";
             }
-            else if (line.Contains("MODEL DOWNLOAD FAILED", StringComparison.OrdinalIgnoreCase))
+            else if (line.Contains("MODEL DOWNLOAD FAILED", StringComparison.OrdinalIgnoreCase) ||
+                     line.Contains("MODEL FETCH FAILED", StringComparison.OrdinalIgnoreCase))
             {
                 state = "failed";
             }
-            else if (line.Contains("MODEL DOWNLOAD STARTED", StringComparison.OrdinalIgnoreCase))
+            else if (line.Contains("MODEL DOWNLOAD STARTED", StringComparison.OrdinalIgnoreCase) ||
+                     line.Contains("MODEL FETCH STARTED", StringComparison.OrdinalIgnoreCase))
             {
                 state = "started";
             }
@@ -4809,9 +4813,9 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
             foreach (var key in new[]
                      {
-                         "phase", "repo", "status", "cache_dir", "progress_interval", "waiting_on",
+                         "phase", "step", "repo", "status", "cache_dir", "progress_interval", "waiting_on",
                          "shared_cache", "downloaded_this_step", "repo_cache_blobs", "active_partial_files",
-                         "exit_status",
+                         "exit_status", "root", "profile",
                      })
             {
                 var value = ExtractLogValue(line, key);
@@ -4826,6 +4830,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         {
             $"Model download: {state}",
         };
+        AddFeedbackLine(detail, "Step", latest.GetValueOrDefault("step"));
         AddFeedbackLine(detail, "Repo", latest.GetValueOrDefault("repo"));
         AddFeedbackLine(detail, "Phase", latest.GetValueOrDefault("phase"));
         AddFeedbackLine(detail, "Waiting on", latest.GetValueOrDefault("waiting_on"));
@@ -4835,6 +4840,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         AddFeedbackLine(detail, "Active partial files", latest.GetValueOrDefault("active_partial_files"));
         AddFeedbackLine(detail, "Cache dir", latest.GetValueOrDefault("cache_dir"));
         AddFeedbackLine(detail, "Exit status", latest.GetValueOrDefault("exit_status"));
+        AddFeedbackLine(detail, "Root", latest.GetValueOrDefault("root"));
 
         detail.Add("");
         detail.Add("Latest raw download lines:");
@@ -4855,9 +4861,9 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         var end = line.Length;
         foreach (var nextKey in new[]
                  {
-                     " phase=", " repo=", " status=", " cache_dir=", " progress_interval=", " waiting_on=",
+                     " phase=", " step=", " repo=", " status=", " cache_dir=", " progress_interval=", " waiting_on=",
                      " shared_cache=", " downloaded_this_step=", " repo_cache_blobs=", " active_partial_files=",
-                     " exit_status=",
+                     " exit_status=", " root=", " profile=",
                  })
         {
             var candidate = line.IndexOf(nextKey, start, StringComparison.OrdinalIgnoreCase);
