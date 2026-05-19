@@ -1525,7 +1525,7 @@
         </div>
         <h4>Results and testing</h4>
         <p>Use <code>Refresh</code>, the progress bar, live log, samples, and checkpoints to judge the run. <code>Open LoRAs</code> opens the folder containing finished <code>.safetensors</code> files and saved checkpoints.</p>
-        <p>You can also place compatible downloaded LoRA <code>.safetensors</code> files in <code>~/LoRA/loras</code>. The Blender workflow can use LoRAs from that folder, whether they were trained locally or added manually.</p>
+        <p>Training creates named run folders under <code>~/LoRA/loras</code>, for example <code>~/LoRA/loras/my_first_lora/my_first_lora.safetensors</code>. Downloaded compatible Z-Image Turbo LoRA <code>.safetensors</code> files can be placed directly in <code>~/LoRA/loras</code>, beside those trained run folders. The Blender workflow reads LoRAs from that root whether they were trained locally or added manually.</p>
         <p>For the first test, use the finished LoRA in Z-Image with a normal prompt before changing several settings at once. If the result is weak, compare checkpoints and LoRA strength. If it is overfit, check the dataset and captions before running a stronger preset.</p>
         <p><code>Open AI Toolkit</code> is for the full upstream training interface. Use it when you need advanced AI Toolkit controls; otherwise, the Easy LoRA flow is the intended path.</p>
         <p>Normal uninstall removes the trainer runtime but preserves datasets, jobs, outputs, logs, models, and adapters. <code>Delete Data</code> is the separate wipe path for saved LoRA module data.</p>
