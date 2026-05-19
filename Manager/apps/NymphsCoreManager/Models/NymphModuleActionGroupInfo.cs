@@ -6,7 +6,7 @@ using NymphsCoreManager.ViewModels;
 
 namespace NymphsCoreManager.Models;
 
-public sealed class NymphModuleActionGroupInfo
+public sealed class NymphModuleActionGroupInfo : ViewModelBase
 {
     public NymphModuleActionGroupInfo(
         string id,
@@ -28,6 +28,17 @@ public sealed class NymphModuleActionGroupInfo
         SubmitLabel = submitLabel;
         Links = links;
         Fields = fields;
+
+        foreach (var field in Fields)
+        {
+            field.PropertyChanged += (_, args) =>
+            {
+                if (args.PropertyName is nameof(NymphModuleActionFieldInfo.SelectedValue) or nameof(NymphModuleActionFieldInfo.IsChecked))
+                {
+                    OnPropertyChanged(nameof(CanSubmit));
+                }
+            };
+        }
     }
 
     public string Id { get; }
@@ -54,6 +65,9 @@ public sealed class NymphModuleActionGroupInfo
     public IReadOnlyList<NymphModuleActionFieldInfo> OptionFields =>
         Fields.Where(field => field.IsOptionField).ToArray();
 
+    public IReadOnlyList<NymphModuleActionFieldInfo> CheckboxFields =>
+        Fields.Where(field => field.IsCheckbox).ToArray();
+
     public bool HasLinks => Links.Count > 0;
 
     public bool HasFields => Fields.Count > 0;
@@ -62,15 +76,21 @@ public sealed class NymphModuleActionGroupInfo
 
     public bool HasOptionFields => Fields.Any(field => field.IsOptionField);
 
-    public bool HasNoOptionFields => !HasOptionFields;
+    public bool HasCheckboxFields => Fields.Any(field => field.IsCheckbox);
 
-    public int FieldRowLeftMargin => HasOptionFields ? 0 : 24;
+    public bool HasChoiceFields => HasOptionFields || HasCheckboxFields;
+
+    public bool HasNoChoiceFields => !HasChoiceFields;
+
+    public bool CanSubmit => !Fields.Any(field => field.IsRequiredCheckbox && !field.IsChecked);
+
+    public int FieldRowLeftMargin => HasChoiceFields ? 0 : 24;
 
     public Thickness FieldRowMargin => new(FieldRowLeftMargin, 0, 0, 6);
 
-    public double FieldLabelWidth => HasOptionFields ? 145 : double.NaN;
+    public double FieldLabelWidth => HasChoiceFields ? 145 : double.NaN;
 
-    public string FieldLabelAlignment => HasOptionFields ? "Right" : "Left";
+    public string FieldLabelAlignment => HasChoiceFields ? "Right" : "Left";
 
     public int FieldControlWidth => 220;
 
@@ -170,6 +190,11 @@ public sealed class NymphModuleActionFieldInfo : ViewModelBase
                 _selectedOption = selectedOption;
                 OnPropertyChanged(nameof(SelectedOption));
             }
+
+            if (IsCheckbox)
+            {
+                OnPropertyChanged(nameof(IsChecked));
+            }
         }
     }
 
@@ -188,6 +213,10 @@ public sealed class NymphModuleActionFieldInfo : ViewModelBase
             {
                 _selectedValue = selectedValue;
                 OnPropertyChanged(nameof(SelectedValue));
+                if (IsCheckbox)
+                {
+                    OnPropertyChanged(nameof(IsChecked));
+                }
             }
         }
     }
@@ -215,7 +244,23 @@ public sealed class NymphModuleActionFieldInfo : ViewModelBase
 
     public bool IsSecret => string.Equals(Type, "secret", StringComparison.OrdinalIgnoreCase);
 
-    public bool IsOptionField => !IsSecret && Options.Count > 0;
+    public bool IsCheckbox => string.Equals(Type, "checkbox", StringComparison.OrdinalIgnoreCase);
+
+    public bool IsRequiredCheckbox => IsCheckbox && !Optional;
+
+    public bool IsOptionField => !IsSecret && !IsCheckbox && Options.Count > 0;
+
+    public bool IsChecked
+    {
+        get => IsTruthy(SelectedValue);
+        set => SelectedValue = value ? CheckedValue : UncheckedValue;
+    }
+
+    public string CheckedValue =>
+        Options.FirstOrDefault(option => IsTruthy(option.Value))?.Value ?? "yes";
+
+    public string UncheckedValue =>
+        Options.FirstOrDefault(option => !IsTruthy(option.Value))?.Value ?? "no";
 
     public bool ShowSecretInput => IsSecret && !HasSavedSecret;
 
@@ -236,7 +281,7 @@ public sealed class NymphModuleActionFieldInfo : ViewModelBase
 
     public void ApplyTransientStateFrom(NymphModuleActionFieldInfo previous)
     {
-        if (IsOptionField &&
+        if ((IsOptionField || IsCheckbox) &&
             Options.Any(option => string.Equals(option.Value, previous.SelectedValue, StringComparison.Ordinal)))
         {
             SelectedValue = previous.SelectedValue;
@@ -262,6 +307,11 @@ public sealed class NymphModuleActionFieldInfo : ViewModelBase
         }
 
         return string.IsNullOrWhiteSpace(label) ? name : label;
+    }
+
+    private static bool IsTruthy(string? value)
+    {
+        return value?.Trim().ToLowerInvariant() is "1" or "true" or "yes" or "y" or "on" or "checked" or "acknowledged";
     }
 }
 

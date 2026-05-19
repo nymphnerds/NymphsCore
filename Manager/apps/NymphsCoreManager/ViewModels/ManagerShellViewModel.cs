@@ -390,7 +390,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         !IsModuleLifecycleActive(DisplayedModule) &&
         DisplayedModule.InstallOptionFields.Count > 0;
 
-    public bool ShowInstalledModuleActions => DisplayedModule?.IsInstalled == true && DisplayedModule.ManagerActions.Count > 0;
+    public bool ShowInstalledModuleActions => DisplayedModule?.IsInstalled == true && DisplayedModuleContractActions.Count > 0;
 
     public bool ShowInstalledModuleActionGroups => DisplayedModule?.IsInstalled == true && DisplayedModule.ManagerActionGroups.Count > 0;
 
@@ -452,7 +452,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                     return loraActions;
                 }
 
-                return DisplayedModule.ManagerActions;
+                return FilterGroupedModuleActions(DisplayedModule);
             }
 
             var actions = new List<NymphModuleActionInfo>();
@@ -487,6 +487,23 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
             return actions;
         }
+    }
+
+    private static IReadOnlyList<NymphModuleActionInfo> FilterGroupedModuleActions(NymphModuleViewModel module)
+    {
+        if (module.ManagerActionGroups.Count == 0)
+        {
+            return module.ManagerActions;
+        }
+
+        var groupedActions = module.ManagerActionGroups
+            .Select(group => group.EntryPoint.Trim())
+            .Where(entrypoint => !string.IsNullOrWhiteSpace(entrypoint))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        return module.ManagerActions
+            .Where(action => !groupedActions.Contains(action.ActionName.Trim()))
+            .ToArray();
     }
 
     private static NymphModuleActionInfo? ResolveModuleDetailPrimaryAction(NymphModuleViewModel? module)
@@ -3669,6 +3686,14 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         var actionLabel = string.IsNullOrWhiteSpace(actionGroup.SubmitLabel)
             ? actionGroup.Title
             : actionGroup.SubmitLabel;
+        if (!actionGroup.CanSubmit)
+        {
+            SetModuleActionFeedback(
+                $"{module.Name}: {actionLabel} needs attention",
+                "Tick the required acknowledgement before running this action.");
+            return;
+        }
+
         var (args, environment) = BuildActionGroupInvocation(actionGroup);
         var ownsBusyState = !IsBusy && !isPassiveAction;
         var showDetailProgress = !isPassiveAction && normalizedAction is not "logs" and not "stop";
@@ -3768,6 +3793,18 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             if (field.IsSecret)
             {
                 ApplySecretFieldToInvocation(field, environment);
+                continue;
+            }
+
+            if (field.IsCheckbox)
+            {
+                if (!field.IsChecked || string.IsNullOrWhiteSpace(field.ArgumentName))
+                {
+                    continue;
+                }
+
+                args.Add(field.ArgumentName.Trim());
+                args.Add(field.CheckedValue);
                 continue;
             }
 

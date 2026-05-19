@@ -2445,7 +2445,7 @@
                                           Margin="12,0,0,0"
                                           Command="{Binding DataContext.ApplyModuleActionSecretCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                           CommandParameter="{Binding}"
-                                          Visibility="{Binding DataContext.HasOptionFields, RelativeSource={RelativeSource AncestorType=ItemsControl}, Converter={StaticResource BoolToVisibilityConverter}}">
+                                          Visibility="{Binding DataContext.HasChoiceFields, RelativeSource={RelativeSource AncestorType=ItemsControl}, Converter={StaticResource BoolToVisibilityConverter}}">
                                     <TextBlock Text="// Apply Key"
                                                Foreground="#23E7DB"
                                                FontFamily="Cascadia Mono"
@@ -2457,7 +2457,8 @@
                                           Margin="12,0,0,0"
                                           Command="{Binding DataContext.RunModuleActionGroupCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                           CommandParameter="{Binding DataContext, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                                          Visibility="{Binding DataContext.HasNoOptionFields, RelativeSource={RelativeSource AncestorType=ItemsControl}, Converter={StaticResource BoolToVisibilityConverter}}">
+                                          IsEnabled="{Binding DataContext.CanSubmit, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                          Visibility="{Binding DataContext.HasNoChoiceFields, RelativeSource={RelativeSource AncestorType=ItemsControl}, Converter={StaticResource BoolToVisibilityConverter}}">
                                     <TextBlock Text="{Binding DataContext.SubmitLabel, RelativeSource={RelativeSource AncestorType=ItemsControl}, StringFormat=// {0}}"
                                                Foreground="#23E7DB"
                                                FontFamily="Cascadia Mono"
@@ -2512,21 +2513,53 @@
                                       </DataTemplate>
                                     </ComboBox.ItemTemplate>
                                   </ComboBox>
-                                  <Button Style="{StaticResource ModuleActionButtonStyle}"
-                                          MinWidth="118"
-                                          Padding="10,4"
-                                          Margin="12,0,0,0"
-                                          Command="{Binding DataContext.RunModuleActionGroupCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                          CommandParameter="{Binding DataContext, RelativeSource={RelativeSource AncestorType=ItemsControl}}">
-                                    <TextBlock Text="{Binding DataContext.SubmitLabel, RelativeSource={RelativeSource AncestorType=ItemsControl}, StringFormat=// {0}}"
-                                               Foreground="#23E7DB"
-                                               FontFamily="Cascadia Mono"
-                                               FontSize="11.5" />
-                                  </Button>
                                 </StackPanel>
                               </DataTemplate>
                             </ItemsControl.ItemTemplate>
                           </ItemsControl>
+                          <ItemsControl ItemsSource="{Binding CheckboxFields}"
+                                        Visibility="{Binding HasCheckboxFields, Converter={StaticResource BoolToVisibilityConverter}}">
+                            <ItemsControl.ItemTemplate>
+                              <DataTemplate>
+                                <StackPanel Orientation="Horizontal"
+                                            Margin="{Binding DataContext.FieldRowMargin, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                            VerticalAlignment="Center">
+                                  <TextBlock Text="{Binding Label, StringFormat={}{0}:}"
+                                             Foreground="#9AB8B4"
+                                             FontFamily="Cascadia Mono"
+                                             FontSize="10.5"
+                                             VerticalAlignment="Center"
+                                             TextAlignment="{Binding DataContext.FieldLabelAlignment, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                             Width="{Binding DataContext.FieldLabelWidth, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                             Margin="0,0,7,0" />
+                                  <CheckBox IsChecked="{Binding IsChecked, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                            VerticalAlignment="Center"
+                                            Foreground="#E4F2EF"
+                                            FontFamily="Segoe UI Semibold"
+                                            FontSize="12"
+                                            ToolTip="{Binding SelectedOption.Description}" />
+                                </StackPanel>
+                              </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                          </ItemsControl>
+                          <StackPanel Orientation="Horizontal"
+                                      Margin="{Binding FieldRowMargin}"
+                                      VerticalAlignment="Center"
+                                      Visibility="{Binding HasChoiceFields, Converter={StaticResource BoolToVisibilityConverter}}">
+                            <TextBlock Width="{Binding FieldLabelWidth}"
+                                       Margin="0,0,7,0" />
+                            <Button Style="{StaticResource ModuleActionButtonStyle}"
+                                    MinWidth="118"
+                                    Padding="10,4"
+                                    Command="{Binding DataContext.RunModuleActionGroupCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                    CommandParameter="{Binding}"
+                                    IsEnabled="{Binding CanSubmit}">
+                              <TextBlock Text="{Binding SubmitLabel, StringFormat=// {0}}"
+                                         Foreground="#23E7DB"
+                                         FontFamily="Cascadia Mono"
+                                         FontSize="11.5" />
+                            </Button>
+                          </StackPanel>
                         </StackPanel>
                       </StackPanel>
                     </DataTemplate>

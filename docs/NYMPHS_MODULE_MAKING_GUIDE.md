@@ -614,6 +614,9 @@ Standard rules:
   variables.
 - If a saved secret can be removed, use `// Remove Key` and the same module
   action button style, font size, and casing as the other buttons.
+- Required license or access acknowledgements should use a `checkbox` field, not
+  a select/dropdown. The Manager disables the group submit button until required
+  checkboxes are ticked.
 - Mask saved tokens across the width of the token field, not with a tiny token
   indicator that looks like only a few characters were saved.
 - The selector should show the useful end of long model filenames, such as
@@ -631,6 +634,9 @@ Standard rules:
 - The details pane should preserve the latest action result long enough for the
   user to read it. Background status refresh and delayed manifest refresh must
   not immediately overwrite a just-completed action result.
+- Do not duplicate a grouped action in `ui.manager_actions`. If
+  `ui.manager_action_groups` already declares `entrypoint: "fetch_models"`, do
+  not also add a `Fetch Models` button to `manager_actions`.
 
 Example:
 
@@ -673,6 +679,26 @@ Example:
                 "label": "All weights",
                 "value": "all",
                 "description": "Downloads every selectable preset"
+              }
+            ]
+          },
+          {
+            "name": "license_ack",
+            "type": "checkbox",
+            "label": "I acknowledge the license/access terms",
+            "arg": "--license-ack",
+            "default": "no",
+            "optional": false,
+            "options": [
+              {
+                "label": "I acknowledge",
+                "value": "yes",
+                "description": "I understand the upstream access and use restrictions"
+              },
+              {
+                "label": "Not yet",
+                "value": "no",
+                "description": "Do not fetch gated or restricted assets yet"
               }
             ]
           },
