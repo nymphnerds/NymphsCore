@@ -904,37 +904,6 @@
     font-weight: 500;
   }
 
-  .wiki-mini-flow {
-    max-width: 760px;
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 8px;
-    margin: 12px 0 18px;
-    color: var(--muted);
-    font-family: var(--font-mono);
-    font-size: 12px;
-    line-height: 1.35;
-  }
-
-  .wiki-mini-flow span {
-    display: inline-flex;
-    align-items: center;
-    min-height: 26px;
-    padding: 4px 8px;
-    border: 1px solid rgba(85,223,240,0.22);
-    border-radius: 5px;
-    background: rgba(4,14,13,0.48);
-  }
-
-  .wiki-mini-flow .wiki-mini-flow-arrow {
-    min-height: 0;
-    padding: 0;
-    border: 0;
-    background: transparent;
-    color: var(--teal);
-  }
-
   .wiki-entry .wiki-link-list a {
     border-bottom: 0;
     padding-bottom: 0;
@@ -1495,19 +1464,12 @@
           </div>
         </div>
         <p>When enabled, Brain exposes the wrapper through MCP on <code>http://127.0.0.1:8100/servers/llm-wrapper/mcp</code> and through mcpo/OpenAPI on <code>http://127.0.0.1:8099/llm-wrapper</code>. Open WebUI can then see it as a Brain tool route alongside filesystem, memory, web-forager, and context7.</p>
-        <div class="wiki-mini-flow" aria-label="llm-wrapper request flow">
-          <span>Local Brain model</span>
-          <span class="wiki-mini-flow-arrow">-&gt;</span>
-          <span>MCP 8100</span>
-          <span class="wiki-mini-flow-arrow">-&gt;</span>
-          <span>llm-wrapper</span>
-          <span class="wiki-mini-flow-arrow">-&gt;</span>
-          <span>cache check</span>
-          <span class="wiki-mini-flow-arrow">-&gt;</span>
-          <span>OpenRouter if needed</span>
-          <span class="wiki-mini-flow-arrow">-&gt;</span>
-          <span>one-shot answer</span>
-        </div>
+        <ul class="wiki-tech-lines" aria-label="llm-wrapper request flow">
+          <li><strong>Most prompts</strong> stay on the local Brain model.</li>
+          <li><strong>Hard prompt</strong> goes through <code>llm_call</code> to MCP <code>8100</code>, then <code>llm-wrapper</code>.</li>
+          <li><strong>Cache hit</strong> returns the stored answer immediately.</li>
+          <li><strong>Cache miss</strong> calls OpenRouter, saves the result, and returns one framed answer.</li>
+        </ul>
         <div class="wiki-callout">
           <div class="wiki-callout-title">
             <span>Wrapper Tools</span>
