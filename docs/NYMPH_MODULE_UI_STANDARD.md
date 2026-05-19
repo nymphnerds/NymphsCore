@@ -25,6 +25,26 @@ The Manager should prefer registry `category`/`kind` for display so module
 presentation can be corrected via the trusted registry without hardcoding
 module-specific labels.
 
+The installed module root comes from the module manifest:
+
+```json
+{
+  "install": {
+    "root": "$HOME/Pixal3D"
+  }
+}
+```
+
+The Manager must use `install.root` first when it checks installed markers,
+installed manifests, installed module UI, module-owned actions, terminal
+actions, update state, and uninstall. Historical hardcoded roots and lowercase
+`$HOME/<module-id>` paths are compatibility fallbacks only.
+
+Installed modules must keep both `nymph.json` and `.nymph-module-version` in
+that resolved install root. Startup installed-card detection must stay a fast
+marker probe and must not depend on running heavyweight module `status`
+entrypoints.
+
 The module page right rail is fixed and universal for all modules:
 
 ```text

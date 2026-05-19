@@ -142,6 +142,49 @@ Manager code change. The Manager prefers registry `category` and `kind` for
 catalog/display text, and reads `packaging` separately for install facts and
 installer behavior.
 
+## Install Root Contract
+
+The module manifest is the source of truth for the installed module root:
+
+```json
+{
+  "install": {
+    "root": "$HOME/Z-Image"
+  }
+}
+```
+
+Use `install.root` whenever the runtime folder needs a stable product name,
+capitalization, or legacy-compatible location. Examples:
+
+```text
+$HOME/Nymphs-Brain
+$HOME/Z-Image
+$HOME/TRELLIS.2
+$HOME/Pixal3D
+$HOME/LoRA
+```
+
+The Manager resolves `$HOME`, `~/...`, absolute paths, and relative paths. If a
+module omits `install.root`, the Manager falls back to the historical module id
+location such as `$HOME/<module-id>`.
+
+Installed-state detection, installed UI lookup, installed action routing,
+version checks, update checks, terminal actions, and uninstall must all use the
+manifest root first. Legacy hardcoded roots and lowercase `$HOME/<module-id>`
+paths are only compatibility fallbacks for old installs.
+
+Every install, repair, and update script must write:
+
+```text
+<install.root>/nymph.json
+<install.root>/.nymph-module-version
+```
+
+The Manager startup card state depends on this marker. It must remain a cheap
+marker probe, not a module `status` script call, so installed cards appear
+quickly even when heavyweight modules or WSL services are slow.
+
 Do not put your installed workflow buttons in the registry. Buttons belong in
 your module's own `nymph.json`, because your module can change its tools without
 needing the catalog to know every detail.

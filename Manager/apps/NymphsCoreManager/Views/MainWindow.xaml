@@ -859,12 +859,12 @@
     </Style>
 
     <Style TargetType="ScrollBar" x:Key="PaneScrollBarStyle">
-      <Setter Property="Width" Value="10" />
+      <Setter Property="Width" Value="12" />
       <Setter Property="Background" Value="Transparent" />
       <Setter Property="Template">
         <Setter.Value>
           <ControlTemplate TargetType="ScrollBar">
-            <Grid Width="10"
+            <Grid Width="12"
                   Background="Transparent">
               <Track x:Name="PART_Track"
                      IsDirectionReversed="True">
