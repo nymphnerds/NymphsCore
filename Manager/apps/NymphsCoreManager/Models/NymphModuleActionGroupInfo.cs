@@ -63,10 +63,10 @@ public sealed class NymphModuleActionGroupInfo : ViewModelBase
         Fields.Where(field => field.IsSecret).ToArray();
 
     public IReadOnlyList<NymphModuleActionFieldInfo> OptionFields =>
-        Fields.Where(field => field.IsOptionField).ToArray();
+        Fields.Where(field => field.IsOptionField && !field.IsAgreementField).ToArray();
 
     public IReadOnlyList<NymphModuleActionFieldInfo> CheckboxFields =>
-        Fields.Where(field => field.IsCheckbox).ToArray();
+        Fields.Where(field => field.IsCheckbox && !field.IsAgreementField).ToArray();
 
     public bool HasLinks => Links.Count > 0;
 
@@ -74,9 +74,9 @@ public sealed class NymphModuleActionGroupInfo : ViewModelBase
 
     public bool HasSecretFields => Fields.Any(field => field.IsSecret);
 
-    public bool HasOptionFields => Fields.Any(field => field.IsOptionField);
+    public bool HasOptionFields => OptionFields.Count > 0;
 
-    public bool HasCheckboxFields => Fields.Any(field => field.IsCheckbox);
+    public bool HasCheckboxFields => CheckboxFields.Count > 0;
 
     public bool HasChoiceFields => HasOptionFields || HasCheckboxFields;
 
