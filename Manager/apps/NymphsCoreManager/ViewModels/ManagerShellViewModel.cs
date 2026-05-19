@@ -3319,25 +3319,29 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
     {
         var lines = new List<string>
         {
-            $"{module.Name}: {actionLabel}",
-            "",
-            "Review these terms before continuing."
+            $"{module.Name}: {actionLabel}"
         };
 
-        if (!string.IsNullOrWhiteSpace(module.SecondaryDetail))
+        var terms = ExtractTermsText(module.SecondaryDetail);
+        if (string.IsNullOrWhiteSpace(terms))
+        {
+            terms = ExtractTermsText(module.Detail);
+        }
+        if (string.IsNullOrWhiteSpace(terms))
+        {
+            terms = actionGroup.Description.Trim();
+        }
+        if (!string.IsNullOrWhiteSpace(terms))
         {
             lines.Add("");
-            lines.Add(module.SecondaryDetail.Trim());
+            lines.Add(terms);
         }
 
-        if (!string.IsNullOrWhiteSpace(actionGroup.Description))
-        {
-            lines.Add("");
-            lines.Add(actionGroup.Description.Trim());
-        }
-
-        var links = module.OverviewLinks
-            .Concat(actionGroup.Links)
+        var links = actionGroup.Links
+            .Concat(module.OverviewLinks.Where(link =>
+                link.Label.Contains("license", StringComparison.OrdinalIgnoreCase) ||
+                link.Label.Contains("access", StringComparison.OrdinalIgnoreCase) ||
+                link.Label.Contains("terms", StringComparison.OrdinalIgnoreCase)))
             .GroupBy(link => link.Url, StringComparer.OrdinalIgnoreCase)
             .Select(group => group.First())
             .ToArray();
@@ -3354,6 +3358,40 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         lines.Add("");
         lines.Add("Continue?");
         return string.Join(Environment.NewLine, lines);
+    }
+
+    private static string ExtractTermsText(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return string.Empty;
+        }
+
+        var normalized = text.Replace("\r\n", "\n").Trim();
+        var marker = "Before installing or fetching model files, review the upstream terms:";
+        var markerIndex = normalized.IndexOf(marker, StringComparison.OrdinalIgnoreCase);
+        if (markerIndex >= 0)
+        {
+            normalized = normalized[markerIndex..].Trim();
+        }
+
+        var stopMarkers = new[]
+        {
+            "\n\nNymphsCore Manager",
+            "\nRequirements:",
+            "\n\nFetch ",
+            "\n\nLinks:"
+        };
+        foreach (var stopMarker in stopMarkers)
+        {
+            var stopIndex = normalized.IndexOf(stopMarker, StringComparison.OrdinalIgnoreCase);
+            if (stopIndex > 0)
+            {
+                normalized = normalized[..stopIndex].Trim();
+            }
+        }
+
+        return normalized;
     }
 
     private async Task RepairModuleAsync(NymphModuleViewModel? module)
