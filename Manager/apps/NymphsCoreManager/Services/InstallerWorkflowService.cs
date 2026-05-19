@@ -5544,6 +5544,7 @@ meta:
             "brain" => $"{homePath}/Nymphs-Brain",
             "zimage" => $"{homePath}/Z-Image",
             "trellis" => $"{homePath}/TRELLIS.2",
+            "pixal3d" => $"{homePath}/Pixal3D",
             "lora" or "ai-toolkit" => $"{homePath}/LoRA",
             "worbi" => $"{homePath}/worbi",
             _ => $"{homePath}/{normalizedModuleId}",
