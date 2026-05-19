@@ -863,38 +863,37 @@
     padding: 10px 18px;
   }
 
-  .wiki-source-panel {
+  .wiki-link-list,
+  .wiki-tech-lines {
+    display: grid;
+    gap: 7px;
+    margin: 8px 0 18px;
     max-width: 760px;
-    margin: 14px 0 18px;
-    padding: 16px 18px;
-    border: 1px solid rgba(85,223,240,0.34);
-    border-radius: 8px;
-    background:
-      linear-gradient(90deg, rgba(85,223,240,0.055), transparent 42%),
-      rgba(4,14,13,0.58);
+    list-style: none;
   }
 
-  .wiki-source-panel .wiki-entry-links {
-    margin-top: 0;
-    gap: 10px;
-  }
-
-  .wiki-source-panel a {
-    display: inline-flex;
-    align-items: center;
-    min-height: 32px;
-    padding: 5px 10px;
-    border: 1px solid rgba(85,223,240,0.28);
-    border-radius: 5px;
-    background: rgba(4,14,13,0.58);
-    color: var(--teal);
+  .wiki-link-list li,
+  .wiki-tech-lines li {
     font-family: var(--font-mono);
-    font-size: 12px;
+    font-size: 13px;
+    line-height: 1.45;
   }
 
-  .wiki-source-panel a:hover {
+  .wiki-link-list li::before,
+  .wiki-tech-lines li::before {
+    content: "//";
+    color: var(--teal);
+    margin-right: 10px;
+  }
+
+  .wiki-tech-lines strong {
     color: var(--lime);
-    border-color: rgba(99,227,95,0.5);
+    font-weight: 500;
+  }
+
+  .wiki-entry .wiki-link-list a {
+    border-bottom: 0;
+    padding-bottom: 0;
   }
 
   .guide-card a {
@@ -1205,12 +1204,13 @@
         <div class="wiki-callout">
           <div class="wiki-callout-title">
             <span>Dedicated Linux Runtime</span>
-            <span class="wiki-callout-status">Isolated</span>
+            <span class="wiki-callout-status">Backend host</span>
           </div>
           <div class="wiki-callout-grid">
+            <div class="wiki-callout-row"><span class="wiki-callout-label">Why WSL</span><span>The AI backends run on Linux, and WSL gives Windows a real Linux runtime for them.</span></div>
             <div class="wiki-callout-row"><span class="wiki-callout-label">Distro</span><span><code>NymphsCore</code> WSL 2 environment</span></div>
-            <div class="wiki-callout-row"><span class="wiki-callout-label">Used for</span><span>CUDA, Python environments, model caches, service launchers, and module repos</span></div>
-            <div class="wiki-callout-row"><span class="wiki-callout-good">Why</span><span>Keeps the AI stack separate from normal Windows installs</span></div>
+            <div class="wiki-callout-row"><span class="wiki-callout-label">Lives there</span><span>CUDA support, Python environments, model caches, service launchers, and module repos</span></div>
+            <div class="wiki-callout-row"><span class="wiki-callout-good">Bonus</span><span>The stack stays separate from normal Windows installs.</span></div>
           </div>
         </div>
         <h4 id="wiki-system-needs">System needs</h4>
@@ -1367,16 +1367,10 @@
           <li>Wait for the install to finish and the module page to become available.</li>
           <li>Do not fetch weights until the module install has completed.</li>
         </ul>
-        <div class="wiki-callout is-warn">
-          <div class="wiki-callout-title">
-            <span>Install First, Models Second</span>
-            <span class="wiki-callout-status">Order matters</span>
-          </div>
-          <div class="wiki-callout-grid">
-            <div class="wiki-callout-row"><span class="wiki-callout-label">First</span><span>Let the module install finish and open its module page.</span></div>
-            <div class="wiki-callout-row"><span class="wiki-callout-warn">Then</span><span>Use <code>Model Fetch</code> for the base model and selected quantized weight.</span></div>
-          </div>
-        </div>
+        <ul class="wiki-tech-lines">
+          <li><strong>Module install</strong> prepares the runtime first.</li>
+          <li><strong>Model Fetch</strong> runs after install because it uses the installed module page and fetch tools.</li>
+        </ul>
         <p>This install can take a while. It may add Python 3.11 support, prepare CUDA Toolkit 13.0 for <code>nvcc</code>, build a staged <code>.venv-nunchaku</code>, install Torch, Diffusers, and the NymphNerds Nunchaku fork, then validate text-to-image, image-to-image, and LoRA runtime hooks.</p>
         <h4>Fetch models</h4>
         <p>After Z-Image Turbo is installed, open its module page and use <code>Model Fetch</code> to download the actual model files.</p>
@@ -1387,14 +1381,12 @@
           <li>Use <code>Smoke Test</code> or <code>Start</code> before generating from Blender.</li>
         </ul>
         <h4>Source links</h4>
-        <div class="wiki-source-panel">
-          <div class="wiki-entry-links">
-            <a href="https://github.com/Tongyi-MAI/Z-Image">Official Z-Image repo</a>
-            <a href="https://huggingface.co/Tongyi-MAI/Z-Image-Turbo">Z-Image Turbo model</a>
-            <a href="https://nunchaku.tech/docs/nunchaku/">Nunchaku docs</a>
-            <a href="https://huggingface.co/nunchaku-ai/nunchaku-z-image-turbo">Nunchaku weights</a>
-          </div>
-        </div>
+        <ul class="wiki-link-list">
+          <li><a href="https://github.com/Tongyi-MAI/Z-Image">Official Z-Image repo</a></li>
+          <li><a href="https://huggingface.co/Tongyi-MAI/Z-Image-Turbo">Z-Image Turbo model</a></li>
+          <li><a href="https://nunchaku.tech/docs/nunchaku/">Nunchaku docs</a></li>
+          <li><a href="https://huggingface.co/nunchaku-ai/nunchaku-z-image-turbo">Nunchaku weights</a></li>
+        </ul>
       </div>
 
       <div class="wiki-entry" id="wiki-trellis">
@@ -1449,8 +1441,8 @@
             <span class="wiki-callout-status">Blender control</span>
           </div>
           <div class="wiki-callout-grid">
-            <div class="wiki-callout-row"><span class="wiki-callout-label">Z-Image</span><span>Local image service, normally on port <code>8090</code></span></div>
-            <div class="wiki-callout-row"><span class="wiki-callout-label">TRELLIS.2</span><span>Shape, texture, and retexture service, normally on port <code>8094</code></span></div>
+            <div class="wiki-callout-row"><span class="wiki-callout-label">Z-Image</span><span>Local image service on port <code>8090</code></span></div>
+            <div class="wiki-callout-row"><span class="wiki-callout-label">TRELLIS.2</span><span>Shape, texture, and retexture service on port <code>8094</code></span></div>
             <div class="wiki-callout-row"><span class="wiki-callout-good">Use when</span><span>You need to see whether the backend is ready, launching, busy, or stopped.</span></div>
           </div>
         </div>
