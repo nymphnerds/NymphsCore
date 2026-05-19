@@ -1477,6 +1477,17 @@
         <h4>LoRA</h4>
         <p>LoRA is an optional training module for Z-Image Turbo. It is not needed to run the Blender addon, but it lets you train small <code>.safetensors</code> files for a specific character, outfit, object, style, or subject, then use the finished LoRA in Z-Image generation.</p>
         <p>The module installs an isolated AI Toolkit workspace under <code>~/LoRA</code>, including the beginner <code>Easy LoRA</code> flow, the advanced AI Toolkit UI, queue worker support, dataset folders, job files, logs, and LoRA output folders.</p>
+        <div class="wiki-callout">
+          <div class="wiki-callout-title">
+            <span>Current Training Flow</span>
+            <span class="wiki-callout-status">Source checked</span>
+          </div>
+          <div class="wiki-callout-grid">
+            <div class="wiki-callout-row"><span class="wiki-callout-label">First run</span><span><code>Fetch Training Assets</code> downloads or resumes the Z-Image Turbo training model and required training adapter.</span></div>
+            <div class="wiki-callout-row"><span class="wiki-callout-good">Beginner UI</span><span><code>Easy LoRA</code> handles dataset folders, captions, <code>Add Job</code>, <code>Start Job</code>, progress, logs, and finished <code>.safetensors</code> outputs.</span></div>
+            <div class="wiki-callout-row"><span class="wiki-callout-label">Guide</span><span><a href="home/guides/training.html">Z-Image Turbo AI Toolkit LoRA Training Guide</a> walks through the beginner training flow and AI Toolkit reference controls.</span></div>
+          </div>
+        </div>
         <ul>
           <li><code>Fetch Training Assets</code> downloads the large Z-Image Turbo training model and <code>ostris/zimage_turbo_training_adapter</code>.</li>
           <li><code>Easy LoRA</code> is the beginner path for captions, job creation, training start/stop, progress, and finished LoRA outputs.</li>
