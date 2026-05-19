@@ -4475,6 +4475,15 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             return;
         }
 
+        if (normalizedAction is "fetch_models" or "fetch-models" or "fetch")
+        {
+            var fetchPreflight = await TrySkipCompletedModelFetchAsync(module).ConfigureAwait(true);
+            if (fetchPreflight)
+            {
+                return;
+            }
+        }
+
         if (resultMode is "open_terminal" or "terminal")
         {
             try
@@ -4665,6 +4674,48 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                 EndModuleDetailProgress(module);
             }
         }
+    }
+
+    private async Task<bool> TrySkipCompletedModelFetchAsync(NymphModuleViewModel module)
+    {
+        try
+        {
+            var snapshot = await RunModuleStatusSnapshotAsync(module).ConfigureAwait(true);
+            var modelDownloadNeeded = SnapshotNeedsModelDownload(snapshot);
+            var trainingAssetsNeeded = string.Equals(module.Id, "lora", StringComparison.OrdinalIgnoreCase) &&
+                snapshot.IsInstalled &&
+                string.Equals(snapshot.Get("assets_ready"), "false", StringComparison.OrdinalIgnoreCase);
+            if (!snapshot.IsInstalled || modelDownloadNeeded || trainingAssetsNeeded)
+            {
+                return false;
+            }
+
+            ApplyModuleSnapshot(module, snapshot);
+            EndModuleDetailProgress(module);
+            ClearStickyModuleActionFeedback();
+            IsBusy = false;
+            StatusMessage = $"{module.Name} models already ready.";
+            SetModuleActionFeedback(
+                $"{module.Name}: Models already ready",
+                "The module status check reports required model files are already present. Fetch Models was skipped.");
+            AppendActivity($"{module.Name} fetch skipped because status reports models ready.");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            AppendActivity($"{module.Name} fetch preflight warning: {FirstNonEmptyLine(ex.Message)}");
+            return false;
+        }
+    }
+
+    private static bool SnapshotNeedsModelDownload(NymphStatusSnapshot snapshot)
+    {
+        return snapshot.IsInstalled &&
+            (IsFalseishStatusValue(snapshot.Get("models_ready")) ||
+             IsFalseishStatusValue(snapshot.Get("aux_models_ready")) ||
+             IsModelDownloadNeededHealth(snapshot.Health) ||
+             HasMissingArtifactList(snapshot.Get("missing_weights")) ||
+             HasMissingArtifactList(snapshot.Get("missing_models")));
     }
 
     private void AppendModuleActionOutput(NymphModuleViewModel module, string action, string output)
