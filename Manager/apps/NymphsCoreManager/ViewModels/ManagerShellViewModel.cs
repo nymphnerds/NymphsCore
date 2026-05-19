@@ -402,6 +402,14 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
     public bool ShowModuleDetailProgress => IsModuleDetailProgressActive(DisplayedModule);
 
+    public bool ShowDisplayedModuleOverviewLinks =>
+        !IsBusy &&
+        DisplayedModule?.HasOverviewLinks == true;
+
+    public bool ShowDisplayedModuleActionGroupLinks =>
+        !IsBusy &&
+        DisplayedModule?.HasManagerActionGroupLinks == true;
+
     public string ModuleDetailPrimaryActionHeading => "NEXT STEP:";
 
     public string ModuleDetailPrimaryActionHelp =>
@@ -645,6 +653,8 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                 OnPropertyChanged(nameof(ModuleDetailPrimaryAction));
                 OnPropertyChanged(nameof(ShowModuleDetailPrimaryAction));
                 OnPropertyChanged(nameof(ShowModuleDetailProgress));
+                OnPropertyChanged(nameof(ShowDisplayedModuleOverviewLinks));
+                OnPropertyChanged(nameof(ShowDisplayedModuleActionGroupLinks));
                 OnPropertyChanged(nameof(ModuleDetailPrimaryActionHeading));
                 OnPropertyChanged(nameof(ModuleDetailPrimaryActionHelp));
                 OnPropertyChanged(nameof(ModuleDetailProgressHeading));
@@ -999,6 +1009,8 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             OnPropertyChanged(nameof(CanChooseBaseRuntimeDrive));
             OnPropertyChanged(nameof(ShowModuleDetailPrimaryAction));
             OnPropertyChanged(nameof(ShowModuleDetailProgress));
+            OnPropertyChanged(nameof(ShowDisplayedModuleOverviewLinks));
+            OnPropertyChanged(nameof(ShowDisplayedModuleActionGroupLinks));
         }
     }
 
@@ -4851,7 +4863,9 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                      {
                          "phase", "step", "repo", "status", "cache_dir", "progress_interval", "waiting_on",
                          "shared_cache", "downloaded_this_step", "repo_cache_blobs", "active_partial_files",
-                         "repo_cache_mb", "downloaded_this_step_mb", "exit_status", "root", "profile",
+                         "repo_cache_mb", "downloaded_this_step_mb", "huggingface_cache_total", "this_repo_cache",
+                         "active_download_files", "downloaded", "total", "percent", "recent_activity",
+                         "downloading", "downloading_quant", "exit_status", "root", "profile",
                      })
             {
                 var value = ExtractLogValue(line, key);
@@ -4870,19 +4884,31 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         AddFeedbackLine(detail, "Repo", latest.GetValueOrDefault("repo"));
         AddFeedbackLine(detail, "Phase", latest.GetValueOrDefault("phase"));
         AddFeedbackLine(detail, "Waiting on", latest.GetValueOrDefault("waiting_on"));
+        AddFeedbackLine(detail, "Downloading", latest.GetValueOrDefault("downloading"));
+        AddFeedbackLine(detail, "Quant", latest.GetValueOrDefault("downloading_quant"));
+        AddFeedbackLine(detail, "Percent", latest.GetValueOrDefault("percent"));
+        AddFeedbackLine(detail, "Downloaded", latest.GetValueOrDefault("downloaded"));
+        AddFeedbackLine(detail, "Total", latest.GetValueOrDefault("total"));
         AddFeedbackLine(detail, "Cache", latest.GetValueOrDefault("shared_cache"));
+        AddFeedbackLine(detail, "Hugging Face cache total", latest.GetValueOrDefault("huggingface_cache_total"));
         AddFeedbackLine(detail, "Downloaded this step", latest.GetValueOrDefault("downloaded_this_step"));
         AddFeedbackLine(detail, "Downloaded this step MB", latest.GetValueOrDefault("downloaded_this_step_mb"));
         AddFeedbackLine(detail, "Repo cache blobs", latest.GetValueOrDefault("repo_cache_blobs"));
         AddFeedbackLine(detail, "Repo cache MB", latest.GetValueOrDefault("repo_cache_mb"));
+        AddFeedbackLine(detail, "This repo cache", latest.GetValueOrDefault("this_repo_cache"));
         AddFeedbackLine(detail, "Active partial files", latest.GetValueOrDefault("active_partial_files"));
+        AddFeedbackLine(detail, "Active download files", latest.GetValueOrDefault("active_download_files"));
+        AddFeedbackLine(detail, "Recent activity", latest.GetValueOrDefault("recent_activity"));
         AddFeedbackLine(detail, "Cache dir", latest.GetValueOrDefault("cache_dir"));
         AddFeedbackLine(detail, "Exit status", latest.GetValueOrDefault("exit_status"));
         AddFeedbackLine(detail, "Root", latest.GetValueOrDefault("root"));
 
-        detail.Add("");
-        detail.Add("Latest raw download lines:");
-        detail.AddRange(downloadLines.TakeLast(4));
+        var latestLine = downloadLines.LastOrDefault();
+        if (!string.IsNullOrWhiteSpace(latestLine))
+        {
+            detail.Add("");
+            detail.Add($"Latest event: {latestLine}");
+        }
         return string.Join(Environment.NewLine, detail);
     }
 
