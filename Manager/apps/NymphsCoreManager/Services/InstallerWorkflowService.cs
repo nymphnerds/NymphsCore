@@ -6428,6 +6428,37 @@ meta:
             return directResult.CombinedOutput.Trim();
         }
 
+        var installedManifestEntrypoint = ResolveInstalledNymphModuleActionEntrypoint(
+            settings,
+            normalizedModuleId,
+            normalizedAction,
+            manifestInstallRoot);
+        if (!string.IsNullOrWhiteSpace(installedManifestEntrypoint))
+        {
+            var installedManifestEntrypointPath = $"{installRoot}/{installedManifestEntrypoint}";
+            progress.Report($"Module action source '{normalizedModuleId}' -> installed-manifest:{installedManifestEntrypointPath}");
+            progress.Report($"Running module action '{normalizedAction}' for '{normalizedModuleId}'...");
+            progress.Report($"module_action_entrypoint=installed-manifest:{installedManifestEntrypointPath}");
+
+            var directArguments = new List<string> { "/bin/bash", installedManifestEntrypointPath };
+            directArguments.AddRange(normalizedActionArguments);
+            var directResult = await RunWslCommandAsync(
+                settings,
+                directArguments,
+                progress,
+                actionProcessEnvironment,
+                cancellationToken).ConfigureAwait(false);
+            if (directResult.ExitCode != 0)
+            {
+                var detail = string.IsNullOrWhiteSpace(directResult.CombinedOutput)
+                    ? $"Module action '{normalizedAction}' failed for '{normalizedModuleId}' with exit code {directResult.ExitCode}."
+                    : $"Module action '{normalizedAction}' failed for '{normalizedModuleId}' with exit code {directResult.ExitCode}.\n\n{directResult.CombinedOutput.Trim()}";
+                throw new InvalidOperationException(detail);
+            }
+
+            return directResult.CombinedOutput.Trim();
+        }
+
         var hasLocalActionEntrypoint = !isStatusAction &&
             (HasSafeModuleActionEntrypoint(settings, installedManifestPath, normalizedAction) ||
              HasSafeModuleActionEntrypoint(settings, manifestPath, normalizedAction) ||
