@@ -1754,7 +1754,6 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
     {
         var statusTargets = _allModules
             .Where(module => !_modulesWithActiveLifecycle.Contains(module.Id))
-            .Where(module => module.IsInstalled || IsRepairStateLabel(module.StateLabel))
             .ToArray();
 
         var statusTasks = statusTargets
