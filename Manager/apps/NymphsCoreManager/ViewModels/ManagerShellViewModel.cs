@@ -3312,6 +3312,50 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         return string.Join(Environment.NewLine, lines);
     }
 
+    private static string BuildModuleActionAgreementPrompt(
+        NymphModuleViewModel module,
+        NymphModuleActionGroupInfo actionGroup,
+        string actionLabel)
+    {
+        var lines = new List<string>
+        {
+            $"{module.Name}: {actionLabel}",
+            "",
+            "Review these terms before continuing."
+        };
+
+        if (!string.IsNullOrWhiteSpace(module.SecondaryDetail))
+        {
+            lines.Add("");
+            lines.Add(module.SecondaryDetail.Trim());
+        }
+
+        if (!string.IsNullOrWhiteSpace(actionGroup.Description))
+        {
+            lines.Add("");
+            lines.Add(actionGroup.Description.Trim());
+        }
+
+        var links = module.OverviewLinks
+            .Concat(actionGroup.Links)
+            .GroupBy(link => link.Url, StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.First())
+            .ToArray();
+        if (links.Length > 0)
+        {
+            lines.Add("");
+            lines.Add("Links:");
+            foreach (var link in links)
+            {
+                lines.Add($"{link.Label}: {link.Url}");
+            }
+        }
+
+        lines.Add("");
+        lines.Add("Continue?");
+        return string.Join(Environment.NewLine, lines);
+    }
+
     private async Task RepairModuleAsync(NymphModuleViewModel? module)
     {
         if (module is null || !module.CanRepair || IsBusy)
@@ -3861,11 +3905,33 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         var actionLabel = string.IsNullOrWhiteSpace(actionGroup.SubmitLabel)
             ? actionGroup.Title
             : actionGroup.SubmitLabel;
+        var agreementFields = actionGroup.Fields
+            .Where(field => field.IsAgreementField && !field.Optional)
+            .ToArray();
+        if (agreementFields.Length > 0)
+        {
+            var confirmation = MessageBox.Show(
+                BuildModuleActionAgreementPrompt(module, actionGroup, actionLabel),
+                $"{module.Name} Terms",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Warning);
+            if (confirmation != MessageBoxResult.Yes)
+            {
+                AppendActivity($"{module.Name} {actionLabel} cancelled.");
+                return;
+            }
+
+            foreach (var field in agreementFields)
+            {
+                field.IsChecked = true;
+            }
+        }
+
         if (!actionGroup.CanSubmit)
         {
             SetModuleActionFeedback(
                 $"{module.Name}: {actionLabel} needs attention",
-                "Tick the required acknowledgement before running this action.");
+                "Complete the required fields before running this action.");
             return;
         }
 
