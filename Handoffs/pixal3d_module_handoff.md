@@ -3010,3 +3010,106 @@ Research spike acceptance:
   smoke passes. Do not accept SDPA fallback for Pixal3D.
 - Verify WebP vs non-WebP GLB texture import in target Blender.
 - Measure VRAM for low_vram 1024 and standard 1536 on the user's actual GPU.
+
+## Session Addendum 2026-05-19
+
+Primary goal is still Pixal3D as a NymphsCore module first. Blender addon work
+comes after local module/Gradio/API tests are boring.
+
+Current pushed Pixal3D module state:
+
+- Repo: `/home/nymph/Pixal3D`, branch `master`.
+- Latest pushed commit: `24ba044 Report Pixal3D model download progress`.
+- Previous important commits:
+  - `1c37198 Use Gradio as Pixal3D module UI`
+  - `0239136 Add conventional Pixal3D Gradio action wrapper`
+  - `7646a85 Require acknowledgement for Pixal3D fetch UI`
+- `nymph.json` exposes:
+  - `manager_ui.type=local_url`
+  - Gradio URL `http://127.0.0.1:8097`
+  - API URL `http://127.0.0.1:8096`
+  - `start_action=open_gradio`
+  - model fetch action group with Hugging Face token field, profile select,
+    and required `license_ack` checkbox.
+- Fetch script now prints Manager-friendly progress:
+  - `MODEL DOWNLOAD STARTED step=1/4 ...`
+  - `MODEL DOWNLOAD COMPLETE step=1/4 ...`
+  - final `MODEL DOWNLOAD COMPLETE phase=all status=complete`
+- Do not record or commit user Hugging Face tokens.
+
+Current local Pixal3D status at handoff:
+
+```text
+installed=true
+runtime_present=true
+data_present=true
+version=0.1.0
+env_ready=true
+adapter_ready=true
+runtime_ready=true
+models_ready=true
+aux_models_ready=true
+running=true
+api_running=true
+gradio_running=true
+state=running
+health=ok
+url=http://127.0.0.1:8096
+frontend_url=http://127.0.0.1:8097
+profile=low_vram_1024
+low_vram=1
+resolution=1024
+```
+
+Current model cache evidence:
+
+```text
+$HOME/NymphsData/cache/huggingface/models--TencentARC--Pixal3D
+$HOME/NymphsData/cache/huggingface/models--Ruicheng--moge-2-vitl
+$HOME/NymphsData/cache/huggingface/models--camenduru--dinov3-vitl16-pretrain-lvd1689m
+$HOME/NymphsData/cache/huggingface/models--briaai--RMBG-2.0
+```
+
+Current pushed NymphsCore Manager state relevant to Pixal3D:
+
+- Repo: `/home/nymph/NymphsCore`, branch `main`.
+- Pixal3D progress commit: `1860c98 Show Pixal3D fetch progress in Manager`.
+- Terms prompt trimming commit: `db94e94 Trim gated action terms prompt`.
+- Local URL module UI commit: `894790e Support started local URL module UIs`.
+- Installed manifest direct-action commit:
+  `8f6a342 Run installed manifest module actions directly`.
+- Gated action terms commit: `b263637 Show terms before gated module actions`.
+- Manager release artifacts were rebuilt after these changes.
+- The module standard doc now includes the base runtime dependency floor and
+  registry installer base-tool enforcement.
+
+Brain detour summary, so the next session does not get lost:
+
+- Brain was accidentally tested while the Pixal3D thread was active.
+- Brain repo `/home/nymph/NymphsModules/brain` pushed:
+  `13f0092 Self-heal Brain base dependencies`.
+- NymphsCore pushed:
+  - `5ce207d Enforce module installer base tools`
+  - `887a729 Restore packaged registry installer executable bit`
+- Brain local status at handoff reports `installed=true`, `state=installed`,
+  `health=ok`, but services are not running.
+- This detour should not block Pixal3D work.
+
+Current dirty worktree warning:
+
+- `NymphsCore` has user/other-agent HTML/wiki work in progress. Do not touch or
+  stage those files unless explicitly asked.
+- At handoff, visible dirty entries included `tmp/`; earlier HTML/wiki files
+  were also being worked by another agent.
+
+Next Pixal3D steps:
+
+1. Reopen the rebuilt Manager and confirm Pixal3D card/detail state shows
+   installed/running/models ready.
+2. Open Pixal3D Gradio from the module detail page in Manager WebView2.
+3. Run a Gradio local image-to-GLB test with the low VRAM 1024 profile.
+4. Run Pixal3D smoke test from Manager and capture the exact output.
+5. Test `Start API`, `/server_info`, `/health`, and one real generation request
+   outside Blender before touching the addon.
+6. Only after module API and Gradio are proven, wire/test Blender addon
+   selection for Pixal3D.
