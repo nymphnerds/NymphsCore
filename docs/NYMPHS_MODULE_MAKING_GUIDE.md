@@ -190,6 +190,9 @@ Installed state and health have separate owners:
   `Available`, or `Repair needed`.
 - Module-owned `status` output owns live health such as `Model download needed`,
   `Ready`, `Running`, `Needs assets`, and status-warning details.
+- Marker retry and repair-candidate probes must never downgrade or flatten a
+  richer installed status that already came from the module-owned `status`
+  script.
 - Installed manifest/control refresh may update buttons, fields, links, and
   hosted UI metadata only. It must not overwrite the current health label,
   status brush, detail text, or model-readiness state.
@@ -1299,6 +1302,7 @@ fast marker scan may promote Available -> Installed
 status may promote Available -> Installed
 status may add health/detail warnings
 status must not demote marker-installed modules to Available
+deferred marker/repair probes must not overwrite richer status labels
 ```
 
 If the fast marker scan times out, a deferred marker-only retry is allowed. That

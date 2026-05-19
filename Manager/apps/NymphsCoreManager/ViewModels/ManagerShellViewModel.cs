@@ -1752,20 +1752,19 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
     private async Task RefreshModuleStateAsync()
     {
-        foreach (var module in _allModules)
+        var statusTargets = _allModules
+            .Where(module => !_modulesWithActiveLifecycle.Contains(module.Id))
+            .Where(module => module.IsInstalled || IsRepairStateLabel(module.StateLabel))
+            .ToArray();
+
+        var statusTasks = statusTargets
+            .Select(async module => (Module: module, Snapshot: await RunModuleStatusSnapshotAsync(module).ConfigureAwait(true)))
+            .ToArray();
+
+        var statusResults = await Task.WhenAll(statusTasks).ConfigureAwait(true);
+        foreach (var result in statusResults)
         {
-            if (_modulesWithActiveLifecycle.Contains(module.Id))
-            {
-                continue;
-            }
-
-            if (!module.IsInstalled && !IsRepairStateLabel(module.StateLabel))
-            {
-                continue;
-            }
-
-            var snapshot = await RunModuleStatusSnapshotAsync(module).ConfigureAwait(true);
-            ApplyModuleSnapshot(module, snapshot);
+            ApplyModuleSnapshot(result.Module, result.Snapshot);
         }
 
         RebuildModuleCollections();
@@ -2418,6 +2417,12 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
             if (markerProbes.TryGetValue(module.Id, out probe) && probe.RepairCandidatePresent)
             {
+                if (module.IsInstalled)
+                {
+                    RefreshInstalledModuleUiInfo(module);
+                    continue;
+                }
+
                 module.ApplyState(
                     isInstalled: false,
                     isRunning: false,
@@ -2432,6 +2437,12 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
             if (!markMissingAsAvailable)
             {
+                continue;
+            }
+
+            if (module.IsInstalled)
+            {
+                RefreshInstalledModuleUiInfo(module);
                 continue;
             }
 
