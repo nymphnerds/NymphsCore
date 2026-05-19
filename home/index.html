@@ -711,6 +711,12 @@
     display: block;
   }
 
+  .wiki-figure-pair.is-muted-warning img {
+    filter: hue-rotate(148deg) saturate(0.42) brightness(0.78) contrast(0.92);
+    opacity: 0.9;
+    border-color: rgba(85,223,240,0.28);
+  }
+
   .wiki-figure figcaption {
     color: #777;
     font-family: var(--font-mono);
@@ -1391,7 +1397,7 @@
           <li>Run <code>NymphsCoreManager.exe</code> from the extracted folder.</li>
           <li>If Windows SmartScreen appears, use <code>More info</code>, then <code>Run anyway</code>.</li>
         </ul>
-        <div class="wiki-figure-pair">
+        <div class="wiki-figure-pair is-muted-warning">
           <figure class="wiki-figure">
             <img src="assets/wiki/manager-smartscreen-more-info.png" alt="Windows SmartScreen warning with More info link">
             <figcaption>Choose <code>More info</code>.</figcaption>
@@ -1570,7 +1576,7 @@
         <p>When enabled, Brain exposes the wrapper through MCP on <code>http://127.0.0.1:8100/servers/llm-wrapper/mcp</code> and through mcpo/OpenAPI on <code>http://127.0.0.1:8099/llm-wrapper</code>. Open WebUI can then see it as a Brain tool route alongside filesystem, memory, web-forager, and context7.</p>
         <figure class="brain-flowchart">
           <figcaption>// wrapper request flow</figcaption>
-          <svg class="brain-flow-svg" viewBox="0 0 724 320" role="img" aria-labelledby="brain-flow-title brain-flow-desc">
+          <svg class="brain-flow-svg" viewBox="0 0 724 250" role="img" aria-labelledby="brain-flow-title brain-flow-desc">
             <title id="brain-flow-title">Brain llm-wrapper request flow</title>
             <desc id="brain-flow-desc">A flowchart showing local Brain prompts, optional llm_call delegation through MCP port 8100, cached llm-wrapper responses, OpenRouter misses, and return to the local model.</desc>
             <defs>
@@ -1579,55 +1585,55 @@
               </marker>
             </defs>
             <g>
-              <rect class="flow-box blue" x="18" y="128" width="112" height="36" rx="5"></rect>
-              <text class="flow-text flow-blue" x="74" y="151" text-anchor="middle">Client / WebUI</text>
+              <rect class="flow-box blue" x="18" y="88" width="112" height="34" rx="5"></rect>
+              <text class="flow-text flow-blue" x="74" y="110" text-anchor="middle">Client / WebUI</text>
 
-              <path class="flow-line" marker-end="url(#brain-flow-arrow)" d="M 130 146 L 148 146"></path>
+              <path class="flow-line" marker-end="url(#brain-flow-arrow)" d="M 130 105 L 150 105"></path>
 
-              <polygon class="flow-diamond lime" points="216,78 284,146 216,214 148,146"></polygon>
-              <text class="flow-text" x="216" y="141" text-anchor="middle">Local Brain</text>
-              <text class="flow-subtext flow-lime" x="216" y="161" text-anchor="middle">llama-server :8000</text>
+              <polygon class="flow-diamond lime" points="218,42 282,105 218,168 154,105"></polygon>
+              <text class="flow-text" x="218" y="100" text-anchor="middle">Local Brain</text>
+              <text class="flow-subtext flow-lime" x="218" y="119" text-anchor="middle">llama-server :8000</text>
 
-              <rect class="flow-label-box" x="318" y="34" width="104" height="19" rx="3"></rect>
-              <text class="flow-label-text" x="370" y="48" text-anchor="middle">// most prompts</text>
-              <path class="flow-line" marker-end="url(#brain-flow-arrow)" d="M 264 100 C 288 72 306 62 332 62"></path>
-              <rect class="flow-box lime" x="332" y="52" width="120" height="36" rx="5"></rect>
-              <text class="flow-text flow-lime" x="392" y="75" text-anchor="middle">Handle locally</text>
-              <path class="flow-line" marker-end="url(#brain-flow-arrow)" d="M 452 70 L 480 70"></path>
-              <rect class="flow-box lime" x="480" y="52" width="132" height="36" rx="5"></rect>
-              <text class="flow-text flow-lime" x="546" y="75" text-anchor="middle">Private answer</text>
+              <rect class="flow-label-box" x="330" y="8" width="104" height="18" rx="3"></rect>
+              <text class="flow-label-text" x="382" y="21" text-anchor="middle">// most prompts</text>
+              <path class="flow-line" marker-end="url(#brain-flow-arrow)" d="M 262 62 C 288 32 315 30 346 34"></path>
+              <rect class="flow-box lime" x="346" y="32" width="122" height="34" rx="5"></rect>
+              <text class="flow-text flow-lime" x="407" y="54" text-anchor="middle">Handle locally</text>
+              <path class="flow-line" marker-end="url(#brain-flow-arrow)" d="M 468 49 L 506 49"></path>
+              <rect class="flow-box lime" x="506" y="32" width="154" height="34" rx="5"></rect>
+              <text class="flow-text flow-lime" x="583" y="54" text-anchor="middle">Private answer</text>
 
-              <rect class="flow-label-box" x="306" y="116" width="98" height="19" rx="3"></rect>
-              <text class="flow-label-text" x="355" y="130" text-anchor="middle">// hard prompt</text>
-              <path class="flow-line" marker-end="url(#brain-flow-arrow)" d="M 284 146 L 318 146"></path>
-              <rect class="flow-box" x="318" y="128" width="88" height="36" rx="5"></rect>
-              <text class="flow-text" x="362" y="151" text-anchor="middle">llm_call</text>
+              <rect class="flow-label-box" x="300" y="80" width="98" height="18" rx="3"></rect>
+              <text class="flow-label-text" x="349" y="93" text-anchor="middle">// hard prompt</text>
+              <path class="flow-line" marker-end="url(#brain-flow-arrow)" d="M 282 105 L 316 105"></path>
+              <rect class="flow-box" x="316" y="88" width="88" height="34" rx="5"></rect>
+              <text class="flow-text" x="360" y="110" text-anchor="middle">llm_call</text>
 
-              <path class="flow-line" marker-end="url(#brain-flow-arrow)" d="M 406 146 L 434 146"></path>
-              <rect class="flow-box blue" x="434" y="128" width="116" height="36" rx="5"></rect>
-              <text class="flow-text flow-blue" x="492" y="151" text-anchor="middle">MCP 8100</text>
+              <path class="flow-line" marker-end="url(#brain-flow-arrow)" d="M 404 105 L 436 105"></path>
+              <rect class="flow-box blue" x="436" y="88" width="112" height="34" rx="5"></rect>
+              <text class="flow-text flow-blue" x="492" y="110" text-anchor="middle">MCP 8100</text>
 
-              <path class="flow-line" marker-end="url(#brain-flow-arrow)" d="M 550 146 L 574 146"></path>
-              <polygon class="flow-diamond pink" points="630,90 686,146 630,202 574,146"></polygon>
-              <text class="flow-text flow-pink" x="630" y="141" text-anchor="middle">cached</text>
-              <text class="flow-text flow-pink" x="630" y="160" text-anchor="middle">wrapper</text>
+              <path class="flow-line" marker-end="url(#brain-flow-arrow)" d="M 548 105 L 580 105"></path>
+              <polygon class="flow-diamond pink" points="636,52 688,105 636,158 584,105"></polygon>
+              <text class="flow-text flow-pink" x="636" y="101" text-anchor="middle">cached</text>
+              <text class="flow-text flow-pink" x="636" y="119" text-anchor="middle">wrapper</text>
 
-              <rect class="flow-label-box" x="384" y="202" width="92" height="19" rx="3"></rect>
-              <text class="flow-label-text" x="430" y="216" text-anchor="middle">// cache hit</text>
-              <path class="flow-line" marker-end="url(#brain-flow-arrow)" d="M 590 184 C 552 218 504 229 466 230"></path>
-              <rect class="flow-box lime" x="342" y="222" width="122" height="36" rx="5"></rect>
-              <text class="flow-text flow-lime" x="403" y="245" text-anchor="middle">Return cache</text>
+              <rect class="flow-label-box" x="404" y="144" width="92" height="18" rx="3"></rect>
+              <text class="flow-label-text" x="450" y="157" text-anchor="middle">// cache hit</text>
+              <path class="flow-line" marker-end="url(#brain-flow-arrow)" d="M 600 142 C 560 176 512 182 468 182"></path>
+              <rect class="flow-box lime" x="346" y="166" width="122" height="34" rx="5"></rect>
+              <text class="flow-text flow-lime" x="407" y="188" text-anchor="middle">Return cache</text>
 
-              <rect class="flow-label-box" x="548" y="202" width="98" height="19" rx="3"></rect>
-              <text class="flow-label-text" x="597" y="216" text-anchor="middle">// cache miss</text>
-              <path class="flow-line" marker-end="url(#brain-flow-arrow)" d="M 630 202 L 630 222"></path>
-              <rect class="flow-box orange" x="574" y="222" width="112" height="36" rx="5"></rect>
-              <text class="flow-text flow-accent" x="630" y="245" text-anchor="middle">OpenRouter</text>
+              <rect class="flow-label-box" x="588" y="144" width="98" height="18" rx="3"></rect>
+              <text class="flow-label-text" x="637" y="157" text-anchor="middle">// cache miss</text>
+              <path class="flow-line" marker-end="url(#brain-flow-arrow)" d="M 636 158 L 636 176"></path>
+              <rect class="flow-box orange" x="580" y="176" width="112" height="34" rx="5"></rect>
+              <text class="flow-text flow-accent" x="636" y="198" text-anchor="middle">OpenRouter</text>
 
-              <path class="flow-line" marker-end="url(#brain-flow-arrow)" d="M 403 258 L 403 280"></path>
-              <path class="flow-line" marker-end="url(#brain-flow-arrow)" d="M 630 258 C 606 280 560 290 526 290"></path>
-              <rect class="flow-box" x="403" y="280" width="146" height="36" rx="5"></rect>
-              <text class="flow-text" x="476" y="303" text-anchor="middle">Brain uses answer</text>
+              <path class="flow-line" marker-end="url(#brain-flow-arrow)" d="M 407 200 L 407 222"></path>
+              <path class="flow-line" marker-end="url(#brain-flow-arrow)" d="M 636 210 C 610 232 560 238 524 238"></path>
+              <rect class="flow-box" x="407" y="216" width="146" height="34" rx="5"></rect>
+              <text class="flow-text" x="480" y="238" text-anchor="middle">Brain uses answer</text>
             </g>
           </svg>
         </figure>
