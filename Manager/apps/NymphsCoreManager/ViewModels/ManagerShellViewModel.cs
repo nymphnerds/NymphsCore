@@ -2067,9 +2067,50 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         _deleteModuleCommand.RaiseCanExecuteChanged();
         if (DisplayedModule is not null && string.Equals(DisplayedModule.Id, module.Id, StringComparison.OrdinalIgnoreCase))
         {
+            ClearCompletedModelActionProgress(module, snapshot, modelDownloadNeeded, trainingAssetsNeeded);
             RefreshDisplayedModuleActionState();
             SetModuleDetailPaneFeedback(module);
         }
+    }
+
+    private void ClearCompletedModelActionProgress(
+        NymphModuleViewModel module,
+        NymphStatusSnapshot snapshot,
+        bool modelDownloadNeeded,
+        bool trainingAssetsNeeded)
+    {
+        if (!IsModuleDetailProgressActive(module))
+        {
+            return;
+        }
+
+        if (!ModuleActionFeedbackTitle.Contains(module.Name, StringComparison.OrdinalIgnoreCase) ||
+            (!ModuleActionFeedbackTitle.Contains("Fetch Models", StringComparison.OrdinalIgnoreCase) &&
+             !ModuleActionFeedbackTitle.Contains("Manage Models", StringComparison.OrdinalIgnoreCase)))
+        {
+            return;
+        }
+
+        var modelsReady = !modelDownloadNeeded &&
+            !trainingAssetsNeeded &&
+            !IsFalseishStatusValue(snapshot.Get("models_ready")) &&
+            !IsFalseishStatusValue(snapshot.Get("aux_models_ready")) &&
+            !IsFalseishStatusValue(snapshot.Get("assets_ready"));
+        if (!snapshot.IsInstalled || !modelsReady)
+        {
+            return;
+        }
+
+        EndModuleDetailProgress(module);
+        ClearStickyModuleActionFeedback();
+        if (StatusMessage.Contains(module.Name, StringComparison.OrdinalIgnoreCase) &&
+            StatusMessage.Contains("Running", StringComparison.OrdinalIgnoreCase))
+        {
+            IsBusy = false;
+            StatusMessage = $"{module.Name} model state refreshed.";
+        }
+
+        AppendActivity($"{module.Name} stale model action progress cleared after status reported ready.");
     }
 
     private static bool IsNormalUnavailableModuleStatus(string? message)
