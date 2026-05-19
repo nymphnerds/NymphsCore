@@ -1759,6 +1759,11 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                 continue;
             }
 
+            if (!module.IsInstalled && !IsRepairStateLabel(module.StateLabel))
+            {
+                continue;
+            }
+
             var snapshot = await RunModuleStatusSnapshotAsync(module).ConfigureAwait(true);
             ApplyModuleSnapshot(module, snapshot);
         }
@@ -2392,6 +2397,12 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
             if (markerProbes.TryGetValue(module.Id, out var probe) && probe.MarkerPresent)
             {
+                if (module.IsInstalled && !ShouldMarkerProbeOverwriteInstalledState(module, markMissingAsAvailable))
+                {
+                    RefreshInstalledModuleUiInfo(module);
+                    continue;
+                }
+
                 module.ApplyState(
                     isInstalled: true,
                     isRunning: false,
@@ -2436,6 +2447,35 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         }
 
         return changed;
+    }
+
+    private static bool ShouldMarkerProbeOverwriteInstalledState(NymphModuleViewModel module, bool initialMarkerScan)
+    {
+        if (!module.IsInstalled)
+        {
+            return true;
+        }
+
+        if (!initialMarkerScan)
+        {
+            return false;
+        }
+
+        return IsCoarseMarkerStateLabel(module.StateLabel);
+    }
+
+    private static bool IsCoarseMarkerStateLabel(string? stateLabel)
+    {
+        return string.IsNullOrWhiteSpace(stateLabel) ||
+               string.Equals(stateLabel, "Available", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(stateLabel, "Installed", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(stateLabel, "Not detected", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsRepairStateLabel(string? stateLabel)
+    {
+        return !string.IsNullOrWhiteSpace(stateLabel) &&
+               stateLabel.Contains("repair", StringComparison.OrdinalIgnoreCase);
     }
 
     private string GetInstalledModuleVersionLabel(string moduleId, bool isInstalled)
