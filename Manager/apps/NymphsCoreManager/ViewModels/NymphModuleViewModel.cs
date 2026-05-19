@@ -32,6 +32,7 @@ public sealed class NymphModuleViewModel : ViewModelBase
         string kind,
         string packaging,
         string description,
+        string installRoot,
         string installPath,
         string accentBrush,
         IReadOnlyList<string> capabilities,
@@ -48,6 +49,7 @@ public sealed class NymphModuleViewModel : ViewModelBase
         Kind = kind;
         Packaging = packaging;
         Description = description;
+        InstallRoot = installRoot;
         InstallPath = installPath;
         AccentBrush = accentBrush;
         Capabilities = capabilities;
@@ -71,6 +73,8 @@ public sealed class NymphModuleViewModel : ViewModelBase
     public string Packaging { get; }
 
     public string Description { get; }
+
+    public string InstallRoot { get; }
 
     public string InstallPath { get; }
 

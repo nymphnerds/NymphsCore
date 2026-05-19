@@ -1719,6 +1719,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             manifest.Kind,
             manifest.Packaging,
             manifest.Description,
+            ResolveManagedInstallRoot(manifest.InstallRoot, manifest.Id),
             ResolveManagedInstallPath(manifest.InstallRoot, manifest.Id),
             BuildModuleAccent(manifest.Id, index),
             manifest.Capabilities,
@@ -1759,6 +1760,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                 _settings,
                 module.Id,
                 "status",
+                module.InstallRoot,
                 new Progress<string>(_ => { }),
                 statusTimeout.Token).ConfigureAwait(true);
 
@@ -1766,6 +1768,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             var markerVersion = await _workflowService.GetInstalledNymphModuleMarkerVersionAsync(
                 _settings,
                 module.Id,
+                module.InstallRoot,
                 statusTimeout.Token).ConfigureAwait(true);
             if (!snapshot.IsInstalled && !string.IsNullOrWhiteSpace(markerVersion))
             {
@@ -1792,6 +1795,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             var markerVersion = await _workflowService.GetInstalledNymphModuleMarkerVersionAsync(
                 _settings,
                 module.Id,
+                module.InstallRoot,
                 CancellationToken.None).ConfigureAwait(true);
             if (!string.IsNullOrWhiteSpace(markerVersion))
             {
@@ -1830,6 +1834,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             var markerVersion = await _workflowService.GetInstalledNymphModuleMarkerVersionAsync(
                 _settings,
                 module.Id,
+                module.InstallRoot,
                 CancellationToken.None).ConfigureAwait(true);
             if (!string.IsNullOrWhiteSpace(markerVersion))
             {
@@ -2254,8 +2259,8 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
         try
         {
-            module.ApplyInstalledModuleUi(_workflowService.GetCachedInstalledNymphModuleUiInfo(_settings, module.Id));
-            var controls = _workflowService.GetInstalledNymphModuleControls(_settings, module.Id);
+            module.ApplyInstalledModuleUi(_workflowService.GetCachedInstalledNymphModuleUiInfo(_settings, module.Id, module.InstallRoot));
+            var controls = _workflowService.GetInstalledNymphModuleControls(_settings, module.Id, module.InstallRoot);
             if (controls is not null)
             {
                 module.ApplyInstalledModuleControls(controls.Value.ManagerActions, controls.Value.ManagerActionGroups);
@@ -2425,7 +2430,8 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
         try
         {
-            return _workflowService.GetInstalledNymphModuleVersion(_settings, moduleId)
+            var module = _allModules.FirstOrDefault(candidate => string.Equals(candidate.Id, moduleId, StringComparison.OrdinalIgnoreCase));
+            return _workflowService.GetInstalledNymphModuleVersion(_settings, moduleId, module?.InstallRoot)
                 ?? "Manifest not detected";
         }
         catch (Exception ex)
@@ -2782,6 +2788,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                 _settings,
                 module.Id,
                 normalizedAction,
+                module.InstallRoot,
                 args,
                 new Progress<string>(line =>
                 {
@@ -2882,6 +2889,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                 _settings,
                 module.Id,
                 action,
+                module.InstallRoot,
                 args,
                 liveProgress,
                 CancellationToken.None).ConfigureAwait(true);
@@ -3700,6 +3708,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                 _settings,
                 module.Id,
                 normalizedAction,
+                module.InstallRoot,
                 args,
                 environment,
                 liveProgress,
@@ -4061,6 +4070,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                     _settings,
                     module.Id,
                     normalizedAction,
+                    module.InstallRoot,
                     $"{module.Name} - {actionLabel}");
                 StatusMessage = $"{module.Name} {actionLabel} opened in a terminal.";
                 SetModuleActionFeedback(
@@ -4128,6 +4138,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                 _settings,
                 module.Id,
                 normalizedAction,
+                module.InstallRoot,
                 CreateModuleLiveProgress(module, actionLabel, liveLines),
                 CancellationToken.None).ConfigureAwait(true);
 
@@ -4165,6 +4176,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                         _settings,
                         module.Id,
                         "open",
+                        module.InstallRoot,
                         new Progress<string>(AppendActivity),
                         CancellationToken.None).ConfigureAwait(true);
 
@@ -4183,6 +4195,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                         _settings,
                         module.Id,
                         "open",
+                        module.InstallRoot,
                         new Progress<string>(AppendActivity),
                         CancellationToken.None).ConfigureAwait(true);
 
@@ -4952,6 +4965,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             var uninstallOutput = await _workflowService.RunNymphModuleUninstallAsync(
                 _settings,
                 targetId,
+                module.InstallRoot,
                 purge,
                 dataOnly,
                 CreateModuleLiveProgress(module, actionLabel, uninstallLines),
@@ -5467,7 +5481,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         return Path.Combine(parts.ToArray());
     }
 
-    private string ResolveManagedInstallPath(string installRoot, string moduleId)
+    private string ResolveManagedInstallRoot(string installRoot, string moduleId)
     {
         var normalized = string.IsNullOrWhiteSpace(installRoot)
             ? $"$HOME/{moduleId}"
@@ -5489,7 +5503,17 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         {
             normalized = $"/home/{_settings.LinuxUser}";
         }
+        else if (!normalized.StartsWith("/", StringComparison.Ordinal))
+        {
+            normalized = $"/home/{_settings.LinuxUser}/{normalized.TrimStart('/')}";
+        }
 
+        return normalized;
+    }
+
+    private string ResolveManagedInstallPath(string installRoot, string moduleId)
+    {
+        var normalized = ResolveManagedInstallRoot(installRoot, moduleId);
         var segments = normalized
             .TrimStart('/')
             .Split('/', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);

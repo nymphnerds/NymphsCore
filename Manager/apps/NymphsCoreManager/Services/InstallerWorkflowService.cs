@@ -4069,6 +4069,7 @@ meta:
         InstallSettings settings,
         string moduleId,
         string action,
+        string? manifestInstallRoot,
         string title)
     {
         if (string.IsNullOrWhiteSpace(moduleId))
@@ -4089,14 +4090,16 @@ meta:
             throw new ArgumentException("Unsupported module terminal action.");
         }
 
-        var installRoot = GetNymphModuleInstallRoot(settings, normalizedModuleId);
-        var entrypoint = ResolveInstalledNymphModuleActionEntrypoint(settings, normalizedModuleId, normalizedAction);
+        var installRoot = ResolveNymphModuleInstallRoot(settings, normalizedModuleId, manifestInstallRoot);
+        var entrypoint = ResolveInstalledNymphModuleActionEntrypoint(settings, normalizedModuleId, normalizedAction, manifestInstallRoot);
         if (string.IsNullOrWhiteSpace(entrypoint))
         {
             throw new InvalidOperationException($"Installed module action is not declared: {normalizedModuleId}/{normalizedAction}");
         }
 
-        var actionPath = $"{installRoot}/{entrypoint}";
+        var actionPath = GetNymphModuleInstallRootCandidates(settings, normalizedModuleId, manifestInstallRoot)
+            .Select(root => $"{root}/{entrypoint}")
+            .FirstOrDefault(candidate => File.Exists(ToWindowsWslPath(settings, candidate))) ?? $"{installRoot}/{entrypoint}";
         if (!File.Exists(ToWindowsWslPath(settings, actionPath)))
         {
             throw new FileNotFoundException($"Installed module action script is missing: {actionPath}");
@@ -4514,7 +4517,8 @@ meta:
     {
         using var remoteManifest = await FetchJsonDocumentAsync(manifestUrl, cancellationToken).ConfigureAwait(false);
         var remoteVersion = GetJsonString(remoteManifest.RootElement, "version");
-        var installedVersion = ReadInstalledModuleVersion(settings, moduleId);
+        var manifestInstallRoot = GetManifestInstallRoot(remoteManifest.RootElement);
+        var installedVersion = ReadInstalledModuleVersion(settings, moduleId, manifestInstallRoot);
         var hasUpdate = IsRemoteVersionNewer(installedVersion, remoteVersion);
         var detail = hasUpdate
             ? $"{moduleId}: update available {installedVersion ?? "unknown"} -> {remoteVersion ?? "unknown"}"
@@ -4523,20 +4527,18 @@ meta:
         return new NymphModuleUpdateInfo(moduleId, installedVersion, remoteVersion, hasUpdate, detail);
     }
 
-    public string? GetInstalledNymphModuleVersion(InstallSettings settings, string moduleId)
+    public string? GetInstalledNymphModuleVersion(InstallSettings settings, string moduleId, string? manifestInstallRoot = null)
     {
-        return ReadInstalledModuleVersion(settings, moduleId);
+        return ReadInstalledModuleVersion(settings, moduleId, manifestInstallRoot);
     }
 
-    public string? GetInstalledNymphModuleMarkerVersion(InstallSettings settings, string moduleId)
+    public string? GetInstalledNymphModuleMarkerVersion(InstallSettings settings, string moduleId, string? manifestInstallRoot = null)
     {
         var normalizedModuleId = moduleId.Trim().ToLowerInvariant();
-        var installRoot = GetNymphModuleInstallRoot(settings, normalizedModuleId);
-        var markerCandidates = new[]
-        {
-            ToWindowsWslPath(settings, $"{installRoot}/.nymph-module-version"),
-            ToWindowsWslPath(settings, $"/home/{settings.LinuxUser}/{normalizedModuleId}/.nymph-module-version"),
-        };
+        var markerCandidates = GetNymphModuleInstallRootCandidates(settings, normalizedModuleId, manifestInstallRoot)
+            .Select(root => ToWindowsWslPath(settings, $"{root}/.nymph-module-version"))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
 
         foreach (var markerPath in markerCandidates)
         {
@@ -4562,22 +4564,24 @@ meta:
     public async Task<string?> GetInstalledNymphModuleMarkerVersionAsync(
         InstallSettings settings,
         string moduleId,
+        string? manifestInstallRoot,
         CancellationToken cancellationToken)
     {
-        var directMarkerVersion = GetInstalledNymphModuleMarkerVersion(settings, moduleId);
+        var directMarkerVersion = GetInstalledNymphModuleMarkerVersion(settings, moduleId, manifestInstallRoot);
         if (!string.IsNullOrWhiteSpace(directMarkerVersion))
         {
             return directMarkerVersion;
         }
 
         var normalizedModuleId = moduleId.Trim().ToLowerInvariant();
-        var installRoot = GetNymphModuleInstallRoot(settings, normalizedModuleId);
-        var fallbackRoot = $"/home/{settings.LinuxUser}/{normalizedModuleId}";
+        var markerCandidates = GetNymphModuleInstallRootCandidates(settings, normalizedModuleId, manifestInstallRoot)
+            .Select(root => $"{root}/.nymph-module-version")
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
         var bashCommand =
             "set -euo pipefail; " +
             "for marker in " +
-            $"{ToBashSingleQuoted($"{installRoot}/.nymph-module-version")} " +
-            $"{ToBashSingleQuoted($"{fallbackRoot}/.nymph-module-version")}; do " +
+            $"{string.Join(" ", markerCandidates.Select(ToBashSingleQuoted))}; do " +
             "  if [[ -f \"$marker\" ]]; then head -n 1 \"$marker\"; exit 0; fi; " +
             "done; " +
             "exit 0";
@@ -5477,6 +5481,25 @@ meta:
         IProgress<string> progress,
         CancellationToken cancellationToken)
     {
+        return await RunNymphModuleUninstallAsync(
+            settings,
+            moduleId,
+            manifestInstallRoot: null,
+            purge,
+            dataOnly,
+            progress,
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task<string> RunNymphModuleUninstallAsync(
+        InstallSettings settings,
+        string moduleId,
+        string? manifestInstallRoot,
+        bool purge,
+        bool dataOnly,
+        IProgress<string> progress,
+        CancellationToken cancellationToken)
+    {
         if (string.IsNullOrWhiteSpace(moduleId))
         {
             throw new ArgumentException("Module id is required.", nameof(moduleId));
@@ -5484,7 +5507,7 @@ meta:
 
         var normalizedModuleId = moduleId.Trim().ToLowerInvariant();
         var stagedUninstallScriptPath = $"/tmp/nymphs-manager-uninstall-{normalizedModuleId}.sh";
-        var installRoot = GetNymphModuleInstallRoot(settings, normalizedModuleId);
+        var installRoot = ResolveNymphModuleInstallRoot(settings, normalizedModuleId, manifestInstallRoot);
 
         var scriptArguments = new List<string>
         {
@@ -5584,6 +5607,35 @@ meta:
         }
 
         return normalized;
+    }
+
+    private static IReadOnlyList<string> GetNymphModuleInstallRootCandidates(
+        InstallSettings settings,
+        string normalizedModuleId,
+        string? manifestInstallRoot)
+    {
+        var candidates = new[]
+        {
+            ResolveNymphModuleInstallRoot(settings, normalizedModuleId, manifestInstallRoot),
+            GetNymphModuleInstallRoot(settings, normalizedModuleId),
+            $"/home/{settings.LinuxUser}/{normalizedModuleId}",
+        };
+
+        return candidates
+            .Where(root => !string.IsNullOrWhiteSpace(root))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+    }
+
+    private static string? GetManifestInstallRoot(JsonElement root)
+    {
+        if (!root.TryGetProperty("install", out var installElement) ||
+            installElement.ValueKind != JsonValueKind.Object)
+        {
+            return null;
+        }
+
+        return GetJsonString(installElement, "root");
     }
 
     private async Task<bool> WslPathExistsAsync(
@@ -5696,7 +5748,7 @@ meta:
         }
     }
 
-    public InstalledNymphModuleUiInfo? GetInstalledNymphModuleUiInfo(InstallSettings settings, string moduleId)
+    public InstalledNymphModuleUiInfo? GetInstalledNymphModuleUiInfo(InstallSettings settings, string moduleId, string? manifestInstallRoot = null)
     {
         if (string.IsNullOrWhiteSpace(moduleId))
         {
@@ -5704,15 +5756,15 @@ meta:
         }
 
         var normalizedModuleId = moduleId.Trim().ToLowerInvariant();
-        var installRoot = GetNymphModuleInstallRoot(settings, normalizedModuleId);
-        var installRootWindowsPath = ToWindowsWslPath(settings, installRoot);
-        var manifestPath = Path.Combine(installRootWindowsPath, "nymph.json");
-        var versionMarkerPath = Path.Combine(installRootWindowsPath, ".nymph-module-version");
-
-        if (!File.Exists(versionMarkerPath))
+        var installRoot = GetNymphModuleInstallRootCandidates(settings, normalizedModuleId, manifestInstallRoot)
+            .FirstOrDefault(root => File.Exists(ToWindowsWslPath(settings, $"{root}/.nymph-module-version")));
+        if (string.IsNullOrWhiteSpace(installRoot))
         {
             return null;
         }
+
+        var installRootWindowsPath = ToWindowsWslPath(settings, installRoot);
+        var manifestPath = Path.Combine(installRootWindowsPath, "nymph.json");
 
         var manifestSourcePath = manifestPath;
         if (!File.Exists(manifestSourcePath))
@@ -5814,7 +5866,8 @@ meta:
 
     public (IReadOnlyList<NymphModuleActionInfo> ManagerActions, IReadOnlyList<NymphModuleActionGroupInfo> ManagerActionGroups)? GetInstalledNymphModuleControls(
         InstallSettings settings,
-        string moduleId)
+        string moduleId,
+        string? manifestInstallRoot = null)
     {
         if (string.IsNullOrWhiteSpace(moduleId))
         {
@@ -5822,7 +5875,7 @@ meta:
         }
 
         var normalizedModuleId = moduleId.Trim().ToLowerInvariant();
-        foreach (var manifestPath in GetInstalledNymphModuleManifestCandidatePaths(settings, normalizedModuleId))
+        foreach (var manifestPath in GetInstalledNymphModuleManifestCandidatePaths(settings, normalizedModuleId, manifestInstallRoot))
         {
             try
             {
@@ -5849,9 +5902,9 @@ meta:
         return null;
     }
 
-    public InstalledNymphModuleUiInfo? GetCachedInstalledNymphModuleUiInfo(InstallSettings settings, string moduleId)
+    public InstalledNymphModuleUiInfo? GetCachedInstalledNymphModuleUiInfo(InstallSettings settings, string moduleId, string? manifestInstallRoot = null)
     {
-        var uiInfo = GetInstalledNymphModuleUiInfo(settings, moduleId);
+        var uiInfo = GetInstalledNymphModuleUiInfo(settings, moduleId, manifestInstallRoot);
         if (uiInfo is null)
         {
             return null;
@@ -6031,40 +6084,48 @@ meta:
     private static string ResolveInstalledNymphModuleActionEntrypoint(
         InstallSettings settings,
         string normalizedModuleId,
-        string normalizedAction)
+        string normalizedAction,
+        string? manifestInstallRoot = null)
     {
-        var installRoot = GetNymphModuleInstallRoot(settings, normalizedModuleId);
-        var manifestWindowsPath = ToWindowsWslPath(settings, $"{installRoot}/nymph.json");
-        if (!File.Exists(manifestWindowsPath))
+        foreach (var manifestWindowsPath in GetInstalledNymphModuleManifestCandidatePaths(settings, normalizedModuleId, manifestInstallRoot))
         {
-            return string.Empty;
-        }
-
-        try
-        {
-            using var document = JsonDocument.Parse(File.ReadAllText(manifestWindowsPath));
-            var root = document.RootElement;
-            var entrypoint = "";
-            if (root.TryGetProperty("entrypoints", out var entrypointsElement) &&
-                entrypointsElement.ValueKind == JsonValueKind.Object)
+            if (!File.Exists(manifestWindowsPath))
             {
-                entrypoint = GetJsonString(entrypointsElement, normalizedAction) ?? "";
+                continue;
             }
 
-            var safeEntrypoint = NormalizeSafeRelativeModulePath(entrypoint);
-            if (string.IsNullOrWhiteSpace(safeEntrypoint))
+            try
             {
-                return string.Empty;
-            }
+                using var document = JsonDocument.Parse(File.ReadAllText(manifestWindowsPath));
+                var root = document.RootElement;
+                var entrypoint = "";
+                if (root.TryGetProperty("entrypoints", out var entrypointsElement) &&
+                    entrypointsElement.ValueKind == JsonValueKind.Object)
+                {
+                    entrypoint = GetJsonString(entrypointsElement, normalizedAction) ?? "";
+                }
 
-            return File.Exists(ToWindowsWslPath(settings, $"{installRoot}/{safeEntrypoint}"))
-                ? safeEntrypoint
-                : string.Empty;
+                var safeEntrypoint = NormalizeSafeRelativeModulePath(entrypoint);
+                if (string.IsNullOrWhiteSpace(safeEntrypoint))
+                {
+                    continue;
+                }
+
+                foreach (var installRoot in GetNymphModuleInstallRootCandidates(settings, normalizedModuleId, manifestInstallRoot))
+                {
+                    if (File.Exists(ToWindowsWslPath(settings, $"{installRoot}/{safeEntrypoint}")))
+                    {
+                        return safeEntrypoint;
+                    }
+                }
+            }
+            catch
+            {
+                // Try the next manifest candidate.
+            }
         }
-        catch
-        {
-            return string.Empty;
-        }
+
+        return string.Empty;
     }
 
     private async Task<CommandResult> RunPackagedManagerScriptAsync(
@@ -6208,6 +6269,24 @@ meta:
             settings,
             moduleId,
             action,
+            (string?)null,
+            progress,
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task<string> RunNymphModuleActionAsync(
+        InstallSettings settings,
+        string moduleId,
+        string action,
+        string? manifestInstallRoot,
+        IProgress<string> progress,
+        CancellationToken cancellationToken)
+    {
+        return await RunNymphModuleActionAsync(
+            settings,
+            moduleId,
+            action,
+            manifestInstallRoot,
             [],
             progress,
             cancellationToken).ConfigureAwait(false);
@@ -6225,6 +6304,26 @@ meta:
             settings,
             moduleId,
             action,
+            null,
+            actionArguments,
+            progress,
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task<string> RunNymphModuleActionAsync(
+        InstallSettings settings,
+        string moduleId,
+        string action,
+        string? manifestInstallRoot,
+        IReadOnlyList<string> actionArguments,
+        IProgress<string> progress,
+        CancellationToken cancellationToken)
+    {
+        return await RunNymphModuleActionAsync(
+            settings,
+            moduleId,
+            action,
+            manifestInstallRoot,
             actionArguments,
             new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase),
             progress,
@@ -6235,6 +6334,27 @@ meta:
         InstallSettings settings,
         string moduleId,
         string action,
+        IReadOnlyList<string> actionArguments,
+        IReadOnlyDictionary<string, string> actionEnvironment,
+        IProgress<string> progress,
+        CancellationToken cancellationToken)
+    {
+        return await RunNymphModuleActionAsync(
+            settings,
+            moduleId,
+            action,
+            null,
+            actionArguments,
+            actionEnvironment,
+            progress,
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task<string> RunNymphModuleActionAsync(
+        InstallSettings settings,
+        string moduleId,
+        string action,
+        string? manifestInstallRoot,
         IReadOnlyList<string> actionArguments,
         IReadOnlyDictionary<string, string> actionEnvironment,
         IProgress<string> progress,
@@ -6258,7 +6378,7 @@ meta:
         var actionProcessEnvironment = BuildModuleActionProcessEnvironment(actionEnvironment);
         var normalizedModuleId = moduleId.Trim().ToLowerInvariant();
         var homePath = $"/home/{settings.LinuxUser}";
-        var installRoot = GetNymphModuleInstallRoot(settings, normalizedModuleId);
+        var installRoot = ResolveNymphModuleInstallRoot(settings, normalizedModuleId, manifestInstallRoot);
         var cacheRepo = $"{homePath}/.cache/nymphs-modules/repos/{normalizedModuleId}";
         var moduleWorkRoot = $"{homePath}/.cache/nymphs-modules";
         var manifestPath = $"{cacheRepo}/nymph.json";
@@ -7502,15 +7622,13 @@ meta:
         };
     }
 
-    private static string? ReadInstalledModuleVersion(InstallSettings settings, string moduleId)
+    private static string? ReadInstalledModuleVersion(InstallSettings settings, string moduleId, string? manifestInstallRoot = null)
     {
         var normalizedModuleId = moduleId.Trim().ToLowerInvariant();
-        var installRoot = GetNymphModuleInstallRoot(settings, normalizedModuleId);
-        var markerCandidates = new[]
-        {
-            ToWindowsWslPath(settings, $"{installRoot}/.nymph-module-version"),
-            ToWindowsWslPath(settings, $"/home/{settings.LinuxUser}/{normalizedModuleId}/.nymph-module-version"),
-        };
+        var markerCandidates = GetNymphModuleInstallRootCandidates(settings, normalizedModuleId, manifestInstallRoot)
+            .Select(root => ToWindowsWslPath(settings, $"{root}/.nymph-module-version"))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
 
         foreach (var markerPath in markerCandidates)
         {
@@ -7533,7 +7651,7 @@ meta:
             }
         }
 
-        foreach (var manifestPath in GetInstalledNymphModuleManifestCandidatePaths(settings, normalizedModuleId))
+        foreach (var manifestPath in GetInstalledNymphModuleManifestCandidatePaths(settings, normalizedModuleId, manifestInstallRoot))
         {
             try
             {
@@ -7554,16 +7672,22 @@ meta:
         return null;
     }
 
-    private static IReadOnlyList<string> GetInstalledNymphModuleManifestCandidatePaths(InstallSettings settings, string normalizedModuleId)
+    private static IReadOnlyList<string> GetInstalledNymphModuleManifestCandidatePaths(
+        InstallSettings settings,
+        string normalizedModuleId,
+        string? manifestInstallRoot = null)
     {
-        var installRoot = GetNymphModuleInstallRoot(settings, normalizedModuleId);
-        return
-        [
-            ToWindowsWslPath(settings, $"{installRoot}/nymph.json"),
-            ToWindowsWslPath(settings, $"/home/{settings.LinuxUser}/{normalizedModuleId}/nymph.json"),
-            ToWindowsWslPath(settings, $"/home/{settings.LinuxUser}/.cache/nymphs-modules/repos/{normalizedModuleId}/nymph.json"),
-            ToWindowsWslPath(settings, $"/home/{settings.LinuxUser}/.cache/nymphs-modules/{normalizedModuleId}.nymph.json"),
-        ];
+        var candidates = GetNymphModuleInstallRootCandidates(settings, normalizedModuleId, manifestInstallRoot)
+            .Select(root => ToWindowsWslPath(settings, $"{root}/nymph.json"))
+            .Concat(
+            [
+                ToWindowsWslPath(settings, $"/home/{settings.LinuxUser}/.cache/nymphs-modules/repos/{normalizedModuleId}/nymph.json"),
+                ToWindowsWslPath(settings, $"/home/{settings.LinuxUser}/.cache/nymphs-modules/{normalizedModuleId}.nymph.json"),
+            ]);
+
+        return candidates
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
     }
 
     private static bool IsRemoteVersionNewer(string? installedVersion, string? remoteVersion)
