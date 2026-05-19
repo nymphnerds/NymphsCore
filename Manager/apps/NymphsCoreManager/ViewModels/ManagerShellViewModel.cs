@@ -1910,6 +1910,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         var isLoraModule = string.Equals(module.Id, "lora", StringComparison.OrdinalIgnoreCase);
         var modelDownloadNeeded = snapshot.IsInstalled &&
             (IsFalseishStatusValue(modelsReady) ||
+             IsFalseishStatusValue(snapshot.Get("aux_models_ready")) ||
              IsModelDownloadNeededHealth(snapshot.Health) ||
              HasMissingArtifactList(snapshot.Get("missing_weights")) ||
              HasMissingArtifactList(snapshot.Get("missing_models")));

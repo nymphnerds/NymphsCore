@@ -1399,6 +1399,34 @@ detail=Example module is not installed.
 
 Status must not run old bin wrappers from a partial install when `.nymph-module-version` is missing.
 
+For installed modules that require downloaded model weights, use this standard
+readiness shape whenever required model assets are missing:
+
+```text
+installed=true
+models_ready=false
+state=model_download_needed
+health=model-download-needed
+detail=Model files need downloading. Use Fetch Models to download the required assets.
+```
+
+If the module has auxiliary model bundles, also print an explicit readiness key
+such as `aux_models_ready=false`. The Manager treats either `models_ready=false`
+or `aux_models_ready=false` as `Model download needed`.
+
+Use `state=needs_attention` for broken runtime files, missing Python
+environments, bad wrappers, or failed imports. Do not use `needs_attention` for
+ordinary first-run model downloads; those should be `model_download_needed`.
+
+For training-sidecar modules that need datasets or training assets rather than
+runtime inference weights, use the separate training-assets shape:
+
+```text
+assets_ready=false
+state=needs_assets
+health=assets-needed
+```
+
 ## Action Entrypoints
 
 Common lifecycle actions:
