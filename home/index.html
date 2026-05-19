@@ -1136,7 +1136,7 @@
       <div class="wiki-title">Wiki</div>
       <ul class="wiki-nav">
         <li class="wiki-nav-heading">// What is NymphsCore</li>
-        <li class="wiki-nav-sub"><a href="#wiki-what-is">Overview</a></li>
+        <li class="wiki-nav-sub"><a href="#wiki-what-is">Background</a></li>
         <li class="wiki-nav-sub"><a href="#wiki-local-runtime">Managed Runtime</a></li>
         <li class="wiki-nav-sub"><a href="#wiki-module-system">Modules</a></li>
         <li class="wiki-nav-sub"><a href="#wiki-creative-clients">Creative Clients</a></li>
@@ -1172,9 +1172,13 @@
           <div class="wiki-home-kicker">// local AI pipelines for game devs</div>
         </div>
 
-        <h4>Overview</h4>
-        <p>NymphsCore is the managed local backend for Nymphs creative tools. It brings together the Windows Manager, a dedicated WSL runtime, registry modules, model downloads, service launchers, logs, smoke tests, and repair paths so local AI pipelines can be installed and run without hand-building CUDA, Python, model, and server environments.</p>
-        <p>The system is built around game-development workflows: fast visual direction, local image generation and editing, image-to-3D drafts, texture passes, LoRA training paths, local assistant tooling, and worldbuilding modules. Blender is the first full creative client, but NymphsCore itself is the runtime and module layer underneath it.</p>
+        <h4>Background</h4>
+        <p>NymphsCore started from a very practical frustration: everyone has jumped on the AI bandwagon, and a lot of creative tooling now sits behind metered credits, subscriptions, or token systems. That can be fine for some jobs, but it is a bad fit for messy game-development iteration, where you need to explore, reroll, test, discard, and try again without feeling a counter ticking down every time you chase a better reference, mesh, texture, or idea.</p>
+        <p>For us, that frustration came from a real need to iterate game assets quickly. We wanted to move from idea, to reference image, to draft mesh, to texture direction, to another variation without the whole session turning into setup work or a running bill. Game development is messy by nature: you explore, reroll, test, discard, kitbash, and try again until something finally starts to feel useful.</p>
+        <p>The other route is going fully local through powerful tools like ComfyUI, but that path can become its own technical discipline. The workflows themselves can get complicated fast: node graphs, model folders, custom nodes, CUDA issues, Python environments, launch scripts, ports, logs, and one-off fixes are all real work. For artists and small teams, the point is not to become a backend engineer before making the next prop or character.</p>
+        <p>The reason for NymphsCore is to make local AI pipelines feel like one managed creative system instead of a pile of fragile setup notes. The Windows Manager prepares a dedicated WSL runtime, installs modules, fetches model weights, starts services, checks logs, runs smoke tests, and gives each workflow a repair path. Modules can be added or removed in a few clicks, and new modules or workflows can appear in the Manager when they become available. The artist should be able to focus on the next useful output: a reference image, a draft mesh, a texture pass, a trained LoRA, a worldbuilding note, or a local assistant response.</p>
+        <p>Keeping the work local also keeps private projects private. Prompts, references, experimental characters, client work, unreleased game ideas, and half-formed worlds do not need to be uploaded just to see whether an idea has legs, and they are not quietly used to train someone else's model. As open-weight models keep evolving, NymphsCore is meant to evolve with them: more tried-and-tested backend modules for cutting-edge open-source solutions are already on the roadmap, giving artists a curated way to stay near the edge without rebuilding the whole pipeline every time the next useful model appears.</p>
+        <p>That is why NymphsCore sits underneath the Nymphs creative tools. Blender is the first full client, because it is where a lot of game asset iteration already happens, but the core idea is bigger than one addon: keep the heavy AI stack local, organized, inspectable, and reusable, then bring it into the creative software where the work is already taking place.</p>
 
         <h4 id="wiki-local-runtime">Managed runtime</h4>
         <p>The Manager creates a dedicated <code>NymphsCore</code> WSL distro and Linux user so the AI stack stays isolated from normal Windows installs. That managed runtime is where CUDA support, Python environments, module repos, model caches, launch scripts, and local services live.</p>
