@@ -1479,22 +1479,53 @@
         <p>The module installs an isolated AI Toolkit workspace under <code>~/LoRA</code>, including the beginner <code>Easy LoRA</code> flow, the advanced AI Toolkit UI, queue worker support, dataset folders, job files, logs, and LoRA output folders.</p>
         <div class="wiki-callout">
           <div class="wiki-callout-title">
-            <span>Current Training Flow</span>
+            <span>First-Time Setup</span>
             <span class="wiki-callout-status">Source checked</span>
           </div>
           <div class="wiki-callout-grid">
-            <div class="wiki-callout-row"><span class="wiki-callout-label">First run</span><span><code>Fetch Training Assets</code> downloads or resumes the Z-Image Turbo training model and required training adapter.</span></div>
-            <div class="wiki-callout-row"><span class="wiki-callout-good">Beginner UI</span><span><code>Easy LoRA</code> handles dataset folders, captions, <code>Add Job</code>, <code>Start Job</code>, progress, logs, and finished <code>.safetensors</code> outputs.</span></div>
-            <div class="wiki-callout-row"><span class="wiki-callout-label">Guide</span><span><a href="home/guides/training.html">Z-Image Turbo AI Toolkit LoRA Training Guide</a> walks through the beginner training flow and AI Toolkit reference controls.</span></div>
+            <div class="wiki-callout-row"><span class="wiki-callout-label">Install</span><span>Sets up the local trainer app, AI Toolkit sidecar, local Node 20 runtime, queue support, folders, and module scripts.</span></div>
+            <div class="wiki-callout-row"><span class="wiki-callout-good">Fetch Training Assets</span><span>Downloads or resumes <code>Tongyi-MAI/Z-Image-Turbo</code> and <code>ostris/zimage_turbo_training_adapter</code>. Do this once before the first training run.</span></div>
+            <div class="wiki-callout-row"><span class="wiki-callout-label">Open AI Toolkit</span><span>Launches the advanced upstream AI Toolkit UI on port <code>8675</code>. Most users should start in <code>Easy LoRA</code>.</span></div>
           </div>
         </div>
+        <h4>Easy LoRA workflow</h4>
+        <p><code>Easy LoRA</code> is the beginner training surface inside the Manager. The LoRA name is used for the dataset folder, AI Toolkit job, and finished output name, so keep it short and recognizable.</p>
+        <div class="wiki-callout">
+          <div class="wiki-callout-title">
+            <span>Dataset And Captions</span>
+            <span class="wiki-callout-status">Before Add Job</span>
+          </div>
+          <div class="wiki-callout-grid">
+            <div class="wiki-callout-row"><span class="wiki-callout-label">Open Pictures Folder</span><span>Opens the dataset folder for the current LoRA name. Put the training images for this run there.</span></div>
+            <div class="wiki-callout-row"><span class="wiki-callout-label">Open Draft CSV</span><span>Opens <code>metadata.csv</code>. <code>Add Job</code> mirrors those captions into per-image <code>.txt</code> files for AI Toolkit.</span></div>
+            <div class="wiki-callout-row"><span class="wiki-callout-good">Caption with Brain</span><span>Can draft editable captions when Brain is installed and a compatible local vision model is configured. <code>Fill Blank Only</code> preserves existing captions; <code>Overwrite All Drafts</code> regenerates draft rows.</span></div>
+          </div>
+        </div>
+        <h4>Training controls</h4>
         <ul>
-          <li><code>Fetch Training Assets</code> downloads the large Z-Image Turbo training model and <code>ostris/zimage_turbo_training_adapter</code>.</li>
-          <li><code>Easy LoRA</code> is the beginner path for captions, job creation, training start/stop, progress, and finished LoRA outputs.</li>
-          <li><code>Caption with Brain</code> can draft editable captions for dataset images when Brain is installed and a compatible vision model is configured.</li>
-          <li><code>Open Datasets</code> and <code>Open LoRAs</code> expose the local folders where training images and finished files live.</li>
-          <li>Normal uninstall removes the trainer runtime but preserves datasets, jobs, outputs, logs, models, and adapters by default.</li>
+          <li><code>Fast Test</code> is a short 500-step check to confirm the dataset and pipeline are learning anything useful.</li>
+          <li><code>Baseline</code> is the normal first run: 3000 steps, checkpoints enabled, <code>1e-4</code> learning rate, and rank <code>16</code>.</li>
+          <li><code>Style</code> keeps the normal baseline shape but is intended for style-focused training.</li>
+          <li><code>Strong Style</code> is a longer style push when the normal style preset is too weak.</li>
+          <li><code>v1 (Recommended)</code> is the safe training adapter default. <code>v2 (Experimental)</code> is for comparison after the normal path works.</li>
+          <li><code>Low VRAM mode</code> is slower, but can help when the normal settings do not fit comfortably on the GPU.</li>
         </ul>
+        <h4>Add Job, then Start Job</h4>
+        <div class="wiki-callout">
+          <div class="wiki-callout-title">
+            <span>Job Flow</span>
+            <span class="wiki-callout-status">Two steps</span>
+          </div>
+          <div class="wiki-callout-grid">
+            <div class="wiki-callout-row"><span class="wiki-callout-label">Add Job</span><span>Prepares metadata, mirrors captions to <code>.txt</code> sidecars, writes the AI Toolkit job, writes LoRA metadata, and registers or updates the job.</span></div>
+            <div class="wiki-callout-row"><span class="wiki-callout-good">Start Job</span><span>Queues the saved AI Toolkit job and starts the AI Toolkit queue. If settings changed, click <code>Add Job</code> again before starting.</span></div>
+            <div class="wiki-callout-row"><span class="wiki-callout-label">Stop/Delete</span><span><code>Stop Job</code> stops the queued or running job. <code>Delete Job</code> deletes only the AI Toolkit job entry, not datasets, captions, finished LoRAs, or downloaded assets.</span></div>
+          </div>
+        </div>
+        <h4>Results and testing</h4>
+        <p>Watch the progress, log tail, samples, and checkpoints while the job runs. Finished LoRAs are written as <code>.safetensors</code> files under <code>~/LoRA/loras</code> and can be opened with <code>Open LoRAs</code>.</p>
+        <p>Test a finished LoRA in the Z-Image workflow with a normal prompt first. If the result is weak, compare checkpoints and adjust LoRA strength before changing several settings at once. If the result is too strong or overfit, check the dataset, captions, and earlier checkpoints before running a harder preset.</p>
+        <p>Normal uninstall removes the trainer runtime but preserves datasets, jobs, outputs, logs, models, and adapters by default. <code>Delete Data</code> is the separate wipe path for saved LoRA module data.</p>
       </div>
 
       <div class="wiki-entry" id="wiki-module-authors">
