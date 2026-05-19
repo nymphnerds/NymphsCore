@@ -679,6 +679,9 @@ Standard rules:
 - Required license or access acknowledgements should use a `checkbox` field, not
   a select/dropdown. The Manager disables the group submit button until required
   checkboxes are ticked.
+- The fetch script must enforce the same acknowledgement itself. If
+  `--license-ack yes` or the module's equivalent acknowledgement flag is
+  missing, exit before any gated, restricted, or license-sensitive download.
 - Mask saved tokens across the width of the token field, not with a tiny token
   indicator that looks like only a few characters were saved.
 - The selector should show the useful end of long model filenames, such as
