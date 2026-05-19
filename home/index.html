@@ -905,9 +905,9 @@
   }
 
   .brain-flowchart {
-    max-width: 660px;
+    max-width: 760px;
     margin: 16px 0 22px;
-    padding: 12px 14px 14px;
+    padding: 18px;
     overflow-x: auto;
     border: 1px solid rgba(85,223,240,0.24);
     border-radius: 8px;
@@ -928,7 +928,7 @@
 
   .brain-flow-svg {
     width: 100%;
-    min-width: 590px;
+    min-width: 700px;
     height: auto;
     display: block;
     font-family: var(--font-mono);
@@ -936,7 +936,7 @@
 
   .brain-flow-svg .flow-box,
   .brain-flow-svg .flow-diamond {
-    fill: rgba(7,20,18,0.9);
+    fill: rgba(7,20,18,0.92);
     stroke: rgba(85,223,240,0.7);
     stroke-width: 1.6;
   }
@@ -982,13 +982,13 @@
 
   .brain-flow-svg .flow-text {
     fill: var(--light);
-    font-size: 15px;
+    font-size: 14px;
     font-weight: 700;
   }
 
   .brain-flow-svg .flow-subtext {
     fill: var(--teal);
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 700;
   }
 
@@ -1570,7 +1570,7 @@
         <p>When enabled, Brain exposes the wrapper through MCP on <code>http://127.0.0.1:8100/servers/llm-wrapper/mcp</code> and through mcpo/OpenAPI on <code>http://127.0.0.1:8099/llm-wrapper</code>. Open WebUI can then see it as a Brain tool route alongside filesystem, memory, web-forager, and context7.</p>
         <figure class="brain-flowchart">
           <figcaption>// wrapper request flow</figcaption>
-          <svg class="brain-flow-svg" viewBox="0 0 900 590" role="img" aria-labelledby="brain-flow-title brain-flow-desc">
+          <svg class="brain-flow-svg" viewBox="0 0 724 430" role="img" aria-labelledby="brain-flow-title brain-flow-desc">
             <title id="brain-flow-title">Brain llm-wrapper request flow</title>
             <desc id="brain-flow-desc">A flowchart showing local Brain prompts, optional llm_call delegation through MCP port 8100, cached llm-wrapper responses, OpenRouter misses, and return to the local model.</desc>
             <defs>
@@ -1579,52 +1579,55 @@
               </marker>
             </defs>
             <g>
-              <rect class="flow-box blue" x="28" y="212" width="210" height="54" rx="6"></rect>
-              <text class="flow-text flow-blue" x="133" y="245" text-anchor="middle">Open WebUI / MCP</text>
+              <rect class="flow-box blue" x="20" y="150" width="140" height="46" rx="6"></rect>
+              <text class="flow-text flow-blue" x="90" y="178" text-anchor="middle">Client / WebUI</text>
 
-              <path class="flow-line" marker-end="url(#brain-flow-arrow)" d="M 238 239 L 278 239"></path>
+              <path class="flow-line" marker-end="url(#brain-flow-arrow)" d="M 160 173 L 180 173"></path>
 
-              <polygon class="flow-diamond lime" points="368,139 468,239 368,339 268,239"></polygon>
-              <text class="flow-text" x="368" y="232" text-anchor="middle">Local Brain</text>
-              <text class="flow-subtext flow-lime" x="368" y="255" text-anchor="middle">llama-server :8000</text>
+              <polygon class="flow-diamond lime" points="250,86 338,173 250,260 162,173"></polygon>
+              <text class="flow-text" x="250" y="166" text-anchor="middle">Local Brain</text>
+              <text class="flow-subtext flow-lime" x="250" y="188" text-anchor="middle">llama-server :8000</text>
 
-              <path class="flow-line" marker-end="url(#brain-flow-arrow)" d="M 330 315 C 292 360 260 380 220 396"></path>
-              <rect class="flow-label-box" x="168" y="342" width="120" height="24" rx="3"></rect>
-              <text class="flow-label-text" x="228" y="359" text-anchor="middle">// most prompts</text>
-              <rect class="flow-box lime" x="58" y="396" width="260" height="54" rx="6"></rect>
-              <text class="flow-text flow-lime" x="188" y="429" text-anchor="middle">Handle locally</text>
+              <rect class="flow-label-box" x="360" y="42" width="118" height="22" rx="3"></rect>
+              <text class="flow-label-text" x="419" y="58" text-anchor="middle">// most prompts</text>
+              <path class="flow-line" marker-end="url(#brain-flow-arrow)" d="M 315 112 C 340 84 360 71 388 68"></path>
+              <rect class="flow-box lime" x="388" y="30" width="150" height="46" rx="6"></rect>
+              <text class="flow-text flow-lime" x="463" y="58" text-anchor="middle">Handle locally</text>
+              <path class="flow-line" marker-end="url(#brain-flow-arrow)" d="M 538 53 L 568 53"></path>
+              <rect class="flow-box lime" x="568" y="30" width="136" height="46" rx="6"></rect>
+              <text class="flow-text flow-lime" x="636" y="58" text-anchor="middle">Private answer</text>
 
-              <path class="flow-line" marker-end="url(#brain-flow-arrow)" d="M 468 239 L 520 239"></path>
-              <rect class="flow-label-box" x="478" y="198" width="112" height="24" rx="3"></rect>
-              <text class="flow-label-text" x="534" y="215" text-anchor="middle">// hard prompt</text>
-              <rect class="flow-box" x="520" y="212" width="134" height="54" rx="6"></rect>
-              <text class="flow-text" x="587" y="245" text-anchor="middle">llm_call</text>
+              <rect class="flow-label-box" x="184" y="290" width="112" height="22" rx="3"></rect>
+              <text class="flow-label-text" x="240" y="306" text-anchor="middle">// hard prompt</text>
+              <path class="flow-line" marker-end="url(#brain-flow-arrow)" d="M 250 260 L 250 316"></path>
+              <rect class="flow-box" x="195" y="316" width="110" height="46" rx="6"></rect>
+              <text class="flow-text" x="250" y="344" text-anchor="middle">llm_call</text>
 
-              <path class="flow-line" marker-end="url(#brain-flow-arrow)" d="M 587 266 L 587 296"></path>
-              <rect class="flow-box blue" x="487" y="296" width="200" height="54" rx="6"></rect>
-              <text class="flow-text flow-blue" x="587" y="329" text-anchor="middle">MCP port 8100</text>
+              <path class="flow-line" marker-end="url(#brain-flow-arrow)" d="M 305 339 L 335 339"></path>
+              <rect class="flow-box blue" x="335" y="316" width="150" height="46" rx="6"></rect>
+              <text class="flow-text flow-blue" x="410" y="344" text-anchor="middle">MCP port 8100</text>
 
-              <path class="flow-line" marker-end="url(#brain-flow-arrow)" d="M 687 323 L 720 323"></path>
-              <polygon class="flow-diamond pink" points="800,223 880,323 800,423 720,323"></polygon>
-              <text class="flow-text flow-pink" x="800" y="318" text-anchor="middle">cached</text>
-              <text class="flow-text flow-pink" x="800" y="341" text-anchor="middle">wrapper</text>
+              <path class="flow-line" marker-end="url(#brain-flow-arrow)" d="M 485 339 L 515 339"></path>
+              <polygon class="flow-diamond pink" points="600,254 684,339 600,424 516,339"></polygon>
+              <text class="flow-text flow-pink" x="600" y="333" text-anchor="middle">cached</text>
+              <text class="flow-text flow-pink" x="600" y="355" text-anchor="middle">wrapper</text>
 
-              <path class="flow-line" marker-end="url(#brain-flow-arrow)" d="M 740 388 C 685 452 578 456 506 444"></path>
-              <rect class="flow-label-box" x="558" y="405" width="104" height="24" rx="3"></rect>
-              <text class="flow-label-text" x="610" y="422" text-anchor="middle">// cache hit</text>
-              <rect class="flow-box lime" x="318" y="416" width="250" height="54" rx="6"></rect>
-              <text class="flow-text flow-lime" x="443" y="449" text-anchor="middle">Return cached result</text>
+              <rect class="flow-label-box" x="500" y="204" width="104" height="22" rx="3"></rect>
+              <text class="flow-label-text" x="552" y="220" text-anchor="middle">// cache hit</text>
+              <path class="flow-line" marker-end="url(#brain-flow-arrow)" d="M 556 296 C 526 262 504 242 476 238"></path>
+              <rect class="flow-box lime" x="330" y="216" width="150" height="46" rx="6"></rect>
+              <text class="flow-text flow-lime" x="405" y="244" text-anchor="middle">Return cache</text>
 
-              <path class="flow-line" marker-end="url(#brain-flow-arrow)" d="M 860 388 C 894 428 880 456 828 456"></path>
-              <rect class="flow-label-box" x="770" y="405" width="110" height="24" rx="3"></rect>
-              <text class="flow-label-text" x="825" y="422" text-anchor="middle">// cache miss</text>
-              <rect class="flow-box orange" x="700" y="430" width="150" height="54" rx="6"></rect>
-              <text class="flow-text flow-accent" x="775" y="463" text-anchor="middle">OpenRouter</text>
+              <rect class="flow-label-box" x="584" y="118" width="110" height="22" rx="3"></rect>
+              <text class="flow-label-text" x="639" y="134" text-anchor="middle">// cache miss</text>
+              <path class="flow-line" marker-end="url(#brain-flow-arrow)" d="M 640 296 C 664 240 660 166 624 148"></path>
+              <rect class="flow-box orange" x="544" y="146" width="150" height="46" rx="6"></rect>
+              <text class="flow-text flow-accent" x="619" y="174" text-anchor="middle">OpenRouter</text>
 
-              <path class="flow-line" marker-end="url(#brain-flow-arrow)" d="M 443 470 C 452 500 504 516 542 516"></path>
-              <path class="flow-line" marker-end="url(#brain-flow-arrow)" d="M 775 484 C 758 512 706 516 670 516"></path>
-              <rect class="flow-box" x="450" y="516" width="300" height="54" rx="6"></rect>
-              <text class="flow-text" x="600" y="549" text-anchor="middle">Local Brain uses answer</text>
+              <path class="flow-line" marker-end="url(#brain-flow-arrow)" d="M 405 262 C 420 384 456 398 502 398"></path>
+              <path class="flow-line" marker-end="url(#brain-flow-arrow)" d="M 619 192 C 634 292 616 382 572 398"></path>
+              <rect class="flow-box" x="410" y="376" width="190" height="46" rx="6"></rect>
+              <text class="flow-text" x="505" y="404" text-anchor="middle">Brain uses answer</text>
             </g>
           </svg>
         </figure>
