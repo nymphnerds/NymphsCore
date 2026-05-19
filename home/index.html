@@ -579,6 +579,48 @@
     background: rgba(4,14,13,0.36);
   }
 
+  .wiki-entry code {
+    padding: 1px 5px 2px;
+    border: 1px solid rgba(85,223,240,0.22);
+    border-radius: 4px;
+    background: rgba(4,14,13,0.7);
+    color: #d7fbff;
+    font-family: var(--font-mono);
+    font-size: 0.92em;
+    overflow-wrap: anywhere;
+  }
+
+  .wiki-entry code.wiki-port {
+    border-color: rgba(99,227,95,0.42);
+    background: rgba(99,227,95,0.08);
+    color: var(--lime);
+    font-weight: 700;
+  }
+
+  .wiki-entry code.wiki-url {
+    border-color: rgba(85,223,240,0.42);
+    background: rgba(85,223,240,0.08);
+    color: var(--teal);
+  }
+
+  .wiki-entry code.wiki-path {
+    border-color: rgba(159,225,203,0.32);
+    background: rgba(159,225,203,0.07);
+    color: #9fe1cb;
+  }
+
+  .wiki-entry code.wiki-command {
+    display: block;
+    max-width: 760px;
+    margin: 8px 0 2px;
+    padding: 10px 12px;
+    border-color: rgba(85,223,240,0.34);
+    background: rgba(2,12,10,0.86);
+    color: var(--light);
+    line-height: 1.55;
+    white-space: pre-wrap;
+  }
+
   .runtime-spec {
     max-width: 760px;
     margin: 12px 0 18px;
@@ -1577,13 +1619,13 @@
         <h3 class="wiki-section-marker">// MODULES</h3>
         <h4>Nymphs Brain</h4>
         <p>Nymphs Brain is an optional local assistant and tool-orchestration module. It is not required for the Blender addon baseline, and the installer does not need to download a chat model before the rest of NymphsCore can work.</p>
-        <p>The current Brain module uses LM Studio CLI for model download and selection, then serves the selected GGUF through a CUDA-enabled <code>llama-server</code> on port <code>8000</code>. Brain also installs Open WebUI, an MCP gateway, the <code>mcpo</code> OpenAPI bridge, and tool bridges for filesystem, memory, web-forager, context7, optional remote LLM wrapper workflows, and future Blender-side flows over the in-progress MCP layer.</p>
+        <p>The current Brain module uses LM Studio CLI for model download and selection, then serves the selected GGUF through a CUDA-enabled <code>llama-server</code> on port <code class="wiki-port">8000</code>. Brain also installs Open WebUI, an MCP gateway, the <code>mcpo</code> OpenAPI bridge, and tool bridges for filesystem, memory, web-forager, context7, optional remote LLM wrapper workflows, and future Blender-side flows over the in-progress MCP layer.</p>
         <ul>
           <li><span class="wiki-action-chip">Start Brain</span> starts the local model server only if a model has been configured, then starts the MCP tool stack.</li>
           <li><span class="wiki-action-chip">Manage Models</span> opens the installed <code>lms-model</code> terminal flow for local model selection, context length, and optional remote wrapper model selection.</li>
           <li>With a suitable local vision model configured, Brain can help the LoRA module draft image captions for training datasets.</li>
-          <li><span class="wiki-action-chip">Open WebUI</span> is its own Manager action and local WebView/browser surface on port <code>8081</code>.</li>
-          <li><code>MCP</code> runs on port <code>8100</code>, while <code>mcpo</code> exposes OpenAPI tool routes on port <code>8099</code> for Open WebUI and other clients.</li>
+          <li><span class="wiki-action-chip">Open WebUI</span> is its own Manager action and local WebView/browser surface on port <code class="wiki-port">8081</code>.</li>
+          <li><code>MCP</code> runs on port <code class="wiki-port">8100</code>, while <code>mcpo</code> exposes OpenAPI tool routes on port <code class="wiki-port">8099</code> for Open WebUI and other clients.</li>
           <li>The MCP layer is the planned bridge for future Blender workflows where local assistant/tool actions can coordinate with creative-client context.</li>
           <li>An optional OpenRouter key enables the cached <code>llm-wrapper</code> tool; without a key, Brain skips that wrapper and keeps the local stack usable.</li>
           <li>Normal uninstall removes runtime/program files but preserves models, Open WebUI data, MCP config/data, secrets, and logs unless purge or data-delete is chosen.</li>
@@ -1598,10 +1640,10 @@
           <div class="wiki-callout-grid">
             <div class="wiki-callout-row"><span class="wiki-callout-label">Enable</span><span>On the Brain page, paste an OpenRouter key into <code>OpenRouter key</code>, click <code>Apply Key</code>, then use <code>Manage Models</code> to choose the remote <code>llm-wrapper</code> model.</span></div>
             <div class="wiki-callout-row"><span class="wiki-callout-good">No key</span><span>If no OpenRouter key is saved, Brain removes the wrapper from MCP, mcpo, client config, and Open WebUI tool-server config so the rest of Brain still starts normally.</span></div>
-            <div class="wiki-callout-row"><span class="wiki-callout-label">Default model</span><span>The remote model defaults to <code>deepseek/deepseek-chat</code> until changed in <code>Manage Models</code> or in <code>~/Nymphs-Brain/secrets/llm-wrapper.env</code>.</span></div>
+            <div class="wiki-callout-row"><span class="wiki-callout-label">Default model</span><span>The remote model defaults to <code>deepseek/deepseek-chat</code> until changed in <code>Manage Models</code> or in <code class="wiki-path">~/Nymphs-Brain/secrets/llm-wrapper.env</code>.</span></div>
           </div>
         </div>
-        <p>When enabled, Brain exposes the wrapper through MCP on <code>http://127.0.0.1:8100/servers/llm-wrapper/mcp</code> and through mcpo/OpenAPI on <code>http://127.0.0.1:8099/llm-wrapper</code>. Open WebUI can then see it as a Brain tool route alongside filesystem, memory, web-forager, and context7.</p>
+        <p>When enabled, Brain exposes the wrapper through MCP on <code class="wiki-url">http://127.0.0.1:8100/servers/llm-wrapper/mcp</code> and through mcpo/OpenAPI on <code class="wiki-url">http://127.0.0.1:8099/llm-wrapper</code>. Open WebUI can then see it as a Brain tool route alongside filesystem, memory, web-forager, and context7.</p>
         <figure class="brain-flowchart">
           <figcaption>// wrapper request flow</figcaption>
           <img class="brain-flow-svg" src="assets/wiki/nymphscore_routing.svg" alt="NymphsCore LLM routing flowchart">
@@ -1617,8 +1659,8 @@
             <div class="wiki-callout-row"><span class="wiki-callout-label">cache_clear</span><span>Clears cached prompt responses.</span></div>
           </div>
         </div>
-        <p>The wrapper runtime is <code>~/Nymphs-Brain/local-tools/remote_llm_mcp/cached_llm_mcp_server.py</code>. Its prompt cache lives at <code>~/Nymphs-Brain/mcp/data/llm_cache/prompt_cache.sqlite</code>, with a default <code>3600</code> second cache TTL and <code>120</code> second OpenRouter timeout.</p>
-        <p>Direct test after Brain is running: <code>curl -s http://127.0.0.1:8099/llm-wrapper/llm_call -H 'Content-Type: application/json' -d '{"prompt":"Reply with exactly DIRECT_WRAPPER_TEST_OK and nothing else."}'</code>. Running the same prompt again should normally return from cache.</p>
+        <p>The wrapper runtime is <code class="wiki-path">~/Nymphs-Brain/local-tools/remote_llm_mcp/cached_llm_mcp_server.py</code>. Its prompt cache lives at <code class="wiki-path">~/Nymphs-Brain/mcp/data/llm_cache/prompt_cache.sqlite</code>, with a default <code>3600</code> second cache TTL and <code>120</code> second OpenRouter timeout.</p>
+        <p>Direct test after Brain is running: <code class="wiki-command">curl -s http://127.0.0.1:8099/llm-wrapper/llm_call -H 'Content-Type: application/json' -d '{"prompt":"Reply with exactly DIRECT_WRAPPER_TEST_OK and nothing else."}'</code>. Running the same prompt again should normally return from cache.</p>
         <h4>Source links</h4>
         <ul class="wiki-link-list">
           <li><a href="https://github.com/ggml-org/llama.cpp">llama.cpp / llama-server</a></li>
@@ -1653,7 +1695,7 @@
           <div class="wiki-callout-grid">
             <div class="wiki-callout-row"><span class="wiki-callout-label">Runtime</span><span><code>~/LoRA</code> contains AI Toolkit, local Node 20, run files, config, jobs, logs, datasets, and outputs.</span></div>
             <div class="wiki-callout-row"><span class="wiki-callout-good">Outputs</span><span>Finished LoRAs, checkpoints, and compatible downloaded <code>.safetensors</code> files live under <code>~/LoRA/loras</code>.</span></div>
-            <div class="wiki-callout-row"><span class="wiki-callout-label">Advanced UI</span><span>Open AI Toolkit starts the official AI Toolkit UI on <code>http://127.0.0.1:8675</code>.</span></div>
+            <div class="wiki-callout-row"><span class="wiki-callout-label">Advanced UI</span><span>Open AI Toolkit starts the official AI Toolkit UI on <code class="wiki-url">http://127.0.0.1:8675</code>.</span></div>
           </div>
         </div>
         <h4>First-time setup</h4>
