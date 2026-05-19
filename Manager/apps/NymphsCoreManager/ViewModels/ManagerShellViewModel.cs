@@ -1939,8 +1939,11 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         var repairNeeded = !snapshot.IsInstalled &&
             (string.Equals(snapshot.State, "repair_needed", StringComparison.OrdinalIgnoreCase) ||
              string.Equals(snapshot.Health, "repair-needed", StringComparison.OrdinalIgnoreCase));
+        var brainOptionalModelConfigMissing = IsBrainOptionalModelConfigurationOnly(isBrainModule, snapshot);
         var stateLabel = isLoraModule
             ? BuildLoraModuleStateLabel(snapshot, trainingAssetsNeeded, repairNeeded)
+            : brainOptionalModelConfigMissing
+            ? "Installed"
             : trainingAssetsNeeded
             ? "Needs assets"
             : modelDownloadNeeded
@@ -1951,7 +1954,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         var statusBrush = snapshot.IsRunning
             ? "#6FD96C"
             : snapshot.IsInstalled
-                ? trainingAssetsNeeded || modelDownloadNeeded ? "#D49A2A" : StateNeedsAttention(snapshot.State, snapshot.Health) ? "#B7791F" : "#4CD0C1"
+                ? trainingAssetsNeeded || modelDownloadNeeded ? "#D49A2A" : !brainOptionalModelConfigMissing && StateNeedsAttention(snapshot.State, snapshot.Health) ? "#B7791F" : "#4CD0C1"
                 : repairNeeded ? "#D49A2A" : "#6E745A";
 
         var secondaryParts = new List<string>();
@@ -2224,6 +2227,22 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         parts.Add($"Local model: {FormatBrainModelValue(snapshot.Get("local_model"))}");
         parts.Add($"Remote model: {FormatBrainModelValue(snapshot.Get("remote_model"))}");
         parts.Add($"OpenRouter key: {FormatOpenRouterKeyState(snapshot.Get("openrouter_key"))}");
+    }
+
+    private static bool IsBrainOptionalModelConfigurationOnly(bool isBrainModule, NymphStatusSnapshot snapshot)
+    {
+        if (!isBrainModule ||
+            !snapshot.IsInstalled ||
+            snapshot.IsRunning ||
+            !string.Equals(snapshot.State, "needs_attention", StringComparison.OrdinalIgnoreCase) ||
+            !string.Equals(snapshot.Health, "degraded", StringComparison.OrdinalIgnoreCase) ||
+            !string.Equals(snapshot.Get("runtime_present"), "true", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        return IsFalseishStatusValue(snapshot.Get("model_configured")) ||
+               string.Equals(snapshot.Get("local_model"), "none", StringComparison.OrdinalIgnoreCase);
     }
 
     private static string FormatRunningState(string? value)
