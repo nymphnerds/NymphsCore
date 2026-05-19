@@ -317,6 +317,9 @@ Standard rules:
 - Let the user choose the model or quantized weight manually. Do not silently
   auto-pick from GPU detection.
 - Use real, beginner-readable labels. Use `Hugging Face token`, not `HF`.
+- Put source, license, access-form, and model URLs in structured `links`
+  entries. Do not bury naked URLs in body text where they cannot be opened or
+  copied cleanly.
 - Show source model pages as links in the details guide, not button-looking
   controls floating near the submit button.
 - Keep the token row separate from the model fetch row.
