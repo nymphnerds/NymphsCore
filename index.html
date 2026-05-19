@@ -1489,17 +1489,6 @@
         </div>
         <h4>First-time setup</h4>
         <p>Install prepares the trainer application and tools only. <code>Fetch Training Assets</code> is a separate action because the training model and adapter are large. Run it once before the first training job; it downloads or resumes <code>Tongyi-MAI/Z-Image-Turbo</code> and <code>ostris/zimage_turbo_training_adapter</code>.</p>
-        <div class="wiki-callout">
-          <div class="wiki-callout-title">
-            <span>Useful Links</span>
-            <span class="wiki-callout-status">LoRA sources</span>
-          </div>
-          <div class="wiki-callout-grid">
-            <div class="wiki-callout-row"><span class="wiki-callout-label">AI Toolkit</span><span><a href="https://github.com/ostris/ai-toolkit">ostris/ai-toolkit</a> is the upstream training backend used by the module.</span></div>
-            <div class="wiki-callout-row"><span class="wiki-callout-good">Training model</span><span><a href="https://huggingface.co/Tongyi-MAI/Z-Image-Turbo">Tongyi-MAI/Z-Image-Turbo</a> is the Z-Image Turbo model fetched for training.</span></div>
-            <div class="wiki-callout-row"><span class="wiki-callout-label">Adapter</span><span><a href="https://huggingface.co/ostris/zimage_turbo_training_adapter">ostris/zimage_turbo_training_adapter</a> provides the Turbo training adapter weights.</span></div>
-          </div>
-        </div>
         <h4>Easy LoRA training flow</h4>
         <p><code>Easy LoRA</code> is the normal starting point. The LoRA name becomes the dataset folder name, the AI Toolkit job name, and the finished output name, so use a short readable name.</p>
         <div class="wiki-callout">
@@ -1540,6 +1529,12 @@
         <p>For the first test, use the finished LoRA in Z-Image with a normal prompt before changing several settings at once. If the result is weak, compare checkpoints and LoRA strength. If it is overfit, check the dataset and captions before running a stronger preset.</p>
         <p><code>Open AI Toolkit</code> is for the full upstream training interface. Use it when you need advanced AI Toolkit controls; otherwise, the Easy LoRA flow is the intended path.</p>
         <p>Normal uninstall removes the trainer runtime but preserves datasets, jobs, outputs, logs, models, and adapters. <code>Delete Data</code> is the separate wipe path for saved LoRA module data.</p>
+        <h4>Source links</h4>
+        <ul class="wiki-link-list">
+          <li><a href="https://github.com/ostris/ai-toolkit">AI Toolkit</a></li>
+          <li><a href="https://huggingface.co/Tongyi-MAI/Z-Image-Turbo">Z-Image Turbo training model</a></li>
+          <li><a href="https://huggingface.co/ostris/zimage_turbo_training_adapter">Z-Image Turbo training adapter</a></li>
+        </ul>
       </div>
 
       <div class="wiki-entry" id="wiki-module-authors">
@@ -1591,16 +1586,11 @@
             <div class="wiki-callout-row"><span class="wiki-callout-label">Actions</span><span>Custom UI calls declared module actions through the shared action bridge, and the Manager validates them before running anything.</span></div>
           </div>
         </div>
-        <div class="wiki-callout">
-          <div class="wiki-callout-title">
-            <span>Unified Guide</span>
-            <span class="wiki-callout-status">Source of truth</span>
-          </div>
-          <div class="wiki-callout-grid">
-            <div class="wiki-callout-row"><span class="wiki-callout-good">Module guide</span><span><a href="https://github.com/nymphnerds/NymphsCore/blob/main/docs/NYMPHS_MODULE_MAKING_GUIDE.md">Nymphs Module Making Guide</a> is the unified module authoring guide.</span></div>
-          </div>
-        </div>
         <p>The standard is expected to evolve by proving real modules one at a time. When a module test discovers a new rule, the guide should be updated first, then the Manager, module repo, registry entry, or UI standard can follow.</p>
+        <h4>Source links</h4>
+        <ul class="wiki-link-list">
+          <li><a href="https://github.com/nymphnerds/NymphsCore/blob/main/docs/NYMPHS_MODULE_MAKING_GUIDE.md">Nymphs Module Making Guide</a></li>
+        </ul>
       </div>
 
       <div class="wiki-entry" id="wiki-addon">
