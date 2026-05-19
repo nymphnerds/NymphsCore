@@ -1032,9 +1032,6 @@ Field rules:
   declared action.
 - Saved-secret removal should appear as `// Remove Key` with the same module
   action button style and text size as the other buttons.
-- Put external URLs in structured `overview.links` or action-group `links`, not
-  as naked URLs inside body/description text. The Manager renders structured
-  links with open and copy affordances.
 - `links` should be real links to source model pages, not button-looking UI.
 - Long downloads should print progress and keep the Manager responsive.
 - The module owns download validation, selected-model persistence, and cache

@@ -71,7 +71,6 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
     private readonly RelayCommand<NymphModuleActionInfo> _runModuleActionCommand;
     private readonly RelayCommand<NymphModuleActionGroupInfo> _runModuleActionGroupCommand;
     private readonly RelayCommand<NymphModuleActionLinkInfo> _openModuleActionLinkCommand;
-    private readonly RelayCommand<NymphModuleActionLinkInfo> _copyModuleActionLinkCommand;
     private readonly RelayCommand<NymphModuleActionFieldInfo> _applyModuleActionSecretCommand;
     private readonly RelayCommand<NymphModuleActionFieldInfo> _clearModuleActionSecretCommand;
     private readonly RelayCommand<string> _runModuleDevActionCommand;
@@ -188,7 +187,6 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         _runModuleActionCommand = new RelayCommand<NymphModuleActionInfo>(RunSelectedModuleAction, CanRunSelectedModuleAction);
         _runModuleActionGroupCommand = new RelayCommand<NymphModuleActionGroupInfo>(RunSelectedModuleActionGroup, CanRunSelectedModuleActionGroup);
         _openModuleActionLinkCommand = new RelayCommand<NymphModuleActionLinkInfo>(OpenModuleActionLink, link => link is not null && !string.IsNullOrWhiteSpace(link.Url));
-        _copyModuleActionLinkCommand = new RelayCommand<NymphModuleActionLinkInfo>(CopyModuleActionLink, link => link is not null && !string.IsNullOrWhiteSpace(link.Url));
         _applyModuleActionSecretCommand = new RelayCommand<NymphModuleActionFieldInfo>(ApplyModuleActionSecret, field => field is not null && field.IsSecret);
         _clearModuleActionSecretCommand = new RelayCommand<NymphModuleActionFieldInfo>(ClearModuleActionSecret, field => field is not null && field.IsSecret);
         _runModuleDevActionCommand = new RelayCommand<string>(RunSelectedModuleDevAction, CanRunSelectedModuleDevAction);
@@ -274,8 +272,6 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
     public RelayCommand<NymphModuleActionGroupInfo> RunModuleActionGroupCommand => _runModuleActionGroupCommand;
 
     public RelayCommand<NymphModuleActionLinkInfo> OpenModuleActionLinkCommand => _openModuleActionLinkCommand;
-
-    public RelayCommand<NymphModuleActionLinkInfo> CopyModuleActionLinkCommand => _copyModuleActionLinkCommand;
 
     public RelayCommand<NymphModuleActionFieldInfo> ApplyModuleActionSecretCommand => _applyModuleActionSecretCommand;
 
@@ -3425,26 +3421,6 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         catch (Exception ex)
         {
             AppendActivity($"Could not open module source link: {ex.Message}");
-        }
-    }
-
-    private void CopyModuleActionLink(NymphModuleActionLinkInfo? link)
-    {
-        if (link is null || string.IsNullOrWhiteSpace(link.Url))
-        {
-            return;
-        }
-
-        try
-        {
-            Clipboard.SetText(link.Url);
-            StatusMessage = $"Copied link: {link.Label}.";
-            AppendActivity(StatusMessage);
-        }
-        catch (Exception ex)
-        {
-            StatusMessage = "Could not copy module link.";
-            AppendActivity($"Could not copy module link: {ex.Message}");
         }
     }
 
