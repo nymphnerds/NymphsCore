@@ -3268,6 +3268,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         {
             StatusMessage = $"{module.Name} install needs attention.";
             AppendActivity($"{module.Name} install warning: {ex.Message}");
+            await RefreshModuleStateAfterLifecycleFailureAsync(module, "install").ConfigureAwait(true);
             SetModuleActionFeedback(
                 $"{module.Name}: install needs attention",
                 BuildModuleActionFeedbackDetail(string.Join(Environment.NewLine, installLines.Append(ex.Message))));
@@ -3463,6 +3464,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         {
             StatusMessage = $"{module.Name} repair needs attention.";
             AppendActivity($"{module.Name} repair warning: {ex.Message}");
+            await RefreshModuleStateAfterLifecycleFailureAsync(module, "repair").ConfigureAwait(true);
             SetModuleActionFeedback(
                 $"{module.Name}: repair needs attention",
                 BuildModuleActionFeedbackDetail(string.Join(Environment.NewLine, repairLines.Append(ex.Message))));
@@ -3559,6 +3561,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         {
             StatusMessage = $"{module.Name} update needs attention.";
             AppendActivity($"{module.Name} update warning: {ex.Message}");
+            await RefreshModuleStateAfterLifecycleFailureAsync(module, "update").ConfigureAwait(true);
             SetModuleActionFeedback(
                 $"{module.Name}: update needs attention",
                 BuildModuleActionFeedbackDetail(string.Join(Environment.NewLine, updateLines.Append(ex.Message))));
@@ -3567,6 +3570,20 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         {
             _modulesWithActiveLifecycle.Remove(module.Id);
             IsBusy = false;
+        }
+    }
+
+    private async Task RefreshModuleStateAfterLifecycleFailureAsync(NymphModuleViewModel module, string actionLabel)
+    {
+        _modulesWithActiveLifecycle.Remove(module.Id);
+        try
+        {
+            await RefreshModuleStateAsync().ConfigureAwait(true);
+        }
+        catch (Exception refreshException)
+        {
+            AppendActivity($"{module.Name} {actionLabel} failed, and state refresh also needs attention: {refreshException.Message}");
+            RefreshDisplayedModuleActionState();
         }
     }
 

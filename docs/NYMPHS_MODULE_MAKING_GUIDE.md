@@ -78,6 +78,36 @@ The module owns:
 
 Before a module is installed, the Manager should only show registry and manifest metadata. After install, the Manager may host module-owned local UI declared by the installed module manifest.
 
+## Base Runtime Dependency Floor
+
+The managed WSL base runtime must provide the small command-line floor needed to
+fetch, clone, unpack, and run module installers:
+
+```text
+bash
+ca-certificates
+curl
+git
+python3
+python3-venv
+sudo
+tar
+unzip
+wget
+```
+
+The Manager's base setup scripts install this floor, and the registry module
+installer must also check it before running a module's install entrypoint. If an
+older or repaired distro is missing one of these tools, module install should
+self-heal with apt when `sudo` and `apt-get` are available, not fail inside a
+module-specific script with a mystery missing-tool error.
+
+Modules still own heavyweight and product-specific dependencies such as CUDA
+toolkits, Python versions beyond the base floor, Node runtimes, llama.cpp,
+model managers, Gradio apps, AI Toolkit, or 3D/image runtime libraries. A
+module install script may install those dependencies itself, but it should print
+clear progress and fail with the exact package/tool that needs attention.
+
 ## Required Pieces
 
 A Nymph module normally has three public pieces:
