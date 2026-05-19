@@ -527,7 +527,7 @@
                           VerticalAlignment="Center">
                 <TextBlock Text="{Binding Name}"
                            Style="{StaticResource HomeCardTitleStyle}" />
-                <TextBlock Text="{Binding Category, StringFormat=// {0}}"
+                <TextBlock Text="{Binding Kind, StringFormat=// {0}}"
                            Style="{StaticResource HomeCardMetaStyle}"
                            Foreground="{Binding AccentBrush}" />
               </StackPanel>
@@ -570,7 +570,7 @@
                           VerticalAlignment="Center">
                 <TextBlock Text="{Binding Name}"
                            Style="{StaticResource HomeCardTitleStyle}" />
-                <TextBlock Text="{Binding Category, StringFormat=// {0}}"
+                <TextBlock Text="{Binding Kind, StringFormat=// {0}}"
                            Style="{StaticResource HomeCardMetaStyle}"
                            Foreground="{Binding AccentBrush}" />
               </StackPanel>
@@ -1403,7 +1403,7 @@
                            FontSize="11"
                            TextWrapping="Wrap" />
                 <TextBlock Margin="0,4,0,0"
-                           Text="{Binding DisplayedModule.Kind, StringFormat=Packaging: {0}}"
+                           Text="{Binding DisplayedModule.Packaging, StringFormat=Packaging: {0}}"
                            Foreground="#D8EAE6"
                            FontSize="11"
                            TextWrapping="Wrap" />
@@ -2113,7 +2113,7 @@
                     <Run Text="// " />
                     <Run Text="{Binding DisplayedModule.Category, Mode=OneWay}" />
                     <Run Text=" | " />
-                    <Run Text="{Binding DisplayedModule.Kind, Mode=OneWay}" />
+                    <Run Text="{Binding DisplayedModule.Packaging, Mode=OneWay}" />
                     <Run Text=" | installed " />
                     <Run Text="{Binding DisplayedModule.VersionLabel, Mode=OneWay}" />
                     <Run Text=" | remote " />

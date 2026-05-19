@@ -10,6 +10,21 @@ Installed modules own any custom frontend.
 
 The Manager must not hardcode custom UI for Brain, Z-Image, LoRA, TRELLIS, WORBI, or future modules. Before a module is installed, the Manager can only show registry and manifest metadata plus standard lifecycle controls.
 
+Registry and manifest metadata must keep display classification separate from
+installation mechanics:
+
+- `category` is the broad user-facing group, such as `image`, `3d`,
+  `training`, `service`, or `tool`.
+- `kind` is the card/detail display kind. If omitted, the Manager may fall back
+  to `category`.
+- `packaging` is installer mechanics only, such as `repo` or `archive`.
+
+Cards and module subtitles must not show `packaging` as the product type. A
+repo-installed image module should display as `// image`, not `// repo`.
+The Manager should prefer registry `category`/`kind` for display so module
+presentation can be corrected via the trusted registry without hardcoding
+module-specific labels.
+
 The module page right rail is fixed and universal for all modules:
 
 ```text

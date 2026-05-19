@@ -103,6 +103,7 @@ The registry entry should contain enough card metadata to show a useful availabl
   "name": "Z-Image Turbo",
   "short_name": "ZI",
   "category": "image",
+  "kind": "image",
   "channel": "stable",
   "packaging": "repo",
   "summary": "Local image generation backend.",
@@ -122,9 +123,24 @@ Put simple public info in the registry:
 what the module is called
 what it does
 what it needs
+what product kind it should display as
 where its nymph.json file is
 where it should appear in the Manager list
 ```
+
+Use `category` and `kind` for user-facing classification. For example,
+Z-Image is `category: "image"` and `kind: "image"`, so cards can show
+`// image`.
+
+Use `packaging` only for installation mechanics. `packaging: "repo"` means the
+Manager clones a Git repository. `packaging: "archive"` means the Manager
+downloads and unpacks a packaged build. Do not use `packaging` as the card
+subtitle or product type.
+
+The registry may override the display classification of a module without a
+Manager code change. The Manager prefers registry `category` and `kind` for
+catalog/display text, and reads `packaging` separately for install facts and
+installer behavior.
 
 Do not put your installed workflow buttons in the registry. Buttons belong in
 your module's own `nymph.json`, because your module can change its tools without
@@ -517,7 +533,7 @@ installing the backend and downloading model files are separate steps.
 }
 ```
 
-Use `packaging: "repo"` when the Manager clones the module repo. Use `packaging: "archive"` when the module is installed from a packaged archive.
+Use `packaging: "repo"` when the Manager clones the module repo. Use `packaging: "archive"` when the module is installed from a packaged archive. `packaging` is never the user-facing module type.
 
 ## Install Contract
 

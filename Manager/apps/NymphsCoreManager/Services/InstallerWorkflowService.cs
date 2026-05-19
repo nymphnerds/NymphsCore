@@ -4864,8 +4864,13 @@ meta:
         var id = GetJsonString(manifestRoot, "id") ?? GetJsonString(registryElement, "id") ?? "";
         var name = GetJsonString(manifestRoot, "name") ?? GetJsonString(registryElement, "name") ?? id;
         var shortName = GetJsonString(manifestRoot, "short_name") ?? GetJsonString(registryElement, "short_name") ?? BuildShortName(id, name);
-        var category = GetJsonString(manifestRoot, "category") ?? GetJsonString(registryElement, "category") ?? "";
-        var kind = GetJsonString(manifestRoot, "packaging") ?? GetJsonString(manifestRoot, "kind") ?? GetJsonString(registryElement, "packaging") ?? "";
+        var category = GetJsonString(registryElement, "category") ?? GetJsonString(manifestRoot, "category") ?? "";
+        var kind = GetJsonString(registryElement, "kind")
+            ?? GetJsonString(manifestRoot, "kind")
+            ?? category;
+        var packaging = GetJsonString(manifestRoot, "packaging")
+            ?? GetJsonString(registryElement, "packaging")
+            ?? "";
         var sourceSummary = "";
         var repositoryUrl = "";
         if (manifestRoot.TryGetProperty("source", out var sourceElement) && sourceElement.ValueKind == JsonValueKind.Object)
@@ -4964,6 +4969,7 @@ meta:
             ShortName: shortName,
             Category: category,
             Kind: kind,
+            Packaging: packaging,
             Version: GetJsonString(manifestRoot, "version") ?? "",
             Description: GetJsonString(manifestRoot, "description") ?? GetJsonString(registryElement, "summary") ?? "",
             OverviewDetail: BuildNymphModuleOverviewDetail(manifestRoot, registryElement),

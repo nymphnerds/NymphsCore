@@ -1717,6 +1717,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             manifest.ShortName,
             manifest.Category,
             manifest.Kind,
+            manifest.Packaging,
             manifest.Description,
             ResolveManagedInstallPath(manifest.InstallRoot, manifest.Id),
             BuildModuleAccent(manifest.Id, index),

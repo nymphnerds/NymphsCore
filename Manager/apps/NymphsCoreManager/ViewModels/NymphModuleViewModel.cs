@@ -30,6 +30,7 @@ public sealed class NymphModuleViewModel : ViewModelBase
         string monogram,
         string category,
         string kind,
+        string packaging,
         string description,
         string installPath,
         string accentBrush,
@@ -45,6 +46,7 @@ public sealed class NymphModuleViewModel : ViewModelBase
         Monogram = monogram;
         Category = category;
         Kind = kind;
+        Packaging = packaging;
         Description = description;
         InstallPath = installPath;
         AccentBrush = accentBrush;
@@ -65,6 +67,8 @@ public sealed class NymphModuleViewModel : ViewModelBase
     public string Category { get; }
 
     public string Kind { get; }
+
+    public string Packaging { get; }
 
     public string Description { get; }
 

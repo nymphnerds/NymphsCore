@@ -6,6 +6,7 @@ public sealed record NymphModuleManifestInfo(
     string ShortName,
     string Category,
     string Kind,
+    string Packaging,
     string Version,
     string Description,
     string OverviewDetail,
