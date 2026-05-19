@@ -1477,6 +1477,13 @@
         <h4>LoRA</h4>
         <p>LoRA is an optional training module for Z-Image Turbo. It is not needed to run the Blender addon, but it lets you train small <code>.safetensors</code> files for a specific character, outfit, object, style, or subject, then use the finished LoRA in Z-Image generation.</p>
         <p>The module installs an isolated AI Toolkit workspace under <code>~/LoRA</code>, including the beginner <code>Easy LoRA</code> flow, the advanced AI Toolkit UI, queue worker support, dataset folders, job files, logs, and LoRA output folders.</p>
+        <ul>
+          <li><code>Fetch Training Assets</code> downloads the large Z-Image Turbo training model and <code>ostris/zimage_turbo_training_adapter</code>.</li>
+          <li><code>Easy LoRA</code> is the beginner path for captions, job creation, training start/stop, progress, and finished LoRA outputs.</li>
+          <li><code>Caption with Brain</code> can draft editable captions for dataset images when Brain is installed and a compatible vision model is configured.</li>
+          <li><code>Open Datasets</code> and <code>Open LoRAs</code> expose the local folders where training images and finished files live.</li>
+          <li>Normal uninstall removes the trainer runtime but preserves datasets, jobs, outputs, logs, models, and adapters by default.</li>
+        </ul>
         <div class="wiki-callout">
           <div class="wiki-callout-title">
             <span>First-Time Setup</span>
