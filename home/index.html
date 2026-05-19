@@ -904,6 +904,37 @@
     font-weight: 500;
   }
 
+  .wiki-mini-flow {
+    max-width: 760px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin: 12px 0 18px;
+    color: var(--muted);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    line-height: 1.35;
+  }
+
+  .wiki-mini-flow span {
+    display: inline-flex;
+    align-items: center;
+    min-height: 26px;
+    padding: 4px 8px;
+    border: 1px solid rgba(85,223,240,0.22);
+    border-radius: 5px;
+    background: rgba(4,14,13,0.48);
+  }
+
+  .wiki-mini-flow .wiki-mini-flow-arrow {
+    min-height: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--teal);
+  }
+
   .wiki-entry .wiki-link-list a {
     border-bottom: 0;
     padding-bottom: 0;
@@ -1450,6 +1481,46 @@
           <li>An optional OpenRouter key enables the cached <code>llm-wrapper</code> tool; without a key, Brain skips that wrapper and keeps the local stack usable.</li>
           <li>Normal uninstall removes runtime/program files but preserves models, Open WebUI data, MCP config/data, secrets, and logs unless purge or data-delete is chosen.</li>
         </ul>
+        <h4>Cached llm-wrapper</h4>
+        <p><code>llm-wrapper</code> is Brain's optional remote-model bridge. It lets the local Brain stack hand a single hard prompt to an OpenRouter model, cache the answer locally, and return the result through the same MCP and Open WebUI tool path. It is for selective delegation, not replacing the local model.</p>
+        <div class="wiki-callout">
+          <div class="wiki-callout-title">
+            <span>Wrapper Flow</span>
+            <span class="wiki-callout-status">Optional</span>
+          </div>
+          <div class="wiki-callout-grid">
+            <div class="wiki-callout-row"><span class="wiki-callout-label">Enable</span><span>On the Brain page, paste an OpenRouter key into <code>OpenRouter key</code>, click <code>Apply Key</code>, then use <code>Manage Models</code> to choose the remote <code>llm-wrapper</code> model.</span></div>
+            <div class="wiki-callout-row"><span class="wiki-callout-good">No key</span><span>If no OpenRouter key is saved, Brain removes the wrapper from MCP, mcpo, client config, and Open WebUI tool-server config so the rest of Brain still starts normally.</span></div>
+            <div class="wiki-callout-row"><span class="wiki-callout-label">Default model</span><span>The remote model defaults to <code>deepseek/deepseek-chat</code> until changed in <code>Manage Models</code> or in <code>~/Nymphs-Brain/secrets/llm-wrapper.env</code>.</span></div>
+          </div>
+        </div>
+        <p>When enabled, Brain exposes the wrapper through MCP on <code>http://127.0.0.1:8100/servers/llm-wrapper/mcp</code> and through mcpo/OpenAPI on <code>http://127.0.0.1:8099/llm-wrapper</code>. Open WebUI can then see it as a Brain tool route alongside filesystem, memory, web-forager, and context7.</p>
+        <div class="wiki-mini-flow" aria-label="llm-wrapper request flow">
+          <span>Local Brain model</span>
+          <span class="wiki-mini-flow-arrow">-&gt;</span>
+          <span>MCP 8100</span>
+          <span class="wiki-mini-flow-arrow">-&gt;</span>
+          <span>llm-wrapper</span>
+          <span class="wiki-mini-flow-arrow">-&gt;</span>
+          <span>cache check</span>
+          <span class="wiki-mini-flow-arrow">-&gt;</span>
+          <span>OpenRouter if needed</span>
+          <span class="wiki-mini-flow-arrow">-&gt;</span>
+          <span>one-shot answer</span>
+        </div>
+        <div class="wiki-callout">
+          <div class="wiki-callout-title">
+            <span>Wrapper Tools</span>
+            <span class="wiki-callout-status">Source checked</span>
+          </div>
+          <div class="wiki-callout-grid">
+            <div class="wiki-callout-row"><span class="wiki-callout-good">llm_call</span><span>One-shot OpenRouter call. The response is framed so the local model should use the answer and avoid looping back into another remote call.</span></div>
+            <div class="wiki-callout-row"><span class="wiki-callout-label">cache_stats</span><span>Reports cache entries and the SQLite cache path.</span></div>
+            <div class="wiki-callout-row"><span class="wiki-callout-label">cache_clear</span><span>Clears cached prompt responses.</span></div>
+          </div>
+        </div>
+        <p>The wrapper runtime is <code>~/Nymphs-Brain/local-tools/remote_llm_mcp/cached_llm_mcp_server.py</code>. Its prompt cache lives at <code>~/Nymphs-Brain/mcp/data/llm_cache/prompt_cache.sqlite</code>, with a default <code>3600</code> second cache TTL and <code>120</code> second OpenRouter timeout.</p>
+        <p>Direct test after Brain is running: <code>curl -s http://127.0.0.1:8099/llm-wrapper/llm_call -H 'Content-Type: application/json' -d '{"prompt":"Reply with exactly DIRECT_WRAPPER_TEST_OK and nothing else."}'</code>. Running the same prompt again should normally return from cache.</p>
         <h4>Source links</h4>
         <ul class="wiki-link-list">
           <li><a href="https://github.com/ggml-org/llama.cpp">llama.cpp / llama-server</a></li>
