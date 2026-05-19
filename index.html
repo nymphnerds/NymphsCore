@@ -537,10 +537,11 @@
   .wiki-entry h4 {
     color: var(--teal);
     font-family: var(--font-mono);
-    font-size: 12px;
-    letter-spacing: 0.08em;
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
     text-transform: uppercase;
-    margin: 14px 0 8px;
+    margin: 18px 0 10px;
   }
 
   .wiki-entry ul {
@@ -1434,16 +1435,16 @@
         <ul>
           <li><code>Base Runtime</code>: creates the dedicated Ubuntu WSL distro named <code>NymphsCore</code>, the Linux user <code>nymph</code>, system packages, scripts, and CUDA support. CUDA 13.0 alone is about <code>4.9 GB</code>.</li>
           <li><code>Z-Image Turbo install</code>: prepares <code>/home/nymph/Z-Image</code> and the Nunchaku Python runtime. The local runtime folder is about <code>5.4 GB</code>.</li>
-          <li><code>Z-Image Turbo models</code>: Fetch Models downloads <code>Tongyi-MAI/Z-Image-Turbo</code>, about <code>31 GB</code>, plus your selected Blender/Nunchaku weight from <code>nunchaku-ai/nunchaku-z-image-turbo</code>. Downloading all Z-Image weights is about <code>15 GB</code> locally.</li>
+          <li><code>Z-Image Turbo models</code>: <span class="wiki-action-text">Fetch Models</span> downloads <code>Tongyi-MAI/Z-Image-Turbo</code>, about <code>31 GB</code>, plus your selected Blender/Nunchaku weight from <code>nunchaku-ai/nunchaku-z-image-turbo</code>. Downloading all Z-Image weights is about <code>15 GB</code> locally.</li>
           <li><code>TRELLIS.2 install</code>: prepares <code>/home/nymph/TRELLIS.2</code>, the 3D runtime, FlashAttention build pieces, and its Python environment. The local runtime folder is about <code>8.7 GB</code>.</li>
-          <li><code>TRELLIS.2 models</code>: Fetch Models downloads <code>Aero-Ex/Trellis2-GGUF</code>, the required <code>microsoft/TRELLIS.2-4B</code> support checkpoint, and <code>rembg u2net</code>. Budget about <code>8.4 GB</code> for the smallest practical GGUF set, about <code>9.2 GB</code> for <code>Q5_K_M</code>, or up to about <code>25 GB</code> if all quants are installed.</li>
+          <li><code>TRELLIS.2 models</code>: <span class="wiki-action-text">Fetch Models</span> downloads <code>Aero-Ex/Trellis2-GGUF</code>, the required <code>microsoft/TRELLIS.2-4B</code> support checkpoint, and <code>rembg u2net</code>. Budget about <code>8.4 GB</code> for the smallest practical GGUF set, about <code>9.2 GB</code> for <code>Q5_K_M</code>, or up to about <code>25 GB</code> if all quants are installed.</li>
           <li><code>Model prefetch</code>: downloads the Blender pipeline models before first use instead of waiting for the first generation. With Z-Image Turbo, TRELLIS.2, selected GGUF/support files, and helpers, budget about <code>72 GB</code>.</li>
         </ul>
         <p>Use <code>120 GB</code> free as the minimum and <code>150 GB</code> as the comfortable target. Generated meshes, textures, previews, logs, Hugging Face snapshots, temporary install files, and future model updates grow over time. If you skip model prefetch, setup is smaller at first, but these model downloads still happen later when the Blender workflow needs them.</p>
         <h4 id="wiki-module-footprints">Other module footprints</h4>
         <p>These are separate from the Blender addon pipeline budget. Install them only if you want those workflows.</p>
         <ul>
-          <li><code>LoRA</code>: installs <code>/home/nymph/LoRA</code> with <code>ostris/ai-toolkit</code>, local Node 20, trainer UIs, datasets, jobs, logs, and LoRA outputs. <code>Fetch Training Assets</code> adds <code>Tongyi-MAI/Z-Image-Turbo</code>, about <code>31 GB</code>, plus <code>ostris/zimage_turbo_training_adapter</code>, about <code>0.5 GB</code>.</li>
+          <li><code>LoRA</code>: installs <code>/home/nymph/LoRA</code> with <code>ostris/ai-toolkit</code>, local Node 20, trainer UIs, datasets, jobs, logs, and LoRA outputs. <span class="wiki-action-text">Fetch Training Assets</span> adds <code>Tongyi-MAI/Z-Image-Turbo</code>, about <code>31 GB</code>, plus <code>ostris/zimage_turbo_training_adapter</code>, about <code>0.5 GB</code>.</li>
           <li><code>Nymphs-Brain</code>: installs under <code>/home/nymph/Nymphs-Brain</code> with <code>llama-server</code>, LM Studio CLI, Open WebUI, MCP, mcpo, helper tools, and local model folders. This machine's Brain stack is about <code>16 GB</code>; serious use can land closer to <code>20-35 GB</code> depending on the selected local model.</li>
           <li><code>WORBI</code>: installs under <code>/home/nymph/worbi</code>. This machine's installed WORBI runtime is about <code>34 MB</code> before project data; worlds, notes, exports, logs, and linked project material grow separately.</li>
         </ul>
@@ -1568,16 +1569,16 @@
         </ul>
         <ul class="wiki-tech-lines">
           <li><strong>Module install</strong> prepares the runtime first.</li>
-          <li><strong>Model Fetch</strong> runs after install because it uses the installed module page and fetch tools.</li>
+          <li><span class="wiki-action-text">Model Fetch</span> runs after install because it uses the installed module page and fetch tools.</li>
         </ul>
         <p>This install can take a while. It may add Python 3.11 support, prepare CUDA Toolkit 13.0 for <code>nvcc</code>, build a staged <code>.venv-nunchaku</code>, install Torch, Diffusers, and the NymphNerds Nunchaku fork, then validate text-to-image, image-to-image, and LoRA runtime hooks.</p>
         <h4>Fetch models</h4>
-        <p>After Z-Image Turbo is installed, open its module page and use <code>Model Fetch</code> to download the actual model files.</p>
+        <p>After Z-Image Turbo is installed, open its module page and use <span class="wiki-action-text">Model Fetch</span> to download the actual model files.</p>
         <ul>
-          <li>Choose a <code>Download</code> option. Use the recommended weight, or <code>All weights</code> if you want Blender to switch presets later.</li>
+          <li>Choose a <span class="wiki-action-text">Download</span> option. Use the recommended weight, or <code>All weights</code> if you want Blender to switch presets later.</li>
           <li>Add a <code>Hugging Face token</code> only if your download needs one.</li>
-          <li>Click <code>Fetch Models</code> to download the base model and selected quantized weight.</li>
-          <li>Use <code>Smoke Test</code> or <code>Start</code> before generating from Blender.</li>
+          <li>Click <span class="wiki-action-text">Fetch Models</span> to download the base model and selected quantized weight.</li>
+          <li>Use <span class="wiki-action-text">Smoke Test</span> or <span class="wiki-action-text">Start</span> before generating from Blender.</li>
         </ul>
         <h4>Source links</h4>
         <ul class="wiki-link-list">
@@ -1593,7 +1594,7 @@
         <h4>TRELLIS.2</h4>
         <p>TRELLIS.2 is the Blender addon's local 3D module. It turns a source image into a draft 3D asset and supports texture and retexture workflows through the managed TRELLIS.2 GGUF backend.</p>
         <p>The module combines Microsoft's TRELLIS.2 source, a NymphsCore local HTTP adapter, GGUF model loading through <code>ComfyUI-Trellis2-GGUF</code>, and module-owned scripts for install, start, stop, status, logs, model fetch, smoke test, and uninstall.</p>
-        <p>Install prepares the runtime under <code>~/TRELLIS.2</code>. Fetch Models downloads the selected <code>Aero-Ex/Trellis2-GGUF</code> quant bundle, shared support files, the required <code>microsoft/TRELLIS.2-4B</code> support checkpoint, and the <code>rembg u2net</code> background-removal model.</p>
+        <p>Install prepares the runtime under <code>~/TRELLIS.2</code>. <span class="wiki-action-text">Fetch Models</span> downloads the selected <code>Aero-Ex/Trellis2-GGUF</code> quant bundle, shared support files, the required <code>microsoft/TRELLIS.2-4B</code> support checkpoint, and the <code>rembg u2net</code> background-removal model.</p>
         <ul>
           <li><code>Q5_K_M</code> is the normal starting point for most GPUs.</li>
           <li><code>Q4_K_M</code> is the smallest first proof test or tighter-VRAM option.</li>
@@ -1625,9 +1626,9 @@
             <span class="wiki-callout-status">Optional</span>
           </div>
           <div class="wiki-callout-grid">
-            <div class="wiki-callout-row"><span class="wiki-callout-label">Enable</span><span>On the Brain page, paste an OpenRouter key into <code>OpenRouter key</code>, click <code>Apply Key</code>, then use <code>Manage Models</code> to choose the remote <code>llm-wrapper</code> model.</span></div>
+            <div class="wiki-callout-row"><span class="wiki-callout-label">Enable</span><span>On the Brain page, paste an OpenRouter key into <code>OpenRouter key</code>, click <span class="wiki-action-text">Apply Key</span>, then use <span class="wiki-action-text">Manage Models</span> to choose the remote <code>llm-wrapper</code> model.</span></div>
             <div class="wiki-callout-row"><span class="wiki-callout-good">No key</span><span>If no OpenRouter key is saved, Brain removes the wrapper from MCP, mcpo, client config, and Open WebUI tool-server config so the rest of Brain still starts normally.</span></div>
-            <div class="wiki-callout-row"><span class="wiki-callout-label">Default model</span><span>The remote model defaults to <code>deepseek/deepseek-chat</code> until changed in <code>Manage Models</code> or in <code>~/Nymphs-Brain/secrets/llm-wrapper.env</code>.</span></div>
+            <div class="wiki-callout-row"><span class="wiki-callout-label">Default model</span><span>The remote model defaults to <code>deepseek/deepseek-chat</code> until changed in <span class="wiki-action-text">Manage Models</span> or in <code>~/Nymphs-Brain/secrets/llm-wrapper.env</code>.</span></div>
           </div>
         </div>
         <p>When enabled, Brain exposes the wrapper through MCP on <code>http://127.0.0.1:8100/servers/llm-wrapper/mcp</code> and through mcpo/OpenAPI on <code>http://127.0.0.1:8099/llm-wrapper</code>. Open WebUI can then see it as a Brain tool route alongside filesystem, memory, web-forager, and context7.</p>
