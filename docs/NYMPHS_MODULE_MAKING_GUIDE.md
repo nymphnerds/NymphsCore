@@ -821,9 +821,10 @@ Standard rules:
   variables.
 - If a saved secret can be removed, use `// Remove Key` and the same module
   action button style, font size, and casing as the other buttons.
-- Required license or access acknowledgements should use a `checkbox` field, not
-  a select/dropdown. The Manager disables the group submit button until required
-  checkboxes are ticked.
+- Required license or access acknowledgements should be shown in the Manager's
+  action confirmation popup. Do not add a visible dropdown for agreement.
+- If the script needs an acknowledgement argument, declare it as a hidden field
+  such as `license_ack` with `arg: "--license-ack"` and `default: "yes"`.
 - The fetch script must enforce the same acknowledgement itself. If
   `--license-ack yes` or the module's equivalent acknowledgement flag is
   missing, exit before any gated, restricted, or license-sensitive download.
@@ -894,23 +895,11 @@ Example:
           },
           {
             "name": "license_ack",
-            "type": "checkbox",
-            "label": "I acknowledge the license/access terms",
+            "type": "hidden",
+            "label": "License/access acknowledged in popup",
             "arg": "--license-ack",
-            "default": "no",
-            "optional": false,
-            "options": [
-              {
-                "label": "I acknowledge",
-                "value": "yes",
-                "description": "I understand the upstream access and use restrictions"
-              },
-              {
-                "label": "Not yet",
-                "value": "no",
-                "description": "Do not fetch gated or restricted assets yet"
-              }
-            ]
+            "default": "yes",
+            "optional": false
           },
           {
             "name": "hf_token",
