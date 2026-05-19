@@ -3325,6 +3325,11 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
     private void ShowModulePage(NymphModuleViewModel module)
     {
+        if (module.IsInstalled)
+        {
+            RefreshInstalledModuleUiInfo(module);
+        }
+
         SelectedNavigationItem = null;
         CurrentPageKind = ManagerPageKind.Module;
         SelectedModule = module;
@@ -3352,6 +3357,11 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             }
 
             module.ApplyManifestInfo(manifest);
+            if (module.IsInstalled)
+            {
+                RefreshInstalledModuleUiInfo(module);
+            }
+
             _updateModuleCommand.RaiseCanExecuteChanged();
             CurrentPageSubtitle = module.Detail;
             SetModuleDetailPaneFeedback(module);
