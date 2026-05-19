@@ -904,6 +904,108 @@
     font-weight: 500;
   }
 
+  .brain-flowchart {
+    max-width: 720px;
+    display: grid;
+    gap: 8px;
+    margin: 14px 0 20px;
+    font-family: var(--font-mono);
+  }
+
+  .brain-flow-center {
+    display: flex;
+    justify-content: center;
+  }
+
+  .brain-flow-split {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    align-items: start;
+  }
+
+  .brain-flow-path {
+    display: grid;
+    gap: 7px;
+    justify-items: center;
+  }
+
+  .brain-flow-node {
+    width: 100%;
+    min-height: 48px;
+    display: grid;
+    align-content: center;
+    gap: 3px;
+    padding: 10px 12px;
+    border: 1px solid rgba(85,223,240,0.34);
+    border-radius: 8px;
+    background: rgba(4,14,13,0.66);
+    color: var(--light);
+    text-align: left;
+  }
+
+  .brain-flow-center .brain-flow-node {
+    max-width: 310px;
+    text-align: center;
+  }
+
+  .brain-flow-node strong {
+    color: var(--light);
+    font-family: var(--font-head);
+    font-size: 16px;
+    line-height: 1.1;
+  }
+
+  .brain-flow-node span {
+    color: var(--teal);
+    font-size: 12px;
+    line-height: 1.25;
+  }
+
+  .brain-flow-node.is-good {
+    border-color: rgba(99,227,95,0.48);
+  }
+
+  .brain-flow-node.is-good span,
+  .brain-flow-node.is-good strong {
+    color: var(--lime);
+  }
+
+  .brain-flow-node.is-remote {
+    border-color: rgba(255,184,77,0.45);
+  }
+
+  .brain-flow-node.is-remote span,
+  .brain-flow-node.is-remote strong {
+    color: var(--accent);
+  }
+
+  .brain-flow-arrow {
+    color: var(--teal);
+    font-size: 16px;
+    line-height: 1;
+    text-align: center;
+  }
+
+  .brain-flow-label {
+    justify-self: start;
+    color: var(--lime);
+    font-size: 12px;
+    line-height: 1.25;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  @media (max-width: 760px) {
+    .brain-flow-split {
+      grid-template-columns: 1fr;
+    }
+
+    .brain-flow-node strong {
+      font-size: 15px;
+    }
+  }
+
   .wiki-entry .wiki-link-list a {
     border-bottom: 0;
     padding-bottom: 0;
@@ -1464,12 +1566,64 @@
           </div>
         </div>
         <p>When enabled, Brain exposes the wrapper through MCP on <code>http://127.0.0.1:8100/servers/llm-wrapper/mcp</code> and through mcpo/OpenAPI on <code>http://127.0.0.1:8099/llm-wrapper</code>. Open WebUI can then see it as a Brain tool route alongside filesystem, memory, web-forager, and context7.</p>
-        <ul class="wiki-tech-lines" aria-label="llm-wrapper request flow">
-          <li><strong>Most prompts</strong> stay on the local Brain model.</li>
-          <li><strong>Hard prompt</strong> goes through <code>llm_call</code> to MCP <code>8100</code>, then <code>llm-wrapper</code>.</li>
-          <li><strong>Cache hit</strong> returns the stored answer immediately.</li>
-          <li><strong>Cache miss</strong> calls OpenRouter, saves the result, and returns one framed answer.</li>
-        </ul>
+        <div class="brain-flowchart" aria-label="llm-wrapper request flow">
+          <div class="brain-flow-center">
+            <div class="brain-flow-node">
+              <span>// local first</span>
+              <strong>Local Brain model</strong>
+            </div>
+          </div>
+          <div class="brain-flow-arrow">&#8595;</div>
+          <div class="brain-flow-split">
+            <div class="brain-flow-path">
+              <div class="brain-flow-label">// most prompts</div>
+              <div class="brain-flow-node is-good">
+                <span>fast and private</span>
+                <strong>Handle locally</strong>
+              </div>
+            </div>
+            <div class="brain-flow-path">
+              <div class="brain-flow-label">// hard prompt</div>
+              <div class="brain-flow-node">
+                <span>tool call</span>
+                <strong>llm_call</strong>
+              </div>
+              <div class="brain-flow-arrow">&#8595;</div>
+              <div class="brain-flow-node">
+                <span>MCP gateway</span>
+                <strong>port 8100</strong>
+              </div>
+              <div class="brain-flow-arrow">&#8595;</div>
+              <div class="brain-flow-node is-remote">
+                <span>cached server</span>
+                <strong>llm-wrapper</strong>
+              </div>
+            </div>
+          </div>
+          <div class="brain-flow-split">
+            <div class="brain-flow-path">
+              <div class="brain-flow-label">// cache hit</div>
+              <div class="brain-flow-node is-good">
+                <span>already answered</span>
+                <strong>Return cached result</strong>
+              </div>
+            </div>
+            <div class="brain-flow-path">
+              <div class="brain-flow-label">// cache miss</div>
+              <div class="brain-flow-node is-remote">
+                <span>first time call</span>
+                <strong>OpenRouter</strong>
+              </div>
+            </div>
+          </div>
+          <div class="brain-flow-arrow">&#8595;</div>
+          <div class="brain-flow-center">
+            <div class="brain-flow-node">
+              <span>one-shot boundary</span>
+              <strong>Local Brain processes answer</strong>
+            </div>
+          </div>
+        </div>
         <div class="wiki-callout">
           <div class="wiki-callout-title">
             <span>Wrapper Tools</span>
