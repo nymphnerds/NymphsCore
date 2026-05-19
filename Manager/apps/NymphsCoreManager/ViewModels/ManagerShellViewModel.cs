@@ -1909,7 +1909,10 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         var isBrainModule = string.Equals(module.Id, "brain", StringComparison.OrdinalIgnoreCase);
         var isLoraModule = string.Equals(module.Id, "lora", StringComparison.OrdinalIgnoreCase);
         var modelDownloadNeeded = snapshot.IsInstalled &&
-            string.Equals(modelsReady, "false", StringComparison.OrdinalIgnoreCase);
+            (IsFalseishStatusValue(modelsReady) ||
+             IsModelDownloadNeededHealth(snapshot.Health) ||
+             HasMissingArtifactList(snapshot.Get("missing_weights")) ||
+             HasMissingArtifactList(snapshot.Get("missing_models")));
         var trainingAssetsNeeded = isLoraModule &&
             snapshot.IsInstalled &&
             string.Equals(snapshot.Get("assets_ready"), "false", StringComparison.OrdinalIgnoreCase);
@@ -5522,8 +5525,39 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
     private static bool StateNeedsAttention(string? state, string? health)
     {
         return string.Equals(state, "needs_attention", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(health, "status-timeout", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(health, "status-warning", StringComparison.OrdinalIgnoreCase)
             || string.Equals(health, "degraded", StringComparison.OrdinalIgnoreCase)
             || string.Equals(health, "unavailable", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsModelDownloadNeededHealth(string? health)
+    {
+        if (string.IsNullOrWhiteSpace(health))
+        {
+            return false;
+        }
+
+        var normalized = health.Trim().Replace('_', '-');
+        return normalized.Contains("model-download", StringComparison.OrdinalIgnoreCase) ||
+               normalized.Contains("models-download", StringComparison.OrdinalIgnoreCase) ||
+               normalized.Contains("missing-model", StringComparison.OrdinalIgnoreCase) ||
+               normalized.Contains("missing-weight", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsFalseishStatusValue(string? value)
+    {
+        return value?.Trim().ToLowerInvariant() is "false" or "no" or "0" or "missing" or "needed" or "not-ready";
+    }
+
+    private static bool HasMissingArtifactList(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return false;
+        }
+
+        return value.Trim().ToLowerInvariant() is not ("none" or "false" or "no" or "0" or "[]");
     }
 
     private static string ValueOrFallback(string? value, string fallback)
