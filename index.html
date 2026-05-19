@@ -850,6 +850,35 @@
   .wiki-callout-warn { color: #ffcf4d; }
   .wiki-callout-hot { color: #ff8a2a; }
 
+  .wiki-action-text {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    max-width: 100%;
+    padding: 2px 9px 3px;
+    border: 1px solid rgba(85,223,240,0.34);
+    border-radius: 5px;
+    background: rgba(4,14,13,0.58);
+    color: var(--teal);
+    font-family: var(--font-mono);
+    font-size: 0.9em;
+    font-weight: 700;
+    line-height: 1.3;
+    white-space: nowrap;
+  }
+
+  .wiki-action-text::before {
+    content: "//";
+    color: var(--teal);
+    opacity: 0.95;
+    flex: 0 0 auto;
+  }
+
+  .wiki-callout-row > .wiki-action-text {
+    width: fit-content;
+    align-self: start;
+  }
+
   .wiki-feedback-form {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -1653,11 +1682,11 @@
           <div class="wiki-callout-grid">
             <div class="wiki-callout-row"><span class="wiki-callout-label">Runtime</span><span><code>~/LoRA</code> contains AI Toolkit, local Node 20, run files, config, jobs, logs, datasets, and outputs.</span></div>
             <div class="wiki-callout-row"><span class="wiki-callout-good">Outputs</span><span>Finished LoRAs, checkpoints, and compatible downloaded <code>.safetensors</code> files live under <code>~/LoRA/loras</code>.</span></div>
-            <div class="wiki-callout-row"><span class="wiki-callout-label">Advanced UI</span><span>Open AI Toolkit starts the official AI Toolkit UI on <code>http://127.0.0.1:8675</code>.</span></div>
+            <div class="wiki-callout-row"><span class="wiki-callout-label">Advanced UI</span><span><span class="wiki-action-text">Open AI Toolkit</span> starts the official AI Toolkit UI on <code>http://127.0.0.1:8675</code>.</span></div>
           </div>
         </div>
         <h4>First-time setup</h4>
-        <p>Install prepares the trainer application and tools only. <code>Fetch Training Assets</code> is a separate action because the training model and adapter are large. Run it once before the first training job; it downloads or resumes <code>Tongyi-MAI/Z-Image-Turbo</code> and <code>ostris/zimage_turbo_training_adapter</code>.</p>
+        <p>Install prepares the trainer application and tools only. <span class="wiki-action-text">Fetch Training Assets</span> is a separate action because the training model and adapter are large. Run it once before the first training job; it downloads or resumes <code>Tongyi-MAI/Z-Image-Turbo</code> and <code>ostris/zimage_turbo_training_adapter</code>.</p>
         <h4>Easy LoRA training flow</h4>
         <p><code>Easy LoRA</code> is the normal starting point. The LoRA name becomes the dataset folder name, the AI Toolkit job name, and the finished output name, so use a short readable name.</p>
         <div class="wiki-callout">
@@ -1666,9 +1695,9 @@
             <span class="wiki-callout-status">Before training</span>
           </div>
           <div class="wiki-callout-grid">
-            <div class="wiki-callout-row"><span class="wiki-callout-label">Open Pictures Folder</span><span>Opens the dataset folder for the current LoRA name. Put the training images for this run there.</span></div>
-            <div class="wiki-callout-row"><span class="wiki-callout-label">Open Draft CSV</span><span>Opens <code>metadata.csv</code> for editable captions. <code>Add Job</code> mirrors these captions into per-image <code>.txt</code> sidecars for AI Toolkit.</span></div>
-            <div class="wiki-callout-row"><span class="wiki-callout-good">Caption with Brain</span><span>Can draft captions when Brain is installed and a compatible local vision model is configured. <code>Fill Blank Only</code> preserves existing captions; <code>Overwrite All Drafts</code> replaces draft captions.</span></div>
+            <div class="wiki-callout-row"><span class="wiki-action-text">Open Pictures Folder</span><span>Opens the dataset folder for the current LoRA name. Put the training images for this run there.</span></div>
+            <div class="wiki-callout-row"><span class="wiki-action-text">Open Draft CSV</span><span>Opens <code>metadata.csv</code> for editable captions. <span class="wiki-action-text">Add Job</span> mirrors these captions into per-image <code>.txt</code> sidecars for AI Toolkit.</span></div>
+            <div class="wiki-callout-row"><span class="wiki-callout-good">Caption with Brain</span><span>Can draft captions when Brain is installed and a compatible local vision model is configured. <span class="wiki-action-text">Fill Blank Only</span> preserves existing captions; <span class="wiki-action-text">Overwrite All Drafts</span> replaces draft captions.</span></div>
           </div>
         </div>
         <h4>Training settings</h4>
@@ -1687,16 +1716,16 @@
             <span class="wiki-callout-status">Two steps</span>
           </div>
           <div class="wiki-callout-grid">
-            <div class="wiki-callout-row"><span class="wiki-callout-label">Add Job</span><span>Prepares metadata, mirrors captions to <code>.txt</code> sidecars, writes the AI Toolkit YAML job, writes LoRA metadata, and registers or updates the job.</span></div>
-            <div class="wiki-callout-row"><span class="wiki-callout-good">Start Job</span><span>Queues the saved AI Toolkit job and starts the AI Toolkit queue. If settings changed, click <code>Add Job</code> again before starting.</span></div>
-            <div class="wiki-callout-row"><span class="wiki-callout-label">Stop/Delete</span><span><code>Stop Job</code> stops the queued or running job. <code>Delete Job</code> deletes only the AI Toolkit job entry, not datasets, captions, finished LoRAs, or downloaded assets.</span></div>
+            <div class="wiki-callout-row"><span class="wiki-action-text">Add Job</span><span>Prepares metadata, mirrors captions to <code>.txt</code> sidecars, writes the AI Toolkit YAML job, writes LoRA metadata, and registers or updates the job.</span></div>
+            <div class="wiki-callout-row"><span class="wiki-action-text">Start Job</span><span>Queues the saved AI Toolkit job and starts the AI Toolkit queue. If settings changed, click <span class="wiki-action-text">Add Job</span> again before starting.</span></div>
+            <div class="wiki-callout-row"><span class="wiki-callout-label">Stop/Delete</span><span><span class="wiki-action-text">Stop Job</span> stops the queued or running job. <span class="wiki-action-text">Delete Job</span> deletes only the AI Toolkit job entry, not datasets, captions, finished LoRAs, or downloaded assets.</span></div>
           </div>
         </div>
         <h4>Results and testing</h4>
-        <p>Use <code>Refresh</code>, the progress bar, live log, samples, and checkpoints to judge the run. <code>Open LoRAs</code> opens the folder containing finished <code>.safetensors</code> files and saved checkpoints.</p>
+        <p>Use <span class="wiki-action-text">Refresh</span>, the progress bar, live log, samples, and checkpoints to judge the run. <span class="wiki-action-text">Open LoRAs</span> opens the folder containing finished <code>.safetensors</code> files and saved checkpoints.</p>
         <p>For the first test, use the finished LoRA in Z-Image with a normal prompt before changing several settings at once. If the result is weak, compare checkpoints and LoRA strength. If it is overfit, check the dataset and captions before running a stronger preset.</p>
-        <p><code>Open AI Toolkit</code> is for the full upstream training interface. Use it when you need advanced AI Toolkit controls; otherwise, the Easy LoRA flow is the intended path.</p>
-        <p>Normal uninstall removes the trainer runtime but preserves datasets, jobs, outputs, logs, models, and adapters. <code>Delete Data</code> is the separate wipe path for saved LoRA module data.</p>
+        <p><span class="wiki-action-text">Open AI Toolkit</span> is for the full upstream training interface. Use it when you need advanced AI Toolkit controls; otherwise, the Easy LoRA flow is the intended path.</p>
+        <p>Normal uninstall removes the trainer runtime but preserves datasets, jobs, outputs, logs, models, and adapters. <span class="wiki-action-text">Delete Data</span> is the separate wipe path for saved LoRA module data.</p>
         <h4>Download and use LoRAs</h4>
         <p>You do not have to train every LoRA yourself. Download compatible Z-Image Turbo LoRA <code>.safetensors</code> files from Civitai, Hugging Face, or another trusted source, then place the files directly in <code>~/LoRA/loras</code>.</p>
         <p>Training creates named run folders under the same root, for example <code>~/LoRA/loras/my_first_lora/my_first_lora.safetensors</code>. Downloaded LoRA files sit beside those folders, not inside a new training run folder. The Blender workflow reads LoRAs from <code>~/LoRA/loras</code> whether they were trained locally or added manually.</p>
