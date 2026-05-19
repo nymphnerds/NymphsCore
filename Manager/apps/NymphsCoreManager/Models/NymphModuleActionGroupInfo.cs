@@ -36,8 +36,6 @@ public sealed class NymphModuleActionGroupInfo : ViewModelBase
                 if (args.PropertyName is nameof(NymphModuleActionFieldInfo.SelectedValue) or nameof(NymphModuleActionFieldInfo.IsChecked))
                 {
                     OnPropertyChanged(nameof(CanSubmit));
-                    OnPropertyChanged(nameof(ShowChoiceSubmit));
-                    OnPropertyChanged(nameof(ShowNoChoiceSubmit));
                 }
             };
         }
@@ -84,11 +82,7 @@ public sealed class NymphModuleActionGroupInfo : ViewModelBase
 
     public bool HasNoChoiceFields => !HasChoiceFields;
 
-    public bool CanSubmit => !Fields.Any(field => field.IsRequiredCheckbox && !field.IsChecked);
-
-    public bool ShowChoiceSubmit => HasChoiceFields && CanSubmit;
-
-    public bool ShowNoChoiceSubmit => HasNoChoiceFields && CanSubmit;
+    public bool CanSubmit => !Fields.Any(field => field.BlocksSubmit);
 
     public int FieldRowLeftMargin => HasChoiceFields ? 0 : 24;
 
@@ -253,6 +247,13 @@ public sealed class NymphModuleActionFieldInfo : ViewModelBase
     public bool IsCheckbox => string.Equals(Type, "checkbox", StringComparison.OrdinalIgnoreCase);
 
     public bool IsRequiredCheckbox => IsCheckbox && !Optional;
+
+    public bool IsAgreementField =>
+        string.Equals(Name, "license_ack", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(ArgumentName, "--license-ack", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(ArgumentName, "--license_ack", StringComparison.OrdinalIgnoreCase);
+
+    public bool BlocksSubmit => (IsRequiredCheckbox || (IsAgreementField && !Optional)) && !IsChecked;
 
     public bool IsOptionField => !IsSecret && !IsCheckbox && Options.Count > 0;
 

@@ -2458,7 +2458,7 @@
                                           Command="{Binding DataContext.RunModuleActionGroupCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                           CommandParameter="{Binding DataContext, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
                                           IsEnabled="{Binding DataContext.CanSubmit, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                                          Visibility="{Binding DataContext.ShowNoChoiceSubmit, RelativeSource={RelativeSource AncestorType=ItemsControl}, Converter={StaticResource BoolToVisibilityConverter}}">
+                                          Visibility="{Binding DataContext.HasNoChoiceFields, RelativeSource={RelativeSource AncestorType=ItemsControl}, Converter={StaticResource BoolToVisibilityConverter}}">
                                     <TextBlock Text="{Binding DataContext.SubmitLabel, RelativeSource={RelativeSource AncestorType=ItemsControl}, StringFormat=// {0}}"
                                                Foreground="#23E7DB"
                                                FontFamily="Cascadia Mono"
@@ -2545,7 +2545,7 @@
                           <StackPanel Orientation="Horizontal"
                                       Margin="{Binding FieldRowMargin}"
                                       VerticalAlignment="Center"
-                                      Visibility="{Binding ShowChoiceSubmit, Converter={StaticResource BoolToVisibilityConverter}}">
+                                      Visibility="{Binding HasChoiceFields, Converter={StaticResource BoolToVisibilityConverter}}">
                             <TextBlock Width="{Binding FieldLabelWidth}"
                                        Margin="0,0,7,0" />
                             <Button Style="{StaticResource ModuleActionButtonStyle}"
