@@ -1171,13 +1171,10 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
     {
         await Task.Yield();
 
-        StatusMessage = ManagedDistroDetected
-            ? "Refreshing module status..."
-            : "Refreshing runtime monitor...";
-
+        Task? moduleStatusTask = null;
         if (ManagedDistroDetected)
         {
-            await RefreshModuleStateInBackgroundAsync().ConfigureAwait(true);
+            moduleStatusTask = RefreshModuleStateInBackgroundAsync(updateStatusMessage: false);
         }
         else if (_allModules.Count > 0)
         {
@@ -1197,6 +1194,23 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         {
             await CheckForUpdatesOnStartupAsync().ConfigureAwait(true);
         }
+
+        if (moduleStatusTask is not null)
+        {
+            _ = ObserveBackgroundTaskAsync(moduleStatusTask, "Module status refresh");
+        }
+    }
+
+    private async Task ObserveBackgroundTaskAsync(Task task, string label)
+    {
+        try
+        {
+            await task.ConfigureAwait(true);
+        }
+        catch (Exception ex)
+        {
+            AppendActivity($"{label} warning: {ex.Message}");
+        }
     }
 
     private async Task RefreshRuntimeMonitorSafelyAsync()
@@ -1212,12 +1226,16 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         }
     }
 
-    private async Task RefreshModuleStateInBackgroundAsync()
+    private async Task RefreshModuleStateInBackgroundAsync(bool updateStatusMessage = true)
     {
         await Task.Yield();
         try
         {
-            StatusMessage = "Refreshing module status...";
+            if (updateStatusMessage)
+            {
+                StatusMessage = "Refreshing module status...";
+            }
+
             AppendActivity("Module status refresh started in background.");
             await RefreshModuleStateAsync().ConfigureAwait(true);
             AppendActivity("Module status refresh completed.");

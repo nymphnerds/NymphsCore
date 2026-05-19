@@ -1364,6 +1364,19 @@ Windows-side path is unavailable and the fallback is clearly bounded.
 ## Status Contract
 
 `status` must be fast, timeout-safe, and safe when files are missing.
+It is the home-card readiness contract, not a deep diagnostic scan. Keep normal
+status to cheap filesystem/process checks for:
+
+- available
+- installed
+- model download needed
+- training assets needed
+- obvious runtime wrapper problems
+
+Do not probe every service URL, import heavy ML libraries, call Hugging Face
+APIs, or run model validation from normal `status`. Put deep checks behind a
+separate action such as `doctor`, `smoke_test`, or an explicit status mode like
+`BRAIN_STATUS_DEEP=1`.
 
 Print newline-separated `key=value` pairs. Minimum recommended keys:
 
