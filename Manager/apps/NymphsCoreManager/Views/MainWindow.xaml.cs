@@ -10,6 +10,7 @@ using System.Text.RegularExpressions;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Documents;
 using System.Windows.Interop;
 using System.Windows.Input;
 using System.Windows.Threading;
@@ -23,6 +24,9 @@ namespace NymphsCoreManager.Views;
 
 public partial class MainWindow : Window
 {
+    private static readonly Regex InlineUrlRegex = new(
+        @"https?://[^\s<>""]+",
+        RegexOptions.Compiled | RegexOptions.CultureInvariant);
     private const int DwmwaUseImmersiveDarkMode = 20;
     private const int DwmwaUseImmersiveDarkModeLegacy = 19;
     private const int DwmwaBorderColor = 34;
@@ -54,6 +58,7 @@ public partial class MainWindow : Window
         _viewModel = new ManagerShellViewModel(new InstallerWorkflowService());
 
         DataContext = _viewModel;
+        UpdateModuleActionFeedbackDetailText();
         Loaded += OnLoaded;
 
         if (_viewModel is not null)
@@ -264,6 +269,72 @@ public partial class MainWindow : Window
         {
             Dispatcher.BeginInvoke(NavigateModuleUiBrowser, DispatcherPriority.Send);
         }
+
+        if (e.PropertyName == nameof(ManagerShellViewModel.ModuleActionFeedbackDetail))
+        {
+            Dispatcher.BeginInvoke(UpdateModuleActionFeedbackDetailText, DispatcherPriority.DataBind);
+        }
+    }
+
+    private void UpdateModuleActionFeedbackDetailText()
+    {
+        if (ModuleActionFeedbackDetailTextBlock is null)
+        {
+            return;
+        }
+
+        var text = _viewModel?.ModuleActionFeedbackDetail ?? string.Empty;
+        ModuleActionFeedbackDetailTextBlock.Inlines.Clear();
+
+        var position = 0;
+        foreach (Match match in InlineUrlRegex.Matches(text))
+        {
+            if (match.Index > position)
+            {
+                ModuleActionFeedbackDetailTextBlock.Inlines.Add(text[position..match.Index]);
+            }
+
+            var url = match.Value.TrimEnd('.', ',', ';', ':', ')', ']');
+            var trailing = match.Value[url.Length..];
+            var link = new Hyperlink(new Run(url))
+            {
+                NavigateUri = new Uri(url),
+                Foreground = FindResource("LimeBrush") as Brush,
+                TextDecorations = null,
+                ToolTip = url,
+            };
+            link.RequestNavigate += ModuleInlineLink_RequestNavigate;
+            ModuleActionFeedbackDetailTextBlock.Inlines.Add(link);
+            if (!string.IsNullOrEmpty(trailing))
+            {
+                ModuleActionFeedbackDetailTextBlock.Inlines.Add(trailing);
+            }
+
+            position = match.Index + match.Length;
+        }
+
+        if (position < text.Length)
+        {
+            ModuleActionFeedbackDetailTextBlock.Inlines.Add(text[position..]);
+        }
+    }
+
+    private void ModuleInlineLink_RequestNavigate(object sender, System.Windows.Navigation.RequestNavigateEventArgs e)
+    {
+        try
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = e.Uri.AbsoluteUri,
+                UseShellExecute = true,
+            });
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"Could not open inline module link: {ex.Message}");
+        }
+
+        e.Handled = true;
     }
 
     private void ModuleUiBrowser_Loaded(object sender, RoutedEventArgs e)

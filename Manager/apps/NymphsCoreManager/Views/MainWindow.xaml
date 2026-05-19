@@ -2227,7 +2227,7 @@
                                      FontSize="12"
                                      TextWrapping="Wrap" />
                         </StackPanel>
-                        <TextBlock Text="{Binding ModuleActionFeedbackDetail}"
+                        <TextBlock x:Name="ModuleActionFeedbackDetailTextBlock"
                                    Foreground="#9AB8B4"
                                    FontSize="12"
                                    VerticalAlignment="Stretch"
