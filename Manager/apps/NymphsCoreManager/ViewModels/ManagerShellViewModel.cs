@@ -2792,9 +2792,14 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
     private void OpenModuleUi(NymphModuleViewModel? module)
     {
+        _ = OpenModuleUiAsync(module);
+    }
+
+    private async Task<bool> OpenModuleUiAsync(NymphModuleViewModel? module)
+    {
         if (module is null || !module.HasInstalledModuleUi)
         {
-            return;
+            return false;
         }
 
         var uiInfo = module.InstalledModuleUiInfo;
@@ -2805,7 +2810,60 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             SetModuleActionFeedback(
                 $"{module.Name}: module UI unavailable",
                 "The installed module does not expose a valid local Manager UI file.");
-            return;
+            return false;
+        }
+
+        if (uiInfo.RequiresRunning && !string.IsNullOrWhiteSpace(uiInfo.StartAction))
+        {
+            if (IsBusy)
+            {
+                SetModuleActionFeedback(
+                    $"{module.Name}: module UI is waiting",
+                    "The Manager is busy with another command. Try opening the module UI again when it finishes.");
+                return false;
+            }
+
+            var startAction = uiInfo.StartAction.Trim().ToLowerInvariant();
+            IsBusy = true;
+            StatusMessage = $"Starting {module.Name} UI...";
+            SetModuleActionFeedback(
+                $"{module.Name}: starting UI",
+                $"Running {startAction} before loading the embedded module UI.");
+            await Task.Yield();
+
+            try
+            {
+                var output = await _workflowService.RunNymphModuleActionAsync(
+                    _settings,
+                    module.Id,
+                    startAction,
+                    module.InstallRoot,
+                    new Progress<string>(AppendActivity),
+                    CancellationToken.None).ConfigureAwait(true);
+
+                AppendModuleActionOutput(module, startAction, output);
+                if (OpenFirstUrlFromOutput(module, output, quietWhenMissing: true))
+                {
+                    StatusMessage = $"{module.Name} UI opened.";
+                    SetModuleActionFeedback(
+                        $"{module.Name}: UI opened",
+                        BuildModuleActionFeedbackDetail(output));
+                    return true;
+                }
+            }
+            catch (Exception ex)
+            {
+                StatusMessage = $"{module.Name} UI failed to start.";
+                SetModuleActionFeedback(
+                    $"{module.Name}: UI failed to start",
+                    BuildModuleActionFeedbackDetail(ex.Message));
+                AppendActivity($"{module.Name} UI start warning: {ex.Message}");
+                return false;
+            }
+            finally
+            {
+                IsBusy = false;
+            }
         }
 
         SelectedNavigationItem = null;
@@ -2818,6 +2876,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         CurrentPageKind = ManagerPageKind.ModuleUi;
         ModuleUiSource = uiInfo.WindowsPath;
         AppendActivity($"{module.Name} module UI opened.");
+        return true;
     }
 
     public bool HandleModuleUiNavigation(Uri? uri)
@@ -4214,7 +4273,10 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         {
             if (module.HasInstalledModuleUi)
             {
-                OpenModuleUi(module);
+                if (!await OpenModuleUiAsync(module).ConfigureAwait(true))
+                {
+                    return;
+                }
                 StatusMessage = $"{module.Name} {actionLabel} opened.";
                 SetModuleActionFeedback(
                     $"{module.Name}: {actionLabel} opened",

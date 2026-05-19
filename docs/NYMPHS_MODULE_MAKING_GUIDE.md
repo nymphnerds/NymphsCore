@@ -327,8 +327,12 @@ An installed module may expose a local Manager UI from its installed
 
 Rules:
 
-- `type` must be `local_html` for the current stable path.
-- `entrypoint` must be a safe relative path inside the installed module root.
+- `type` must be `local_html` for installed HTML or `local_url` for a
+  module-owned localhost service.
+- For `local_html`, `entrypoint` must be a safe relative path inside the
+  installed module root.
+- For `local_url`, `url` must be a loopback URL and `start_action` must start or
+  reuse the serving process.
 - The Manager reads this only from the installed module folder, never from a
   remote registry preview.
 - If the installed file is absent or invalid, the Manager hides the custom UI
@@ -411,6 +415,7 @@ Current supported type:
 
 ```text
 local_html
+local_url
 ```
 
 Planned types:
@@ -420,6 +425,50 @@ local_web_app
 served_web_app
 external_browser
 ```
+
+### Local URL UI Launch Contract
+
+Use `local_url` when the module serves a browser UI from localhost, such as
+WORBI, Brain WebUI, Pixal3D Gradio, or an advanced LoRA/AI Toolkit UI.
+
+The installed manifest must declare the embedded URL and the action that starts
+it:
+
+```json
+{
+  "ui": {
+    "manager_ui": {
+      "type": "local_url",
+      "title": "Module UI",
+      "url": "http://127.0.0.1:8097",
+      "requires_running": true,
+      "start_action": "start"
+    }
+  }
+}
+```
+
+Rules:
+
+- `url` must be a loopback `http://` or `https://` URL that WebView2 can load.
+- `requires_running: true` means the Manager starts `start_action` before
+  loading the URL from the standard module UI button.
+- `start_action` must name an action from `entrypoints`; it is an action id, not
+  a script path.
+- The start action must be idempotent. If the server is already running, exit 0.
+- The start action must print the UI URL on success. Prefer both:
+
+```text
+url=http://127.0.0.1:8097
+module_ui_url=http://127.0.0.1:8097
+```
+
+- The module's `open` action should also print the frontend URL, not the install
+  directory. This keeps `open_in_manager` and external-browser fallbacks generic.
+- Long startup is acceptable, but the action must either return a usable URL or
+  fail with the real log path/error. Do not leave the Manager on a blank WebView.
+- Do not use `local_url` for a static installed HTML file. Use `local_html` for
+  Easy LoRA-style module-owned HTML pages that call the Manager action bridge.
 
 `local_web_app` is for installed static web apps such as
 React/Vite/Svelte/plain HTML builds:

@@ -5,4 +5,6 @@ public sealed record InstalledNymphModuleUiInfo(
     string Type,
     string Title,
     string Entrypoint,
-    string WindowsPath);
+    string WindowsPath,
+    bool RequiresRunning = false,
+    string StartAction = "");

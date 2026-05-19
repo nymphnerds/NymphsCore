@@ -36,6 +36,8 @@ public sealed class NymphModuleActionGroupInfo : ViewModelBase
                 if (args.PropertyName is nameof(NymphModuleActionFieldInfo.SelectedValue) or nameof(NymphModuleActionFieldInfo.IsChecked))
                 {
                     OnPropertyChanged(nameof(CanSubmit));
+                    OnPropertyChanged(nameof(ShowChoiceSubmit));
+                    OnPropertyChanged(nameof(ShowNoChoiceSubmit));
                 }
             };
         }
@@ -83,6 +85,10 @@ public sealed class NymphModuleActionGroupInfo : ViewModelBase
     public bool HasNoChoiceFields => !HasChoiceFields;
 
     public bool CanSubmit => !Fields.Any(field => field.IsRequiredCheckbox && !field.IsChecked);
+
+    public bool ShowChoiceSubmit => HasChoiceFields && CanSubmit;
+
+    public bool ShowNoChoiceSubmit => HasNoChoiceFields && CanSubmit;
 
     public int FieldRowLeftMargin => HasChoiceFields ? 0 : 24;
 
@@ -304,6 +310,11 @@ public sealed class NymphModuleActionFieldInfo : ViewModelBase
         if (string.Equals(secretId, "openrouter.api_key", StringComparison.OrdinalIgnoreCase))
         {
             return "OpenRouter key";
+        }
+
+        if (string.Equals(name, "license_ack", StringComparison.OrdinalIgnoreCase))
+        {
+            return "License/access";
         }
 
         return string.IsNullOrWhiteSpace(label) ? name : label;
