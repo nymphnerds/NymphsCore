@@ -1775,7 +1775,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
     {
         try
         {
-            using var statusTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(8));
+            using var statusTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(15));
             var output = await _workflowService.RunNymphModuleActionAsync(
                 _settings,
                 module.Id,
@@ -1797,7 +1797,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                     IsInstalled: true,
                     IsRunning: false,
                     Version: markerVersion,
-                    State: "installed",
+                    State: "status_warning",
                     Detail: $"{module.Name} is installed, but its status entrypoint reported not installed. The install marker is being trusted while the status script is fixed.",
                     InstallRoot: module.InstallPath,
                     Health: "status-warning",
@@ -1824,7 +1824,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                     IsInstalled: true,
                     IsRunning: false,
                     Version: markerVersion,
-                    State: "installed",
+                    State: "status_timeout",
                     Detail: $"{module.Name} is installed, but its status check timed out. Runtime health has not been verified yet.",
                     InstallRoot: module.InstallPath,
                     Health: "status-timeout",
@@ -1863,7 +1863,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                     IsInstalled: true,
                     IsRunning: false,
                     Version: markerVersion,
-                    State: "installed",
+                    State: "status_warning",
                     Detail: $"{module.Name} is installed, but its status entrypoint failed. Use // status or // logs for the raw module error.",
                     InstallRoot: module.InstallPath,
                     Health: "status-warning",
@@ -5514,6 +5514,9 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             "installed" => "Installed",
             "running" => "Running",
             "repair_needed" => "Repair needed",
+            "model_download_needed" => "Model download needed",
+            "status_warning" => "Status warning",
+            "status_timeout" => "Status timeout",
             "needs_attention" => "Needs attention",
             "installing" => "Installing",
             "uninstalling" => "Uninstalling",

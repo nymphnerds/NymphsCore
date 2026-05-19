@@ -6390,7 +6390,7 @@ meta:
         var installedConventionalEntrypointPath = $"{installRoot}/{conventionalEntrypoint}";
         var cachedConventionalEntrypointPath = $"{cacheRepo}/{conventionalEntrypoint}";
         var isStatusAction = string.Equals(normalizedAction, "status", StringComparison.OrdinalIgnoreCase);
-        var commandTimeoutPrefix = isStatusAction ? "timeout 6s " : string.Empty;
+        var commandTimeoutPrefix = isStatusAction ? "timeout 12s " : string.Empty;
         var unavailableStatus =
             $"echo id={ToBashSingleQuoted(normalizedModuleId)}; echo installed=false; echo running=false; echo version=not-installed; echo state=available; echo health=unknown; echo install_root={ToBashSingleQuoted(installRoot)}; echo detail={ToBashSingleQuoted("Module is available from the registry, but is not installed yet.")}; exit 0; ";
         var repairNeededStatus =
