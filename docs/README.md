@@ -12,6 +12,5 @@ Start here:
 Module authoring:
 
 - [Nymphs Module Making Guide](NYMPHS_MODULE_MAKING_GUIDE.md)
-- [Nymph Module UI Standard](NYMPH_MODULE_UI_STANDARD.md)
 
 Planning notes and handoffs are kept in [Ideas](Ideas/) for maintainers.

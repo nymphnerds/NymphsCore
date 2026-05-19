@@ -7,7 +7,6 @@ Read these first before implementing:
 ```text
 /home/nymph/NymphsCore/docs/Ideas/BRAIN_MODULE_NATIVE_MANAGER_PLAN.md
 /home/nymph/NymphsCore/docs/NYMPHS_MODULE_MAKING_GUIDE.md
-/home/nymph/NymphsCore/docs/NYMPH_MODULE_UI_STANDARD.md
 /home/nymph/NymphsCore/docs/NYMPHS_BRAIN_GUIDE.md
 ```
 

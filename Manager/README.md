@@ -119,10 +119,10 @@ the shared token under `%LOCALAPPDATA%\NymphsCore\shared-secrets.json`, hydrates
 the field when the page opens again, and passes it to download actions without
 printing the secret to logs.
 
-For UI rules and the Z-Image fast-load lessons, read:
+For module UI rules and the Z-Image fast-load lessons, read:
 
 ```text
-../docs/NYMPH_MODULE_UI_STANDARD.md
+../docs/NYMPHS_MODULE_MAKING_GUIDE.md#installed-module-ui-contract
 ```
 
 ## Official Modules
@@ -173,7 +173,6 @@ Useful docs:
 - [Absolute Beginner Local Backend Install Guide](../docs/ABSOLUTE_BEGINNER_INSTALL_GUIDE.md)
 - [Install Disk And Model Footprint](../docs/FOOTPRINT.md)
 - [Blender Addon User Guide](../docs/BLENDER_ADDON_USER_GUIDE.md)
-- [Nymph Module UI Standard](../docs/NYMPH_MODULE_UI_STANDARD.md)
 - [Nymph Module Making Guide](../docs/NYMPHS_MODULE_MAKING_GUIDE.md)
 
 ## Developer Notes

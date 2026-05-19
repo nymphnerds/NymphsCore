@@ -52,7 +52,7 @@ NymphsCoreManager-win-x64/
 - Installed modules may expose custom Manager UI through `ui.manager_ui`; current support is WebView2-hosted `local_html`.
 - Long module UI actions should route to the Manager Logs page so stdout, stderr, and download progress stay visible.
 - The Fetch Models HF token field is persisted in `%LOCALAPPDATA%\NymphsCore\shared-secrets.json` and is not echoed to logs.
-- Keep future module UI work aligned with [Nymph Module UI Standard](../../../docs/NYMPH_MODULE_UI_STANDARD.md).
+- Keep future module UI work aligned with the [Nymphs Module Making Guide](../../../docs/NYMPHS_MODULE_MAKING_GUIDE.md#installed-module-ui-contract).
 
 ## If Something Fails
 
