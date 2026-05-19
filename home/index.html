@@ -1484,12 +1484,23 @@
           </div>
           <div class="wiki-callout-grid">
             <div class="wiki-callout-row"><span class="wiki-callout-label">Runtime</span><span><code>~/LoRA</code> contains AI Toolkit, local Node 20, run files, config, jobs, logs, datasets, and outputs.</span></div>
-            <div class="wiki-callout-row"><span class="wiki-callout-good">Outputs</span><span>Finished LoRAs and checkpoints are written under <code>~/LoRA/loras</code>.</span></div>
+            <div class="wiki-callout-row"><span class="wiki-callout-good">Outputs</span><span>Finished LoRAs, checkpoints, and compatible downloaded <code>.safetensors</code> files live under <code>~/LoRA/loras</code>.</span></div>
             <div class="wiki-callout-row"><span class="wiki-callout-label">Advanced UI</span><span>Open AI Toolkit starts the official AI Toolkit UI on <code>http://127.0.0.1:8675</code>.</span></div>
           </div>
         </div>
         <h4>First-time setup</h4>
         <p>Install prepares the trainer application and tools only. <code>Fetch Training Assets</code> is a separate action because the training model and adapter are large. Run it once before the first training job; it downloads or resumes <code>Tongyi-MAI/Z-Image-Turbo</code> and <code>ostris/zimage_turbo_training_adapter</code>.</p>
+        <div class="wiki-callout">
+          <div class="wiki-callout-title">
+            <span>Useful Links</span>
+            <span class="wiki-callout-status">LoRA sources</span>
+          </div>
+          <div class="wiki-callout-grid">
+            <div class="wiki-callout-row"><span class="wiki-callout-label">AI Toolkit</span><span><a href="https://github.com/ostris/ai-toolkit">ostris/ai-toolkit</a> is the upstream training backend used by the module.</span></div>
+            <div class="wiki-callout-row"><span class="wiki-callout-good">Training model</span><span><a href="https://huggingface.co/Tongyi-MAI/Z-Image-Turbo">Tongyi-MAI/Z-Image-Turbo</a> is the Z-Image Turbo model fetched for training.</span></div>
+            <div class="wiki-callout-row"><span class="wiki-callout-label">Adapter</span><span><a href="https://huggingface.co/ostris/zimage_turbo_training_adapter">ostris/zimage_turbo_training_adapter</a> provides the Turbo training adapter weights.</span></div>
+          </div>
+        </div>
         <h4>Easy LoRA training flow</h4>
         <p><code>Easy LoRA</code> is the normal starting point. The LoRA name becomes the dataset folder name, the AI Toolkit job name, and the finished output name, so use a short readable name.</p>
         <div class="wiki-callout">
@@ -1526,6 +1537,7 @@
         </div>
         <h4>Results and testing</h4>
         <p>Use <code>Refresh</code>, the progress bar, live log, samples, and checkpoints to judge the run. <code>Open LoRAs</code> opens the folder containing finished <code>.safetensors</code> files and saved checkpoints.</p>
+        <p>You can also place compatible downloaded LoRA <code>.safetensors</code> files in <code>~/LoRA/loras</code>. The Blender workflow can use LoRAs from that folder, whether they were trained locally or added manually.</p>
         <p>For the first test, use the finished LoRA in Z-Image with a normal prompt before changing several settings at once. If the result is weak, compare checkpoints and LoRA strength. If it is overfit, check the dataset and captions before running a stronger preset.</p>
         <p><code>Open AI Toolkit</code> is for the full upstream training interface. Use it when you need advanced AI Toolkit controls; otherwise, the Easy LoRA flow is the intended path.</p>
         <p>Normal uninstall removes the trainer runtime but preserves datasets, jobs, outputs, logs, models, and adapters. <code>Delete Data</code> is the separate wipe path for saved LoRA module data.</p>
