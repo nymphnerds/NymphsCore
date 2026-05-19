@@ -1488,23 +1488,25 @@
 
       <div class="wiki-entry" id="wiki-module-authors">
         <h3 class="wiki-section-marker">// MODULE AUTHORS</h3>
-        <h4>Build a module without becoming the Manager</h4>
-        <p>A NymphsCore module is a self-contained workflow that plugs into the shared local runtime. It can install tools, fetch models, start services, expose buttons, open outputs, stream logs, and provide its own small Manager UI when needed.</p>
-        <p>The point of the module standard is simple: module authors should be able to build, test, and ship a Nymph module without digging through the Manager source code. The contract explains what the Manager expects, what the module owns, and how the two talk to each other.</p>
+        <h4>Community module standard</h4>
+        <p>NymphsCore is the base shell. Modules are separate products that plug into the managed local runtime through a registry entry, a <code>nymph.json</code> manifest, and declared lifecycle scripts.</p>
+        <p>The module standard is for authors who want to build, test, and ship a NymphsCore module without needing to read the Manager source. It describes the public contract between the Manager, the registry, and the installed module.</p>
 
         <div class="wiki-callout">
           <div class="wiki-callout-title">
-            <span>Start Here</span>
-            <span class="wiki-callout-status">Author docs</span>
+            <span>Required Pieces</span>
+            <span class="wiki-callout-status">Module shape</span>
           </div>
           <div class="wiki-callout-grid">
-            <div class="wiki-callout-row"><span class="wiki-callout-good">Main guide</span><span><a href="https://github.com/nymphnerds/NymphsCore/blob/main/docs/NYMPHS_MODULE_MAKING_GUIDE.md">Nymphs Module Making Guide</a> covers registry entries, <code>nymph.json</code>, lifecycle scripts, actions, status output, smoke tests, uninstall/data rules, cache/log paths, and publishing.</span></div>
-            <div class="wiki-callout-row"><span class="wiki-callout-label">UI guide</span><span><a href="https://github.com/nymphnerds/NymphsCore/blob/main/docs/NYMPH_MODULE_UI_STANDARD.md">Nymph Module UI Standard</a> covers custom installed module UI, WebView2 hosting, native action groups, model fetch controls, secrets, and the action bridge.</span></div>
+            <div class="wiki-callout-row"><span class="wiki-callout-label">Registry</span><span>A public catalog entry that tells the Manager the module exists before install.</span></div>
+            <div class="wiki-callout-row"><span class="wiki-callout-good">Manifest</span><span>A module repo or archive containing <code>nymph.json</code> at the root.</span></div>
+            <div class="wiki-callout-row"><span class="wiki-callout-label">Scripts</span><span>Lifecycle entrypoints declared in the manifest, such as install, status, start, stop, open, logs, and uninstall.</span></div>
+            <div class="wiki-callout-row"><span class="wiki-callout-label">Optional UI</span><span>Modules with custom controls can include a local Manager UI, usually <code>ui/manager.html</code>.</span></div>
           </div>
         </div>
 
         <h4 id="wiki-module-boundary">The boundary</h4>
-        <p>NymphsCore works best when the Manager stays generic and modules stay responsible for their own workflows. The Manager should not need hardcoded screens for Z-Image, TRELLIS, Brain, LoRA, WORBI, or future modules. Installed modules describe their capabilities in their manifest, and the Manager hosts or runs those declared capabilities through the shared contract.</p>
+        <p>The Manager provides the common shell and lifecycle controls. The module provides the actual workflow. This keeps the Manager generic while still allowing modules such as Z-Image, TRELLIS, Brain, LoRA, WORBI, and future tools to expose their own behavior.</p>
 
         <div class="wiki-callout">
           <div class="wiki-callout-title">
@@ -1518,10 +1520,10 @@
           </div>
         </div>
 
-        <h4>Important manifest rule</h4>
+        <h4>Registry and manifest rule</h4>
         <p>Keep display classification separate from installation mechanics. <code>category</code> and <code>kind</code> tell users what the module is, such as image, 3D, training, service, or tool. <code>packaging</code> only tells the Manager how it installs, such as repo or archive.</p>
         <h4 id="wiki-module-ui-standard">UI and action boundary</h4>
-        <p>Installed modules can expose Manager UI through their own manifest, usually as a local HTML surface hosted inside WebView2. Module UI should call declared module actions through the generic action bridge instead of asking the Manager to run custom shell commands or add module-specific frontend code.</p>
+        <p>Installed modules can expose custom Manager UI through their installed manifest. The current supported UI type is local HTML hosted in WebView2. The Manager reads this only from the installed module folder, never from a remote registry preview.</p>
         <div class="wiki-callout">
           <div class="wiki-callout-title">
             <span>Module UI Rule</span>
@@ -1531,6 +1533,17 @@
             <div class="wiki-callout-row"><span class="wiki-callout-label">Before install</span><span>The Manager shows registry and manifest metadata plus standard lifecycle controls.</span></div>
             <div class="wiki-callout-row"><span class="wiki-callout-good">After install</span><span>The installed module may expose its own Manager UI and buttons from its local <code>nymph.json</code>.</span></div>
             <div class="wiki-callout-row"><span class="wiki-callout-label">Actions</span><span>Custom UI calls declared module actions through the shared action bridge, and the Manager validates them before running anything.</span></div>
+          </div>
+        </div>
+        <div class="wiki-callout">
+          <div class="wiki-callout-title">
+            <span>Author Docs</span>
+            <span class="wiki-callout-status">Source of truth</span>
+          </div>
+          <div class="wiki-callout-grid">
+            <div class="wiki-callout-row"><span class="wiki-callout-good">Main guide</span><span><a href="https://github.com/nymphnerds/NymphsCore/blob/main/docs/NYMPHS_MODULE_MAKING_GUIDE.md">Nymphs Module Making Guide</a> covers the full community module standard.</span></div>
+            <div class="wiki-callout-row"><span class="wiki-callout-label">UI guide</span><span><a href="https://github.com/nymphnerds/NymphsCore/blob/main/docs/NYMPH_MODULE_UI_STANDARD.md">Nymph Module UI Standard</a> covers the Manager/module UI boundary.</span></div>
+            <div class="wiki-callout-row"><span class="wiki-callout-label">Docs folder</span><span><a href="https://github.com/nymphnerds/NymphsCore/tree/main/docs">NymphsCore docs on GitHub</a> contains the current public documentation set.</span></div>
           </div>
         </div>
         <p>The standard is expected to evolve by proving real modules one at a time. When a module test discovers a new rule, the guide should be updated first, then the Manager, module repo, registry entry, or UI standard can follow.</p>
