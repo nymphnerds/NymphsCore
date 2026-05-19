@@ -551,6 +551,34 @@
     max-width: 760px;
   }
 
+  .wiki-action-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    margin-right: 4px;
+    padding: 2px 9px 3px;
+    border: 1px solid rgba(85,223,240,0.38);
+    border-radius: 5px;
+    background: rgba(4,14,13,0.72);
+    color: var(--teal);
+    font-family: var(--font-mono);
+    font-size: 0.86em;
+    font-weight: 700;
+    line-height: 1.35;
+    white-space: nowrap;
+  }
+
+  .wiki-action-chip::before {
+    content: "//";
+    color: var(--teal);
+  }
+
+  .wiki-action-chip.is-disabled {
+    border-color: rgba(85,223,240,0.14);
+    color: rgba(85,223,240,0.34);
+    background: rgba(4,14,13,0.36);
+  }
+
   .runtime-spec {
     max-width: 760px;
     margin: 12px 0 18px;
@@ -1551,10 +1579,10 @@
         <p>Nymphs Brain is an optional local assistant and tool-orchestration module. It is not required for the Blender addon baseline, and the installer does not need to download a chat model before the rest of NymphsCore can work.</p>
         <p>The current Brain module uses LM Studio CLI for model download and selection, then serves the selected GGUF through a CUDA-enabled <code>llama-server</code> on port <code>8000</code>. Brain also installs Open WebUI, an MCP gateway, the <code>mcpo</code> OpenAPI bridge, and tool bridges for filesystem, memory, web-forager, context7, optional remote LLM wrapper workflows, and future Blender-side flows over the in-progress MCP layer.</p>
         <ul>
-          <li><code>Start Brain</code> starts the local model server only if a model has been configured, then starts the MCP tool stack.</li>
-          <li><code>Manage Models</code> opens the installed <code>lms-model</code> terminal flow for local model selection, context length, and optional remote wrapper model selection.</li>
+          <li><span class="wiki-action-chip">Start Brain</span> starts the local model server only if a model has been configured, then starts the MCP tool stack.</li>
+          <li><span class="wiki-action-chip">Manage Models</span> opens the installed <code>lms-model</code> terminal flow for local model selection, context length, and optional remote wrapper model selection.</li>
           <li>With a suitable local vision model configured, Brain can help the LoRA module draft image captions for training datasets.</li>
-          <li><code>Open WebUI</code> is its own Manager action and local WebView/browser surface on port <code>8081</code>.</li>
+          <li><span class="wiki-action-chip">Open WebUI</span> is its own Manager action and local WebView/browser surface on port <code>8081</code>.</li>
           <li><code>MCP</code> runs on port <code>8100</code>, while <code>mcpo</code> exposes OpenAPI tool routes on port <code>8099</code> for Open WebUI and other clients.</li>
           <li>The MCP layer is the planned bridge for future Blender workflows where local assistant/tool actions can coordinate with creative-client context.</li>
           <li>An optional OpenRouter key enables the cached <code>llm-wrapper</code> tool; without a key, Brain skips that wrapper and keeps the local stack usable.</li>
