@@ -979,6 +979,12 @@ MODEL FETCH STATUS: step=1/4 status=downloading repo=... repo_cache_mb=1234 down
 This keeps the Manager details pane useful even when the underlying downloader
 does not stream percentage progress.
 
+Model fetch actions must be single-flight. Use a module-owned lock file under
+the module config/log root so repeated button clicks cannot start parallel
+downloads for the same cache. If a fetch is already running, print a concise
+`MODEL FETCH STATUS: status=running waiting_on=existing_fetch ...` line and exit
+cleanly.
+
 Status is the authority after a fetch. Once the module status entrypoint reports
 `models_ready=true`, `aux_models_ready=true`, or the module's equivalent ready
 state, the Manager must clear old model-fetch action feedback. A stale action
@@ -995,6 +1001,18 @@ The Manager should not infer model readiness by scanning large model caches at
 startup. Startup installed state comes from the module install marker. Model
 readiness belongs in module-owned status/fetch scripts and user-triggered
 actions.
+
+### Source-Copy Updates
+
+Module update scripts must support both install shapes:
+
+- git checkout installs, where update can use `git pull --ff-only`
+- source-copy installs, where update must sync the freshly cloned registry/cache
+  repo into the installed module root while preserving `.venv`, data, logs, and
+  config
+
+Do not assume `$HOME/<Module>` is a git checkout. The Manager may install from a
+trusted cached repo and run the module install entrypoint as a source copy.
 
 ### Smoke Test Result UI
 
