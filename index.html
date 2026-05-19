@@ -1,17 +1,1743 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>NymphsCore</title>
-  <link rel="canonical" href="./home/">
-  <script>
-    const target = `./home/${window.location.hash || ""}`;
-    window.location.replace(target);
-  </script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NymphsCore Wiki</title>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@900&family=DM+Mono:wght@400;500&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --lime: #63e35f;
+    --teal: #55dff0;
+    --dark: #0d0d0d;
+    --dark2: #161616;
+    --dark3: #1e1e1e;
+    --dark4: #21474a;
+    --muted: #9aa9a5;
+    --light: #f0ede6;
+    --orange: #ff8a2a;
+    --font-head: "Archivo", sans-serif;
+    --font-mono: "DM Mono", monospace;
+    --font-body: "Inter", sans-serif;
+  }
+
+  html { font-size: 16px; scroll-behavior: smooth; }
+
+  body {
+    background:
+      linear-gradient(125deg, #020807 0%, #03100e 42%, #061411 76%, #081816 100%);
+    background-attachment: fixed;
+    background-color: #020807;
+    color: var(--light);
+    font-family: var(--font-body);
+    font-weight: 300;
+    line-height: 1.6;
+    overflow-x: hidden;
+  }
+
+  img { max-width: 100%; display: block; }
+
+  nav {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    background: transparent;
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    padding: 16px 60px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 0;
+    z-index: 100;
+  }
+
+  .nav-logo {
+    display: inline-flex;
+    align-items: center;
+    color: var(--light);
+    text-decoration: none;
+  }
+
+  .nav-logo img {
+    width: 210px;
+    height: auto;
+    display: block;
+  }
+
+  .nav-links {
+    display: flex;
+    gap: 24px;
+    align-items: center;
+    list-style: none;
+  }
+
+  .nav-links a {
+    color: var(--teal);
+    text-decoration: none;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    letter-spacing: 0.02em;
+    transition: color 0.15s, background 0.15s, box-shadow 0.15s;
+  }
+
+  .nav-links a:hover { color: var(--lime); }
+
+  .wiki-nav a.is-active {
+    color: var(--light);
+    background: linear-gradient(90deg, rgba(99,227,95,0.24), rgba(99,227,95,0.08) 72%, transparent);
+    box-shadow: inset 4px 0 0 var(--lime);
+  }
+
+  .nav-cta {
+    display: inline-block;
+    background: var(--lime) !important;
+    color: var(--dark) !important;
+    padding: 8px 20px;
+    border-radius: 5px;
+    font-family: var(--font-head);
+    font-size: 13px;
+    font-weight: 900;
+    letter-spacing: 0;
+    text-transform: none;
+    white-space: nowrap;
+  }
+
+  .badge-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+    margin-bottom: 28px;
+  }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--dark3);
+    border: 1px solid var(--dark4);
+    border-radius: 100px;
+    padding: 6px 16px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--lime);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .badge-dot {
+    width: 6px;
+    height: 6px;
+    background: var(--lime);
+    border-radius: 50%;
+  }
+
+  h2, h3 {
+    font-family: var(--font-head);
+    letter-spacing: -0.02em;
+  }
+
+  .cta-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    align-items: center;
+  }
+
+  .btn-primary,
+  .btn-ghost {
+    display: inline-block;
+    padding: 14px 28px;
+    border-radius: 6px;
+    text-decoration: none;
+    transition: transform 0.15s, border-color 0.15s, background 0.15s;
+  }
+
+  .btn-primary {
+    background: var(--lime);
+    color: var(--dark);
+    font-family: var(--font-head);
+    font-size: 15px;
+    font-weight: 900;
+  }
+
+  .btn-ghost {
+    border: 1px solid var(--dark4);
+    color: var(--light);
+  }
+
+  .btn-primary:hover,
+  .btn-ghost:hover { transform: translateY(-2px); }
+
+  .section {
+    padding: 124px 60px 56px;
+  }
+
+  .wiki-intro {
+    color: var(--lime);
+    font-size: 18px;
+    line-height: 1.6;
+    margin-bottom: 24px;
+    max-width: 900px;
+  }
+
+  .wiki-title {
+    display: inline-block;
+    font-family: var(--font-head);
+    font-size: 28px;
+    line-height: 1;
+    margin-bottom: 16px;
+    background: linear-gradient(90deg, var(--lime), var(--teal));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .section-tag {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--lime);
+    margin-bottom: 18px;
+  }
+
+  .section-title {
+    font-size: clamp(34px, 4.5vw, 58px);
+    line-height: 0.98;
+    margin-bottom: 14px;
+  }
+
+  .section-sub {
+    max-width: 760px;
+    color: var(--muted);
+    font-size: 16px;
+    line-height: 1.75;
+    margin-bottom: 42px;
+  }
+
+  .guide-grid,
+  .demo-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 20px;
+  }
+
+  .guide-card,
+  .demo-card,
+  .plan-card {
+    background: linear-gradient(180deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.02) 100%);
+    border: 1px solid var(--dark4);
+    border-radius: 18px;
+    padding: 26px;
+  }
+
+  .guide-thumb,
+  .image-placeholder {
+    border-radius: 14px;
+    overflow: visible;
+    margin-bottom: 18px;
+  }
+
+  .guide-thumb {
+    border: 1px solid var(--dark4);
+    background: #111;
+  }
+
+  .guide-thumb img {
+    width: 100%;
+    height: 200px;
+    object-fit: cover;
+    display: block;
+  }
+
+  .image-placeholder {
+    aspect-ratio: 16 / 9;
+    border: 1px dashed rgba(99,227,95,0.32);
+    background:
+      radial-gradient(circle at 16% 20%, rgba(99,227,95,0.06), transparent 28%),
+      radial-gradient(circle at 84% 78%, rgba(85,223,240,0.06), transparent 30%),
+      #111;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 20px;
+    color: var(--muted);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    white-space: pre-line;
+  }
+
+  .guide-step,
+  .demo-label,
+  .plan-label {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--teal);
+    margin-bottom: 12px;
+  }
+
+  .guide-card h3,
+  .demo-card h3,
+  .plan-card h3 {
+    font-size: 24px;
+    margin-bottom: 10px;
+  }
+
+  .guide-card p,
+  .demo-card p,
+  .plan-card p,
+  .plan-card li {
+    color: var(--muted);
+    font-size: 14px;
+    line-height: 1.7;
+  }
+
+  .wiki-shell {
+    display: block;
+    position: relative;
+  }
+
+  .wiki-sidebar {
+    position: fixed;
+    top: 124px;
+    left: 60px;
+    width: 205px;
+    height: calc(100vh - 144px);
+    max-height: calc(100vh - 144px);
+    overflow: visible;
+    z-index: 20;
+    background: transparent;
+  }
+
+  .wiki-sidebar-art {
+    position: absolute;
+    inset: -42px auto auto 12px;
+    width: 300px;
+    height: auto;
+    overflow: visible;
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.2;
+  }
+
+  .wiki-sidebar-art img {
+    width: 100%;
+    height: auto;
+    display: block;
+  }
+
+  .wiki-title,
+  .wiki-nav {
+    position: relative;
+    z-index: 1;
+  }
+
+  @keyframes wikiSidebarPulse {
+    from { opacity: 0.12; }
+    to { opacity: 0.48; }
+  }
+
+  .wiki-nav {
+    list-style: none;
+    display: grid;
+    gap: 3px;
+  }
+
+  .wiki-nav li {
+    color: var(--muted);
+  }
+
+  .wiki-nav-heading {
+    color: var(--lime) !important;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin-top: 8px;
+  }
+
+  .wiki-nav-heading:first-child { margin-top: 0; }
+
+  .wiki-nav-sub {
+    padding-left: 12px;
+  }
+
+  .wiki-nav a {
+    display: block;
+    color: var(--light);
+    text-decoration: none;
+    border-bottom: 0;
+    padding: 3px 8px 4px;
+    border-radius: 2px;
+    font-size: 13px;
+    line-height: 1.24;
+    transition: color 140ms ease, background 140ms ease, box-shadow 140ms ease;
+  }
+
+  .wiki-status {
+    color: #6e6e6e;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin-left: 8px;
+  }
+
+  .wiki-content {
+    display: grid;
+    gap: 22px;
+    margin-left: 215px;
+    position: relative;
+    z-index: 25;
+  }
+
+  .wiki-entry {
+    border-left: 1px solid rgba(85,223,240,0.22);
+    padding-left: 18px;
+    scroll-margin-top: 104px;
+  }
+
+  .wiki-entry h4 {
+    scroll-margin-top: 104px;
+  }
+
+  .wiki-entry h3 {
+    font-size: 28px;
+    margin-bottom: 10px;
+  }
+
+  .wiki-entry h3.wiki-section-marker {
+    color: var(--orange);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    line-height: 1.3;
+    text-transform: uppercase;
+    margin: 0 0 6px;
+    text-shadow: none;
+  }
+
+  .wiki-entry p {
+    color: var(--muted);
+    font-size: 15px;
+    line-height: 1.8;
+    margin-bottom: 12px;
+    max-width: 760px;
+  }
+
+  .wiki-entry .wiki-intro {
+    color: var(--lime);
+    font-size: 18px;
+    line-height: 1.6;
+    margin-bottom: 24px;
+    max-width: 900px;
+  }
+
+  .wiki-home-hero {
+    max-width: 900px;
+    margin-bottom: 26px;
+  }
+
+  .wiki-home-headline {
+    font-family: var(--font-head);
+    font-size: clamp(34px, 4vw, 56px);
+    line-height: 0.95;
+    letter-spacing: 0;
+    margin: 0 0 10px;
+    max-width: 760px;
+    color: var(--light);
+    text-shadow: 2px 0 0 rgba(85,223,240,0.22);
+  }
+
+  .wiki-home-headline .wiki-home-nymphs {
+    color: var(--light);
+    -webkit-text-fill-color: var(--light);
+  }
+
+  .wiki-home-core {
+    color: var(--lime);
+    background: linear-gradient(90deg, var(--lime), var(--teal));
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .wiki-home-title-word {
+    color: var(--light);
+  }
+
+  .wiki-home-kicker {
+    color: var(--lime);
+    font-family: var(--font-mono);
+    font-size: 15px;
+    line-height: 1.5;
+    margin-top: 8px;
+  }
+
+  .wiki-home-line {
+    display: block;
+  }
+
+  .wiki-home-line-1 { color: #fff; }
+  .wiki-home-line-2 { color: #d7eaff; }
+  .wiki-home-line-3 { color: #9ef7ff; }
+
+  .wiki-home-blender-row {
+    display: block;
+    font-style: normal;
+  }
+
+  .wiki-home-in {
+    display: inline-block;
+    background: linear-gradient(90deg, #55dff0 0%, #63e35f 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .wiki-home-blender-lockup {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.08em;
+    margin-left: 0.1em;
+    transform: translateY(0.1em);
+  }
+
+  .wiki-home-blender-icon {
+    display: inline-block;
+    width: 1.02em;
+    height: 0.82em;
+    overflow: hidden;
+    flex: 0 0 1.02em;
+  }
+
+  .wiki-home-blender-icon img {
+    width: auto;
+    height: 100%;
+    max-width: none;
+  }
+
+  .wiki-home-blender-text {
+    display: inline-block;
+    background: linear-gradient(90deg, #63e35f 0%, #55dff0 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .wiki-entry h4 {
+    color: var(--teal);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin: 14px 0 8px;
+  }
+
+  .wiki-entry ul {
+    display: grid;
+    gap: 8px;
+    list-style: none;
+    margin: 8px 0 14px;
+    max-width: 760px;
+  }
+
+  .runtime-spec {
+    max-width: 760px;
+    margin: 12px 0 18px;
+    padding: 16px 18px;
+    border: 1px solid rgba(85,223,240,0.34);
+    border-radius: 8px;
+    background:
+      linear-gradient(90deg, rgba(99,227,95,0.055), transparent 38%),
+      rgba(4,14,13,0.58);
+    font-family: var(--font-mono);
+  }
+
+  .runtime-spec-title {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 10px;
+    color: var(--light);
+    font-family: var(--font-body);
+    font-size: 16px;
+    font-weight: 700;
+  }
+
+  .runtime-spec-status {
+    color: var(--lime);
+    font-family: var(--font-mono);
+    font-size: 13px;
+    font-weight: 500;
+  }
+
+  .runtime-spec-grid {
+    display: grid;
+    gap: 5px;
+  }
+
+  .runtime-spec-row {
+    display: grid;
+    grid-template-columns: 150px minmax(0, 1fr);
+    gap: 14px;
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.45;
+  }
+
+  .runtime-spec-label { color: var(--teal); }
+  .runtime-spec-good { color: var(--lime); }
+  .runtime-spec-warn { color: #ffcf4d; }
+  .runtime-spec-hot { color: #ff8a2a; }
+
+  .addon-repo {
+    max-width: 760px;
+    margin: 12px 0 18px;
+    padding: 16px 18px;
+    border: 1px solid rgba(85,223,240,0.34);
+    border-radius: 8px;
+    background:
+      linear-gradient(90deg, rgba(99,227,95,0.055), transparent 38%),
+      rgba(4,14,13,0.58);
+    font-family: var(--font-mono);
+  }
+
+  .addon-repo-title {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 10px;
+    color: var(--light);
+    font-family: var(--font-body);
+    font-size: 16px;
+    font-weight: 700;
+  }
+
+  .addon-repo-status {
+    color: var(--lime);
+    font-family: var(--font-mono);
+    font-size: 13px;
+    font-weight: 500;
+  }
+
+  .addon-repo-copy {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
+    align-items: center;
+    margin-top: 12px;
+  }
+
+  .addon-repo-copy input {
+    width: 100%;
+    min-width: 0;
+    padding: 9px 10px;
+    border: 1px solid var(--dark4);
+    border-radius: 5px;
+    background: rgba(4,14,13,0.86);
+    color: var(--light);
+    font-family: var(--font-mono);
+    font-size: 13px;
+    line-height: 1.4;
+  }
+
+  .addon-repo-copy input:focus {
+    outline: none;
+    border-color: rgba(85,223,240,0.5);
+    box-shadow: 0 0 0 3px rgba(85,223,240,0.08);
+  }
+
+  .addon-copy-button {
+    border: 0;
+    border-radius: 5px;
+    background: var(--lime);
+    color: var(--dark);
+    cursor: pointer;
+    font-family: var(--font-head);
+    font-size: 13px;
+    font-weight: 900;
+    padding: 9px 14px;
+    white-space: nowrap;
+  }
+
+  .wiki-entry li {
+    color: var(--muted);
+    font-size: 15px;
+    line-height: 1.7;
+  }
+
+  .wiki-entry li::before {
+    content: ">";
+    color: var(--lime);
+    font-family: var(--font-mono);
+    margin-right: 10px;
+  }
+
+  .wiki-figure {
+    max-width: 720px;
+    margin: 18px 0 16px;
+    position: relative;
+    z-index: 30;
+  }
+
+  .wiki-figure-pair {
+    max-width: 720px;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    margin: 18px 0 16px;
+    position: relative;
+    z-index: 30;
+  }
+
+  .wiki-figure img,
+  .wiki-figure video {
+    width: 100%;
+    border: 1px solid var(--dark4);
+    border-radius: 8px;
+    background: #101010;
+    display: block;
+  }
+
+  .wiki-figure figcaption {
+    color: #777;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    line-height: 1.6;
+    margin-top: 8px;
+  }
+
+  .wiki-figure-pair .wiki-figure {
+    margin: 0;
+  }
+
+  .wiki-entry a {
+    color: var(--teal);
+    text-decoration: none;
+    border-bottom: 1px solid rgba(85,223,240,0.24);
+    padding-bottom: 2px;
+  }
+
+  .wiki-entry a:hover {
+    color: var(--lime);
+    border-color: rgba(99,227,95,0.55);
+  }
+
+  .wiki-entry-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 18px;
+    margin-top: 10px;
+  }
+
+  .wiki-callout,
+  .wiki-feedback-panel {
+    max-width: 760px;
+    margin-top: 14px;
+    padding: 18px;
+    border: 1px solid rgba(85,223,240,0.34);
+    border-radius: 8px;
+    background:
+      linear-gradient(90deg, rgba(99,227,95,0.055), transparent 38%),
+      rgba(4,14,13,0.58);
+  }
+
+  .wiki-callout {
+    margin: 14px 0 18px;
+    font-family: var(--font-mono);
+  }
+
+  .wiki-callout-title {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 10px;
+    color: var(--light);
+    font-family: var(--font-body);
+    font-size: 16px;
+    font-weight: 700;
+  }
+
+  .wiki-callout-status {
+    color: var(--lime);
+    font-family: var(--font-mono);
+    font-size: 13px;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+
+  .wiki-callout.is-warn {
+    border-color: rgba(255,207,77,0.42);
+    background:
+      linear-gradient(90deg, rgba(255,207,77,0.08), transparent 42%),
+      rgba(4,14,13,0.58);
+  }
+
+  .wiki-callout.is-warn .wiki-callout-status { color: #ffcf4d; }
+
+  .wiki-callout.is-hot {
+    border-color: rgba(255,138,42,0.42);
+    background:
+      linear-gradient(90deg, rgba(255,138,42,0.08), transparent 42%),
+      rgba(4,14,13,0.58);
+  }
+
+  .wiki-callout.is-hot .wiki-callout-status { color: #ff8a2a; }
+
+  .wiki-callout-grid {
+    display: grid;
+    gap: 5px;
+  }
+
+  .wiki-callout-row {
+    display: grid;
+    grid-template-columns: 150px minmax(0, 1fr);
+    gap: 14px;
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.45;
+  }
+
+  .wiki-callout-label { color: var(--teal); }
+  .wiki-callout-good { color: var(--lime); }
+  .wiki-callout-warn { color: #ffcf4d; }
+  .wiki-callout-hot { color: #ff8a2a; }
+
+  .wiki-feedback-form {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+
+  .wiki-feedback-full { grid-column: 1 / -1; }
+
+  .wiki-feedback-form label {
+    display: block;
+    margin-bottom: 5px;
+    color: var(--teal);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .wiki-feedback-form input,
+  .wiki-feedback-form select,
+  .wiki-feedback-form textarea {
+    width: 100%;
+    padding: 9px 10px;
+    border: 1px solid var(--dark4);
+    border-radius: 5px;
+    background: rgba(4,14,13,0.86);
+    color: var(--light);
+    font-family: var(--font-body);
+    font-size: 14px;
+    line-height: 1.4;
+  }
+
+  .wiki-feedback-form input:focus,
+  .wiki-feedback-form select:focus,
+  .wiki-feedback-form textarea:focus {
+    outline: none;
+    border-color: rgba(85,223,240,0.5);
+    box-shadow: 0 0 0 3px rgba(85,223,240,0.08);
+  }
+
+  .wiki-feedback-form textarea {
+    min-height: 96px;
+    resize: vertical;
+  }
+
+  .wiki-feedback-hint {
+    grid-column: 1 / -1;
+    color: #789993;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    line-height: 1.6;
+  }
+
+  .wiki-feedback-submit {
+    width: fit-content;
+    border: 0;
+    cursor: pointer;
+    padding: 10px 18px;
+  }
+
+  .wiki-link-list,
+  .wiki-tech-lines {
+    display: grid;
+    gap: 7px;
+    margin: 8px 0 18px;
+    max-width: 760px;
+    list-style: none;
+  }
+
+  .wiki-link-list li,
+  .wiki-tech-lines li {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    line-height: 1.45;
+  }
+
+  .wiki-link-list li::before,
+  .wiki-tech-lines li::before {
+    content: "//";
+    color: var(--teal);
+    margin-right: 10px;
+  }
+
+  .wiki-tech-lines strong {
+    color: var(--lime);
+    font-weight: 500;
+  }
+
+  .wiki-entry .wiki-link-list a {
+    border-bottom: 0;
+    padding-bottom: 0;
+  }
+
+  .guide-card a {
+    display: inline-block;
+    margin-top: 16px;
+    color: var(--light);
+    text-decoration: none;
+    border-bottom: 1px solid rgba(99,227,95,0.35);
+    padding-bottom: 2px;
+  }
+
+  .demo-frame {
+    aspect-ratio: 16 / 9;
+    border-radius: 14px;
+    border: 1px dashed rgba(85,223,240,0.35);
+    background:
+      radial-gradient(circle at 20% 20%, rgba(99,227,95,0.06), transparent 28%),
+      radial-gradient(circle at 80% 80%, rgba(85,223,240,0.07), transparent 30%),
+      #111;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    color: var(--light);
+    font-family: var(--font-head);
+    font-size: 26px;
+    line-height: 1.1;
+    margin-bottom: 18px;
+    padding: 20px;
+  }
+
+  .plan-shell {
+    display: grid;
+    grid-template-columns: 1.1fr 0.9fr;
+    gap: 20px;
+  }
+
+  .plan-card ul {
+    list-style: none;
+    display: grid;
+    gap: 10px;
+    margin-top: 16px;
+  }
+
+  .plan-card li::before {
+    content: ">";
+    color: var(--lime);
+    margin-right: 10px;
+    font-family: var(--font-mono);
+  }
+
+  .note {
+    margin-top: 18px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: #777;
+    line-height: 1.7;
+  }
+
+  footer {
+    border-top: 1px solid var(--dark4);
+    padding: 30px 60px;
+    display: flex;
+    justify-content: space-between;
+    gap: 20px;
+    color: #5d5d5d;
+    font-family: var(--font-mono);
+    font-size: 12px;
+  }
+
+  @media (max-width: 1060px) {
+    nav {
+      padding: 14px 32px;
+      gap: 18px;
+    }
+    .nav-logo img { width: 184px; }
+    .nav-links {
+      gap: 16px;
+      margin-left: auto;
+    }
+    .nav-links a {
+      font-size: 12px;
+      white-space: nowrap;
+    }
+    .nav-cta {
+      padding: 7px 14px;
+      font-size: 12px;
+    }
+  }
+
+  @media (max-width: 980px) {
+    .plan-shell { grid-template-columns: 1fr; }
+    .wiki-sidebar {
+      width: 170px;
+    }
+    .wiki-nav {
+      gap: 4px;
+    }
+    .wiki-nav-heading {
+      font-size: 11px;
+      letter-spacing: 0.06em;
+    }
+    .wiki-nav-sub {
+      padding-left: 8px;
+    }
+    .wiki-nav a {
+      font-size: 13px;
+      line-height: 1.3;
+    }
+    .wiki-entry h3 {
+      font-size: 24px;
+      overflow-wrap: anywhere;
+    }
+    .wiki-entry p,
+    .wiki-entry li {
+      font-size: 14px;
+      line-height: 1.65;
+    }
+  }
+
+  @media (max-width: 760px) {
+    nav {
+      padding: 14px 24px;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 12px;
+    }
+    .nav-logo img { width: 184px; }
+    .nav-links {
+      display: flex;
+      width: 100%;
+      flex-wrap: wrap;
+      gap: 10px 16px;
+      margin-left: 0;
+      align-items: center;
+    }
+    .nav-links a { font-size: 13px; white-space: nowrap; }
+    .nav-cta { padding: 6px 14px; font-size: 12px; white-space: nowrap; }
+    .section { padding: 132px 24px 48px; }
+    .wiki-intro { font-size: 15px; }
+    .wiki-sidebar {
+      left: 24px;
+      top: 132px;
+      width: min(118px, 30vw);
+      height: calc(100vh - 150px);
+      max-height: calc(100vh - 150px);
+    }
+    .wiki-content {
+      margin-left: calc(min(118px, 30vw) + 10px);
+    }
+    .wiki-nav-heading {
+      font-size: 10px;
+      letter-spacing: 0.06em;
+      margin-top: 8px;
+    }
+    .wiki-title {
+      font-size: 23px;
+      margin-bottom: 14px;
+    }
+    .wiki-nav-sub {
+      padding-left: 6px;
+    }
+    .wiki-nav a {
+      font-size: 12px;
+      line-height: 1.28;
+      padding-bottom: 1px;
+    }
+    .wiki-entry {
+      padding-left: 12px;
+    }
+    .wiki-entry h3 {
+      font-size: 22px;
+      overflow-wrap: anywhere;
+    }
+    .wiki-entry p,
+    .wiki-entry li {
+      font-size: 13px;
+      line-height: 1.65;
+    }
+    .wiki-figure-pair {
+      grid-template-columns: 1fr;
+    }
+    .runtime-spec-row,
+    .wiki-callout-row {
+      grid-template-columns: 1fr;
+      gap: 2px;
+    }
+    .addon-repo-copy {
+      grid-template-columns: 1fr;
+    }
+    .addon-copy-button {
+      width: fit-content;
+    }
+    .wiki-feedback-form {
+      grid-template-columns: 1fr;
+    }
+    footer {
+      padding: 24px;
+      flex-direction: column;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .wiki-sidebar {
+      width: 104px;
+    }
+    .wiki-content {
+      margin-left: 112px;
+    }
+    .wiki-nav-heading {
+      font-size: 9px;
+    }
+    .wiki-title {
+      font-size: 20px;
+    }
+    .wiki-nav a {
+      font-size: 11px;
+    }
+  }
+</style>
 </head>
 <body>
-  <p>Redirecting to <a href="./home/">NymphsCore home page</a>...</p>
+
+<nav>
+  <a class="nav-logo" href="index.html" aria-label="NymphsCore home">
+    <img src="home/assets/NymphsCore_logo.png" alt="NymphsCore logo">
+  </a>
+  <ul class="nav-links">
+    <li><a href="#wiki-addon">// Blender Addon</a></li>
+    <li><a href="https://github.com/nymphnerds/NymphsCore/raw/main/Manager/apps/NymphsCoreManager/publish/NymphsCoreManager-win-x64.zip" class="nav-cta">Download Manager</a></li>
+  </ul>
+</nav>
+
+<section class="section" id="wiki">
+  <div class="wiki-shell">
+    <aside class="wiki-sidebar">
+      <div class="wiki-sidebar-art" aria-hidden="true">
+        <img id="wiki-sidebar-portrait" src="home/assets/wiki/Nymph1.png" alt="">
+      </div>
+      <div class="wiki-title">Wiki</div>
+      <ul class="wiki-nav">
+        <li class="wiki-nav-heading">// What is NymphsCore</li>
+        <li class="wiki-nav-sub"><a href="#wiki-what-is">Background</a></li>
+        <li class="wiki-nav-sub"><a href="#wiki-local-runtime">Managed Runtime</a></li>
+        <li class="wiki-nav-sub"><a href="#wiki-module-system">Modules</a></li>
+        <li class="wiki-nav-sub"><a href="#wiki-creative-clients">Creative Clients</a></li>
+
+        <li class="wiki-nav-heading">// NymphsCore Manager</li>
+        <li class="wiki-nav-sub"><a href="#wiki-manager">What is WSL?</a></li>
+        <li class="wiki-nav-sub"><a href="#wiki-footprint">Footprint</a></li>
+        <li class="wiki-nav-sub"><a href="#wiki-manager-install">Install Manager</a></li>
+
+        <li class="wiki-nav-heading">// Modules</li>
+        <li class="wiki-nav-sub"><a href="#wiki-zimage">Z-Image Turbo</a></li>
+        <li class="wiki-nav-sub"><a href="#wiki-trellis">TRELLIS.2</a></li>
+        <li class="wiki-nav-sub"><a href="#wiki-brain">Nymphs Brain</a></li>
+        <li class="wiki-nav-sub"><a href="#wiki-worbi">WORBI</a></li>
+        <li class="wiki-nav-sub"><a href="#wiki-lora">LoRA</a></li>
+
+        <li class="wiki-nav-heading">// Blender Addon</li>
+        <li class="wiki-nav-sub"><a href="#wiki-addon">About</a></li>
+        <li class="wiki-nav-sub"><a href="#wiki-server-panel">Server Panel</a></li>
+        <li class="wiki-nav-sub"><a href="#wiki-image-panel">Image Panel</a></li>
+        <li class="wiki-nav-sub"><a href="#wiki-shape-panel">Shape Panel</a></li>
+        <li class="wiki-nav-sub"><a href="#wiki-texture-panel">Texture Panel</a></li>
+
+        <li class="wiki-nav-heading">// Feedback</li>
+        <li class="wiki-nav-sub"><a href="#wiki-feedback">Send Feedback</a></li>
+      </ul>
+    </aside>
+
+    <div class="wiki-content">
+      <div class="wiki-entry" id="wiki-what-is">
+        <div class="wiki-home-hero">
+          <div class="wiki-home-headline"><span class="wiki-home-nymphs">Nymphs</span><span class="wiki-home-core">Core</span></div>
+          <div class="wiki-home-kicker">// local AI pipelines for game devs</div>
+        </div>
+
+        <h4>Background</h4>
+        <p>NymphsCore started from a very practical frustration: everyone has jumped on the AI bandwagon, and a lot of creative tooling now sits behind metered credits, subscriptions, or token systems. That can be fine for some jobs, but it is a bad fit for messy game-development iteration, where you need to explore, reroll, test, discard, and try again without feeling a counter ticking down every time you chase a better reference, mesh, texture, or idea.</p>
+        <p>For us, that frustration came from a real need to iterate game assets quickly. We wanted to move from idea, to reference image, to draft mesh, to texture direction, to another variation without the whole session turning into setup work or a running bill. Game development is messy by nature: you explore, reroll, test, discard, kitbash, and try again until something finally starts to feel useful.</p>
+        <p>The other route is going fully local through powerful tools like ComfyUI, but that path can become its own technical discipline. The workflows themselves can get complicated fast: node graphs, model folders, custom nodes, CUDA issues, Python environments, launch scripts, ports, logs, and one-off fixes are all real work. For artists and small teams, the point is not to become a backend engineer before making the next prop or character.</p>
+        <p>The reason for NymphsCore is to make local AI pipelines feel like one managed creative system instead of a pile of fragile setup notes. The Windows Manager prepares a dedicated WSL runtime, installs modules, fetches model weights, starts services, checks logs, runs smoke tests, and gives each workflow a repair path. Modules can be added or removed in a few clicks, and new modules or workflows can appear in the Manager when they become available. The artist should be able to focus on the next useful output: a reference image, a draft mesh, a texture pass, a trained LoRA, a worldbuilding note, or a local assistant response.</p>
+        <p>Keeping the work local also keeps private projects private. Prompts, references, experimental characters, client work, unreleased game ideas, and half-formed worlds do not need to be uploaded just to see whether an idea has legs, and they are not quietly used to train someone else's model. As open-weight models keep evolving, NymphsCore is meant to evolve with them: more tried-and-tested backend modules for cutting-edge open-source solutions are already on the roadmap, giving artists a curated way to stay near the edge without rebuilding the whole pipeline every time the next useful model appears.</p>
+        <p>That is why NymphsCore sits underneath the Nymphs creative tools. Blender is the first full client, because it is where a lot of game asset iteration already happens, but the core idea is bigger than one addon: keep the heavy AI stack local, organized, inspectable, and reusable, then bring it into the creative software where the work is already taking place.</p>
+
+        <h4 id="wiki-local-runtime">Managed runtime</h4>
+        <p>The Manager creates a dedicated <code>NymphsCore</code> WSL distro and Linux user so the AI stack stays isolated from normal Windows installs. That managed runtime is where CUDA support, Python environments, module repos, model caches, launch scripts, and local services live.</p>
+        <ul>
+          <li><code>Base Runtime</code>: WSL readiness, install/repair, system packages, scripts, and shared runtime layout.</li>
+          <li><code>Module lifecycle</code>: install, update, repair, uninstall, data cleanup, start, stop, status, logs, and module-owned UI actions.</li>
+          <li><code>Model handling</code>: module-specific model fetch flows, Hugging Face token handling, cached model folders, and output folders.</li>
+          <li><code>Diagnostics</code>: system checks, runtime monitor, GPU/VRAM signals, logs, smoke tests, and repeatable repair paths.</li>
+        </ul>
+
+        <h4 id="wiki-module-system">Modules</h4>
+        <p>NymphsCore modules are focused capability packs owned by their own manifests and scripts. The Manager discovers each module, installs it into the managed WSL runtime, runs its start/stop/status/log actions, and exposes any module-owned model fetch or workflow controls.</p>
+        <div class="wiki-callout">
+          <div class="wiki-callout-title">
+            <span>Blender Addon Baseline</span>
+            <span class="wiki-callout-status">Only two required</span>
+          </div>
+          <div class="wiki-callout-grid">
+            <div class="wiki-callout-row"><span class="wiki-callout-good">Required</span><span><code>Z-Image Turbo</code> for local reference and guide-image generation.</span></div>
+            <div class="wiki-callout-row"><span class="wiki-callout-good">Required</span><span><code>TRELLIS.2</code> for image-to-3D, texture, and retexture workflows.</span></div>
+            <div class="wiki-callout-row"><span class="wiki-callout-label">Optional</span><span><code>LoRA</code>, <code>Nymphs Brain</code>, and <code>WORBI</code> are separate workflows. Install them only if you want training, local assistant tools, worldbuilding, Brain-assisted LoRA captioning, or future MCP-driven creative flows.</span></div>
+          </div>
+        </div>
+        <p>Large modules can have separate install and model-fetch steps. Install prepares the code and runtime; model fetch downloads the large weights and support files. That keeps the base runtime smaller and makes disk use, repairs, logs, and retained data clearer per workflow.</p>
+
+        <h4 id="wiki-creative-clients">Creative clients</h4>
+        <p>The Blender addon is the current main client. It talks to the managed local services from Blender's sidebar so artists can generate references, use prompt/object/style presets, send selected images into shape and texture workflows, import draft meshes, and retexture selected objects inside the scene.</p>
+        <p>The wider direction is to keep building curated local AI pipelines that can be brought into creative and game-dev software without each tool needing its own backend setup. Blender comes first; the runtime is designed so future addons or plugins can call the same managed system.</p>
+      </div>
+
+      <div class="wiki-entry" id="wiki-manager">
+        <h3 class="wiki-section-marker">// NYMPHSCORE MANAGER</h3>
+        <h4 id="wiki-manager-intro">Intro</h4>
+        <p>NymphsCore Manager powers the curated local AI pipelines for game development. It is the Windows setup, repair, and diagnostics app for the local NymphsCore runtime, creating a dedicated <code>NymphsCore</code> WSL distro, installing registry modules, preparing CUDA and Python environments, downloading model weights, running smoke tests, streaming logs, and exposing module controls so the AI stack can run locally without hand-building servers and environments.</p>
+        <p>That managed runtime is used by multiple Nymphs workflows: Z-Image Turbo for local image generation, TRELLIS.2 for image-to-3D and texture work, LoRA for Z-Image training, WORBI for local-first worldbuilding, and optional Brain services for local LLM, Open WebUI, and MCP tooling. The Blender addon is the current creative client for some of these services, and the platform is constantly evolving toward bringing curated AI pipelines directly inside future creative software and game engines, including possible Godot, Unity, or Unreal integrations, without forcing artists into complex node-based workflow tools.</p>
+        <h4 id="wiki-wsl">What is WSL?</h4>
+        <p>WSL means <code>Windows Subsystem for Linux</code>. WSL 2 lets Windows run a real Linux environment, which is where NymphsCore keeps the CUDA, Python, model, and service stack used by the AI pipeline. The Manager creates a dedicated distro named <code>NymphsCore</code> so that stack stays isolated from normal Windows folders and other Python or CUDA installs.</p>
+        <div class="wiki-callout">
+          <div class="wiki-callout-title">
+            <span>Dedicated Linux Runtime</span>
+            <span class="wiki-callout-status">Backend host</span>
+          </div>
+          <div class="wiki-callout-grid">
+            <div class="wiki-callout-row"><span class="wiki-callout-label">Why WSL</span><span>The AI backends run on Linux, and WSL gives Windows a real Linux runtime for them.</span></div>
+            <div class="wiki-callout-row"><span class="wiki-callout-label">Distro</span><span><code>NymphsCore</code> WSL 2 environment</span></div>
+            <div class="wiki-callout-row"><span class="wiki-callout-label">Lives there</span><span>CUDA support, Python environments, model caches, service launchers, and module repos</span></div>
+            <div class="wiki-callout-row"><span class="wiki-callout-good">Bonus</span><span>The stack stays separate from normal Windows installs.</span></div>
+          </div>
+        </div>
+        <h4 id="wiki-system-needs">System needs</h4>
+        <div class="runtime-spec">
+          <div class="runtime-spec-title">
+            <span>Local AI Pipeline</span>
+            <span class="runtime-spec-status">Public target</span>
+          </div>
+          <div class="runtime-spec-grid">
+            <div class="runtime-spec-row"><span class="runtime-spec-label">Windows</span><span>Windows 10 or Windows 11, x64</span></div>
+            <div class="runtime-spec-row"><span class="runtime-spec-label">Blender</span><span>Blender 4.2+ for the addon workflow</span></div>
+            <div class="runtime-spec-row"><span class="runtime-spec-label">Runtime</span><span>WSL 2 available and healthy</span></div>
+            <div class="runtime-spec-row"><span class="runtime-spec-label">GPU</span><span>NVIDIA CUDA-capable GPU with current Windows drivers and WSL CUDA support</span></div>
+            <div class="runtime-spec-row"><span class="runtime-spec-good">VRAM target</span><span><strong>16 GB</strong> minimum, <strong>24 GB+</strong> recommended for heavier TRELLIS.2, Z-Image, LoRA, and multitasking</span></div>
+            <div class="runtime-spec-row"><span class="runtime-spec-warn">Light paths</span><span><strong>8 GB</strong> can help with Gemini/OpenRouter-backed tools, tiny Brain models, or lowest Z-Image weights</span></div>
+            <div class="runtime-spec-row"><span class="runtime-spec-hot">Limited</span><span><strong>6 GB</strong> VRAM should be treated as very limited for local GPU modules</span></div>
+            <div class="runtime-spec-row"><span class="runtime-spec-label">Disk</span><span><strong>120 GB</strong> free minimum, <strong>150 GB</strong> recommended</span></div>
+            <div class="runtime-spec-row"><span class="runtime-spec-label">Network</span><span>Reliable internet and time for large downloads/build steps</span></div>
+          </div>
+        </div>
+        <p>GPU and VRAM matter. The Manager can offer lower-load choices such as smaller TRELLIS.2 GGUF quants or lighter Z-Image weights, but the public workflow should be treated as a serious local AI stack, not a lightweight plugin.</p>
+        <h4 id="wiki-footprint">Blender pipeline footprint</h4>
+        <p>For the Blender addon pipeline, plan around the Base Runtime plus the image and 3D modules it talks to: <code>Z-Image Turbo</code> and <code>TRELLIS.2</code>. This baseline does not include optional WORBI, Brain, or LoRA training installs.</p>
+        <ul>
+          <li><code>Base Runtime</code>: creates the dedicated Ubuntu WSL distro named <code>NymphsCore</code>, the Linux user <code>nymph</code>, system packages, scripts, and CUDA support. CUDA 13.0 alone is about <code>4.9 GB</code>.</li>
+          <li><code>Z-Image Turbo install</code>: prepares <code>/home/nymph/Z-Image</code> and the Nunchaku Python runtime. The local runtime folder is about <code>5.4 GB</code>.</li>
+          <li><code>Z-Image Turbo models</code>: Fetch Models downloads <code>Tongyi-MAI/Z-Image-Turbo</code>, about <code>31 GB</code>, plus your selected Blender/Nunchaku weight from <code>nunchaku-ai/nunchaku-z-image-turbo</code>. Downloading all Z-Image weights is about <code>15 GB</code> locally.</li>
+          <li><code>TRELLIS.2 install</code>: prepares <code>/home/nymph/TRELLIS.2</code>, the 3D runtime, FlashAttention build pieces, and its Python environment. The local runtime folder is about <code>8.7 GB</code>.</li>
+          <li><code>TRELLIS.2 models</code>: Fetch Models downloads <code>Aero-Ex/Trellis2-GGUF</code>, the required <code>microsoft/TRELLIS.2-4B</code> support checkpoint, and <code>rembg u2net</code>. Budget about <code>8.4 GB</code> for the smallest practical GGUF set, about <code>9.2 GB</code> for <code>Q5_K_M</code>, or up to about <code>25 GB</code> if all quants are installed.</li>
+          <li><code>Model prefetch</code>: downloads the Blender pipeline models before first use instead of waiting for the first generation. With Z-Image Turbo, TRELLIS.2, selected GGUF/support files, and helpers, budget about <code>72 GB</code>.</li>
+        </ul>
+        <p>Use <code>120 GB</code> free as the minimum and <code>150 GB</code> as the comfortable target. Generated meshes, textures, previews, logs, Hugging Face snapshots, temporary install files, and future model updates grow over time. If you skip model prefetch, setup is smaller at first, but these model downloads still happen later when the Blender workflow needs them.</p>
+        <h4 id="wiki-module-footprints">Other module footprints</h4>
+        <p>These are separate from the Blender addon pipeline budget. Install them only if you want those workflows.</p>
+        <ul>
+          <li><code>LoRA</code>: installs <code>/home/nymph/LoRA</code> with <code>ostris/ai-toolkit</code>, local Node 20, trainer UIs, datasets, jobs, logs, and LoRA outputs. <code>Fetch Training Assets</code> adds <code>Tongyi-MAI/Z-Image-Turbo</code>, about <code>31 GB</code>, plus <code>ostris/zimage_turbo_training_adapter</code>, about <code>0.5 GB</code>.</li>
+          <li><code>Nymphs-Brain</code>: installs under <code>/home/nymph/Nymphs-Brain</code> with <code>llama-server</code>, LM Studio CLI, Open WebUI, MCP, mcpo, helper tools, and local model folders. This machine's Brain stack is about <code>16 GB</code>; serious use can land closer to <code>20-35 GB</code> depending on the selected local model.</li>
+          <li><code>WORBI</code>: installs under <code>/home/nymph/worbi</code>. This machine's installed WORBI runtime is about <code>34 MB</code> before project data; worlds, notes, exports, logs, and linked project material grow separately.</li>
+        </ul>
+        <h4 id="wiki-manager-install">Install Manager</h4>
+        <ul>
+          <li>Download <code>NymphsCoreManager-win-x64.zip</code>.</li>
+          <li>Extract the zip to a normal Windows folder.</li>
+          <li>Run <code>NymphsCoreManager.exe</code> from the extracted folder.</li>
+          <li>If Windows SmartScreen appears, use <code>More info</code>, then <code>Run anyway</code>.</li>
+        </ul>
+        <div class="wiki-figure-pair">
+          <figure class="wiki-figure">
+            <img src="home/assets/wiki/manager-smartscreen-more-info.png" alt="Windows SmartScreen warning with More info link">
+            <figcaption>Choose <code>More info</code>.</figcaption>
+          </figure>
+          <figure class="wiki-figure">
+            <img src="home/assets/wiki/manager-smartscreen-run-anyway.png" alt="Windows SmartScreen warning showing Run anyway">
+            <figcaption>Then choose <code>Run anyway</code>.</figcaption>
+          </figure>
+        </div>
+        <div class="wiki-callout is-hot">
+          <div class="wiki-callout-title">
+            <span>Do Not Run From The Zip</span>
+            <span class="wiki-callout-status">Important</span>
+          </div>
+          <div class="wiki-callout-grid">
+            <div class="wiki-callout-row"><span class="wiki-callout-hot">Problem</span><span>Windows can block scripts and bundled files when the app is launched from inside the zip.</span></div>
+            <div class="wiki-callout-row"><span class="wiki-callout-good">Do this</span><span>Extract the Manager folder first, then run the app from the extracted folder.</span></div>
+          </div>
+        </div>
+        <h4 id="wiki-manager-layout">Manager layout</h4>
+        <figure class="wiki-figure">
+          <video controls muted playsinline preload="metadata" aria-label="NymphsCore Manager layout overview">
+            <source src="home/assets/wiki/manager-layout.mp4" type="video/mp4">
+          </video>
+          <figcaption>Manager layout overview.</figcaption>
+        </figure>
+        <p>The Manager window can be resized. If a page looks cut off, expand the window or scroll the main content area before assuming a control is missing.</p>
+        <ul>
+          <li><code>Home</code> shows system overview cards and available module cards.</li>
+          <li><code>Base Runtime</code> is where the managed WSL distro is installed or repaired.</li>
+          <li><code>Logs</code> shows recent Manager activity and install output.</li>
+          <li>Module cards open module pages for install, repair, model fetch, logs, and module-specific actions.</li>
+          <li>The left runtime monitor shows WSL, CPU, disk, GPU, and refresh status while the Manager is open.</li>
+          <li><code>Monitor</code> opens the compact runtime monitor view.</li>
+          <li><code>Dev Mode</code> exposes developer-focused controls and extra status information. Leave it off unless you are debugging.</li>
+          <li>On module detail pages, clicking the module logo hides or restores the left sidebar for more working space.</li>
+        </ul>
+        <h4 id="wiki-system-checks">System checks</h4>
+        <p>Open <code>System Checks</code> before installing the Base Runtime. This page checks whether the Manager can run elevated, see usable install drives, reach WSL, detect existing WSL distros, and see the NVIDIA driver.</p>
+        <figure class="wiki-figure">
+          <video controls muted playsinline preload="metadata" aria-label="NymphsCore Manager System Checks">
+            <source src="home/assets/wiki/manager-system-checks.mp4" type="video/mp4">
+          </video>
+          <figcaption>System Checks in the Manager.</figcaption>
+        </figure>
+        <div class="wiki-callout">
+          <div class="wiki-callout-title">
+            <span>Before Base Runtime Install</span>
+            <span class="wiki-callout-status">Check first</span>
+          </div>
+          <div class="wiki-callout-grid">
+            <div class="wiki-callout-row"><span class="wiki-callout-good">Pass</span><span>The requirement is available.</span></div>
+            <div class="wiki-callout-row"><span class="wiki-callout-warn">Warning</span><span>The Manager found something worth knowing about, but it may still be safe to continue.</span></div>
+            <div class="wiki-callout-row"><span class="wiki-callout-hot">Blocker</span><span>If WSL availability or install drives fail, fix that before starting the Base Runtime install.</span></div>
+          </div>
+        </div>
+        <div class="wiki-entry-links">
+          <a href="https://github.com/nymphnerds/NymphsCore/raw/main/Manager/apps/NymphsCoreManager/publish/NymphsCoreManager-win-x64.zip">Download Manager</a>
+        </div>
+      </div>
+
+      <div class="wiki-entry" id="wiki-base-distro">
+        <h3 class="wiki-section-marker">// NYMPHSCORE MANAGER</h3>
+        <h4>Install WSL Base Distro</h4>
+        <p>The base distro is the managed WSL environment used by NymphsCore. Install or repair it before adding modules.</p>
+        <figure class="wiki-figure">
+          <video controls muted playsinline preload="metadata" aria-label="NymphsCore Base Runtime install">
+            <source src="home/assets/wiki/manager-base-runtime-install.mp4" type="video/mp4">
+          </video>
+          <figcaption>Installing the Base Runtime from the Manager.</figcaption>
+        </figure>
+        <h4>Order</h4>
+        <ul>
+          <li>Open <code>Base Runtime</code> in the Manager.</li>
+          <li>Check <code>Current State</code>.</li>
+          <li>If Windows WSL is not ready, run the WSL setup action first and restart Windows if asked.</li>
+          <li>Choose an install drive.</li>
+          <li>Run <code>Install Base Runtime</code> or <code>Repair Base Runtime</code>.</li>
+          <li>Return Home and install modules from their cards.</li>
+        </ul>
+        <div class="wiki-callout">
+          <div class="wiki-callout-title">
+            <span>Managed Distro</span>
+            <span class="wiki-callout-status">Reusable</span>
+          </div>
+          <div class="wiki-callout-grid">
+            <div class="wiki-callout-row"><span class="wiki-callout-label">Name</span><span><code>NymphsCore</code></span></div>
+            <div class="wiki-callout-row"><span class="wiki-callout-good">Repair</span><span>If a compatible existing distro is present, the Manager can reuse it for repair and module lifecycle actions.</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="wiki-entry" id="wiki-zimage">
+        <h3 class="wiki-section-marker">// MODULES</h3>
+        <h4>Z-Image Turbo</h4>
+        <p>Z-Image Turbo is the Blender addon's local image-generation module. It runs a FastAPI service for <code>txt2img</code> and <code>img2img</code> on the managed WSL runtime, writing outputs under the shared <code>NymphsData</code> folders instead of sending prompts or images to a remote generation service.</p>
+        <p>Nunchaku is the optimized low-bit runtime used to run Z-Image Turbo locally with lower VRAM and faster inference. It uses quantized Z-Image Turbo weights, which are smaller/faster runtime versions of the model for local generation. NymphNerds forks Nunchaku so the Blender workflow can go beyond basic text-to-image: guide-image editing and LoRAs trained with the LoRA AI Toolkit module can be used through the same local runtime.</p>
+        <p>In the Blender addon, Z-Image Turbo powers the <code>Nymphs Image</code> panel. Use it to create concept art, texture ideas, reference images, guide-image variations, or source images that can then be sent into 3D workflows such as TRELLIS.2.</p>
+        <h4>Install from Manager</h4>
+        <p>Install Z-Image Turbo from the Manager after the Base Runtime is ready. The install step prepares <code>~/Z-Image</code> and its Nunchaku runtime; the model files are fetched separately from the installed module page.</p>
+        <figure class="wiki-figure">
+          <video controls muted playsinline preload="metadata" aria-label="Installing Z-Image Turbo from the Manager">
+            <source src="home/assets/wiki/module-zimage-install.mp4" type="video/mp4">
+          </video>
+          <figcaption>Installing Z-Image Turbo from the Manager.</figcaption>
+        </figure>
+        <ul>
+          <li>Install <code>Z-Image Turbo</code> from the Manager.</li>
+          <li>Wait for the install to finish and the module page to become available.</li>
+          <li>Do not fetch weights until the module install has completed.</li>
+        </ul>
+        <ul class="wiki-tech-lines">
+          <li><strong>Module install</strong> prepares the runtime first.</li>
+          <li><strong>Model Fetch</strong> runs after install because it uses the installed module page and fetch tools.</li>
+        </ul>
+        <p>This install can take a while. It may add Python 3.11 support, prepare CUDA Toolkit 13.0 for <code>nvcc</code>, build a staged <code>.venv-nunchaku</code>, install Torch, Diffusers, and the NymphNerds Nunchaku fork, then validate text-to-image, image-to-image, and LoRA runtime hooks.</p>
+        <h4>Fetch models</h4>
+        <p>After Z-Image Turbo is installed, open its module page and use <code>Model Fetch</code> to download the actual model files.</p>
+        <ul>
+          <li>Choose a <code>Download</code> option. Use the recommended weight, or <code>All weights</code> if you want Blender to switch presets later.</li>
+          <li>Add a <code>Hugging Face token</code> only if your download needs one.</li>
+          <li>Click <code>Fetch Models</code> to download the base model and selected quantized weight.</li>
+          <li>Use <code>Smoke Test</code> or <code>Start</code> before generating from Blender.</li>
+        </ul>
+        <h4>Source links</h4>
+        <ul class="wiki-link-list">
+          <li><a href="https://github.com/Tongyi-MAI/Z-Image">Official Z-Image repo</a></li>
+          <li><a href="https://huggingface.co/Tongyi-MAI/Z-Image-Turbo">Z-Image Turbo model</a></li>
+          <li><a href="https://nunchaku.tech/docs/nunchaku/">Nunchaku docs</a></li>
+          <li><a href="https://huggingface.co/nunchaku-ai/nunchaku-z-image-turbo">Nunchaku weights</a></li>
+        </ul>
+      </div>
+
+      <div class="wiki-entry" id="wiki-trellis">
+        <h3 class="wiki-section-marker">// MODULES</h3>
+        <h4>TRELLIS.2</h4>
+        <p>TRELLIS.2 is the Blender addon's local 3D module. It turns a source image into a draft 3D asset and supports texture and retexture workflows through the managed TRELLIS.2 GGUF backend.</p>
+        <p>The module combines Microsoft's TRELLIS.2 source, a NymphsCore local HTTP adapter, GGUF model loading through <code>ComfyUI-Trellis2-GGUF</code>, and module-owned scripts for install, start, stop, status, logs, model fetch, smoke test, and uninstall.</p>
+        <p>Install prepares the runtime under <code>~/TRELLIS.2</code>. Fetch Models downloads the selected <code>Aero-Ex/Trellis2-GGUF</code> quant bundle, shared support files, the required <code>microsoft/TRELLIS.2-4B</code> support checkpoint, and the <code>rembg u2net</code> background-removal model.</p>
+        <ul>
+          <li><code>Q5_K_M</code> is the normal starting point for most GPUs.</li>
+          <li><code>Q4_K_M</code> is the smallest first proof test or tighter-VRAM option.</li>
+          <li><code>Q6_K</code> and <code>Q8_0</code> are heavier quality-focused choices when the machine has enough headroom.</li>
+          <li><code>All quants</code> is optional and useful only if you want the addon/backend to switch between every supported GGUF later.</li>
+        </ul>
+      </div>
+
+      <div class="wiki-entry" id="wiki-brain">
+        <h3 class="wiki-section-marker">// MODULES</h3>
+        <h4>Nymphs Brain</h4>
+        <p>Nymphs Brain is an optional local assistant and tool-orchestration module. It is not required for the Blender addon baseline, and the installer does not need to download a chat model before the rest of NymphsCore can work.</p>
+        <p>The current Brain module uses LM Studio CLI for model download and selection, then serves the selected GGUF through a CUDA-enabled <code>llama-server</code> on port <code>8000</code>. Brain also installs Open WebUI, an MCP gateway, the <code>mcpo</code> OpenAPI bridge, and tool bridges for filesystem, memory, web-forager, context7, optional remote LLM wrapper workflows, and future Blender-side flows over the in-progress MCP layer.</p>
+        <ul>
+          <li><code>Start Brain</code> starts the local model server only if a model has been configured, then starts the MCP tool stack.</li>
+          <li><code>Manage Models</code> opens the installed <code>lms-model</code> terminal flow for local model selection, context length, and optional remote wrapper model selection.</li>
+          <li>With a suitable local vision model configured, Brain can help the LoRA module draft image captions for training datasets.</li>
+          <li><code>Open WebUI</code> is its own Manager action and local WebView/browser surface on port <code>8081</code>.</li>
+          <li><code>MCP</code> runs on port <code>8100</code>, while <code>mcpo</code> exposes OpenAPI tool routes on port <code>8099</code> for Open WebUI and other clients.</li>
+          <li>The MCP layer is the planned bridge for future Blender workflows where local assistant/tool actions can coordinate with creative-client context.</li>
+          <li>An optional OpenRouter key enables the cached <code>llm-wrapper</code> tool; without a key, Brain skips that wrapper and keeps the local stack usable.</li>
+          <li>Normal uninstall removes runtime/program files but preserves models, Open WebUI data, MCP config/data, secrets, and logs unless purge or data-delete is chosen.</li>
+        </ul>
+        <h4>Source links</h4>
+        <ul class="wiki-link-list">
+          <li><a href="https://github.com/ggml-org/llama.cpp">llama.cpp / llama-server</a></li>
+          <li><a href="https://lmstudio.ai/docs/cli">LM Studio CLI</a></li>
+          <li><a href="https://lmstudio.ai/models/">LM Studio model catalog</a></li>
+          <li><a href="https://huggingface.co/models?format=gguf">Hugging Face GGUF models</a></li>
+          <li><a href="https://github.com/open-webui/open-webui">Open WebUI</a></li>
+          <li><a href="https://modelcontextprotocol.io/">Model Context Protocol</a></li>
+          <li><a href="https://github.com/open-webui/mcpo">mcpo OpenAPI bridge</a></li>
+          <li><a href="https://openrouter.ai/docs">OpenRouter docs</a></li>
+        </ul>
+      </div>
+
+      <div class="wiki-entry" id="wiki-worbi">
+        <h3 class="wiki-section-marker">// MODULES</h3>
+        <h4>WORBI</h4>
+        <p>WORBI is an optional local-first worldbuilding workspace. It is packaged as a Nymph module so writers, solo creators, and game teams can keep lore, characters, locations, timelines, notes, and project planning inside the managed local system.</p>
+        <p>WORBI runs as a browser-based local app from the managed WSL runtime, normally on port <code>8082</code>. The Manager handles install, start, open, stop, status, logs, and data-folder access, while WORBI itself owns the deeper worldbuilding UI in the browser.</p>
+        <p>Normal uninstall keeps WORBI project data, config, and logs unless the separate data-delete path is used.</p>
+      </div>
+
+      <div class="wiki-entry" id="wiki-lora">
+        <h3 class="wiki-section-marker">// MODULES</h3>
+        <h4>LoRA</h4>
+        <p>LoRA is an optional training module for Z-Image Turbo. It is not needed to run the Blender addon, but it lets you train small <code>.safetensors</code> files for a specific character, outfit, object, style, or subject, then use the finished LoRA in Z-Image generation.</p>
+        <p>The module installs an isolated AI Toolkit workspace under <code>~/LoRA</code>, including the beginner <code>Easy LoRA</code> flow, the advanced AI Toolkit UI, queue worker support, dataset folders, job files, logs, and LoRA output folders.</p>
+        <ul>
+          <li><code>Fetch Training Assets</code> downloads the large Z-Image Turbo training model and <code>ostris/zimage_turbo_training_adapter</code>.</li>
+          <li><code>Easy LoRA</code> is the beginner path for captions, job creation, training start/stop, progress, and finished LoRA outputs.</li>
+          <li><code>Caption with Brain</code> can draft editable captions for dataset images when Brain is installed and a compatible vision model is configured.</li>
+          <li><code>Open Datasets</code> and <code>Open LoRAs</code> expose the local folders where training images and finished files live.</li>
+          <li>Normal uninstall removes the trainer runtime but preserves datasets, jobs, outputs, logs, models, and adapters by default.</li>
+        </ul>
+      </div>
+
+      <div class="wiki-entry" id="wiki-addon">
+        <h3 class="wiki-section-marker">// BLENDER</h3>
+        <p>The Nymphs Blender addon is the current creative client for NymphsCore. It gives Blender a direct control surface for the managed local AI runtime, so asset drafts can move from prompt, to reference image, to generated mesh, to texture pass without leaving the scene or hand-running backend servers.</p>
+        <p>This matters because draft asset work is iterative. You can keep a model or scene open, generate visual directions from object and style presets, reuse the strongest image as a source, import the resulting mesh back into Blender, select a result, run another texture pass, and inspect saved outputs and metadata from the same sidebar.</p>
+        <p>The heavy work still happens in the Manager-installed <code>NymphsCore</code> WSL runtime. The addon starts and checks the local services, sends requests to the image and 3D modules, imports returned assets, and keeps status, progress, GPU/VRAM signals, folders, and repair-friendly runtime controls where the artist is already working.</p>
+        <h4>Install through Blender</h4>
+        <div class="addon-repo">
+          <div class="addon-repo-title">
+            <span>Blender Extensions Repository</span>
+            <span class="addon-repo-status">Testing</span>
+          </div>
+          <div class="runtime-spec-grid">
+            <div class="runtime-spec-row"><span class="runtime-spec-label">Add in</span><span>Blender Extensions preferences</span></div>
+            <div class="runtime-spec-row"><span class="runtime-spec-good">Public path</span><span>Superhive after testing</span></div>
+          </div>
+          <div class="addon-repo-copy">
+            <input id="addon-repo-url" type="text" readonly value="https://raw.githubusercontent.com/nymphnerds/NymphsExt/main/index.json" aria-label="Blender external repository URL">
+            <button class="addon-copy-button" type="button" data-copy-target="addon-repo-url">Copy URL</button>
+          </div>
+        </div>
+        <p>After testing, the addon is planned to be available through Superhive for the normal public install path.</p>
+      </div>
+
+      <div class="wiki-entry" id="wiki-server-panel">
+        <h3 class="wiki-section-marker">// BLENDER</h3>
+        <h4>Server Panel</h4>
+        <p><code>Nymphs Server</code> is the addon control panel for the managed local runtimes. It shows the current backend state, active services, image backend, running job, progress, and GPU/VRAM telemetry when available.</p>
+        <div class="wiki-callout">
+          <div class="wiki-callout-title">
+            <span>Local Services</span>
+            <span class="wiki-callout-status">Blender control</span>
+          </div>
+          <div class="wiki-callout-grid">
+            <div class="wiki-callout-row"><span class="wiki-callout-label">Z-Image</span><span>Local image service on port <code>8090</code></span></div>
+            <div class="wiki-callout-row"><span class="wiki-callout-label">TRELLIS.2</span><span>Shape, texture, and retexture service on port <code>8094</code></span></div>
+            <div class="wiki-callout-row"><span class="wiki-callout-good">Use when</span><span>You need to see whether the backend is ready, launching, busy, or stopped.</span></div>
+          </div>
+        </div>
+        <ul>
+          <li><code>Runtimes</code> starts, stops, refreshes, or stops all managed services from Blender.</li>
+          <li><code>Config Details</code> exposes service ports, backend paths, loaded model/runtime summaries, and live job details for repair or developer machines.</li>
+          <li><code>Advanced</code> shows the WSL distro/user target, API root, runtime guidance, terminal launch option, and GPU refresh tools.</li>
+        </ul>
+        <p>Use this panel when Blender needs to know whether the backend is ready, launching, busy, or stopped. It is also the safest place to stop unused runtimes before switching tasks or freeing VRAM.</p>
+      </div>
+
+      <div class="wiki-entry" id="wiki-image-panel">
+        <h3 class="wiki-section-marker">// BLENDER</h3>
+        <h4>Image Panel</h4>
+        <p><code>Nymphs Image</code> creates the reference images that drive the rest of the Blender workflow. It supports local <code>Z-Image</code> generation from the managed runtime and <code>Gemini Flash</code> generation through OpenRouter when online access is enabled.</p>
+        <ul>
+          <li><code>Z-Image</code> handles local text-to-image, variants, seeds, generation profiles, size, steps, guidance, and image-to-image from a picked guide image.</li>
+          <li><code>Gemini Flash</code> supports OpenRouter-backed image generation, guide images, aspect ratio controls, and the character part extraction workflow.</li>
+          <li>Subject presets, style presets, saved prompts, editor tools, quick edit, preview, and preset folders keep prompt work reusable instead of buried in one-off text boxes.</li>
+          <li><code>Image Part Extraction</code> can plan and generate separate references for base body, clothing, hair, accessories, weapons, props, face choices, and optional eyeball parts from one master character image.</li>
+          <li>Generated images and metadata can be opened or cleared from the panel, so reference output stays reachable while working in Blender.</li>
+        </ul>
+        <p>The image panel is where the visual direction starts: prompt, preset, style, guide image, or master character reference first, then use the strongest output as the source for shape, texture, or modular part work.</p>
+      </div>
+
+      <div class="wiki-entry" id="wiki-shape-panel">
+        <h3 class="wiki-section-marker">// BLENDER</h3>
+        <h4>Shape Panel</h4>
+        <p><code>Nymphs Shape</code> turns one chosen reference image into an imported Blender mesh through the <code>TRELLIS.2</code> runtime. It is the main image-to-3D lane for draft asset creation.</p>
+        <div class="wiki-callout">
+          <div class="wiki-callout-title">
+            <span>Best Source Images</span>
+            <span class="wiki-callout-status">Cleaner input</span>
+          </div>
+          <div class="wiki-callout-grid">
+            <div class="wiki-callout-row"><span class="wiki-callout-good">Good</span><span>Front or three-quarter view, full subject visible, simple background.</span></div>
+            <div class="wiki-callout-row"><span class="wiki-callout-warn">Avoid</span><span>Cropped limbs, busy backgrounds, tiny subjects, or unclear silhouettes.</span></div>
+          </div>
+        </div>
+        <ul>
+          <li><code>Auto Remove Background</code> is available for normal plain-background references.</li>
+          <li><code>Generate Shape</code> creates the mesh; <code>Generate Shape + Texture</code> asks TRELLIS.2 for the first texture pass too.</li>
+          <li>Presets cover common TRELLIS.2 settings, while advanced controls expose resolution, seed, token budget, structure pass, shape pass, texture pass, export faces, remesh, and texture size.</li>
+          <li>The latest generated mesh is imported into the current Blender scene and recorded under the addon shape output folder.</li>
+        </ul>
+        <p>Use this panel once an image is strong enough to become a draft object. The goal is not final production topology; it is a fast, inspectable mesh and texture direction inside the same Blender project.</p>
+      </div>
+
+      <div class="wiki-entry" id="wiki-texture-panel">
+        <h3 class="wiki-section-marker">// BLENDER</h3>
+        <h4>Texture Panel</h4>
+        <p><code>Nymphs Texture</code> retextures an existing selected mesh with a guidance image through <code>TRELLIS.2</code>. It is useful when the shape is acceptable but the surface needs a different visual direction or another pass.</p>
+        <div class="wiki-callout is-warn">
+          <div class="wiki-callout-title">
+            <span>Selection Required</span>
+            <span class="wiki-callout-status">Before running</span>
+          </div>
+          <div class="wiki-callout-grid">
+            <div class="wiki-callout-row"><span class="wiki-callout-warn">Select</span><span>One mesh in Blender before running the request.</span></div>
+            <div class="wiki-callout-row"><span class="wiki-callout-label">Guide</span><span>Choose the image that should steer the new texture pass.</span></div>
+          </div>
+        </div>
+        <ul>
+          <li>Leave <code>Auto Remove Background</code> on for normal references.</li>
+          <li>Control texture resolution, texture size, seed, steps, image-follow strength, decimation, and advanced GGUF texture options where available.</li>
+          <li><code>Retexture Selected Mesh</code> sends the selected object and guidance image to the local runtime, then imports the result back near the source transform when possible.</li>
+        </ul>
+        <p>This lets texture iteration happen on the asset you are already looking at, instead of exporting to a separate tool, rebuilding context, and manually reconnecting the result.</p>
+      </div>
+
+      <div class="wiki-entry" id="wiki-feedback">
+        <h3 class="wiki-section-marker">// FEEDBACK</h3>
+        <h4>// Send feedback</h4>
+        <p>Use this for bug reports, confusing install steps, addon issues, documentation gaps, or feature ideas. Include what you tried, what you expected, what happened, and any logs or screenshots if you have them.</p>
+
+        <div class="wiki-feedback-panel">
+          <form class="wiki-feedback-form" action="https://formspree.io/f/mnjlrong" method="POST">
+            <input type="hidden" name="_subject" value="New NymphsCore feedback report">
+
+            <div>
+              <label for="feedback-report-type">Report type</label>
+              <select id="feedback-report-type" name="reportType">
+                <option>Bug report</option>
+                <option>Experience feedback</option>
+                <option>Onboarding confusion</option>
+                <option>Performance concern</option>
+                <option>Feature request</option>
+              </select>
+            </div>
+
+            <div>
+              <label for="feedback-area">Area</label>
+              <select id="feedback-area" name="area">
+                <option>Manager install</option>
+                <option>Runtime tools / smoke tests</option>
+                <option>Blender addon setup</option>
+                <option>Image generation</option>
+                <option>Image editing</option>
+                <option>Shape generation</option>
+                <option>Texture / retexture</option>
+                <option>Docs / onboarding</option>
+                <option>Superhive listing / install flow</option>
+                <option>Other</option>
+              </select>
+            </div>
+
+            <div>
+              <label for="feedback-name">Name</label>
+              <input id="feedback-name" name="testerName" type="text" placeholder="Name or handle">
+            </div>
+
+            <div>
+              <label for="feedback-contact">Contact</label>
+              <input id="feedback-contact" name="contact" type="text" placeholder="Discord handle, email, or server name">
+            </div>
+
+            <div class="wiki-feedback-full">
+              <label for="feedback-title">Short title</label>
+              <input id="feedback-title" name="title" type="text" placeholder="Example: TRELLIS says ready, but first shape run fails" required>
+            </div>
+
+            <div class="wiki-feedback-full">
+              <label for="feedback-steps">What you did</label>
+              <textarea id="feedback-steps" name="steps" placeholder="List the exact steps, or describe the session in sequence." required></textarea>
+            </div>
+
+            <div>
+              <label for="feedback-expected">Expected</label>
+              <textarea id="feedback-expected" name="expected" placeholder="What did you expect to happen?"></textarea>
+            </div>
+
+            <div>
+              <label for="feedback-actual">Actual</label>
+              <textarea id="feedback-actual" name="actual" placeholder="What happened instead?" required></textarea>
+            </div>
+
+            <div>
+              <label for="feedback-system">System info</label>
+              <textarea id="feedback-system" name="system" placeholder="Windows, GPU, VRAM, Blender version"></textarea>
+            </div>
+
+            <div>
+              <label for="feedback-logs">Logs or screenshots</label>
+              <textarea id="feedback-logs" name="logs" placeholder="Paste log snippets or note screenshots"></textarea>
+            </div>
+
+            <p class="wiki-feedback-hint">If the issue happened during install or runtime start, include the moment it first became confusing, not just the final error line.</p>
+            <button class="btn-primary wiki-feedback-submit wiki-feedback-full" type="submit">Send feedback</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div>Nymphs<span style="color:var(--lime);">Core</span></div>
+  <div>Wiki guides and feedback</div>
+</footer>
+
+<script>
+  (() => {
+    const portrait = document.getElementById('wiki-sidebar-portrait');
+    if (portrait) {
+      const portraits = ['Nymph1.png', 'Nymph2.png', 'Nymph3.png', 'Nymph4.png', 'Nymph5.png'];
+      const selected = portraits[Math.floor(Math.random() * portraits.length)];
+      portrait.src = `assets/wiki/${selected}`;
+    }
+
+    document.querySelectorAll('[data-copy-target]').forEach((button) => {
+      const target = document.getElementById(button.dataset.copyTarget);
+      if (!target) return;
+      button.addEventListener('click', async () => {
+        target.select();
+        target.setSelectionRange(0, target.value.length);
+        try {
+          await navigator.clipboard.writeText(target.value);
+        } catch {
+          document.execCommand('copy');
+        }
+        const original = button.textContent;
+        button.textContent = 'Copied';
+        window.setTimeout(() => {
+          button.textContent = original;
+        }, 1400);
+      });
+    });
+
+    const navLinks = Array.from(document.querySelectorAll('.wiki-nav a[href^="#"]'));
+    const targets = navLinks
+      .map((link) => document.querySelector(link.getAttribute('href')))
+      .filter(Boolean);
+
+    const setActive = (id) => {
+      navLinks.forEach((link) => {
+        link.classList.toggle('is-active', link.getAttribute('href') === `#${id}`);
+      });
+    };
+
+    if (!targets.length) return;
+    setActive(targets[0].id);
+
+    const topOffset = 128;
+    const targetTop = (target) => target.getBoundingClientRect().top + window.scrollY - topOffset;
+    const updateActive = () => {
+      const position = window.scrollY;
+      let current = targets[0];
+      for (const target of targets) {
+        if (targetTop(target) <= position) current = target;
+      }
+      setActive(current.id);
+    };
+
+    window.addEventListener('scroll', updateActive, { passive: true });
+    window.addEventListener('resize', updateActive);
+    window.addEventListener('hashchange', () => window.setTimeout(updateActive, 60));
+    window.setTimeout(updateActive, 60);
+  })();
+</script>
+
 <script id="open-navigating-links-in-new-tabs">
   (() => {
     document.querySelectorAll("a[href]").forEach((link) => {
