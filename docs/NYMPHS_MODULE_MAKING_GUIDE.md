@@ -978,6 +978,18 @@ MODEL FETCH STARTED: step=2/2 selected Blender weight repo=...
 MODEL FETCH COMPLETE: step=2/2 selected Blender weight repo=...
 ```
 
+For large Hugging Face downloads, do not only print `STARTED` and `COMPLETE`.
+Wrap the blocking download call with a lightweight status reporter and print
+`MODEL FETCH STATUS` every 5-10 seconds with whatever the module can know, such
+as:
+
+```text
+MODEL FETCH STATUS: step=1/4 status=downloading repo=... repo_cache_mb=1234 downloaded_this_step_mb=56 active_partial_files=2
+```
+
+This keeps the Manager details pane useful even when the underlying downloader
+does not stream percentage progress.
+
 The module should persist the selected generation preset in a module-owned config
 file under a shared data root, for example:
 

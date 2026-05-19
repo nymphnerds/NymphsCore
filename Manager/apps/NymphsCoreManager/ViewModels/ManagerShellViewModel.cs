@@ -4851,7 +4851,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                      {
                          "phase", "step", "repo", "status", "cache_dir", "progress_interval", "waiting_on",
                          "shared_cache", "downloaded_this_step", "repo_cache_blobs", "active_partial_files",
-                         "exit_status", "root", "profile",
+                         "repo_cache_mb", "downloaded_this_step_mb", "exit_status", "root", "profile",
                      })
             {
                 var value = ExtractLogValue(line, key);
@@ -4872,7 +4872,9 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         AddFeedbackLine(detail, "Waiting on", latest.GetValueOrDefault("waiting_on"));
         AddFeedbackLine(detail, "Cache", latest.GetValueOrDefault("shared_cache"));
         AddFeedbackLine(detail, "Downloaded this step", latest.GetValueOrDefault("downloaded_this_step"));
+        AddFeedbackLine(detail, "Downloaded this step MB", latest.GetValueOrDefault("downloaded_this_step_mb"));
         AddFeedbackLine(detail, "Repo cache blobs", latest.GetValueOrDefault("repo_cache_blobs"));
+        AddFeedbackLine(detail, "Repo cache MB", latest.GetValueOrDefault("repo_cache_mb"));
         AddFeedbackLine(detail, "Active partial files", latest.GetValueOrDefault("active_partial_files"));
         AddFeedbackLine(detail, "Cache dir", latest.GetValueOrDefault("cache_dir"));
         AddFeedbackLine(detail, "Exit status", latest.GetValueOrDefault("exit_status"));
