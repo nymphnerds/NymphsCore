@@ -390,9 +390,15 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         !IsModuleLifecycleActive(DisplayedModule) &&
         DisplayedModule.InstallOptionFields.Count > 0;
 
-    public bool ShowInstalledModuleActions => DisplayedModule?.IsInstalled == true && DisplayedModuleContractActions.Count > 0;
+    public bool ShowInstalledModuleActions =>
+        !IsBusy &&
+        DisplayedModule?.IsInstalled == true &&
+        DisplayedModuleContractActions.Count > 0;
 
-    public bool ShowInstalledModuleActionGroups => DisplayedModule?.IsInstalled == true && DisplayedModule.ManagerActionGroups.Count > 0;
+    public bool ShowInstalledModuleActionGroups =>
+        !IsBusy &&
+        DisplayedModule?.IsInstalled == true &&
+        DisplayedModule.ManagerActionGroups.Count > 0;
 
     public bool ShowModuleUiAction => DisplayedModule?.HasInstalledModuleUi == true;
 
@@ -1011,6 +1017,8 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             OnPropertyChanged(nameof(ShowModuleDetailProgress));
             OnPropertyChanged(nameof(ShowDisplayedModuleOverviewLinks));
             OnPropertyChanged(nameof(ShowDisplayedModuleActionGroupLinks));
+            OnPropertyChanged(nameof(ShowInstalledModuleActions));
+            OnPropertyChanged(nameof(ShowInstalledModuleActionGroups));
         }
     }
 
@@ -4835,44 +4843,67 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             return null;
         }
 
+        var progressKeys = new[]
+        {
+            "phase", "step", "repo", "status", "cache_dir", "progress_interval", "waiting_on",
+            "shared_cache", "downloaded_this_step", "repo_cache_blobs", "active_partial_files",
+            "repo_cache_mb", "downloaded_this_step_mb", "huggingface_cache_total", "this_repo_cache",
+            "active_download_files", "downloaded", "total", "percent", "recent_activity",
+            "downloading", "downloading_quant", "exit_status", "root", "profile",
+        };
+        var currentStep = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         var latest = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         var state = "downloading";
         foreach (var line in downloadLines)
         {
+            var values = ExtractLogValues(line, progressKeys);
             if (line.Contains("MODEL DOWNLOAD COMPLETE", StringComparison.OrdinalIgnoreCase) ||
                 line.Contains("MODEL FETCH COMPLETE", StringComparison.OrdinalIgnoreCase))
             {
                 state = "complete";
+                latest = MergeLogValues(currentStep, values);
             }
             else if (line.Contains("MODEL DOWNLOAD FAILED", StringComparison.OrdinalIgnoreCase) ||
                      line.Contains("MODEL FETCH FAILED", StringComparison.OrdinalIgnoreCase))
             {
                 state = "failed";
+                latest = MergeLogValues(currentStep, values);
             }
             else if (line.Contains("MODEL DOWNLOAD STARTED", StringComparison.OrdinalIgnoreCase) ||
                      line.Contains("MODEL FETCH STARTED", StringComparison.OrdinalIgnoreCase))
             {
-                state = "started";
-            }
-            else if (line.Contains("status=downloading", StringComparison.OrdinalIgnoreCase))
-            {
                 state = "downloading";
+                currentStep = new Dictionary<string, string>(values, StringComparer.OrdinalIgnoreCase);
+                latest = new Dictionary<string, string>(currentStep, StringComparer.OrdinalIgnoreCase);
             }
-
-            foreach (var key in new[]
-                     {
-                         "phase", "step", "repo", "status", "cache_dir", "progress_interval", "waiting_on",
-                         "shared_cache", "downloaded_this_step", "repo_cache_blobs", "active_partial_files",
-                         "repo_cache_mb", "downloaded_this_step_mb", "huggingface_cache_total", "this_repo_cache",
-                         "active_download_files", "downloaded", "total", "percent", "recent_activity",
-                         "downloading", "downloading_quant", "exit_status", "root", "profile",
-                     })
+            else if (line.Contains("MODEL DOWNLOAD STATUS", StringComparison.OrdinalIgnoreCase) ||
+                     line.Contains("MODEL FETCH STATUS", StringComparison.OrdinalIgnoreCase) ||
+                     line.Contains("status=downloading", StringComparison.OrdinalIgnoreCase))
             {
-                var value = ExtractLogValue(line, key);
-                if (!string.IsNullOrWhiteSpace(value))
+                latest = MergeLogValues(currentStep, values);
+                if (latest.TryGetValue("status", out var status))
                 {
-                    latest[key] = value;
+                    if (status.Equals("complete", StringComparison.OrdinalIgnoreCase))
+                    {
+                        state = "complete";
+                    }
+                    else if (status.Equals("failed", StringComparison.OrdinalIgnoreCase))
+                    {
+                        state = "failed";
+                    }
+                    else
+                    {
+                        state = "downloading";
+                    }
                 }
+                else
+                {
+                    state = "downloading";
+                }
+            }
+            else if (values.Count > 0)
+            {
+                latest = MergeLogValues(currentStep, values);
             }
         }
 
@@ -4901,7 +4932,10 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         AddFeedbackLine(detail, "Recent activity", latest.GetValueOrDefault("recent_activity"));
         AddFeedbackLine(detail, "Cache dir", latest.GetValueOrDefault("cache_dir"));
         AddFeedbackLine(detail, "Exit status", latest.GetValueOrDefault("exit_status"));
-        AddFeedbackLine(detail, "Root", latest.GetValueOrDefault("root"));
+        if (state is "complete" or "failed")
+        {
+            AddFeedbackLine(detail, "Root", latest.GetValueOrDefault("root"));
+        }
 
         var latestLine = downloadLines.LastOrDefault();
         if (!string.IsNullOrWhiteSpace(latestLine))
@@ -4910,6 +4944,34 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             detail.Add($"Latest event: {latestLine}");
         }
         return string.Join(Environment.NewLine, detail);
+    }
+
+    private static Dictionary<string, string> ExtractLogValues(string line, IEnumerable<string> keys)
+    {
+        var values = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var key in keys)
+        {
+            var value = ExtractLogValue(line, key);
+            if (!string.IsNullOrWhiteSpace(value))
+            {
+                values[key] = value;
+            }
+        }
+
+        return values;
+    }
+
+    private static Dictionary<string, string> MergeLogValues(
+        IReadOnlyDictionary<string, string> context,
+        IReadOnlyDictionary<string, string> values)
+    {
+        var merged = new Dictionary<string, string>(context, StringComparer.OrdinalIgnoreCase);
+        foreach (var (key, value) in values)
+        {
+            merged[key] = value;
+        }
+
+        return merged;
     }
 
     private static string? ExtractLogValue(string line, string key)
@@ -4927,7 +4989,9 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                  {
                      " phase=", " step=", " repo=", " status=", " cache_dir=", " progress_interval=", " waiting_on=",
                      " shared_cache=", " downloaded_this_step=", " repo_cache_blobs=", " active_partial_files=",
-                     " exit_status=", " root=", " profile=",
+                     " repo_cache_mb=", " downloaded_this_step_mb=", " huggingface_cache_total=", " this_repo_cache=",
+                     " active_download_files=", " downloaded=", " total=", " percent=", " recent_activity=",
+                     " downloading=", " downloading_quant=", " exit_status=", " root=", " profile=",
                  })
         {
             var candidate = line.IndexOf(nextKey, start, StringComparison.OrdinalIgnoreCase);
