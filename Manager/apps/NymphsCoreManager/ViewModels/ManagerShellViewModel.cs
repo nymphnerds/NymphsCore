@@ -3207,7 +3207,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
         var installEnvironment = BuildInstallFieldEnvironment(module);
         var confirmation = MessageBox.Show(
-            $"Install {module.Name} from the Nymphs registry?\n\nThe manager will read nymphs-registry, clone the trusted module repo, and run its install script inside the managed WSL distro.",
+            BuildModuleInstallPrompt(module),
             "Install Module",
             MessageBoxButton.YesNo,
             MessageBoxImage.Question);
@@ -3277,6 +3277,39 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             _modulesWithActiveLifecycle.Remove(module.Id);
             IsBusy = false;
         }
+    }
+
+    private static string BuildModuleInstallPrompt(NymphModuleViewModel module)
+    {
+        var lines = new List<string>
+        {
+            $"Install {module.Name} from the Nymphs registry?"
+        };
+
+        if (!string.IsNullOrWhiteSpace(module.SecondaryDetail))
+        {
+            lines.Add("");
+            lines.Add(module.SecondaryDetail.Trim());
+        }
+        else if (!string.IsNullOrWhiteSpace(module.Detail))
+        {
+            lines.Add("");
+            lines.Add(module.Detail.Trim());
+        }
+
+        if (module.OverviewLinks.Count > 0)
+        {
+            lines.Add("");
+            lines.Add("Links:");
+            foreach (var link in module.OverviewLinks)
+            {
+                lines.Add($"{link.Label}: {link.Url}");
+            }
+        }
+
+        lines.Add("");
+        lines.Add("Continue with install?");
+        return string.Join(Environment.NewLine, lines);
     }
 
     private async Task RepairModuleAsync(NymphModuleViewModel? module)
