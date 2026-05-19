@@ -12,5 +12,16 @@
 </head>
 <body>
   <p>Redirecting to <a href="./home/">NymphsCore home page</a>...</p>
+<script id="open-navigating-links-in-new-tabs">
+  (() => {
+    document.querySelectorAll("a[href]").forEach((link) => {
+      const href = link.getAttribute("href");
+      if (!href || href.startsWith("#") || href.startsWith("javascript:")) return;
+      link.setAttribute("target", "_blank");
+      link.setAttribute("rel", "noopener noreferrer");
+    });
+  })();
+</script>
+
 </body>
 </html>

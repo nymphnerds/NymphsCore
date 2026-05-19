@@ -17,6 +17,7 @@
     --dark4: #21474a;
     --muted: #9aa9a5;
     --light: #f0ede6;
+    --orange: #ff8a2a;
     --font-head: "Archivo", sans-serif;
     --font-mono: "DM Mono", monospace;
     --font-body: "Inter", sans-serif;
@@ -413,6 +414,18 @@
     margin-bottom: 10px;
   }
 
+  .wiki-entry h3.wiki-section-marker {
+    color: var(--orange);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    line-height: 1.3;
+    text-transform: uppercase;
+    margin: 0 0 6px;
+    text-shadow: none;
+  }
+
   .wiki-entry p {
     color: var(--muted);
     font-size: 15px;
@@ -527,7 +540,7 @@
     font-size: 12px;
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    margin: 18px 0 8px;
+    margin: 14px 0 8px;
   }
 
   .wiki-entry ul {
@@ -1190,8 +1203,19 @@
         </ul>
 
         <h4 id="wiki-module-system">Modules</h4>
-        <p>NymphsCore modules are focused capability packs owned by their own manifests and scripts. Current first-party modules cover local image generation with <code>Z-Image Turbo</code>, image-to-3D and texture work with <code>TRELLIS.2</code>, Z-Image LoRA training, optional local assistant services with <code>Nymphs-Brain</code>, and local-first worldbuilding with <code>WORBI</code>.</p>
-        <p>Large modules can have separate install and model-fetch steps. That keeps the base runtime smaller and makes disk use, repairs, logs, and retained data clearer per workflow.</p>
+        <p>NymphsCore modules are focused capability packs owned by their own manifests and scripts. The Manager discovers each module, installs it into the managed WSL runtime, runs its start/stop/status/log actions, and exposes any module-owned model fetch or workflow controls.</p>
+        <div class="wiki-callout">
+          <div class="wiki-callout-title">
+            <span>Blender Addon Baseline</span>
+            <span class="wiki-callout-status">Only two required</span>
+          </div>
+          <div class="wiki-callout-grid">
+            <div class="wiki-callout-row"><span class="wiki-callout-good">Required</span><span><code>Z-Image Turbo</code> for local reference and guide-image generation.</span></div>
+            <div class="wiki-callout-row"><span class="wiki-callout-good">Required</span><span><code>TRELLIS.2</code> for image-to-3D, texture, and retexture workflows.</span></div>
+            <div class="wiki-callout-row"><span class="wiki-callout-label">Optional</span><span><code>LoRA</code>, <code>Nymphs Brain</code>, and <code>WORBI</code> are separate workflows. Install them only if you want training, local assistant tools, worldbuilding, Brain-assisted LoRA captioning, or future MCP-driven creative flows.</span></div>
+          </div>
+        </div>
+        <p>Large modules can have separate install and model-fetch steps. Install prepares the code and runtime; model fetch downloads the large weights and support files. That keeps the base runtime smaller and makes disk use, repairs, logs, and retained data clearer per workflow.</p>
 
         <h4 id="wiki-creative-clients">Creative clients</h4>
         <p>The Blender addon is the current main client. It talks to the managed local services from Blender's sidebar so artists can generate references, use prompt/object/style presets, send selected images into shape and texture workflows, import draft meshes, and retexture selected objects inside the scene.</p>
@@ -1199,7 +1223,7 @@
       </div>
 
       <div class="wiki-entry" id="wiki-manager">
-        <h3>NymphsCore Manager</h3>
+        <h3 class="wiki-section-marker">// NYMPHSCORE MANAGER</h3>
         <h4 id="wiki-manager-intro">Intro</h4>
         <p>NymphsCore Manager powers the curated local AI pipelines for game development. It is the Windows setup, repair, and diagnostics app for the local NymphsCore runtime, creating a dedicated <code>NymphsCore</code> WSL distro, installing registry modules, preparing CUDA and Python environments, downloading model weights, running smoke tests, streaming logs, and exposing module controls so the AI stack can run locally without hand-building servers and environments.</p>
         <p>That managed runtime is used by multiple Nymphs workflows: Z-Image Turbo for local image generation, TRELLIS.2 for image-to-3D and texture work, LoRA for Z-Image training, WORBI for local-first worldbuilding, and optional Brain services for local LLM, Open WebUI, and MCP tooling. The Blender addon is the current creative client for some of these services, and the platform is constantly evolving toward bringing curated AI pipelines directly inside future creative software and game engines, including possible Godot, Unity, or Unreal integrations, without forcing artists into complex node-based workflow tools.</p>
@@ -1324,7 +1348,8 @@
       </div>
 
       <div class="wiki-entry" id="wiki-base-distro">
-        <h3>Install WSL Base Distro</h3>
+        <h3 class="wiki-section-marker">// NYMPHSCORE MANAGER</h3>
+        <h4>Install WSL Base Distro</h4>
         <p>The base distro is the managed WSL environment used by NymphsCore. Install or repair it before adding modules.</p>
         <figure class="wiki-figure">
           <video controls muted playsinline preload="metadata" aria-label="NymphsCore Base Runtime install">
@@ -1354,10 +1379,11 @@
       </div>
 
       <div class="wiki-entry" id="wiki-zimage">
-        <h3>Z-Image Turbo</h3>
-        <p>Z-Image Turbo is NymphsCore's local image-generation backend. It is used for fast text-to-image and guide-image variation without sending prompts or images to an external API.</p>
+        <h3 class="wiki-section-marker">// MODULES</h3>
+        <h4>Z-Image Turbo</h4>
+        <p>Z-Image Turbo is the Blender addon's local image-generation module. It runs a FastAPI service for <code>txt2img</code> and <code>img2img</code> on the managed WSL runtime, writing outputs under the shared <code>NymphsData</code> folders instead of sending prompts or images to a remote generation service.</p>
         <p>Nunchaku is the optimized low-bit runtime used to run Z-Image Turbo locally with lower VRAM and faster inference. It uses quantized Z-Image Turbo weights, which are smaller/faster runtime versions of the model for local generation. NymphNerds forks Nunchaku so the Blender workflow can go beyond basic text-to-image: guide-image editing and LoRAs trained with the LoRA AI Toolkit module can be used through the same local runtime.</p>
-        <p>In the Blender addon, Z-Image Turbo powers the <code>Nymphs Image</code> panel. Use it to create concept art, texture ideas, reference images, or source images that can then be sent into 3D workflows such as TRELLIS.2.</p>
+        <p>In the Blender addon, Z-Image Turbo powers the <code>Nymphs Image</code> panel. Use it to create concept art, texture ideas, reference images, guide-image variations, or source images that can then be sent into 3D workflows such as TRELLIS.2.</p>
         <h4>Install from Manager</h4>
         <p>Install Z-Image Turbo from the Manager after the Base Runtime is ready. The install step prepares <code>~/Z-Image</code> and its Nunchaku runtime; the model files are fetched separately from the installed module page.</p>
         <figure class="wiki-figure">
@@ -1394,27 +1420,71 @@
       </div>
 
       <div class="wiki-entry" id="wiki-trellis">
-        <h3>TRELLIS.2</h3>
-        <p>TRELLIS.2 is the local image-to-3D module. Install it from the Manager, then use Fetch Models on its module card.</p>
+        <h3 class="wiki-section-marker">// MODULES</h3>
+        <h4>TRELLIS.2</h4>
+        <p>TRELLIS.2 is the Blender addon's local 3D module. It turns a source image into a draft 3D asset and supports texture and retexture workflows through the managed TRELLIS.2 GGUF backend.</p>
+        <p>The module combines Microsoft's TRELLIS.2 source, a NymphsCore local HTTP adapter, GGUF model loading through <code>ComfyUI-Trellis2-GGUF</code>, and module-owned scripts for install, start, stop, status, logs, model fetch, smoke test, and uninstall.</p>
+        <p>Install prepares the runtime under <code>~/TRELLIS.2</code>. Fetch Models downloads the selected <code>Aero-Ex/Trellis2-GGUF</code> quant bundle, shared support files, the required <code>microsoft/TRELLIS.2-4B</code> support checkpoint, and the <code>rembg u2net</code> background-removal model.</p>
+        <ul>
+          <li><code>Q5_K_M</code> is the normal starting point for most GPUs.</li>
+          <li><code>Q4_K_M</code> is the smallest first proof test or tighter-VRAM option.</li>
+          <li><code>Q6_K</code> and <code>Q8_0</code> are heavier quality-focused choices when the machine has enough headroom.</li>
+          <li><code>All quants</code> is optional and useful only if you want the addon/backend to switch between every supported GGUF later.</li>
+        </ul>
       </div>
 
       <div class="wiki-entry" id="wiki-brain">
-        <h3>Nymphs Brain</h3>
-        <p>Local assistant and service module. Wiki notes coming soon.</p>
+        <h3 class="wiki-section-marker">// MODULES</h3>
+        <h4>Nymphs Brain</h4>
+        <p>Nymphs Brain is an optional local assistant and tool-orchestration module. It is not required for the Blender addon baseline, and the installer does not need to download a chat model before the rest of NymphsCore can work.</p>
+        <p>The current Brain module uses LM Studio CLI for model download and selection, then serves the selected GGUF through a CUDA-enabled <code>llama-server</code> on port <code>8000</code>. Brain also installs Open WebUI, an MCP gateway, the <code>mcpo</code> OpenAPI bridge, and tool bridges for filesystem, memory, web-forager, context7, optional remote LLM wrapper workflows, and future Blender-side flows over the in-progress MCP layer.</p>
+        <ul>
+          <li><code>Start Brain</code> starts the local model server only if a model has been configured, then starts the MCP tool stack.</li>
+          <li><code>Manage Models</code> opens the installed <code>lms-model</code> terminal flow for local model selection, context length, and optional remote wrapper model selection.</li>
+          <li>With a suitable local vision model configured, Brain can help the LoRA module draft image captions for training datasets.</li>
+          <li><code>Open WebUI</code> is its own Manager action and local WebView/browser surface on port <code>8081</code>.</li>
+          <li><code>MCP</code> runs on port <code>8100</code>, while <code>mcpo</code> exposes OpenAPI tool routes on port <code>8099</code> for Open WebUI and other clients.</li>
+          <li>The MCP layer is the planned bridge for future Blender workflows where local assistant/tool actions can coordinate with creative-client context.</li>
+          <li>An optional OpenRouter key enables the cached <code>llm-wrapper</code> tool; without a key, Brain skips that wrapper and keeps the local stack usable.</li>
+          <li>Normal uninstall removes runtime/program files but preserves models, Open WebUI data, MCP config/data, secrets, and logs unless purge or data-delete is chosen.</li>
+        </ul>
+        <h4>Source links</h4>
+        <ul class="wiki-link-list">
+          <li><a href="https://github.com/ggml-org/llama.cpp">llama.cpp / llama-server</a></li>
+          <li><a href="https://lmstudio.ai/docs/cli">LM Studio CLI</a></li>
+          <li><a href="https://lmstudio.ai/models/">LM Studio model catalog</a></li>
+          <li><a href="https://huggingface.co/models?format=gguf">Hugging Face GGUF models</a></li>
+          <li><a href="https://github.com/open-webui/open-webui">Open WebUI</a></li>
+          <li><a href="https://modelcontextprotocol.io/">Model Context Protocol</a></li>
+          <li><a href="https://github.com/open-webui/mcpo">mcpo OpenAPI bridge</a></li>
+          <li><a href="https://openrouter.ai/docs">OpenRouter docs</a></li>
+        </ul>
       </div>
 
       <div class="wiki-entry" id="wiki-worbi">
-        <h3>WORBI</h3>
-        <p>Local worldbuilding module. Wiki notes coming soon.</p>
+        <h3 class="wiki-section-marker">// MODULES</h3>
+        <h4>WORBI</h4>
+        <p>WORBI is an optional local-first worldbuilding workspace. It is packaged as a Nymph module so writers, solo creators, and game teams can keep lore, characters, locations, timelines, notes, and project planning inside the managed local system.</p>
+        <p>WORBI runs as a browser-based local app from the managed WSL runtime, normally on port <code>8082</code>. The Manager handles install, start, open, stop, status, logs, and data-folder access, while WORBI itself owns the deeper worldbuilding UI in the browser.</p>
+        <p>Normal uninstall keeps WORBI project data, config, and logs unless the separate data-delete path is used.</p>
       </div>
 
       <div class="wiki-entry" id="wiki-lora">
-        <h3>LoRA</h3>
-        <p>Training module for Z-Image workflows. Wiki notes coming soon.</p>
+        <h3 class="wiki-section-marker">// MODULES</h3>
+        <h4>LoRA</h4>
+        <p>LoRA is an optional training module for Z-Image Turbo. It is not needed to run the Blender addon, but it lets you train small <code>.safetensors</code> files for a specific character, outfit, object, style, or subject, then use the finished LoRA in Z-Image generation.</p>
+        <p>The module installs an isolated AI Toolkit workspace under <code>~/LoRA</code>, including the beginner <code>Easy LoRA</code> flow, the advanced AI Toolkit UI, queue worker support, dataset folders, job files, logs, and LoRA output folders.</p>
+        <ul>
+          <li><code>Fetch Training Assets</code> downloads the large Z-Image Turbo training model and <code>ostris/zimage_turbo_training_adapter</code>.</li>
+          <li><code>Easy LoRA</code> is the beginner path for captions, job creation, training start/stop, progress, and finished LoRA outputs.</li>
+          <li><code>Caption with Brain</code> can draft editable captions for dataset images when Brain is installed and a compatible vision model is configured.</li>
+          <li><code>Open Datasets</code> and <code>Open LoRAs</code> expose the local folders where training images and finished files live.</li>
+          <li>Normal uninstall removes the trainer runtime but preserves datasets, jobs, outputs, logs, models, and adapters by default.</li>
+        </ul>
       </div>
 
       <div class="wiki-entry" id="wiki-addon">
-        <h3>About</h3>
+        <h3 class="wiki-section-marker">// BLENDER</h3>
         <p>The Nymphs Blender addon is the current creative client for NymphsCore. It gives Blender a direct control surface for the managed local AI runtime, so asset drafts can move from prompt, to reference image, to generated mesh, to texture pass without leaving the scene or hand-running backend servers.</p>
         <p>This matters because draft asset work is iterative. You can keep a model or scene open, generate visual directions from object and style presets, reuse the strongest image as a source, import the resulting mesh back into Blender, select a result, run another texture pass, and inspect saved outputs and metadata from the same sidebar.</p>
         <p>The heavy work still happens in the Manager-installed <code>NymphsCore</code> WSL runtime. The addon starts and checks the local services, sends requests to the image and 3D modules, imports returned assets, and keeps status, progress, GPU/VRAM signals, folders, and repair-friendly runtime controls where the artist is already working.</p>
@@ -1437,7 +1507,8 @@
       </div>
 
       <div class="wiki-entry" id="wiki-server-panel">
-        <h3>Server Panel</h3>
+        <h3 class="wiki-section-marker">// BLENDER</h3>
+        <h4>Server Panel</h4>
         <p><code>Nymphs Server</code> is the addon control panel for the managed local runtimes. It shows the current backend state, active services, image backend, running job, progress, and GPU/VRAM telemetry when available.</p>
         <div class="wiki-callout">
           <div class="wiki-callout-title">
@@ -1459,7 +1530,8 @@
       </div>
 
       <div class="wiki-entry" id="wiki-image-panel">
-        <h3>Image Panel</h3>
+        <h3 class="wiki-section-marker">// BLENDER</h3>
+        <h4>Image Panel</h4>
         <p><code>Nymphs Image</code> creates the reference images that drive the rest of the Blender workflow. It supports local <code>Z-Image</code> generation from the managed runtime and <code>Gemini Flash</code> generation through OpenRouter when online access is enabled.</p>
         <ul>
           <li><code>Z-Image</code> handles local text-to-image, variants, seeds, generation profiles, size, steps, guidance, and image-to-image from a picked guide image.</li>
@@ -1472,7 +1544,8 @@
       </div>
 
       <div class="wiki-entry" id="wiki-shape-panel">
-        <h3>Shape Panel</h3>
+        <h3 class="wiki-section-marker">// BLENDER</h3>
+        <h4>Shape Panel</h4>
         <p><code>Nymphs Shape</code> turns one chosen reference image into an imported Blender mesh through the <code>TRELLIS.2</code> runtime. It is the main image-to-3D lane for draft asset creation.</p>
         <div class="wiki-callout">
           <div class="wiki-callout-title">
@@ -1494,7 +1567,8 @@
       </div>
 
       <div class="wiki-entry" id="wiki-texture-panel">
-        <h3>Texture Panel</h3>
+        <h3 class="wiki-section-marker">// BLENDER</h3>
+        <h4>Texture Panel</h4>
         <p><code>Nymphs Texture</code> retextures an existing selected mesh with a guidance image through <code>TRELLIS.2</code>. It is useful when the shape is acceptable but the surface needs a different visual direction or another pass.</p>
         <div class="wiki-callout is-warn">
           <div class="wiki-callout-title">
@@ -1515,7 +1589,7 @@
       </div>
 
       <div class="wiki-entry" id="wiki-feedback">
-        <h3>Feedback</h3>
+        <h3 class="wiki-section-marker">// FEEDBACK</h3>
         <h4>// Send feedback</h4>
         <p>Use this for bug reports, confusing install steps, addon issues, documentation gaps, or feature ideas. Include what you tried, what you expected, what happened, and any logs or screenshots if you have them.</p>
 
@@ -1661,6 +1735,17 @@
     window.addEventListener('resize', updateActive);
     window.addEventListener('hashchange', () => window.setTimeout(updateActive, 60));
     window.setTimeout(updateActive, 60);
+  })();
+</script>
+
+<script id="open-navigating-links-in-new-tabs">
+  (() => {
+    document.querySelectorAll("a[href]").forEach((link) => {
+      const href = link.getAttribute("href");
+      if (!href || href.startsWith("#") || href.startsWith("javascript:")) return;
+      link.setAttribute("target", "_blank");
+      link.setAttribute("rel", "noopener noreferrer");
+    });
   })();
 </script>
 

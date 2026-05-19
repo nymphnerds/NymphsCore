@@ -27,5 +27,16 @@ https://www.youtube.com/watch?v=YOUR_VIDEO_ID
 Suggested length:
 30 to 60 seconds</div></div></section>
 <footer><div>Nymphs<span style="color:var(--lime);">Core</span></div><div>Guide 03 · refine with guide images</div></footer>
+<script id="open-navigating-links-in-new-tabs">
+  (() => {
+    document.querySelectorAll("a[href]").forEach((link) => {
+      const href = link.getAttribute("href");
+      if (!href || href.startsWith("#") || href.startsWith("javascript:")) return;
+      link.setAttribute("target", "_blank");
+      link.setAttribute("rel", "noopener noreferrer");
+    });
+  })();
+</script>
+
 </body>
 </html>

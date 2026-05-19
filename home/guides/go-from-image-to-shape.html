@@ -26,5 +26,16 @@ https://www.youtube.com/watch?v=YOUR_VIDEO_ID
 Suggested length:
 45 to 90 seconds</div></div></section>
 <footer><div>Nymphs<span style="color:var(--lime);">Core</span></div><div>Guide 04 · go from image to shape</div></footer>
+<script id="open-navigating-links-in-new-tabs">
+  (() => {
+    document.querySelectorAll("a[href]").forEach((link) => {
+      const href = link.getAttribute("href");
+      if (!href || href.startsWith("#") || href.startsWith("javascript:")) return;
+      link.setAttribute("target", "_blank");
+      link.setAttribute("rel", "noopener noreferrer");
+    });
+  })();
+</script>
+
 </body>
 </html>
