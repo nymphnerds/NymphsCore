@@ -671,7 +671,7 @@ sample:
   (() => {
     document.querySelectorAll("a[href]").forEach((link) => {
       const href = link.getAttribute("href");
-      if (!href || href.startsWith("#") || href.startsWith("javascript:")) return;
+      if (!href || link.classList.contains("nav-logo") || href.startsWith("#") || href.startsWith("javascript:")) return;
       link.setAttribute("target", "_blank");
       link.setAttribute("rel", "noopener noreferrer");
     });
