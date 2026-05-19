@@ -527,7 +527,7 @@
                           VerticalAlignment="Center">
                 <TextBlock Text="{Binding Name}"
                            Style="{StaticResource HomeCardTitleStyle}" />
-                <TextBlock Text="{Binding Kind, StringFormat=// {0}}"
+                <TextBlock Text="{Binding Category, StringFormat=// {0}}"
                            Style="{StaticResource HomeCardMetaStyle}"
                            Foreground="{Binding AccentBrush}" />
               </StackPanel>
