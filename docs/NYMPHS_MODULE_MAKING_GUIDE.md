@@ -78,6 +78,121 @@ The module owns:
 
 Before a module is installed, the Manager should only show registry and manifest metadata. After install, the Manager may host module-owned local UI declared by the installed module manifest.
 
+## Future Module Agent Rule
+
+Use this rule as the prompt/checklist for any LLM or agent working on Nymphs
+modules:
+
+```text
+Work on modules holistically, not one card at a time.
+
+Before changing a module, inspect the whole module system:
+- the target module's nymph.json and lifecycle scripts
+- every installed/current module status script
+- the Manager's generic module-state interpretation
+- the shared registry/display fields
+- this module standard
+
+Preserve the shared contract first:
+- startup card placement comes from cheap install markers, not deep scans
+- installed/available grouping must stay fast and stable
+- module status scripts own live health only after install
+- normal stopped/configured-later states are not "needs attention"
+- model or asset downloads use explicit states, not generic failure wording
+- Manager code must stay generic; do not hardcode one module's UI or buttons
+- registry fields may change card classification; packaging is install mechanics
+
+When one module needs a new state, update the standard and check every module
+against it in the same pass. If any module drifts, fix that module too.
+Do not ship a module-specific workaround that makes Brain, LoRA, WORBI,
+Z-Image, TRELLIS, Pixal3D, or brain-train worse.
+
+After changes, run all module status scripts locally and record the state table:
+id, installed, running, state, health, models/assets readiness, and detail.
+Then build the Manager if Manager interpretation changed.
+```
+
+The goal is boring reliability. A module card should answer only:
+
+```text
+Available
+Installed
+Model download needed
+Needs assets
+Running
+Repair needed
+```
+
+Use `Needs attention` only when the installed runtime is genuinely broken or a
+required module dependency prevents normal use. Do not use it for a stopped
+service, an optional key, an unselected model, preserved data after uninstall,
+or a normal first-run model/asset download.
+
+## Module Status Contract
+
+Every module `status` action must be fast, side-effect-light, and line based:
+
+```text
+id=<module-id>
+installed=true|false
+runtime_present=true|false
+data_present=true|false
+version=<version|not-installed|unknown>
+running=true|false
+state=<state>
+health=<health>
+detail=<one useful sentence>
+```
+
+Standard states:
+
+```text
+available              not installed
+installed              installed and ready enough to open/manage
+running                a module-owned service/UI/worker is running
+model_download_needed  installed, but required model files are missing
+needs_assets           installed trainer/runtime, but training assets are missing
+needs_brain            installed, but the Brain module dependency is missing
+repair_needed          files exist but the standard install marker is missing
+needs_attention        installed runtime is broken or cannot perform core work
+```
+
+Standard health values:
+
+```text
+unavailable            not installed or intentionally unavailable
+ok                     installed state is healthy, including stopped services
+unknown                installed health was not checked yet
+model-download-needed  required model files are missing
+assets-needed          required training assets are missing
+repair-needed          install marker/source root needs repair
+degraded               installed runtime has a real missing/broken piece
+unreachable            process exists but expected health endpoint failed
+status-warning         Manager-generated status script failure fallback
+status-timeout         Manager-generated status timeout fallback
+```
+
+Rules:
+
+- If `installed=false`, use `state=available` and `health=unavailable`.
+- If a module is installed but stopped, use `state=installed`,
+  `running=false`, and `health=ok` or `unknown`.
+- If a service is running and healthy, use `state=running`, `running=true`, and
+  `health=ok`.
+- If models are missing, use `state=model_download_needed`,
+  `health=model-download-needed`, and `models_ready=false`.
+- If training assets are missing, use `state=needs_assets`,
+  `health=assets-needed`, and `assets_ready=false`.
+- If optional configuration is missing but the module can still be managed, keep
+  `state=installed` and expose a specific field such as
+  `model_configured=false` or `openrouter_key=not_set`.
+- `needs_attention` is reserved for broken installs, missing runtime files,
+  failed wrappers, missing required adapters, or impossible core operation.
+- A status script must not download models, install packages, build code, start
+  long services, or perform deep remote checks. Put those in explicit actions.
+- Slow or deep probes must be opt-in through a module-specific environment flag,
+  not the default Manager refresh path.
+
 ## Base Runtime Dependency Floor
 
 The managed WSL base runtime must provide the small command-line floor needed to

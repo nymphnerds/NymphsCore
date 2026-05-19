@@ -1947,7 +1947,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             ? "Model download needed"
             : repairNeeded
                 ? "Repair needed"
-                : NormalizeModuleStateLabel(snapshot.State, snapshot.IsInstalled, snapshot.IsRunning);
+                : NormalizeModuleStateLabel(snapshot.State, snapshot.IsInstalled, snapshot.IsRunning, snapshot.Health);
         var statusBrush = snapshot.IsRunning
             ? "#6FD96C"
             : snapshot.IsInstalled
@@ -2136,7 +2136,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             return "AI Toolkit running";
         }
 
-        return snapshot.IsInstalled ? "Ready" : NormalizeModuleStateLabel(snapshot.State, snapshot.IsInstalled, snapshot.IsRunning);
+        return snapshot.IsInstalled ? "Ready" : NormalizeModuleStateLabel(snapshot.State, snapshot.IsInstalled, snapshot.IsRunning, snapshot.Health);
     }
 
     private static string BuildLoraModuleDetail(
@@ -5737,7 +5737,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         _settings.DownloadBrainModelNow = false;
     }
 
-    private static string NormalizeModuleStateLabel(string? state, bool isInstalled, bool isRunning)
+    private static string NormalizeModuleStateLabel(string? state, bool isInstalled, bool isRunning, string? health = null)
     {
         if (isRunning)
         {
@@ -5749,13 +5749,23 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             return isInstalled ? "Installed" : "Available";
         }
 
-        return state.Trim().ToLowerInvariant() switch
+        var normalizedState = state.Trim().ToLowerInvariant();
+        if (isInstalled &&
+            IsHealthyModuleHealth(health) &&
+            normalizedState is "needs_attention" or "status_warning" or "status_timeout")
+        {
+            return "Installed";
+        }
+
+        return normalizedState switch
         {
             "available" => "Available",
             "installed" => "Installed",
             "running" => "Running",
             "repair_needed" => "Repair needed",
             "model_download_needed" => "Model download needed",
+            "needs_assets" => "Needs assets",
+            "needs_brain" => "Needs Brain",
             "status_warning" => "Status warning",
             "status_timeout" => "Status timeout",
             "needs_attention" => "Needs attention",
@@ -5769,11 +5779,18 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
     private static bool StateNeedsAttention(string? state, string? health)
     {
-        return string.Equals(state, "needs_attention", StringComparison.OrdinalIgnoreCase)
+        return (!IsHealthyModuleHealth(health) && string.Equals(state, "needs_attention", StringComparison.OrdinalIgnoreCase))
             || string.Equals(health, "status-timeout", StringComparison.OrdinalIgnoreCase)
             || string.Equals(health, "status-warning", StringComparison.OrdinalIgnoreCase)
             || string.Equals(health, "degraded", StringComparison.OrdinalIgnoreCase)
             || string.Equals(health, "unavailable", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsHealthyModuleHealth(string? health)
+    {
+        return string.Equals(health, "ok", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(health, "healthy", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(health, "ready", StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool IsModelDownloadNeededHealth(string? health)
