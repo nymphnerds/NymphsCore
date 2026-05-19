@@ -2019,6 +2019,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         if (DisplayedModule is not null && string.Equals(DisplayedModule.Id, module.Id, StringComparison.OrdinalIgnoreCase))
         {
             RefreshDisplayedModuleActionState();
+            SetModuleDetailPaneFeedback(module);
         }
     }
 
@@ -2300,7 +2301,6 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             OnPropertyChanged(nameof(DisplayedModuleActionGroups));
             _openModuleUiCommand.RaiseCanExecuteChanged();
             _runModuleActionGroupCommand.RaiseCanExecuteChanged();
-            SetModuleDetailPaneFeedback(module);
         }
     }
 

@@ -184,6 +184,16 @@ The Manager startup card state depends on this marker. It must remain a cheap
 marker probe, not a module `status` script call, so installed cards appear
 quickly even when heavyweight modules or WSL services are slow.
 
+Installed state and health have separate owners:
+
+- Startup marker probes may set only coarse install state such as `Installed`,
+  `Available`, or `Repair needed`.
+- Module-owned `status` output owns live health such as `Model download needed`,
+  `Ready`, `Running`, `Needs assets`, and status-warning details.
+- Installed manifest/control refresh may update buttons, fields, links, and
+  hosted UI metadata only. It must not overwrite the current health label,
+  status brush, detail text, or model-readiness state.
+
 Do not put your installed workflow buttons in the registry. Buttons belong in
 your module's own `nymph.json`, because your module can change its tools without
 needing the catalog to know every detail.
