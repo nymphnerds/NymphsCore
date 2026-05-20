@@ -5813,6 +5813,7 @@ meta:
 
         var requiresRunning = GetJsonBool(managerUiElement, "requires_running") ?? false;
         var startAction = NormalizeSafeRelativeModulePath(GetJsonString(managerUiElement, "start_action")) ?? "";
+        var stopAction = NormalizeSafeRelativeModulePath(GetJsonString(managerUiElement, "stop_action")) ?? "";
         var type = GetJsonString(managerUiElement, "type") ?? "";
         if (string.Equals(type, "local_url", StringComparison.OrdinalIgnoreCase) ||
             string.Equals(type, "url", StringComparison.OrdinalIgnoreCase) ||
@@ -5832,7 +5833,8 @@ meta:
                     url,
                     url,
                     requiresRunning,
-                    startAction);
+                    startAction,
+                    stopAction);
             }
 
             return null;
@@ -5867,7 +5869,8 @@ meta:
             entrypoint,
             candidatePath,
             requiresRunning,
-            startAction);
+            startAction,
+            stopAction);
     }
 
     public (IReadOnlyList<NymphModuleActionInfo> ManagerActions, IReadOnlyList<NymphModuleActionGroupInfo> ManagerActionGroups)? GetInstalledNymphModuleControls(

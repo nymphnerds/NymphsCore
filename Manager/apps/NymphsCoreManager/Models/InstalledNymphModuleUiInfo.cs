@@ -7,4 +7,5 @@ public sealed record InstalledNymphModuleUiInfo(
     string Entrypoint,
     string WindowsPath,
     bool RequiresRunning = false,
-    string StartAction = "");
+    string StartAction = "",
+    string StopAction = "");

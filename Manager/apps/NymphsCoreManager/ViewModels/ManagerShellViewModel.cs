@@ -4545,6 +4545,42 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         var actionLabel = string.IsNullOrWhiteSpace(actionInfo.DisplayLabel) ? normalizedAction : actionInfo.DisplayLabel;
         if (normalizedAction == CloseModuleUiActionName)
         {
+            var stopAction = module.InstalledModuleUiInfo?.StopAction?.Trim() ?? string.Empty;
+            if (!string.IsNullOrWhiteSpace(stopAction) && !IsBusy)
+            {
+                IsBusy = true;
+                StatusMessage = $"Stopping {module.Name} WebUI...";
+                SetModuleActionFeedback(
+                    $"{module.Name}: stopping WebUI",
+                    $"Running {stopAction} before closing the embedded module UI.");
+                await Task.Yield();
+
+                try
+                {
+                    var output = await _workflowService.RunNymphModuleActionAsync(
+                        _settings,
+                        module.Id,
+                        stopAction,
+                        module.InstallRoot,
+                        new Progress<string>(AppendActivity),
+                        CancellationToken.None).ConfigureAwait(true);
+
+                    AppendModuleActionOutput(module, stopAction, output);
+                }
+                catch (Exception ex)
+                {
+                    AppendActivity($"{module.Name} WebUI stop warning: {ex.Message}");
+                    SetModuleActionFeedback(
+                        $"{module.Name}: WebUI stop warning",
+                        BuildModuleActionFeedbackDetail(ex.Message));
+                }
+                finally
+                {
+                    IsBusy = false;
+                    await RefreshModuleStateAsync().ConfigureAwait(true);
+                }
+            }
+
             ShowModulePage(module);
             StatusMessage = $"{module.Name} WebUI closed.";
             AppendActivity($"{module.Name} WebUI closed.");

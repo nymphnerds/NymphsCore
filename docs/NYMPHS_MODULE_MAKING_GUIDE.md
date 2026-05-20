@@ -618,7 +618,8 @@ it:
       "title": "Module UI",
       "url": "http://127.0.0.1:8097",
       "requires_running": true,
-      "start_action": "start"
+      "start_action": "start",
+      "stop_action": "stop"
     }
   }
 }
@@ -631,6 +632,9 @@ Rules:
   loading the URL from the standard module UI button.
 - `start_action` must name an action from `entrypoints`; it is an action id, not
   a script path.
+- `stop_action` is optional. When present, the Manager runs it when the user
+  closes the embedded module UI. Use this for Gradio or other heavyweight
+  UI-owned servers that should not keep running after the embedded page closes.
 - The start action must be idempotent. If the server is already running, exit 0.
 - The start action must print the UI URL on success. Prefer both:
 

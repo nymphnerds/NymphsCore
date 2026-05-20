@@ -8,6 +8,26 @@ This file focuses on user-facing and system-level changes rather than package-by
 
 Newest entries first.
 
+### 2026-05-20 Manager 0.9.20 module UI stop action and Pixal3D Gradio fix
+Source: live Pixal3D Gradio generate testing.
+
+Changed in source:
+
+- added optional `ui.manager_ui.stop_action` support so local URL module UIs can
+  stop their serving process when the embedded UI is closed
+- set Pixal3D Gradio to run `stop` on close, while keeping other modules
+  unchanged unless they opt in
+- fixed Pixal3D Gradio generation imports by adding the Pixal3D repo root to
+  the Gradio wrapper import path
+- hardened Pixal3D Gradio startup so a stale process on the same port cannot
+  make the start action falsely report success after the new worker exits
+- documented the `local_url` start/stop lifecycle in the Module Making Guide
+
+Related module/registry updates:
+
+- Pixal3D `0.1.8`: Gradio import fix, startup verification, and
+  `manager_ui.stop_action`
+
 ### 2026-05-20 Manager 0.9.19 compact fetch status standard
 Source: live module update/fetch testing across LoRA, Z-Image, TRELLIS, and Pixal3D.
 
