@@ -1802,16 +1802,16 @@
         <p>The installed Pixal3D runtime is separate from its model downloads. On the current local install, <code>~/Pixal3D</code> is about <code>158 MB</code> before model weights, generated outputs, logs, and profile data.</p>
         <p>Install sets up the Pixal3D runtime. <span class="wiki-action-text">Fetch Models</span> downloads the model assets into shared <code>NymphsData</code> caches. The card range starts with the installed runtime plus the lightest GGUF download set. The normal safetensors profiles are about <code>30 GB</code> including Pixal3D checkpoints and auxiliary model repos; downloading all Pixal3D safetensors and GGUF weight sets can reach about <code>55 GB</code> with the installed module.</p>
         <p>Use <code>Low VRAM 1024</code> as the first test profile. <code>Standard 1536</code> is heavier. The quantized options are about <code>5.4 GB</code> for <code>GGUF Q5_K_M</code>, <code>6.1 GB</code> for <code>GGUF Q6_K</code>, and <code>7.4 GB</code> for <code>GGUF Q8_0</code>; current generation still uses safetensors until Pixal3D's GGUF loader bridge is implemented.</p>
-        <p><span class="wiki-action-text">Start API</span> starts the Blender-facing service on port <code>8096</code>. <span class="wiki-action-text">Open Gradio</span> launches the local Pixal3D Gradio app on port <code>8097</code>.</p>
+        <p><span class="wiki-action-text">Open Gradio</span> launches the official Pixal3D app on port <code>8097</code> inside the Manager WebView. The Blender-facing API remains on port <code>8096</code> for addon workflows.</p>
         <div class="wiki-callout is-warn">
           <div class="wiki-callout-title">
             <span>License And Access</span>
             <span class="wiki-callout-status">Read first</span>
           </div>
           <div class="wiki-callout-grid">
-            <div class="wiki-callout-row"><span class="wiki-callout-warn">Pixal3D</span><span>The upstream license is academic-only, not for commercial or production use, and says it is not intended for use within the European Union.</span></div>
+            <div class="wiki-callout-row"><span class="wiki-callout-warn">Pixal3D</span><span>The current upstream Pixal3D release is MIT licensed for Tencent-published code, parameters, weights, and documentation; third-party components keep their original terms.</span></div>
             <div class="wiki-callout-row"><span class="wiki-callout-label">RMBG</span><span>The official pipeline uses <code>briaai/RMBG-2.0</code>, which is gated on Hugging Face and requires accepting BRIA's access form with the same account as the token.</span></div>
-            <div class="wiki-callout-row"><span class="wiki-callout-label">Fetch</span><span>The Manager asks for acknowledgement before downloading gated or non-commercial Pixal3D/RMBG assets.</span></div>
+            <div class="wiki-callout-row"><span class="wiki-callout-label">Fetch</span><span>The Manager asks for acknowledgement before downloading gated Pixal3D/RMBG assets and links the relevant license/access pages.</span></div>
           </div>
         </div>
         <h4>Source links</h4>
