@@ -5040,10 +5040,12 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         };
         AddFeedbackLine(detail, "Phase", phase);
         AddFeedbackLine(detail, "Waiting on", waitingOn);
-
-        detail.Add("");
-        detail.Add("Latest output:");
-        detail.AddRange(lines.TakeLast(8));
+        AddFeedbackLine(detail, "This repo cache", ExtractLogValue(latestProgress, "this_repo_cache"));
+        AddFeedbackLine(detail, "Active downloads", ExtractLogValue(latestProgress, "active_download_files") ?? ExtractLogValue(latestProgress, "active_partial_files"));
+        AddFeedbackLine(detail, "Downloaded", ExtractLogValue(latestProgress, "downloaded"));
+        AddFeedbackLine(detail, "Total", ExtractLogValue(latestProgress, "total"));
+        AddFeedbackLine(detail, "Percent", ExtractLogValue(latestProgress, "percent"));
+        AddFeedbackLine(detail, "Recent activity", ExtractLogValue(latestProgress, "recent_activity"));
         return string.Join(Environment.NewLine, detail);
     }
 

@@ -1026,6 +1026,18 @@ active partial/incomplete/lock download files for that repo. The visible Manager
 progress should stay small and consistent; do not print long cache paths or
 dense telemetry as the primary progress signal.
 
+Training asset fetches use the same compact display rule. Emit
+`FETCH_ASSETS_PROGRESS` with `status`, `phase`, `this_repo_cache`, and
+`active_download_files` instead of streaming repeated prose into the details
+card:
+
+```text
+FETCH_ASSETS_PROGRESS status=downloading phase=model_bundle this_repo_cache=3.70 GiB active_download_files=1
+```
+
+The Manager must render those lines as a compact summary and must not append a
+raw "latest output" tail to the details card. Full raw lines belong in Logs.
+
 Optional keys such as `downloaded_this_step`, `recent_activity`,
 `huggingface_cache_total`, and `cache_dir` may be logged for debugging, but they
 are secondary. Do not rely on them for the main Manager progress display.
@@ -1761,6 +1773,12 @@ assets_ready=false
 state=needs_assets
 health=assets-needed
 ```
+
+Training asset downloads are still long downloads. Declare them through
+`ui.manager_action_groups` with `result: "show_logs"` and compact
+`FETCH_ASSETS_PROGRESS` output. Do not leave asset fetches as plain
+`manager_actions` with `show_output`, because that streams raw progress into the
+details card.
 
 ## Action Entrypoints
 

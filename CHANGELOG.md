@@ -8,6 +8,36 @@ This file focuses on user-facing and system-level changes rather than package-by
 
 Newest entries first.
 
+### 2026-05-20 Manager 0.9.18 compact fetch status standard
+Source: live module update/fetch testing across LoRA, Z-Image, TRELLIS, and Pixal3D.
+
+Changed in source:
+
+- restored concise install confirmations for ordinary modules while keeping
+  Pixal3D's license/access notice explicit
+- standardized long fetch details so model and training-asset downloads show a
+  compact summary in the details card instead of repeated raw progress lines
+- made `FETCH_ASSETS_PROGRESS` render like model fetch progress:
+  `Training assets`, `Phase`, `This repo cache`, and `Active downloads`
+- documented that training asset fetches must use `ui.manager_action_groups`
+  with `result: "show_logs"` and compact progress keys
+- rebuilt the Win x64 Manager release as `0.9.18`
+
+Related module/registry updates:
+
+- LoRA `0.1.39`: moved `Fetch Training Assets` to a compact action group and
+  emitted standard `FETCH_ASSETS_PROGRESS` cache/download fields
+- Z-Image `0.1.13` and TRELLIS `0.1.23`: removed legacy duplicate
+  `Fetch Models` action buttons so the standardized compact fetch controls are
+  the only model-fetch surface
+- Registry `37`: publishes the updated LoRA, Z-Image, and TRELLIS manifests
+
+Validated locally:
+
+- Manager builds with `dotnet build -p:EnableWindowsTargeting=true`
+- Manager publishes the Win x64 EXE and ZIP to
+  `Manager/apps/NymphsCoreManager/publish/`
+
 ### 2026-05-16 Modular LoRA validation and Manager module UI polish
 Source: real Easy LoRA validation against the managed `NymphsCore` WSL distro.
 
