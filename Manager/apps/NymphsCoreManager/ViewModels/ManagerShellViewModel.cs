@@ -3423,30 +3423,61 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             $"Install {module.Name} from the Nymphs registry?"
         };
 
-        if (!string.IsNullOrWhiteSpace(module.SecondaryDetail))
+        var shortDetail = ExtractFirstParagraph(module.Detail);
+        if (!string.IsNullOrWhiteSpace(shortDetail))
         {
             lines.Add("");
-            lines.Add(module.SecondaryDetail.Trim());
-        }
-        else if (!string.IsNullOrWhiteSpace(module.Detail))
-        {
-            lines.Add("");
-            lines.Add(module.Detail.Trim());
+            lines.Add(shortDetail);
         }
 
-        if (module.OverviewLinks.Count > 0)
+        var terms = ExtractTermsText(module.SecondaryDetail);
+        if (string.IsNullOrWhiteSpace(terms))
         {
+            terms = ExtractTermsText(module.Detail);
+        }
+
+        if (!string.IsNullOrWhiteSpace(terms))
+        {
+            var termsLinks = module.OverviewLinks
+                .Where(link =>
+                    link.Label.Contains("license", StringComparison.OrdinalIgnoreCase) ||
+                    link.Label.Contains("access", StringComparison.OrdinalIgnoreCase) ||
+                    link.Label.Contains("terms", StringComparison.OrdinalIgnoreCase))
+                .GroupBy(link => link.Url, StringComparer.OrdinalIgnoreCase)
+                .Select(group => group.First())
+                .ToArray();
+
             lines.Add("");
-            lines.Add("Links:");
-            foreach (var link in module.OverviewLinks)
+            lines.Add(terms);
+
+            if (termsLinks.Length > 0)
             {
-                lines.Add($"{link.Label}: {link.Url}");
+                lines.Add("");
+                lines.Add("Links:");
+                foreach (var link in termsLinks)
+                {
+                    lines.Add($"{link.Label}: {link.Url}");
+                }
             }
         }
 
         lines.Add("");
         lines.Add("Continue with install?");
         return string.Join(Environment.NewLine, lines);
+    }
+
+    private static string ExtractFirstParagraph(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return string.Empty;
+        }
+
+        var normalized = text.Replace("\r\n", "\n").Trim();
+        var paragraphEnd = normalized.IndexOf("\n\n", StringComparison.Ordinal);
+        return paragraphEnd > 0
+            ? normalized[..paragraphEnd].Trim()
+            : normalized;
     }
 
     private static string BuildModuleActionAgreementPrompt(
@@ -3505,17 +3536,35 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         }
 
         var normalized = text.Replace("\r\n", "\n").Trim();
-        var marker = "Before installing or fetching model files, review the upstream terms:";
-        var markerIndex = normalized.IndexOf(marker, StringComparison.OrdinalIgnoreCase);
-        if (markerIndex >= 0)
+        var markers = new[]
         {
-            normalized = normalized[markerIndex..].Trim();
+            "Before installing or fetching model files, review the upstream terms:",
+            "License and access notice:",
+            "License notice:",
+            "Terms notice:"
+        };
+        var markerIndex = -1;
+        foreach (var marker in markers)
+        {
+            markerIndex = normalized.IndexOf(marker, StringComparison.OrdinalIgnoreCase);
+            if (markerIndex >= 0)
+            {
+                break;
+            }
         }
+
+        if (markerIndex < 0)
+        {
+            return string.Empty;
+        }
+
+        normalized = normalized[markerIndex..].Trim();
 
         var stopMarkers = new[]
         {
             "\n\nNymphsCore Manager",
             "\nRequirements:",
+            "\n\nInstall ",
             "\n\nFetch ",
             "\n\nLinks:"
         };

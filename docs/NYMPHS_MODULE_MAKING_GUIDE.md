@@ -367,6 +367,16 @@ Do not put your installed workflow buttons in the registry. Buttons belong in
 your module's own `nymph.json`, because your module can change its tools without
 needing the catalog to know every detail.
 
+Install confirmations should stay concise for ordinary modules. The Manager may
+show the module name and a short one-paragraph description, but it must not dump
+the full `overview.body`, requirements, and links into every install popup.
+
+Use install or action confirmation terms only for modules with real legal,
+license, gated-access, or safety restrictions. Put those terms behind explicit
+phrases such as `License and access notice:` or `Before installing or fetching
+model files, review the upstream terms:` so the Manager can distinguish a real
+acknowledgement from ordinary product overview text.
+
 ## Publishing Checklist
 
 When you release a module update, use this order:
