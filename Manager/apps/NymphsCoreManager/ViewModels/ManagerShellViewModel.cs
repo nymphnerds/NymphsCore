@@ -3039,6 +3039,12 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                         BuildModuleActionFeedbackDetail(output));
                     return true;
                 }
+
+                StatusMessage = $"{module.Name} UI did not return a URL.";
+                SetModuleActionFeedback(
+                    $"{module.Name}: UI did not open",
+                    BuildModuleActionFeedbackDetail(output));
+                return false;
             }
             catch (Exception ex)
             {

@@ -8,6 +8,14 @@ This file focuses on user-facing and system-level changes rather than package-by
 
 Newest entries first.
 
+### 2026-05-20 Manager 0.9.25 module UI open guard
+Source: live Pixal3D Gradio testing.
+
+Changed in source:
+
+- kept embedded module UI pages from opening to a dead local URL when the
+  module start action does not return a URL
+
 ### 2026-05-20 Manager 0.9.24 embedded module UI action cleanup
 Source: live Pixal3D Gradio testing.
 
