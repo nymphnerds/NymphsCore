@@ -853,14 +853,15 @@
 
   .footprint-card-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
-    gap: 14px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
     margin: 18px 0;
+    max-width: 760px;
   }
 
   .footprint-card {
-    min-height: 136px;
-    padding: 18px;
+    min-height: 118px;
+    padding: 16px;
     border: 1px solid rgba(85,223,240,0.36);
     border-radius: 10px;
     background: rgba(0,0,0,0.18);
@@ -871,13 +872,13 @@
 
   .footprint-card-head {
     display: flex;
-    gap: 14px;
+    gap: 12px;
     align-items: center;
   }
 
   .footprint-badge {
-    width: 50px;
-    height: 50px;
+    width: 44px;
+    height: 44px;
     border: 2px solid var(--teal);
     border-radius: 50%;
     display: grid;
@@ -889,7 +890,7 @@
 
   .footprint-card h5 {
     font-family: var(--font-body);
-    font-size: 17px;
+    font-size: 16px;
     font-weight: 600;
     color: var(--light);
     margin: 0;
@@ -897,7 +898,7 @@
 
   .footprint-kind {
     font-family: var(--font-mono);
-    font-size: 13px;
+    font-size: 12px;
     color: var(--teal);
   }
 
@@ -910,7 +911,7 @@
   }
 
   .footprint-weight strong {
-    font-size: 17px;
+    font-size: 16px;
     color: var(--light);
   }
 
@@ -947,7 +948,7 @@
   .footprint-card.is-cool .footprint-bar span { background: var(--teal); }
 
   .module-footprint-card {
-    max-width: 560px;
+    max-width: 360px;
     margin: 8px 0 18px;
   }
 
