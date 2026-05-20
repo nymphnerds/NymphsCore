@@ -1944,15 +1944,9 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
     private void ApplyModuleSnapshot(NymphModuleViewModel module, NymphStatusSnapshot snapshot)
     {
-        var modelsReady = snapshot.Get("models_ready");
         var isBrainModule = string.Equals(module.Id, "brain", StringComparison.OrdinalIgnoreCase);
         var isLoraModule = string.Equals(module.Id, "lora", StringComparison.OrdinalIgnoreCase);
-        var modelDownloadNeeded = snapshot.IsInstalled &&
-            (IsFalseishStatusValue(modelsReady) ||
-             IsFalseishStatusValue(snapshot.Get("aux_models_ready")) ||
-             IsModelDownloadNeededHealth(snapshot.Health) ||
-             HasMissingArtifactList(snapshot.Get("missing_weights")) ||
-             HasMissingArtifactList(snapshot.Get("missing_models")));
+        var modelDownloadNeeded = SnapshotNeedsModelDownload(snapshot);
         var trainingAssetsNeeded = isLoraModule &&
             snapshot.IsInstalled &&
             string.Equals(snapshot.Get("assets_ready"), "false", StringComparison.OrdinalIgnoreCase);
@@ -4772,12 +4766,33 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
     private static bool SnapshotNeedsModelDownload(NymphStatusSnapshot snapshot)
     {
-        return snapshot.IsInstalled &&
-            (IsFalseishStatusValue(snapshot.Get("models_ready")) ||
-             IsFalseishStatusValue(snapshot.Get("aux_models_ready")) ||
-             IsModelDownloadNeededHealth(snapshot.Health) ||
-             HasMissingArtifactList(snapshot.Get("missing_weights")) ||
-             HasMissingArtifactList(snapshot.Get("missing_models")));
+        if (!snapshot.IsInstalled)
+        {
+            return false;
+        }
+
+        var modelsReady = snapshot.Get("models_ready");
+        var auxModelsReady = snapshot.Get("aux_models_ready");
+        if (IsFalseishStatusValue(modelsReady) || IsFalseishStatusValue(auxModelsReady))
+        {
+            return true;
+        }
+
+        if (IsTrueishStatusValue(modelsReady) &&
+            (string.IsNullOrWhiteSpace(auxModelsReady) || IsTrueishStatusValue(auxModelsReady)))
+        {
+            return false;
+        }
+
+        if (IsModelDownloadNeededHealth(snapshot.Health))
+        {
+            return true;
+        }
+
+        return string.IsNullOrWhiteSpace(modelsReady) &&
+               string.IsNullOrWhiteSpace(auxModelsReady) &&
+               (HasMissingArtifactList(snapshot.Get("missing_weights")) ||
+                HasMissingArtifactList(snapshot.Get("missing_models")));
     }
 
     private void AppendModuleActionOutput(NymphModuleViewModel module, string action, string output)
@@ -6065,6 +6080,11 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
     private static bool IsFalseishStatusValue(string? value)
     {
         return value?.Trim().ToLowerInvariant() is "false" or "no" or "0" or "missing" or "needed" or "not-ready";
+    }
+
+    private static bool IsTrueishStatusValue(string? value)
+    {
+        return value?.Trim().ToLowerInvariant() is "true" or "yes" or "1" or "ready" or "ok" or "present";
     }
 
     private static bool HasMissingArtifactList(string? value)

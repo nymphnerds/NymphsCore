@@ -1705,6 +1705,12 @@ If the module has auxiliary model bundles, also print an explicit readiness key
 such as `aux_models_ready=false`. The Manager treats either `models_ready=false`
 or `aux_models_ready=false` as `Model download needed`.
 
+When `models_ready=true` and the selected weight profile is ready, optional
+uncached weight choices must not make the Manager show `Model download needed`.
+Lists such as `missing_weights` or `weight_profiles_missing` are informational
+only for unselected choices. Use `models_ready=false` or `aux_models_ready=false`
+for required assets that block the module.
+
 Use `state=needs_attention` for broken runtime files, missing Python
 environments, bad wrappers, or failed imports. Do not use `needs_attention` for
 ordinary first-run model downloads; those should be `model_download_needed`.
