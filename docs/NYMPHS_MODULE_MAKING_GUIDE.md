@@ -970,10 +970,17 @@ MODEL FETCH COMPLETE: step=2/2 selected Blender weight repo=...
 For large Hugging Face downloads, do not only print `STARTED` and `COMPLETE`.
 Wrap the blocking download call with a lightweight status reporter. Print one
 `MODEL FETCH STATUS` line immediately after `STARTED`, then print again every
-5-10 seconds with whatever the module can know, such as:
+5-10 seconds with whatever the module can know.
+
+The primary progress line must be readable as a sentence at a glance. Do not
+make users decode raw telemetry such as long cache paths, unformatted byte
+counts, or dense `key=value` strings in the Manager details pane. If structured
+telemetry is useful for debugging, put it after the human-readable summary or in
+the module log file. Prefer formatted units and a small number of meaningful
+signals:
 
 ```text
-MODEL FETCH STATUS: step=1/4 status=downloading repo=... repo_cache_mb=1234 downloaded_this_step_mb=56 active_partial_files=2
+MODEL FETCH STATUS: step 1/4 downloading TencentARC/Pixal3D - 1.20 GiB cached, +120.00 MiB this step, 2 active download files.
 ```
 
 This keeps the Manager details pane useful even when the underlying downloader
