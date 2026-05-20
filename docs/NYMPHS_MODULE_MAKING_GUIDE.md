@@ -1674,6 +1674,13 @@ equivalent real-file check. Do not use plain `find ... -type f` inside
 Normal Manager detail pages should show only the cached/downloaded weights,
 using short literal text such as `Cached weights: Q5_K_M`.
 
+If one Manager fetch selector mixes runtime profiles and true weight variants,
+the module should still report every user-selectable cached choice in
+`weight_profiles_downloaded`. For example, if `Low VRAM 1024` and
+`Standard 1536` share the same safetensors cache, report both as downloaded once
+that shared cache is present, then append any separately cached quantized
+weights.
+
 For a missing install marker:
 
 ```text
