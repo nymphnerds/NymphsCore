@@ -2119,6 +2119,21 @@ Rules:
 - Do not silently fetch unpinned code for release channels.
 - Keep long-running actions cancellable where practical.
 
+## Holistic Module Fixes
+
+When changing or fixing shared module behavior, apply the fix holistically across
+all modules.
+
+If a change touches lifecycle behavior, status reporting, install markers,
+update detection, version writing, registry metadata, manager action fields, or
+other shared module contracts, do not patch only the module that exposed the
+bug. Either fix the behavior in the Manager/platform layer so every module
+inherits it, or audit and update every affected module to the same standard.
+
+Module-specific fixes are allowed only when the behavior is genuinely unique to
+that module. Make the exception explicit in the handoff or changelog so the next
+person does not mistake a one-off patch for the shared standard.
+
 ## Versioning
 
 Use semantic-ish module versions:
