@@ -1601,7 +1601,7 @@
         </div>
         <p>GPU and VRAM matter. The Manager can offer lower-load choices such as smaller TRELLIS.2 GGUF quants or lighter Z-Image weights, but the public workflow should be treated as a serious local AI stack, not a lightweight plugin.</p>
         <h4 id="wiki-footprint">Footprint</h4>
-        <p>At a glance, each module card shows installed module plus the lightest download set through installed module plus the full listed download set. Generated outputs, logs, project data, datasets, and temporary install files grow separately.</p>
+        <p>At a glance, each module card range means <code>install size + lightest weight fetch</code> through <code>install size + all weight fetches</code>. The small label shows the install-only size before model or training-weight fetches. Generated outputs, logs, project data, datasets, and temporary install files grow separately.</p>
         <div class="footprint-card-grid" aria-label="Approximate local footprint by module">
           <div class="footprint-card is-hot">
             <div class="footprint-card-head"><span class="footprint-badge">ZI</span><div><h5>Z-Image Turbo</h5><div class="footprint-kind">// image weights</div></div></div>
