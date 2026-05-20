@@ -1497,6 +1497,7 @@
         <li class="wiki-nav-heading">// Modules</li>
         <li class="wiki-nav-sub"><a href="#wiki-zimage">Z-Image Turbo</a></li>
         <li class="wiki-nav-sub"><a href="#wiki-trellis">TRELLIS.2</a></li>
+        <li class="wiki-nav-sub"><a href="#wiki-pixal3d">Pixal3D</a></li>
         <li class="wiki-nav-sub"><a href="#wiki-brain">Nymphs Brain</a></li>
         <li class="wiki-nav-sub"><a href="#wiki-worbi">WORBI</a></li>
         <li class="wiki-nav-sub"><a href="#wiki-lora">LoRA</a></li>
@@ -1564,7 +1565,7 @@
         <h3 class="wiki-section-marker">// NYMPHSCORE MANAGER</h3>
         <h4 id="wiki-manager-intro">Intro</h4>
         <p>NymphsCore Manager powers the curated local AI pipelines for game development. It is the Windows setup, repair, and diagnostics app for the local NymphsCore runtime, creating a dedicated <code>NymphsCore</code> WSL distro, installing registry modules, preparing CUDA and Python environments, downloading model weights, running smoke tests, streaming logs, and exposing module controls so the AI stack can run locally without hand-building servers and environments.</p>
-        <p>That managed runtime is used by multiple Nymphs workflows: Z-Image Turbo for local image generation, TRELLIS.2 for image-to-3D and texture work, LoRA for Z-Image training, WORBI for local-first worldbuilding, and optional Brain services for local LLM, Open WebUI, and MCP tooling. The Blender addon is the current creative client for some of these services, and the platform is constantly evolving toward bringing curated AI pipelines directly inside future creative software and game engines, including possible Godot, Unity, or Unreal integrations, without forcing artists into complex node-based workflow tools.</p>
+        <p>That managed runtime is used by multiple Nymphs workflows: Z-Image Turbo for local image generation, TRELLIS.2 and Pixal3D for image-to-3D work, LoRA for Z-Image training, WORBI for local-first worldbuilding, and optional Brain services for local LLM, Open WebUI, and MCP tooling. The Blender addon is the current creative client for some of these services, and the platform is constantly evolving toward bringing curated AI pipelines directly inside future creative software and game engines, including possible Godot, Unity, or Unreal integrations, without forcing artists into complex node-based workflow tools.</p>
         <h4 id="wiki-wsl">What is WSL?</h4>
         <p>WSL means <code>Windows Subsystem for Linux</code>. WSL 2 lets Windows run a real Linux environment, which is where NymphsCore keeps the CUDA, Python, model, and service stack used by the AI pipeline. The Manager creates a dedicated distro named <code>NymphsCore</code> so that stack stays isolated from normal Windows folders and other Python or CUDA installs.</p>
         <div class="wiki-callout">
@@ -1590,7 +1591,7 @@
             <div class="runtime-spec-row"><span class="runtime-spec-label">Blender</span><span>Blender 4.2+ for the addon workflow</span></div>
             <div class="runtime-spec-row"><span class="runtime-spec-label">Runtime</span><span>WSL 2 available and healthy</span></div>
             <div class="runtime-spec-row"><span class="runtime-spec-label">GPU</span><span>NVIDIA CUDA-capable GPU with current Windows drivers and WSL CUDA support</span></div>
-            <div class="runtime-spec-row"><span class="runtime-spec-good">VRAM target</span><span><strong>16 GB</strong> minimum, <strong>24 GB+</strong> recommended for heavier TRELLIS.2, Z-Image, LoRA, and multitasking</span></div>
+            <div class="runtime-spec-row"><span class="runtime-spec-good">VRAM target</span><span><strong>16 GB</strong> minimum, <strong>24 GB+</strong> recommended for heavier TRELLIS.2, Pixal3D, Z-Image, LoRA, and multitasking</span></div>
             <div class="runtime-spec-row"><span class="runtime-spec-warn">Light paths</span><span><strong>8 GB</strong> can help with Gemini/OpenRouter-backed tools, tiny Brain models, or lowest Z-Image weights</span></div>
             <div class="runtime-spec-row"><span class="runtime-spec-hot">Limited</span><span><strong>6 GB</strong> VRAM should be treated as very limited for local GPU modules</span></div>
             <div class="runtime-spec-row"><span class="runtime-spec-label">Disk</span><span><strong>120 GB</strong> free minimum, <strong>150 GB</strong> recommended</span></div>
@@ -1613,6 +1614,10 @@
             <div class="footprint-card-head"><span class="footprint-badge">TR</span><div><h5>TRELLIS.2</h5><div class="footprint-kind">// 3d weights</div></div></div>
             <div class="footprint-weight"><strong>8.4-25 GB</strong><span>GGUF</span></div>
           </div>
+          <div class="footprint-card is-warn">
+            <div class="footprint-card-head"><span class="footprint-badge">PX</span><div><h5>Pixal3D</h5><div class="footprint-kind">// 3d weights</div></div></div>
+            <div class="footprint-weight"><strong>24 GB+</strong><span>plus aux</span></div>
+          </div>
           <div class="footprint-card is-cool">
             <div class="footprint-card-head"><span class="footprint-badge">BR</span><div><h5>Nymphs-Brain</h5><div class="footprint-kind">// llm weights</div></div></div>
             <div class="footprint-weight"><strong>varies</strong><span>chosen model</span></div>
@@ -1626,7 +1631,7 @@
             <div class="footprint-weight"><strong>0 GB</strong><span>model weights</span></div>
           </div>
         </div>
-        <p>These cards show model or training-asset downloads only. Runtime code, Python environments, generated outputs, logs, datasets, and temporary install files add on top. The Blender addon pipeline normally means Base Runtime plus <code>Z-Image Turbo</code> and <code>TRELLIS.2</code>; model prefetch for that workflow is about <code>72 GB</code> of model/helper downloads.</p>
+        <p>These cards show model or training-asset downloads only. Runtime code, Python environments, generated outputs, logs, datasets, and temporary install files add on top. The Blender addon baseline normally means Base Runtime plus <code>Z-Image Turbo</code> and <code>TRELLIS.2</code>; model prefetch for that workflow is about <code>72 GB</code> of model/helper downloads. <code>Pixal3D</code> is an additional 3D backend with its own checkpoint and auxiliary-model downloads.</p>
         <h4 id="wiki-manager-install">Install Manager</h4>
         <ul>
           <li>Download <code>NymphsCoreManager-win-x64.zip</code>.</li>
@@ -1780,6 +1785,42 @@
           <li><code>Q4_K_M</code> is the smallest first proof test or tighter-VRAM option.</li>
           <li><code>Q6_K</code> and <code>Q8_0</code> are heavier quality-focused choices when the machine has enough headroom.</li>
           <li><code>All quants</code> is optional and useful only if you want the addon/backend to switch between every supported GGUF later.</li>
+        </ul>
+      </div>
+
+      <div class="wiki-entry" id="wiki-pixal3d">
+        <h3 class="wiki-section-marker">// MODULES</h3>
+        <h4>Pixal3D</h4>
+        <div class="footprint-card module-footprint-card is-warn" aria-label="Pixal3D model footprint">
+          <div class="footprint-card-head"><span class="footprint-badge">PX</span><div><h5>Pixal3D</h5><div class="footprint-kind">// 3d weights</div></div></div>
+          <div class="footprint-weight"><strong>24 GB+</strong><span>plus auxiliary models</span></div>
+        </div>
+        <p>Main Pixal3D checkpoints are about 24 GB before DINOv3, MoGe, RMBG, NAF, caches, outputs, and logs.</p>
+        <p>Pixal3D is a separate local image-to-textured-3D backend. It shares TRELLIS.2 lineage, but it is not the TRELLIS.2 GGUF runtime and should not be treated as another GGUF quant choice.</p>
+        <p>Install prepares a dedicated runtime under <code>~/Pixal3D</code>, with its own Python environment, model fetch path, logs, outputs, and API service. The planned service uses port <code>8096</code> and exposes a Pixal3D-compatible image-to-3D generation path for the Blender shape workflow.</p>
+        <p><span class="wiki-action-text">Fetch Models</span> downloads <code>TencentARC/Pixal3D</code> checkpoints plus auxiliary camera, background-removal, and projection models. The first recommended profile is low-VRAM <code>1024</code>; standard <code>1536</code> mode is heavier and should be treated as unvalidated until tested on the target machine.</p>
+        <div class="wiki-callout is-warn">
+          <div class="wiki-callout-title">
+            <span>License And Access</span>
+            <span class="wiki-callout-status">Read first</span>
+          </div>
+          <div class="wiki-callout-grid">
+            <div class="wiki-callout-row"><span class="wiki-callout-warn">Pixal3D</span><span>The upstream license is academic-only, not for commercial or production use, and says it is not intended for use within the European Union.</span></div>
+            <div class="wiki-callout-row"><span class="wiki-callout-label">RMBG</span><span>The official pipeline uses <code>briaai/RMBG-2.0</code>, which is gated on Hugging Face and requires accepting BRIA's access form with the same account as the token.</span></div>
+            <div class="wiki-callout-row"><span class="wiki-callout-label">Fetch</span><span>The module should require an explicit acknowledgement before downloading gated or non-commercial Pixal3D/RMBG assets.</span></div>
+          </div>
+        </div>
+        <ul>
+          <li><code>~/Pixal3D</code> is the install root and should contain the module manifest, scripts, source, venv, and version marker.</li>
+          <li><code>~/NymphsData/outputs/pixal3d</code>, <code>~/NymphsData/logs/pixal3d</code>, and <code>~/NymphsData/config/pixal3d</code> hold generated assets, logs, and profile state.</li>
+          <li>Pixal3D v1 supports shape plus texture generation, but selected-mesh retexture should stay on TRELLIS.2 until Pixal3D retexture is implemented and tested.</li>
+          <li>Pixal3D should hard-require the tested CUDA/flash-attn path rather than silently falling back to a slower or unvalidated attention backend.</li>
+        </ul>
+        <h4>Source links</h4>
+        <ul class="wiki-link-list">
+          <li><a href="https://github.com/TencentARC/Pixal3D">Official Pixal3D repo</a></li>
+          <li><a href="https://huggingface.co/TencentARC/Pixal3D">Pixal3D model</a></li>
+          <li><a href="https://huggingface.co/briaai/RMBG-2.0">BRIA RMBG-2.0 access form</a></li>
         </ul>
       </div>
 
