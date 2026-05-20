@@ -1641,13 +1641,14 @@ downloaded without knowing module-specific filenames or cache layouts:
 weight_profile_selected=Q5_K_M
 weight_profiles_available=Q4_K_M,Q5_K_M,Q6_K,Q8_0
 weight_profiles_downloaded=Q5_K_M
-weight_profiles_missing=Q4_K_M,Q6_K,Q8_0
 weight_profile_ready=true
 ```
 
 Use comma-separated values with no spaces. Use `none` when no profile in a list
 is present. Keep this a cheap cache/symlink check; do not call remote APIs or
-load model libraries from normal `status`.
+load model libraries from normal `status`. Normal Manager detail pages should
+show only the cached/downloaded weights, using short literal text such as
+`Cached weights: Q5_K_M`.
 
 For a missing install marker:
 

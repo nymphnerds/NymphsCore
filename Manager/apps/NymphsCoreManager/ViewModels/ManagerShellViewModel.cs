@@ -2059,6 +2059,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             secondaryParts.Count == 0
                 ? "Status came from the module-owned status entrypoint."
                 : string.Join(Environment.NewLine, secondaryParts));
+        module.ApplyModelCacheState(isBrainModule ? "" : BuildModelCacheDetail(snapshot));
         module.ApplyRetainedDataState(string.Equals(dataPresent, "true", StringComparison.OrdinalIgnoreCase));
         if (ShouldLogModuleStatusSnapshot(snapshot))
         {
@@ -2154,7 +2155,6 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         AddStatusValue(parts, "models_ready", snapshot.Get("models_ready"));
         AddStatusValue(parts, "weight_profile_selected", snapshot.Get("weight_profile_selected"));
         AddStatusValue(parts, "weight_profiles_downloaded", snapshot.Get("weight_profiles_downloaded"));
-        AddStatusValue(parts, "weight_profiles_missing", snapshot.Get("weight_profiles_missing"));
         AddStatusValue(parts, "weight_profile_ready", snapshot.Get("weight_profile_ready"));
         AddStatusValue(parts, "assets_ready", snapshot.Get("assets_ready"));
         AddStatusValue(parts, "asset_marker_ready", snapshot.Get("asset_marker_ready"));
@@ -2370,43 +2370,33 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
     private static void AddWeightProfileStatusDetails(List<string> parts, NymphStatusSnapshot snapshot)
     {
-        var selected = NormalizeStatusListValue(snapshot.Get("weight_profile_selected"));
         var downloaded = NormalizeStatusListValue(snapshot.Get("weight_profiles_downloaded"));
-        var missing = NormalizeStatusListValue(snapshot.Get("weight_profiles_missing"));
         var available = NormalizeStatusListValue(snapshot.Get("weight_profiles_available"));
-        var ready = snapshot.Get("weight_profile_ready");
 
-        if (string.IsNullOrWhiteSpace(selected) &&
-            string.IsNullOrWhiteSpace(downloaded) &&
-            string.IsNullOrWhiteSpace(missing) &&
+        if (string.IsNullOrWhiteSpace(downloaded) &&
             string.IsNullOrWhiteSpace(available))
         {
             return;
         }
 
-        if (!string.IsNullOrWhiteSpace(selected))
+        parts.Add(string.IsNullOrWhiteSpace(downloaded)
+            ? "Cached weights: none yet"
+            : $"Cached weights: {FormatStatusList(downloaded)}");
+    }
+
+    private static string BuildModelCacheDetail(NymphStatusSnapshot snapshot)
+    {
+        var downloaded = NormalizeStatusListValue(snapshot.Get("weight_profiles_downloaded"));
+        var available = NormalizeStatusListValue(snapshot.Get("weight_profiles_available"));
+        if (string.IsNullOrWhiteSpace(downloaded) &&
+            string.IsNullOrWhiteSpace(available))
         {
-            var readySuffix = string.Equals(ready, "true", StringComparison.OrdinalIgnoreCase)
-                ? " ready"
-                : string.Equals(ready, "false", StringComparison.OrdinalIgnoreCase)
-                    ? " missing"
-                    : "";
-            parts.Add($"Selected weights: {FormatStatusList(selected)}{readySuffix}");
+            return "";
         }
 
-        if (!string.IsNullOrWhiteSpace(downloaded))
-        {
-            parts.Add($"Downloaded weights: {FormatStatusList(downloaded)}");
-        }
-        else if (!string.IsNullOrWhiteSpace(available))
-        {
-            parts.Add("Downloaded weights: none");
-        }
-
-        if (!string.IsNullOrWhiteSpace(missing))
-        {
-            parts.Add($"Missing weights: {FormatStatusList(missing)}");
-        }
+        return string.IsNullOrWhiteSpace(downloaded)
+            ? "Cached weights: none yet"
+            : $"Cached weights: {FormatStatusList(downloaded)}";
     }
 
     private static string NormalizeStatusListValue(string? value)
@@ -5013,7 +5003,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             "shared_cache", "downloaded_this_step", "repo_cache_blobs", "active_partial_files",
             "repo_cache_mb", "downloaded_this_step_mb", "huggingface_cache_total", "this_repo_cache",
             "active_download_files", "downloaded", "total", "percent", "recent_activity",
-            "downloading", "downloading_quant", "exit_status", "root", "profile",
+            "downloading", "downloading_quant", "exit_status", "root", "profile", "quant",
         };
         var currentStep = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         var latest = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -5075,38 +5065,28 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         {
             $"Model download: {state}",
         };
-        AddFeedbackLine(detail, "Step", latest.GetValueOrDefault("step"));
+        var cachedWeight = latest.GetValueOrDefault("profile") ??
+                           latest.GetValueOrDefault("quant") ??
+                           latest.GetValueOrDefault("downloading_quant");
+        if (!string.IsNullOrWhiteSpace(cachedWeight))
+        {
+            detail.Add(state == "complete"
+                ? $"Cached weights: {cachedWeight}"
+                : $"Caching weights: {cachedWeight}");
+        }
+
         AddFeedbackLine(detail, "Repo", latest.GetValueOrDefault("repo"));
         AddFeedbackLine(detail, "Phase", latest.GetValueOrDefault("phase"));
         AddFeedbackLine(detail, "Waiting on", latest.GetValueOrDefault("waiting_on"));
         AddFeedbackLine(detail, "Downloading", latest.GetValueOrDefault("downloading"));
-        AddFeedbackLine(detail, "Quant", latest.GetValueOrDefault("downloading_quant"));
         AddFeedbackLine(detail, "Percent", latest.GetValueOrDefault("percent"));
         AddFeedbackLine(detail, "Downloaded", latest.GetValueOrDefault("downloaded"));
         AddFeedbackLine(detail, "Total", latest.GetValueOrDefault("total"));
-        AddFeedbackLine(detail, "Cache", latest.GetValueOrDefault("shared_cache"));
-        AddFeedbackLine(detail, "Hugging Face cache total", latest.GetValueOrDefault("huggingface_cache_total"));
-        AddFeedbackLine(detail, "Downloaded this step", latest.GetValueOrDefault("downloaded_this_step"));
-        AddFeedbackLine(detail, "Downloaded this step MB", latest.GetValueOrDefault("downloaded_this_step_mb"));
-        AddFeedbackLine(detail, "Repo cache blobs", latest.GetValueOrDefault("repo_cache_blobs"));
-        AddFeedbackLine(detail, "Repo cache MB", latest.GetValueOrDefault("repo_cache_mb"));
+        AddFeedbackLine(detail, "Downloaded this step", latest.GetValueOrDefault("downloaded_this_step") ?? latest.GetValueOrDefault("downloaded_this_step_mb"));
         AddFeedbackLine(detail, "This repo cache", latest.GetValueOrDefault("this_repo_cache"));
-        AddFeedbackLine(detail, "Active partial files", latest.GetValueOrDefault("active_partial_files"));
-        AddFeedbackLine(detail, "Active download files", latest.GetValueOrDefault("active_download_files"));
+        AddFeedbackLine(detail, "Active downloads", latest.GetValueOrDefault("active_download_files") ?? latest.GetValueOrDefault("active_partial_files"));
         AddFeedbackLine(detail, "Recent activity", latest.GetValueOrDefault("recent_activity"));
-        AddFeedbackLine(detail, "Cache dir", latest.GetValueOrDefault("cache_dir"));
         AddFeedbackLine(detail, "Exit status", latest.GetValueOrDefault("exit_status"));
-        if (state is "complete" or "failed")
-        {
-            AddFeedbackLine(detail, "Root", latest.GetValueOrDefault("root"));
-        }
-
-        var latestLine = downloadLines.LastOrDefault();
-        if (!string.IsNullOrWhiteSpace(latestLine))
-        {
-            detail.Add("");
-            detail.Add($"Latest event: {latestLine}");
-        }
         return string.Join(Environment.NewLine, detail);
     }
 
@@ -5155,7 +5135,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                      " shared_cache=", " downloaded_this_step=", " repo_cache_blobs=", " active_partial_files=",
                      " repo_cache_mb=", " downloaded_this_step_mb=", " huggingface_cache_total=", " this_repo_cache=",
                      " active_download_files=", " downloaded=", " total=", " percent=", " recent_activity=",
-                     " downloading=", " downloading_quant=", " exit_status=", " root=", " profile=",
+                     " downloading=", " downloading_quant=", " exit_status=", " root=", " profile=", " quant=",
                  })
         {
             var candidate = line.IndexOf(nextKey, start, StringComparison.OrdinalIgnoreCase);

@@ -2227,6 +2227,20 @@
                                      FontSize="12"
                                      TextWrapping="Wrap" />
                         </StackPanel>
+                        <StackPanel Margin="0,12,0,12"
+                                    Visibility="{Binding DisplayedModule.HasModelCacheDetail, Converter={StaticResource BoolToVisibilityConverter}}">
+                          <TextBlock Text="// MODEL CACHE"
+                                     Style="{StaticResource MonoLabelStyle}"
+                                     Foreground="{StaticResource LimeBrush}"
+                                     FontSize="12" />
+                          <TextBlock Margin="0,6,0,0"
+                                     Text="{Binding DisplayedModule.ModelCacheDetail}"
+                                     Foreground="#37FFF2"
+                                     FontFamily="Cascadia Mono"
+                                     FontSize="14"
+                                     FontWeight="SemiBold"
+                                     TextWrapping="Wrap" />
+                        </StackPanel>
                         <TextBlock x:Name="ModuleActionFeedbackDetailTextBlock"
                                    Foreground="#9AB8B4"
                                    FontSize="12"

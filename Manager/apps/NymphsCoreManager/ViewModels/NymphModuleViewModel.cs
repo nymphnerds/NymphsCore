@@ -21,6 +21,7 @@ public sealed class NymphModuleViewModel : ViewModelBase
     private bool _hasInstalledModuleUi;
     private bool _hasRetainedData;
     private string _moduleUiTitle = "Module UI";
+    private string _modelCacheDetail = "";
     private IReadOnlyList<NymphModuleActionLinkInfo> _overviewLinks = Array.Empty<NymphModuleActionLinkInfo>();
     private InstalledNymphModuleUiInfo? _installedModuleUiInfo;
 
@@ -242,6 +243,20 @@ public sealed class NymphModuleViewModel : ViewModelBase
         private set => SetProperty(ref _hasRetainedData, value);
     }
 
+    public string ModelCacheDetail
+    {
+        get => _modelCacheDetail;
+        private set
+        {
+            if (SetProperty(ref _modelCacheDetail, value))
+            {
+                OnPropertyChanged(nameof(HasModelCacheDetail));
+            }
+        }
+    }
+
+    public bool HasModelCacheDetail => !string.IsNullOrWhiteSpace(ModelCacheDetail);
+
     public bool CanDeleteData => IsInstalled || HasRetainedData;
 
     public bool CanUpdate => IsInstalled && (HasUpdate || IsRemoteVersionNewer(VersionLabel, RemoteVersionLabel));
@@ -287,6 +302,11 @@ public sealed class NymphModuleViewModel : ViewModelBase
         OnPropertyChanged(nameof(InstallPathLabel));
         OnPropertyChanged(nameof(CanOpenInstallPath));
         OnPropertyChanged(nameof(CanDeleteData));
+    }
+
+    public void ApplyModelCacheState(string detail)
+    {
+        ModelCacheDetail = detail;
     }
 
     public void ApplyInstalledModuleUi(InstalledNymphModuleUiInfo? uiInfo)
