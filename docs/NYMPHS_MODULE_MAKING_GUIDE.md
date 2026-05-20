@@ -1225,6 +1225,10 @@ The Pixal3D install contract is:
 - if the shared venv is missing or incomplete, `Repair` on Pixal3D rebuilds it
 - the Manager should not send the user to a different module page to fix the
   basic Pixal3D runtime
+- native source needed only to build shared extensions, such as TRELLIS.2
+  `o_voxel`, belongs under the shared runtime area, for example
+  `$HOME/TRELLIS.2/runtime/TRELLIS.2-source`; do not assume Pixal3D itself has
+  TRELLIS submodules such as `o-voxel/third_party/eigen`
 
 The Z-Image Fetch Models action currently offers all published compatible
 weights: INT4 r32/r128/r256 and FP4 r32/r128. `All weights` is available so the

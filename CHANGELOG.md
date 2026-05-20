@@ -8,6 +8,18 @@ This file focuses on user-facing and system-level changes rather than package-by
 
 Newest entries first.
 
+### 2026-05-20 Pixal3D 0.1.13 shared runtime source fix
+Source: live Pixal3D install testing after uninstalling the base runtime while retaining model/cache data.
+
+Changed in source:
+
+- fixed Pixal3D install so it no longer runs TRELLIS `o-voxel` submodule
+  commands inside the Pixal3D checkout
+- documented that Pixal3D builds native `o_voxel` from official TRELLIS.2
+  runtime source under `$HOME/TRELLIS.2/runtime` when needed
+- kept the shared runtime standard: Pixal3D install/repair prepares
+  `$HOME/TRELLIS.2/.venv` itself and does not require TRELLIS model weights
+
 ### 2026-05-20 Manager 0.9.23 lifecycle progress feedback
 Source: live Pixal3D install testing after uninstalling the base runtime while retaining model/cache data.
 
