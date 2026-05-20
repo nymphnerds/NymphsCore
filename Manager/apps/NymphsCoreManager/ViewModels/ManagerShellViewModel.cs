@@ -2543,6 +2543,11 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                     RefreshDisplayedModuleDetails(DisplayedModule);
                 }
             }
+
+            if (markerCount > 0)
+            {
+                await CheckForUpdatesOnStartupAsync().ConfigureAwait(true);
+            }
         }
         catch (OperationCanceledException) when (_operationCancellation.IsCancellationRequested)
         {

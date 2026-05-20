@@ -8,6 +8,17 @@ This file focuses on user-facing and system-level changes rather than package-by
 
 Newest entries first.
 
+### 2026-05-20 Manager 0.9.27 marker-based startup update checks
+Source: Home card update-state testing and the Nymphs module standard.
+
+Changed in source:
+
+- keeps startup update detection tied to the standard `.nymph-module-version`
+  marker path instead of waiting for heavyweight module status probes
+- runs the real registry update check after a deferred marker scan if the first
+  fast marker scan times out, so Home cards can still show `Update available`
+  once installed modules are known
+
 ### 2026-05-20 Manager 0.9.26 module update card truth
 Source: Pixal3D update UX testing.
 
