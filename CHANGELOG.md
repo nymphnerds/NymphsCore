@@ -8,6 +8,24 @@ This file focuses on user-facing and system-level changes rather than package-by
 
 Newest entries first.
 
+### 2026-05-20 Manager 0.9.21 Pixal3D prerequisite clarity
+Source: live Pixal3D Gradio prerequisite testing.
+
+Changed in source:
+
+- made Pixal3D prerequisite status render as plain next steps in the details
+  card instead of a raw stderr failure
+- clarified that Pixal3D needs the TRELLIS.2 module runtime installed/repaired
+  first, but does not require TRELLIS model weights
+- added a Pixal3D module action that explains the TRELLIS.2 runtime prerequisite
+  for older Manager builds
+
+Related module/registry updates:
+
+- Pixal3D `0.1.10`: explicit TRELLIS.2 runtime prerequisite status and helper
+  action
+- Registry `41`: publishes Pixal3D `0.1.10`
+
 ### 2026-05-20 Manager 0.9.20 module UI stop action and Pixal3D Gradio fix
 Source: live Pixal3D Gradio generate testing.
 
