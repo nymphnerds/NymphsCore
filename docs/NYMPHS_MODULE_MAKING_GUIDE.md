@@ -1661,10 +1661,18 @@ weight_profile_ready=true
 ```
 
 Use comma-separated values with no spaces. Use `none` when no profile in a list
-is present. Keep this a cheap cache/symlink check; do not call remote APIs or
-load model libraries from normal `status`. Normal Manager detail pages should
-show only the cached/downloaded weights, using short literal text such as
-`Cached weights: Q5_K_M`.
+is present. Keep this a cheap local cache check; do not call remote APIs or
+load model libraries from normal `status`.
+
+Hugging Face snapshot files are commonly symlinks into the repo `blobs/`
+directory. Any status check that verifies a cached file must be symlink-safe:
+use `find -L ... -type f`, `test -f` on the resolved snapshot path, or an
+equivalent real-file check. Do not use plain `find ... -type f` inside
+`snapshots/`; it can miss valid downloaded weights and incorrectly report
+`model_download_needed`.
+
+Normal Manager detail pages should show only the cached/downloaded weights,
+using short literal text such as `Cached weights: Q5_K_M`.
 
 For a missing install marker:
 
