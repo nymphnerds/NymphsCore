@@ -1867,6 +1867,16 @@ Each action should:
 - avoid interactive prompts unless explicitly called with a confirmation flag
 - write useful logs to the declared module log folder
 
+Lifecycle progress standard:
+
+- While install, repair, update, uninstall, or delete-data is running, the
+  standard details pane must show the live lifecycle output instead of the
+  static module overview text.
+- The Manager should preserve the final lifecycle output briefly after success
+  or failure so the user can see what happened without opening Logs.
+- Full raw logs still belong on the Logs page; the details pane should show the
+  recent useful tail.
+
 Installed action execution standard:
 
 - After install, lifecycle and utility actions should run the installed

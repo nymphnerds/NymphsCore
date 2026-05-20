@@ -8,6 +8,20 @@ This file focuses on user-facing and system-level changes rather than package-by
 
 Newest entries first.
 
+### 2026-05-20 Manager 0.9.23 lifecycle progress feedback
+Source: live Pixal3D install testing after uninstalling the base runtime while retaining model/cache data.
+
+Changed in source:
+
+- made install, repair, update, uninstall, and delete-data use the standard
+  details-pane live progress path instead of allowing static overview text to
+  overwrite lifecycle output
+- preserved the final lifecycle output briefly after success or failure so the
+  current module details page shows what happened without forcing the user into
+  Logs
+- kept this as Manager-level behavior for all modules, not a Pixal3D-specific
+  workaround
+
 ### 2026-05-20 Manager 0.9.22 module uninstall refresh
 Source: live Pixal3D uninstall testing with retained model/cache data.
 

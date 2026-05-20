@@ -3355,6 +3355,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
         IsBusy = true;
         _modulesWithActiveLifecycle.Add(module.Id);
+        BeginModuleDetailProgress(module, "Install");
         StatusMessage = $"Installing {module.Name} from the Nymphs registry...";
         ShowModuleLogs = false;
         var installLines = new List<string>();
@@ -3378,7 +3379,8 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                 CreateModuleLiveProgress(module, "install", installLines),
                 _operationCancellation.Token).ConfigureAwait(true);
             StatusMessage = $"{module.Name} installed.";
-            SetModuleActionFeedback(
+            SetStickyModuleActionFeedback(
+                module,
                 $"{module.Name}: install finished",
                 BuildModuleActionFeedbackDetail(string.Join(Environment.NewLine, installLines)));
 
@@ -3395,7 +3397,8 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             catch (Exception refreshException)
             {
                 AppendActivity($"{module.Name} installed, but state refresh needs attention: {refreshException.Message}");
-                SetModuleActionFeedback(
+                SetStickyModuleActionFeedback(
+                    module,
                     $"{module.Name}: install finished",
                     $"{BuildModuleActionFeedbackDetail(string.Join(Environment.NewLine, installLines))}\n\nState refresh warning: {refreshException.Message}");
             }
@@ -3405,13 +3408,15 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             StatusMessage = $"{module.Name} install needs attention.";
             AppendActivity($"{module.Name} install warning: {ex.Message}");
             await RefreshModuleStateAfterLifecycleFailureAsync(module, "install").ConfigureAwait(true);
-            SetModuleActionFeedback(
+            SetStickyModuleActionFeedback(
+                module,
                 $"{module.Name}: install needs attention",
                 BuildModuleActionFeedbackDetail(string.Join(Environment.NewLine, installLines.Append(ex.Message))));
         }
         finally
         {
             _modulesWithActiveLifecycle.Remove(module.Id);
+            EndModuleDetailProgress(module);
             IsBusy = false;
         }
     }
@@ -3600,6 +3605,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
         IsBusy = true;
         _modulesWithActiveLifecycle.Add(module.Id);
+        BeginModuleDetailProgress(module, "Repair");
         StatusMessage = $"Repairing {module.Name} from the Nymphs registry...";
         ShowModuleLogs = false;
         var repairLines = new List<string>();
@@ -3622,7 +3628,8 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                 CreateModuleLiveProgress(module, "repair", repairLines),
                 _operationCancellation.Token).ConfigureAwait(true);
             StatusMessage = $"{module.Name} repair finished.";
-            SetModuleActionFeedback(
+            SetStickyModuleActionFeedback(
+                module,
                 $"{module.Name}: repair finished",
                 BuildModuleActionFeedbackDetail(string.Join(Environment.NewLine, repairLines)));
 
@@ -3640,7 +3647,8 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             catch (Exception refreshException)
             {
                 AppendActivity($"{module.Name} repaired, but state refresh needs attention: {refreshException.Message}");
-                SetModuleActionFeedback(
+                SetStickyModuleActionFeedback(
+                    module,
                     $"{module.Name}: repair finished",
                     $"{BuildModuleActionFeedbackDetail(string.Join(Environment.NewLine, repairLines))}\n\nState refresh warning: {refreshException.Message}");
             }
@@ -3650,13 +3658,15 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             StatusMessage = $"{module.Name} repair needs attention.";
             AppendActivity($"{module.Name} repair warning: {ex.Message}");
             await RefreshModuleStateAfterLifecycleFailureAsync(module, "repair").ConfigureAwait(true);
-            SetModuleActionFeedback(
+            SetStickyModuleActionFeedback(
+                module,
                 $"{module.Name}: repair needs attention",
                 BuildModuleActionFeedbackDetail(string.Join(Environment.NewLine, repairLines.Append(ex.Message))));
         }
         finally
         {
             _modulesWithActiveLifecycle.Remove(module.Id);
+            EndModuleDetailProgress(module);
             IsBusy = false;
         }
     }
@@ -3684,6 +3694,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
         IsBusy = true;
         _modulesWithActiveLifecycle.Add(module.Id);
+        BeginModuleDetailProgress(module, "Update");
         StatusMessage = $"Updating {module.Name} from the Nymphs registry...";
         ShowModuleLogs = false;
         var updateLines = new List<string>();
@@ -3707,7 +3718,8 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                 _operationCancellation.Token).ConfigureAwait(true);
             StatusMessage = $"{module.Name} updated.";
             UpdateSummary = $"{module.Name} updated from the registry.";
-            SetModuleActionFeedback(
+            SetStickyModuleActionFeedback(
+                module,
                 $"{module.Name}: update finished",
                 BuildModuleActionFeedbackDetail(string.Join(Environment.NewLine, updateLines)));
 
@@ -3730,14 +3742,16 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
                 ApplyModuleUpdateResults(updateResults);
                 ClearModuleUpdateAfterSuccessfulInstall(module, installedVersion);
-                SetModuleActionFeedback(
+                SetStickyModuleActionFeedback(
+                    module,
                     $"{module.Name}: update finished",
                     $"{BuildModuleActionFeedbackDetail(string.Join(Environment.NewLine, updateLines))}\n\nModule files and manager wrappers were refreshed from the registry. Try // start again.");
             }
             catch (Exception refreshException)
             {
                 AppendActivity($"{module.Name} updated, but follow-up state refresh needs attention: {refreshException.Message}");
-                SetModuleActionFeedback(
+                SetStickyModuleActionFeedback(
+                    module,
                     $"{module.Name}: update finished",
                     $"{BuildModuleActionFeedbackDetail(string.Join(Environment.NewLine, updateLines))}\n\nState refresh warning: {refreshException.Message}");
             }
@@ -3747,13 +3761,15 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             StatusMessage = $"{module.Name} update needs attention.";
             AppendActivity($"{module.Name} update warning: {ex.Message}");
             await RefreshModuleStateAfterLifecycleFailureAsync(module, "update").ConfigureAwait(true);
-            SetModuleActionFeedback(
+            SetStickyModuleActionFeedback(
+                module,
                 $"{module.Name}: update needs attention",
                 BuildModuleActionFeedbackDetail(string.Join(Environment.NewLine, updateLines.Append(ex.Message))));
         }
         finally
         {
             _modulesWithActiveLifecycle.Remove(module.Id);
+            EndModuleDetailProgress(module);
             IsBusy = false;
         }
     }
@@ -4947,7 +4963,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
     private void SetModuleDetailPaneFeedback(NymphModuleViewModel module)
     {
-        if (ShouldPreserveModuleActionFeedback(module))
+        if (ShouldPreserveModuleActionFeedback(module) || IsModuleDetailProgressActive(module))
         {
             return;
         }
@@ -5639,6 +5655,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         ShowModuleLogs = false;
         var uninstallLines = new List<string>();
         var actionLabel = dataOnly ? "delete-data" : purge ? "delete" : "uninstall";
+        BeginModuleDetailProgress(module, actionLabel);
         ApplyModuleLifecycleState(
             module,
             dataOnly ? "Deleting data" : purge ? "Deleting" : "Uninstalling",
@@ -5687,7 +5704,8 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             RefreshDisplayedModuleActionState();
             _openModuleInstallPathCommand.RaiseCanExecuteChanged();
             _deleteModuleCommand.RaiseCanExecuteChanged();
-            SetModuleActionFeedback(
+            SetStickyModuleActionFeedback(
+                module,
                 $"{targetName}: {actionLabel} finished",
                 BuildModuleActionFeedbackDetail(string.Join(Environment.NewLine, uninstallLines.Append(uninstallOutput))));
 
@@ -5717,13 +5735,15 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         {
             StatusMessage = $"{targetName} uninstall needs attention.";
             AppendActivity($"{targetName} uninstall warning: {ex.Message}");
-            SetModuleActionFeedback(
+            SetStickyModuleActionFeedback(
+                module,
                 $"{targetName}: {actionLabel} needs attention",
                 BuildModuleActionFeedbackDetail(string.Join(Environment.NewLine, uninstallLines.Append(ex.Message))));
         }
         finally
         {
             _modulesWithActiveLifecycle.Remove(targetId);
+            EndModuleDetailProgress(module);
             if (ownsBusyState)
             {
                 IsBusy = false;
