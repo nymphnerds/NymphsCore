@@ -8,6 +8,19 @@ This file focuses on user-facing and system-level changes rather than package-by
 
 Newest entries first.
 
+### 2026-05-20 Manager 0.9.26 module update card truth
+Source: Pixal3D update UX testing.
+
+Changed in source:
+
+- removed the startup shortcut that treated already-loaded manifest card data as
+  a completed update check
+- made startup use the real module update checker so Home cards show
+  `Update available` only from the installed module version versus registry
+  manifest comparison
+- kept the standard Home card display path: installed cards bind
+  `DisplayStateLabel` and `DisplayStatusBrush`
+
 ### 2026-05-20 Manager 0.9.25 module UI open guard
 Source: live Pixal3D Gradio testing.
 
