@@ -8,6 +8,18 @@ This file focuses on user-facing and system-level changes rather than package-by
 
 Newest entries first.
 
+### 2026-05-20 Manager 0.9.24 embedded module UI action cleanup
+Source: live Pixal3D Gradio testing.
+
+Changed in source:
+
+- changed the embedded module UI footer so a module does not keep showing its
+  own UI launch action while that UI is already open
+- Pixal3D Gradio now shows `Close Gradio` in the embedded view; that action uses
+  the module manifest stop action before returning to the module details page
+- hid module UI start/stop actions from the embedded footer when the close
+  action already owns that lifecycle
+
 ### 2026-05-20 Pixal3D 0.1.14 FlashAttention install options
 Source: live Pixal3D install testing against the TRELLIS.2 shared runtime standard.
 

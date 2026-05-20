@@ -436,6 +436,24 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
             if (!string.Equals(DisplayedModule.Id, "brain", StringComparison.OrdinalIgnoreCase))
             {
+                if (CurrentPageKind == ManagerPageKind.ModuleUi && DisplayedModule.HasInstalledModuleUi)
+                {
+                    if (string.Equals(DisplayedModule.Id, "lora", StringComparison.OrdinalIgnoreCase))
+                    {
+                        return
+                        [
+                            BuildCloseModuleUiAction(DisplayedModule),
+                            new NymphModuleActionInfo(
+                                "lora_guide",
+                                "Guide",
+                                OpenLoraGuideActionName,
+                                "open_external_browser")
+                        ];
+                    }
+
+                    return BuildEmbeddedModuleUiActions(DisplayedModule);
+                }
+
                 if (string.Equals(DisplayedModule.Id, "lora", StringComparison.OrdinalIgnoreCase))
                 {
                     var loraActions = DisplayedModule.ManagerActions
@@ -443,25 +461,6 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                             !string.Equals(action.Id, "fetch_assets", StringComparison.OrdinalIgnoreCase) &&
                             !string.Equals(action.ActionName, "fetch_assets", StringComparison.OrdinalIgnoreCase))
                         .ToArray();
-
-                    if (CurrentPageKind == ManagerPageKind.ModuleUi)
-                    {
-                        var moduleUiActions = new List<NymphModuleActionInfo>
-                        {
-                            new NymphModuleActionInfo(
-                                "close_ui",
-                                "Close UI",
-                                CloseModuleUiActionName,
-                                "manager_close"),
-                            new NymphModuleActionInfo(
-                                "lora_guide",
-                                "Guide",
-                                OpenLoraGuideActionName,
-                                "open_external_browser")
-                        };
-
-                        return moduleUiActions;
-                    }
 
                     return loraActions;
                 }
@@ -501,6 +500,60 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
             return actions;
         }
+    }
+
+    private static IReadOnlyList<NymphModuleActionInfo> BuildEmbeddedModuleUiActions(NymphModuleViewModel module)
+    {
+        var actions = new List<NymphModuleActionInfo>
+        {
+            BuildCloseModuleUiAction(module)
+        };
+
+        var uiInfo = module.InstalledModuleUiInfo;
+        var startAction = uiInfo?.StartAction?.Trim() ?? string.Empty;
+        var stopAction = uiInfo?.StopAction?.Trim() ?? string.Empty;
+
+        foreach (var action in FilterGroupedModuleActions(module))
+        {
+            var actionName = action.ActionName.Trim();
+            var normalizedActionName = actionName.ToLowerInvariant();
+            var resultMode = action.ResultMode.Trim();
+            if (string.Equals(actionName, startAction, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(actionName, stopAction, StringComparison.OrdinalIgnoreCase) ||
+                (normalizedActionName == "start" && module.IsRunning) ||
+                (normalizedActionName == "stop" && !string.IsNullOrWhiteSpace(stopAction)) ||
+                IsModuleUiLaunchResultMode(resultMode))
+            {
+                continue;
+            }
+
+            actions.Add(action);
+        }
+
+        return actions;
+    }
+
+    private static NymphModuleActionInfo BuildCloseModuleUiAction(NymphModuleViewModel module)
+    {
+        var title = module.InstalledModuleUiInfo?.Title?.Trim() ?? string.Empty;
+        var label = title.Contains("gradio", StringComparison.OrdinalIgnoreCase)
+            ? "Close Gradio"
+            : "Close UI";
+
+        return new NymphModuleActionInfo(
+            "close_ui",
+            label,
+            CloseModuleUiActionName,
+            "manager_close");
+    }
+
+    private static bool IsModuleUiLaunchResultMode(string? resultMode)
+    {
+        var normalizedResultMode = string.IsNullOrWhiteSpace(resultMode)
+            ? string.Empty
+            : resultMode.Trim().ToLowerInvariant();
+
+        return normalizedResultMode is "open_module_ui" or "module_ui" or "open_in_manager" or "manager_url";
     }
 
     private static IReadOnlyList<NymphModuleActionInfo> FilterGroupedModuleActions(NymphModuleViewModel module)
