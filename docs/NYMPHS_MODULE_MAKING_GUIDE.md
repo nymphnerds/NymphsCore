@@ -959,12 +959,12 @@ Useful lines include:
 
 ```text
 model_fetch_plan=1 required base model, then selected weight
-MODEL FETCH STARTED: step=1/2 required base model repo=...
-MODEL FETCH STATUS: downloading=required large base model files
-MODEL FETCH STATUS: huggingface_cache_total=...
-MODEL FETCH COMPLETE: step=1/2 required base model repo=...
-MODEL FETCH STARTED: step=2/2 selected Blender weight repo=...
-MODEL FETCH COMPLETE: step=2/2 selected Blender weight repo=...
+MODEL FETCH STARTED: step=1/2 repo=example/base-model
+MODEL FETCH STATUS: step=1/2 repo=example/base-model status=downloading this_repo_cache=2.14 GiB active_download_files=5
+MODEL FETCH COMPLETE: step=1/2 repo=example/base-model
+MODEL FETCH STARTED: step=2/2 repo=example/selected-weight
+MODEL FETCH STATUS: step=2/2 repo=example/selected-weight status=downloading this_repo_cache=640.00 MiB active_download_files=2
+MODEL FETCH COMPLETE: step=2/2 repo=example/selected-weight
 ```
 
 For large Hugging Face downloads, do not only print `STARTED` and `COMPLETE`.
@@ -982,15 +982,22 @@ Active downloads: 5
 ```
 
 To get that output, every large model fetch should emit a `MODEL FETCH STATUS`
-line with formatted `this_repo_cache` and `active_download_files` values:
+line with formatted `this_repo_cache` and `active_download_files` values on the
+same line:
 
 ```text
 MODEL FETCH STATUS: step=1/2 repo=example/model status=downloading this_repo_cache=2.14 GiB active_download_files=5
 ```
 
-Optional keys such as `downloaded_this_step` and `recent_activity` may be logged
-for debugging, but keep the visible Manager progress small and consistent. Do
-not print long cache paths or dense telemetry as the primary progress signal.
+`this_repo_cache` is the current cache size for the repo being fetched, not the
+whole Hugging Face cache. `active_download_files` is the count of currently
+active partial/incomplete/lock download files for that repo. The visible Manager
+progress should stay small and consistent; do not print long cache paths or
+dense telemetry as the primary progress signal.
+
+Optional keys such as `downloaded_this_step`, `recent_activity`,
+`huggingface_cache_total`, and `cache_dir` may be logged for debugging, but they
+are secondary. Do not rely on them for the main Manager progress display.
 
 Large remote fetches must tolerate transient network breaks. Hugging Face and
 other model hosts may throw partial-read or connection-reset errors after
@@ -1004,8 +1011,11 @@ MODEL FETCH STATUS: step 1/4 TencentARC/Pixal3D download was interrupted. Retryi
 Model fetch actions must be single-flight. Use a module-owned lock file under
 the module config/log root so repeated button clicks cannot start parallel
 downloads for the same cache. If a fetch is already running, print a concise
-`MODEL FETCH STATUS: status=running waiting_on=existing_fetch ...` line and exit
-cleanly.
+status line and exit cleanly:
+
+```text
+MODEL FETCH STATUS: status=running waiting_on=existing_fetch
+```
 
 Status is the authority after a fetch. Once the module status entrypoint reports
 `models_ready=true`, `aux_models_ready=true`, or the module's equivalent ready
