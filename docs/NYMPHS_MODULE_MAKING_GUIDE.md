@@ -2091,8 +2091,6 @@ Rules:
 - The Manager shell remains standard across modules. The current WebView2 host keeps the sidebar and shows a full-width, thin standard Back bar above the hosted module UI.
 - The UI should call module actions through the Manager action bridge, not by running shell directly.
 
-See [NYMPH_MODULE_UI_STANDARD.md](NYMPH_MODULE_UI_STANDARD.md) for the focused UI contract.
-
 Current local Manager builds use WebView2 for modern module frontends. The intended expansion is:
 
 ```text
