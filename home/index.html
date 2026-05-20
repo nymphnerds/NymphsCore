@@ -961,7 +961,7 @@
   .footprint-weight {
     display: flex;
     align-items: baseline;
-    justify-content: space-between;
+    justify-content: flex-start;
     gap: 12px;
     font-family: var(--font-mono);
   }
@@ -1600,38 +1600,38 @@
         </div>
         <p>GPU and VRAM matter. The Manager can offer lower-load choices such as smaller TRELLIS.2 GGUF quants or lighter Z-Image weights, but the public workflow should be treated as a serious local AI stack, not a lightweight plugin.</p>
         <h4 id="wiki-footprint">Footprint</h4>
-        <p>At a glance, this is the approximate local footprint by module or runtime. Generated outputs, logs, project data, and temporary install files grow separately.</p>
+        <p>At a glance, each module card shows installed module plus the lightest download set through installed module plus the full listed download set. Generated outputs, logs, project data, datasets, and temporary install files grow separately.</p>
         <div class="footprint-card-grid" aria-label="Approximate local footprint by module">
           <div class="footprint-card is-hot">
             <div class="footprint-card-head"><span class="footprint-badge">ZI</span><div><h5>Z-Image Turbo</h5><div class="footprint-kind">// image weights</div></div></div>
-            <div class="footprint-weight"><strong>31-46 GB</strong><span>weights</span></div>
+            <div class="footprint-weight"><strong>36-51 GB</strong><span>install 5.4 GB</span></div>
           </div>
           <div class="footprint-card is-warn">
-            <div class="footprint-card-head"><span class="footprint-badge">LO</span><div><h5>LoRA</h5><div class="footprint-kind">// training assets</div></div></div>
-            <div class="footprint-weight"><strong>31.5 GB</strong><span>assets</span></div>
+            <div class="footprint-card-head"><span class="footprint-badge">LO</span><div><h5>LoRA</h5><div class="footprint-kind">// training</div></div></div>
+            <div class="footprint-weight"><strong>31.5 GB+</strong><span>install varies</span></div>
           </div>
           <div class="footprint-card is-warn">
             <div class="footprint-card-head"><span class="footprint-badge">TR</span><div><h5>TRELLIS.2</h5><div class="footprint-kind">// 3d weights</div></div></div>
-            <div class="footprint-weight"><strong>8.4-25 GB</strong><span>GGUF</span></div>
+            <div class="footprint-weight"><strong>17-34 GB</strong><span>install 8.7 GB</span></div>
           </div>
           <div class="footprint-card is-warn">
             <div class="footprint-card-head"><span class="footprint-badge">PX</span><div><h5>Pixal3D</h5><div class="footprint-kind">// 3d weights</div></div></div>
-            <div class="footprint-weight"><strong>5.4-30 GB</strong><span>profile choice</span></div>
+            <div class="footprint-weight"><strong>5.6-55 GB</strong><span>install 158 MB</span></div>
           </div>
           <div class="footprint-card is-cool">
             <div class="footprint-card-head"><span class="footprint-badge">BR</span><div><h5>Nymphs-Brain</h5><div class="footprint-kind">// llm weights</div></div></div>
-            <div class="footprint-weight"><strong>varies</strong><span>chosen model</span></div>
+            <div class="footprint-weight"><strong>16 GB+</strong><span>install 16 GB</span></div>
           </div>
           <div class="footprint-card is-good">
             <div class="footprint-card-head"><span class="footprint-badge">WB</span><div><h5>WORBI</h5><div class="footprint-kind">// archive</div></div></div>
-            <div class="footprint-weight"><strong>34-235 MB</strong><span>app/archive</span></div>
+            <div class="footprint-weight"><strong>34-235 MB</strong><span>install 34 MB</span></div>
           </div>
           <div class="footprint-card is-good">
             <div class="footprint-card-head"><span class="footprint-badge">RT</span><div><h5>Base Runtime</h5><div class="footprint-kind">// runtime</div></div></div>
-            <div class="footprint-weight"><strong>about 92 GB</strong><span>ready runtime</span></div>
+            <div class="footprint-weight"><strong>varies</strong><span>install varies</span></div>
           </div>
         </div>
-        <p>The ready-to-run Base Runtime number includes the managed runtime stack. The Blender addon baseline normally means Base Runtime plus <code>Z-Image Turbo</code> and <code>TRELLIS.2</code>; model prefetch for that workflow is about <code>72 GB</code> of model/helper downloads. <code>Pixal3D</code> is an additional 3D backend with normal safetensors profiles and experimental GGUF quantized weight profiles.</p>
+        <p>The ranges include the installed module root where that is available locally: <code>~/Z-Image</code> is about <code>5.4 GB</code>, <code>~/TRELLIS.2</code> is about <code>8.7 GB</code>, <code>~/Pixal3D</code> is about <code>158 MB</code>, <code>~/Nymphs-Brain</code> is about <code>16 GB</code>, and <code>~/worbi</code> is about <code>34 MB</code>. <code>Base Runtime</code> is the managed Ubuntu WSL distro plus base packages, Python tooling, and <code>cuda-toolkit-13-0</code>; it is not the old <code>92 GB</code> full ready-workflow figure.</p>
         <h4 id="wiki-manager-install">Install Manager</h4>
         <ul>
           <li>Download <code>NymphsCoreManager-win-x64.zip</code>.</li>
@@ -1728,9 +1728,9 @@
         <h4>Z-Image Turbo</h4>
         <div class="footprint-card module-footprint-card is-hot" aria-label="Z-Image Turbo model footprint">
           <div class="footprint-card-head"><span class="footprint-badge">ZI</span><div><h5>Z-Image Turbo</h5><div class="footprint-kind">// image weights</div></div></div>
-          <div class="footprint-weight"><strong>31-46 GB</strong><span>model weights</span></div>
+          <div class="footprint-weight"><strong>36-51 GB</strong><span>install 5.4 GB</span></div>
         </div>
-        <p>Base model is about <code>31 GB</code>; selected Nunchaku weights add more.</p>
+        <p>Range includes the installed <code>~/Z-Image</code> runtime, about <code>5.4 GB</code> locally, plus the base model and selected Nunchaku weight through all supported Nunchaku weights.</p>
         <p>Z-Image Turbo is the Blender addon's local image-generation module. It runs a FastAPI service for <code>txt2img</code> and <code>img2img</code> on the managed WSL runtime, writing outputs under the shared <code>NymphsData</code> folders instead of sending prompts or images to a remote generation service.</p>
         <p>Nunchaku is the optimized low-bit runtime used to run Z-Image Turbo locally with lower VRAM and faster inference. It uses quantized Z-Image Turbo weights, which are smaller/faster runtime versions of the model for local generation. NymphNerds forks Nunchaku so the Blender workflow can go beyond basic text-to-image: guide-image editing and LoRAs trained with the LoRA AI Toolkit module can be used through the same local runtime.</p>
         <p>In the Blender addon, Z-Image Turbo powers the <code>Nymphs Image</code> panel. Use it to create concept art, texture ideas, reference images, guide-image variations, or source images that can then be sent into 3D workflows such as TRELLIS.2.</p>
@@ -1774,9 +1774,9 @@
         <h4>TRELLIS.2</h4>
         <div class="footprint-card module-footprint-card is-warn" aria-label="TRELLIS.2 model footprint">
           <div class="footprint-card-head"><span class="footprint-badge">TR</span><div><h5>TRELLIS.2</h5><div class="footprint-kind">// 3d weights</div></div></div>
-          <div class="footprint-weight"><strong>8.4-25 GB</strong><span>GGUF choice</span></div>
+          <div class="footprint-weight"><strong>17-34 GB</strong><span>install 8.7 GB</span></div>
         </div>
-        <p>Smallest practical GGUF set through all quants, including shared support files.</p>
+        <p>Range includes the installed <code>~/TRELLIS.2</code> runtime, about <code>8.7 GB</code> locally, plus the smallest practical GGUF set through all quants, including shared support files.</p>
         <p>TRELLIS.2 is the Blender addon's local 3D module. It turns a source image into a draft 3D asset and supports texture and retexture workflows through the managed TRELLIS.2 GGUF backend.</p>
         <p>The module combines Microsoft's TRELLIS.2 source, a NymphsCore local HTTP adapter, GGUF model loading through <code>ComfyUI-Trellis2-GGUF</code>, and module-owned scripts for install, start, stop, status, logs, model fetch, smoke test, and uninstall.</p>
         <p>Install prepares the runtime under <code>~/TRELLIS.2</code>. <span class="wiki-action-text">Fetch Models</span> downloads the selected <code>Aero-Ex/Trellis2-GGUF</code> quant bundle, shared support files, the required <code>microsoft/TRELLIS.2-4B</code> support checkpoint, and the <code>rembg u2net</code> background-removal model.</p>
@@ -1793,10 +1793,11 @@
         <h4>Pixal3D</h4>
         <div class="footprint-card module-footprint-card is-warn" aria-label="Pixal3D model footprint">
           <div class="footprint-card-head"><span class="footprint-badge">PX</span><div><h5>Pixal3D</h5><div class="footprint-kind">// 3d weights</div></div></div>
-          <div class="footprint-weight"><strong>5.4-30 GB</strong><span>profile choice</span></div>
+          <div class="footprint-weight"><strong>5.6-55 GB</strong><span>install 158 MB</span></div>
         </div>
         <p>Pixal3D generates textured 3D assets from a single image. It is a separate 3D backend with its own runtime, model fetch options, Blender API service, and local Gradio view.</p>
-        <p>Install sets up the Pixal3D runtime. <span class="wiki-action-text">Fetch Models</span> downloads the model assets into shared <code>NymphsData</code> caches. The normal safetensors profiles are about <code>30 GB</code> including Pixal3D checkpoints and auxiliary model repos; the GGUF profiles download community quantized Pixal3D weights for adapter testing.</p>
+        <p>The installed Pixal3D runtime is separate from its model downloads. On the current local install, <code>~/Pixal3D</code> is about <code>158 MB</code> before model weights, generated outputs, logs, and profile data.</p>
+        <p>Install sets up the Pixal3D runtime. <span class="wiki-action-text">Fetch Models</span> downloads the model assets into shared <code>NymphsData</code> caches. The card range starts with the installed runtime plus the lightest GGUF download set. The normal safetensors profiles are about <code>30 GB</code> including Pixal3D checkpoints and auxiliary model repos; downloading all Pixal3D safetensors and GGUF weight sets can reach about <code>55 GB</code> with the installed module.</p>
         <p>Use <code>Low VRAM 1024</code> as the first test profile. <code>Standard 1536</code> is heavier. The quantized options are about <code>5.4 GB</code> for <code>GGUF Q5_K_M</code>, <code>6.1 GB</code> for <code>GGUF Q6_K</code>, and <code>7.4 GB</code> for <code>GGUF Q8_0</code>; current generation still uses safetensors until Pixal3D's GGUF loader bridge is implemented.</p>
         <p><span class="wiki-action-text">Start API</span> starts the Blender-facing service on port <code>8096</code>. <span class="wiki-action-text">Open Gradio</span> launches the local Pixal3D Gradio app on port <code>8097</code>.</p>
         <div class="wiki-callout is-warn">
@@ -1824,9 +1825,9 @@
         <h4>Nymphs Brain</h4>
         <div class="footprint-card module-footprint-card is-cool" aria-label="Nymphs Brain model footprint">
           <div class="footprint-card-head"><span class="footprint-badge">BR</span><div><h5>Nymphs Brain</h5><div class="footprint-kind">// llm weights</div></div></div>
-          <div class="footprint-weight"><strong>varies</strong><span>chosen model</span></div>
+          <div class="footprint-weight"><strong>16 GB+</strong><span>install 16 GB</span></div>
         </div>
-        <p>The selected local LLM is the main cost; serious local-model use can add tens of GB.</p>
+        <p>The installed Brain runtime is about <code>16 GB</code> locally before a local LLM. The selected local model is the main variable cost and can add several to tens of GB.</p>
         <p>Nymphs Brain is an optional local assistant and tool-orchestration module. It is not required for the Blender addon baseline, and the installer does not need to download a chat model before the rest of NymphsCore can work.</p>
         <p>The current Brain module uses LM Studio CLI for model download and selection, then serves the selected GGUF through a CUDA-enabled <code>llama-server</code> on port <code>8000</code>. Brain also installs Open WebUI, an MCP gateway, the <code>mcpo</code> OpenAPI bridge, and tool bridges for filesystem, memory, web-forager, context7, optional remote LLM wrapper workflows, and future Blender-side flows over the in-progress MCP layer.</p>
         <ul>
@@ -1888,7 +1889,7 @@
         <h4>WORBI</h4>
         <div class="footprint-card module-footprint-card is-good" aria-label="WORBI model footprint">
           <div class="footprint-card-head"><span class="footprint-badge">WB</span><div><h5>WORBI</h5><div class="footprint-kind">// archive</div></div></div>
-          <div class="footprint-weight"><strong>34-235 MB</strong><span>app/archive</span></div>
+          <div class="footprint-weight"><strong>34-235 MB</strong><span>install 34 MB</span></div>
         </div>
         <p>WORBI has no required model weights, but the installed app/archive is still MB-scale. Worlds, notes, exports, and logs grow separately.</p>
         <p>WORBI is an optional local-first worldbuilding workspace. It is packaged as a Nymph module so writers, solo creators, and game teams can keep lore, characters, locations, timelines, notes, and project planning inside the managed local system.</p>
@@ -1901,10 +1902,10 @@
         <h3 class="wiki-section-marker">// MODULES</h3>
         <h4>LoRA</h4>
         <div class="footprint-card module-footprint-card is-warn" aria-label="LoRA training asset footprint">
-          <div class="footprint-card-head"><span class="footprint-badge">LO</span><div><h5>LoRA</h5><div class="footprint-kind">// training assets</div></div></div>
-          <div class="footprint-weight"><strong>31.5 GB</strong><span>before datasets</span></div>
+          <div class="footprint-card-head"><span class="footprint-badge">LO</span><div><h5>LoRA</h5><div class="footprint-kind">// training</div></div></div>
+          <div class="footprint-weight"><strong>31.5 GB+</strong><span>install varies</span></div>
         </div>
-        <p>Training assets are Z-Image Turbo plus the adapter. Datasets and outputs grow separately.</p>
+        <p>Training downloads are the Z-Image Turbo training model plus the adapter. The LoRA app/runtime install adds more depending on the local AI Toolkit and Node setup, while datasets and outputs grow separately.</p>
         <p>LoRA is the optional Z-Image Turbo training module. It trains small <code>.safetensors</code> files for a character, outfit, object, style, or subject, then those files can be used in Z-Image generation without replacing the base model.</p>
         <p>The module installs under <code>~/LoRA</code>. It manages an isolated AI Toolkit sidecar, the <code>Easy LoRA</code> Manager UI, the advanced AI Toolkit UI, queue support, datasets, jobs, logs, model assets, training adapters, and finished LoRA outputs.</p>
         <div class="wiki-callout">
