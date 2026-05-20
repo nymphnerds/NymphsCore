@@ -1603,7 +1603,7 @@
         </div>
         <p>GPU and VRAM matter. The Manager can offer lower-load choices such as smaller TRELLIS.2 GGUF quants or lighter Z-Image weights, but the public workflow should be treated as a serious local AI stack, not a lightweight plugin.</p>
         <h4 id="wiki-footprint">Footprint</h4>
-        <p>At a glance, ranges mean <code>install size + lightest weight fetch</code> through <code>install size + all weight fetches</code>. Complete package cards show a single total instead. The small label shows the install-only size before model or training-weight fetches where that split applies. Generated outputs, logs, project data, datasets, and temporary install files grow separately.</p>
+        <p>At a glance, ranges mean <code>install size + lightest weight fetch</code> through <code>install size + all weight fetches</code>. Single-package cards show one total instead. The small label shows the install-only size before model or training-weight fetches where that split applies. Generated outputs, logs, project data, datasets, and temporary install files grow separately.</p>
         <div class="footprint-card-grid" aria-label="Approximate local footprint by module">
           <div class="footprint-card is-hot">
             <div class="footprint-card-head"><span class="footprint-badge">ZI</span><div><h5>Z-Image Turbo</h5><div class="footprint-kind">// image weights</div></div></div>
@@ -1611,7 +1611,7 @@
           </div>
           <div class="footprint-card is-warn">
             <div class="footprint-card-head"><span class="footprint-badge">LO</span><div><h5>LoRA</h5><div class="footprint-kind">// training</div></div></div>
-            <div class="footprint-weight"><strong>31.5 GB</strong><span>complete package</span></div>
+            <div class="footprint-weight"><strong>31.5 GB</strong><span>training package</span></div>
           </div>
           <div class="footprint-card is-warn">
             <div class="footprint-card-head"><span class="footprint-badge">TR</span><div><h5>TRELLIS.2</h5><div class="footprint-kind">// 3d weights</div></div></div>
@@ -1626,8 +1626,8 @@
             <div class="footprint-weight"><strong>16 GB + model</strong><span>install only: 16 GB</span></div>
           </div>
           <div class="footprint-card is-good">
-            <div class="footprint-card-head"><span class="footprint-badge">WB</span><div><h5>WORBI</h5><div class="footprint-kind">// archive</div></div></div>
-            <div class="footprint-weight"><strong>34-235 MB</strong><span>install only: 34 MB</span></div>
+            <div class="footprint-card-head"><span class="footprint-badge">WB</span><div><h5>WORBI</h5><div class="footprint-kind">// app</div></div></div>
+            <div class="footprint-weight"><strong>34 MB</strong><span>no weights</span></div>
           </div>
           <div class="footprint-card is-good">
             <div class="footprint-card-head"><span class="footprint-badge">RT</span><div><h5>Base Runtime</h5><div class="footprint-kind">// runtime</div></div></div>
@@ -1891,10 +1891,10 @@
         <h3 class="wiki-section-marker">// MODULES</h3>
         <h4>WORBI</h4>
         <div class="footprint-card module-footprint-card is-good" aria-label="WORBI model footprint">
-          <div class="footprint-card-head"><span class="footprint-badge">WB</span><div><h5>WORBI</h5><div class="footprint-kind">// archive</div></div></div>
-          <div class="footprint-weight"><strong>34-235 MB</strong><span>install only: 34 MB</span></div>
+          <div class="footprint-card-head"><span class="footprint-badge">WB</span><div><h5>WORBI</h5><div class="footprint-kind">// app</div></div></div>
+          <div class="footprint-weight"><strong>34 MB</strong><span>no weights</span></div>
         </div>
-        <p>WORBI has no required model weights, but the installed app/archive is still MB-scale. Worlds, notes, exports, and logs grow separately.</p>
+        <p>WORBI has no required model weights. The current local app install is about <code>34 MB</code>; worlds, notes, exports, and logs grow separately.</p>
         <p>WORBI is an optional local-first worldbuilding workspace. It is packaged as a Nymph module so writers, solo creators, and game teams can keep lore, characters, locations, timelines, notes, and project planning inside the managed local system.</p>
         <p>WORBI runs as a browser-based local app from the managed WSL runtime, normally on port <code>8082</code>. It can work with the Nymphs Brain local AI stack when Brain is installed, while still keeping the worldbuilding workspace local-first.</p>
         <p>The Manager handles install, start, open, stop, status, logs, and data-folder access, while WORBI itself owns the deeper worldbuilding UI in the browser.</p>
@@ -1906,9 +1906,9 @@
         <h4>LoRA</h4>
         <div class="footprint-card module-footprint-card is-warn" aria-label="LoRA training asset footprint">
           <div class="footprint-card-head"><span class="footprint-badge">LO</span><div><h5>LoRA</h5><div class="footprint-kind">// training</div></div></div>
-          <div class="footprint-weight"><strong>31.5 GB</strong><span>complete package</span></div>
+          <div class="footprint-weight"><strong>31.5 GB</strong><span>training package</span></div>
         </div>
-        <p>LoRA is a complete training package around Z-Image Turbo and the training adapter. Datasets, jobs, logs, and finished LoRA outputs grow separately.</p>
+        <p>LoRA is the Z-Image Turbo training package with the training adapter. Datasets, jobs, logs, and finished LoRA outputs grow separately.</p>
         <p>LoRA is the optional Z-Image Turbo training module. It trains small <code>.safetensors</code> files for a character, outfit, object, style, or subject, then those files can be used in Z-Image generation without replacing the base model.</p>
         <p>The module installs under <code>~/LoRA</code>. It manages an isolated AI Toolkit sidecar, the <code>Easy LoRA</code> Manager UI, the advanced AI Toolkit UI, queue support, datasets, jobs, logs, model assets, training adapters, and finished LoRA outputs.</p>
         <div class="wiki-callout">
