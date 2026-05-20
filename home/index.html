@@ -1745,56 +1745,99 @@
       <div class="wiki-entry" id="wiki-module-authors">
         <h3 class="wiki-section-marker">// MODULE AUTHORS</h3>
         <h4>Community module standard</h4>
-        <p>NymphsCore is the base shell. Modules are separate products that plug into the managed local runtime through a registry entry, a <code>nymph.json</code> manifest, and declared lifecycle scripts.</p>
-        <p>The module standard is for authors who want to build, test, and ship a NymphsCore module without needing to read the Manager source. It describes the public contract between the Manager, the registry, and the installed module.</p>
+        <p>The public contract for community modules is the <a href="https://github.com/nymphnerds/NymphsCore/blob/main/docs/NYMPHS_MODULE_MAKING_GUIDE.md">Nymphs Module Making Guide</a>. Treat this wiki section as a quick reference only. If this page and the guide disagree, the guide wins.</p>
+        <p>A Nymph module is a separate product that plugs into the managed <code>NymphsCore</code> WSL runtime through a registry entry, an installed <code>nymph.json</code>, and declared lifecycle entrypoints. The Manager should stay generic; modules own their own workflows.</p>
 
         <div class="wiki-callout">
           <div class="wiki-callout-title">
-            <span>Required Pieces</span>
-            <span class="wiki-callout-status">Module shape</span>
+            <span>Build Shape</span>
+            <span class="wiki-callout-status">Author checklist</span>
           </div>
           <div class="wiki-callout-grid">
-            <div class="wiki-callout-row"><span class="wiki-callout-label">Registry</span><span>A public catalog entry that tells the Manager the module exists before install.</span></div>
-            <div class="wiki-callout-row"><span class="wiki-callout-good">Manifest</span><span>A module repo or archive containing <code>nymph.json</code> at the root.</span></div>
-            <div class="wiki-callout-row"><span class="wiki-callout-label">Scripts</span><span>Lifecycle entrypoints declared in the manifest, such as install, status, start, stop, open, logs, and uninstall.</span></div>
-            <div class="wiki-callout-row"><span class="wiki-callout-label">Optional UI</span><span>Modules with custom controls can include a local Manager UI, usually <code>ui/manager.html</code>.</span></div>
+            <div class="wiki-callout-row"><span class="wiki-callout-label">Registry</span><span>Public catalog metadata only: name, summary, trusted manifest URL, display <code>category</code>/<code>kind</code>, install root, channel, sort order, and packaging.</span></div>
+            <div class="wiki-callout-row"><span class="wiki-callout-good">Manifest</span><span>Put <code>nymph.json</code> at the repo or package root. It declares <code>install.root</code>, entrypoints, UI actions, artifacts, uninstall behavior, and version metadata.</span></div>
+            <div class="wiki-callout-row"><span class="wiki-callout-label">Scripts</span><span>Lifecycle scripts should be self-contained, non-interactive by default, safe inside the managed runtime, and useful in their logs.</span></div>
+            <div class="wiki-callout-row"><span class="wiki-callout-label">Repo layout</span><span>Use clear lowercase script names under <code>scripts/</code>, and put optional installed UI under <code>ui/</code>.</span></div>
           </div>
         </div>
 
-        <h4 id="wiki-module-boundary">The boundary</h4>
-        <p>The Manager provides the common shell and lifecycle controls. The module provides the actual workflow. This keeps the Manager generic while still allowing modules such as Z-Image, TRELLIS, Brain, LoRA, WORBI, and future tools to expose their own behavior.</p>
+        <div class="wiki-callout">
+          <div class="wiki-callout-title">
+            <span>Install Truth</span>
+            <span class="wiki-callout-status">Fast startup</span>
+          </div>
+          <div class="wiki-callout-grid">
+            <div class="wiki-callout-row"><span class="wiki-callout-good">Marker</span><span>Installed means the resolved install root contains <code>.nymph-module-version</code>. A folder existing is not enough.</span></div>
+            <div class="wiki-callout-row"><span class="wiki-callout-label">Install/update</span><span>Install, repair, and update scripts must write <code>nymph.json</code> and write <code>.nymph-module-version</code> last, after dependencies and files are ready.</span></div>
+            <div class="wiki-callout-row"><span class="wiki-callout-label">Startup</span><span>The Manager primes cards from cheap marker reads against the real managed runtime, then runs module status in the background.</span></div>
+            <div class="wiki-callout-row"><span class="wiki-callout-label">No deep scans</span><span>Startup and normal status must not download files, run smoke tests, scan huge caches, import heavy ML libraries, or call remote APIs.</span></div>
+          </div>
+        </div>
 
+        <h4 id="wiki-module-boundary">Manager and module boundary</h4>
         <div class="wiki-callout">
           <div class="wiki-callout-title">
             <span>Who Owns What</span>
             <span class="wiki-callout-status">Shared contract</span>
           </div>
           <div class="wiki-callout-grid">
-            <div class="wiki-callout-row"><span class="wiki-callout-label">Manager owns</span><span>The Windows shell, registry cards, install/update/repair/uninstall controls, logs, standard lifecycle rail, data delete, and action validation.</span></div>
-            <div class="wiki-callout-row"><span class="wiki-callout-good">Module owns</span><span>The module repo, manifest, install scripts, runtime dependencies, model fetchers, outputs, cache choices, workflow buttons, and any custom UI shown after install.</span></div>
-            <div class="wiki-callout-row"><span class="wiki-callout-label">Registry owns</span><span>The public catalog entry: name, summary, trusted manifest URL, install root, display category, display kind, channel, and sort order.</span></div>
+            <div class="wiki-callout-row"><span class="wiki-callout-label">Manager owns</span><span>The Windows shell, registry cards, standard detail page, standard Back navigation, logs, generic action routing, and rail controls such as Guide, Install, Update, Repair, Directory, Uninstall, and Delete Data.</span></div>
+            <div class="wiki-callout-row"><span class="wiki-callout-good">Module owns</span><span>The repo, manifest, lifecycle scripts, runtime dependencies, installed UI, action buttons, validation, downloads, cache paths, logs, outputs, and status truth.</span></div>
+            <div class="wiki-callout-row"><span class="wiki-callout-label">Registry owns</span><span>The shop-shelf catalog entry before install. Do not put installed workflow buttons in the registry.</span></div>
+          </div>
+        </div>
+
+        <h4>Status contract</h4>
+        <p>Every <code>status</code> action should be fast, timeout-safe, missing-file-safe, and newline <code>key=value</code> based. Recommended keys include <code>id</code>, <code>installed</code>, <code>runtime_present</code>, <code>data_present</code>, <code>version</code>, <code>running</code>, <code>state</code>, <code>health</code>, <code>install_root</code>, <code>logs_dir</code>, <code>last_log</code>, <code>marker</code>, and <code>detail</code>.</p>
+        <div class="wiki-callout">
+          <div class="wiki-callout-title">
+            <span>Status Rules</span>
+            <span class="wiki-callout-status">Manager reads these</span>
+          </div>
+          <div class="wiki-callout-grid">
+            <div class="wiki-callout-row"><span class="wiki-callout-good">Normal states</span><span>Use <code>available</code>, <code>installed</code>, and <code>running</code> for ordinary card states. A stopped installed service is not an error.</span></div>
+            <div class="wiki-callout-row"><span class="wiki-callout-label">Setup states</span><span>Use <code>model_download_needed</code>, <code>needs_assets</code>, or <code>needs_brain</code> for expected missing downloads, datasets, or dependencies.</span></div>
+            <div class="wiki-callout-row"><span class="wiki-callout-label">Broken states</span><span>Use <code>repair_needed</code> for marker/source-root repair cases. Reserve <code>needs_attention</code> for genuinely broken runtimes, wrappers, imports, or impossible core operation.</span></div>
+            <div class="wiki-callout-row"><span class="wiki-callout-label">Weights</span><span>Modules with model choices should report generic <code>weight_profile_*</code> keys plus <code>models_ready</code> or <code>aux_models_ready</code>, without making the Manager scan model caches.</span></div>
           </div>
         </div>
 
         <h4>Registry and manifest rule</h4>
-        <p>Keep display classification separate from installation mechanics. <code>category</code> and <code>kind</code> tell users what the module is, such as image, 3D, training, service, or tool. <code>packaging</code> only tells the Manager how it installs, such as repo or archive.</p>
+        <p>Keep display classification separate from installation mechanics. <code>category</code> and <code>kind</code> tell users what the module is, such as image, 3D, training, service, or tool. <code>packaging</code> only tells the Manager how it installs, such as repo or archive. Use <code>install.root</code> for the canonical installed product folder; legacy lowercase roots are only fallbacks.</p>
+
         <h4 id="wiki-module-ui-standard">UI and action boundary</h4>
-        <p>Installed modules can expose custom Manager UI through their installed manifest. The current supported UI type is local HTML hosted in WebView2. The Manager reads this only from the installed module folder, never from a remote registry preview.</p>
+        <p>Installed modules can expose controls through the installed manifest. The Manager reads these only from the installed module folder, never from a remote registry preview. If an installed UI file is absent or invalid, the custom UI button should hide rather than fail loudly.</p>
         <div class="wiki-callout">
           <div class="wiki-callout-title">
-            <span>Module UI Rule</span>
-            <span class="wiki-callout-status">Installed only</span>
+            <span>Module UI And Actions</span>
+            <span class="wiki-callout-status">Module owned</span>
           </div>
           <div class="wiki-callout-grid">
             <div class="wiki-callout-row"><span class="wiki-callout-label">Before install</span><span>The Manager shows registry and manifest metadata plus standard lifecycle controls.</span></div>
-            <div class="wiki-callout-row"><span class="wiki-callout-good">After install</span><span>The installed module may expose its own Manager UI and buttons from its local <code>nymph.json</code>.</span></div>
-            <div class="wiki-callout-row"><span class="wiki-callout-label">Actions</span><span>Custom UI calls declared module actions through the shared action bridge, and the Manager validates them before running anything.</span></div>
+            <div class="wiki-callout-row"><span class="wiki-callout-good">Buttons</span><span>Use <code>ui.manager_actions</code> for installed module buttons such as Start, Stop, Logs, Smoke Test, Open Project, Train, or Export.</span></div>
+            <div class="wiki-callout-row"><span class="wiki-callout-label">Native groups</span><span>Use <code>ui.manager_action_groups</code> for compact model fetch controls, token entry, source links, runtime selectors, and one submit action. Do not duplicate a grouped action as a normal button.</span></div>
+            <div class="wiki-callout-row"><span class="wiki-callout-label">Custom UI</span><span>Use <code>ui.manager_ui</code> with <code>type=local_html</code> for installed HTML or <code>type=local_url</code> for loopback services. A <code>local_url</code> start action must be idempotent and print the URL.</span></div>
+            <div class="wiki-callout-row"><span class="wiki-callout-label">Action bridge</span><span>Long jobs should use <code>nymphs-module-action://</code> so the Manager shows standard logs. Short status/log polling may use the validated WebView2 message bridge.</span></div>
           </div>
         </div>
-        <p>The standard is expected to evolve by proving real modules one at a time. When a module test discovers a new rule, the guide should be updated first, then the Manager, module repo, registry entry, or UI standard can follow.</p>
+
+        <h4>Model fetch, data, and shutdown</h4>
+        <p>Install should prepare runtime code; model downloads belong in explicit actions such as <span class="wiki-action-text">Fetch Models</span>. Model fetch scripts should print readable progress, use bounded retries, prevent parallel duplicate downloads, and let status clear stale fetch feedback once assets are ready.</p>
+        <p><span class="wiki-action-text">Uninstall</span> removes runtime files while preserving declared user data by default. Purge or <span class="wiki-action-text">Delete Data</span> may remove only module-declared scopes. Never guess broad paths, and do not blindly delete shared caches such as <code>$HOME/NymphsData/cache/huggingface</code>.</p>
+        <p>Lifecycle jobs must stay inside the Manager-launched process tree. Do not use <code>nohup</code>, <code>disown</code>, detached <code>setsid</code>, or untracked background workers for install, update, repair, uninstall, fetch, or smoke-test jobs. If a script starts children, trap <code>TERM</code> and <code>INT</code> and clean them up. Backend <code>start</code> actions may leave a service running only when <code>stop</code> can cleanly terminate it.</p>
+
+        <h4>Release and test order</h4>
+        <p>Push the module repo first, verify the raw <code>nymph.json</code> URL, then update the registry only if catalog metadata changed. Before asking for registry inclusion, test clean install, status before/during/after install, closing the Manager during install, start/stop/open/logs, custom UI visibility, action bridge behavior, uninstall preservation, reinstall, failed install without a marker, and purge/delete-data scope.</p>
+
         <h4>Source links</h4>
         <ul class="wiki-link-list">
-          <li><a href="https://github.com/nymphnerds/NymphsCore/blob/main/docs/NYMPHS_MODULE_MAKING_GUIDE.md">Nymphs Module Making Guide</a></li>
+          <li><a href="https://github.com/nymphnerds/NymphsCore/blob/main/docs/NYMPHS_MODULE_MAKING_GUIDE.md">Nymphs Module Making Guide, source of truth</a></li>
+          <li><a href="https://github.com/nymphnerds/NymphsCore/blob/main/docs/NYMPHS_MODULE_MAKING_GUIDE.md#install-root-contract">Install Root Contract</a></li>
+          <li><a href="https://github.com/nymphnerds/NymphsCore/blob/main/docs/NYMPHS_MODULE_MAKING_GUIDE.md#status-contract">Status Contract</a></li>
+          <li><a href="https://github.com/nymphnerds/NymphsCore/blob/main/docs/NYMPHS_MODULE_MAKING_GUIDE.md#installed-module-ui-contract">Installed Module UI Contract</a></li>
+          <li><a href="https://github.com/nymphnerds/NymphsCore/blob/main/docs/NYMPHS_MODULE_MAKING_GUIDE.md#native-action-groups">Native Action Groups</a></li>
+          <li><a href="https://github.com/nymphnerds/NymphsCore/blob/main/docs/NYMPHS_MODULE_MAKING_GUIDE.md#process-shutdown-standard">Process Shutdown Standard</a></li>
+          <li><a href="https://github.com/nymphnerds/NymphsCore/blob/main/docs/NYMPHS_MODULE_MAKING_GUIDE.md#testing-checklist">Testing Checklist</a></li>
         </ul>
       </div>
 
