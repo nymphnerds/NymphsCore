@@ -851,6 +851,105 @@
   .wiki-callout-warn { color: #ffcf4d; }
   .wiki-callout-hot { color: #ff8a2a; }
 
+  .footprint-card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+    gap: 14px;
+    margin: 18px 0;
+  }
+
+  .footprint-card {
+    min-height: 164px;
+    padding: 18px;
+    border: 1px solid rgba(85,223,240,0.36);
+    border-radius: 10px;
+    background: rgba(0,0,0,0.18);
+    display: grid;
+    gap: 12px;
+  }
+
+  .footprint-card-head {
+    display: flex;
+    gap: 14px;
+    align-items: center;
+  }
+
+  .footprint-badge {
+    width: 50px;
+    height: 50px;
+    border: 2px solid var(--teal);
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    color: var(--teal);
+    font-family: var(--font-mono);
+    font-weight: 500;
+  }
+
+  .footprint-card h5 {
+    font-family: var(--font-body);
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--light);
+    margin: 0;
+  }
+
+  .footprint-kind {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--teal);
+  }
+
+  .footprint-weight {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    font-family: var(--font-mono);
+  }
+
+  .footprint-weight strong {
+    font-size: 18px;
+    color: var(--light);
+  }
+
+  .footprint-weight span {
+    color: var(--muted);
+    font-size: 12px;
+    text-align: right;
+  }
+
+  .footprint-bar {
+    min-height: 12px;
+    border: 1px solid rgba(85,223,240,0.24);
+    background: rgba(255,255,255,0.04);
+  }
+
+  .footprint-bar span {
+    display: block;
+    width: var(--size);
+    min-width: 4px;
+    height: 100%;
+  }
+
+  .footprint-note { color: var(--muted); font-size: 13px; line-height: 1.45; }
+
+  .footprint-card.is-hot .footprint-badge { border-color: var(--orange); color: var(--orange); }
+  .footprint-card.is-hot .footprint-kind { color: var(--orange); }
+  .footprint-card.is-hot .footprint-bar span { background: var(--orange); }
+  .footprint-card.is-warn .footprint-badge { border-color: #ffcf4d; color: #ffcf4d; }
+  .footprint-card.is-warn .footprint-kind { color: #ffcf4d; }
+  .footprint-card.is-warn .footprint-bar span { background: #ffcf4d; }
+  .footprint-card.is-good .footprint-badge { border-color: var(--lime); color: var(--lime); }
+  .footprint-card.is-good .footprint-kind { color: var(--lime); }
+  .footprint-card.is-good .footprint-bar span { background: var(--lime); }
+  .footprint-card.is-cool .footprint-bar span { background: var(--teal); }
+
+  .module-footprint-card {
+    max-width: 560px;
+    margin: 8px 0 18px;
+  }
+
   .wiki-action-text {
     display: inline-flex;
     align-items: center;
@@ -1262,6 +1361,17 @@
       grid-template-columns: 1fr;
       gap: 2px;
     }
+    .footprint-card-grid {
+      grid-template-columns: 1fr;
+    }
+    .footprint-weight {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 2px;
+    }
+    .footprint-weight span {
+      text-align: left;
+    }
     .addon-repo-copy {
       grid-template-columns: 1fr;
     }
@@ -1430,24 +1540,47 @@
           </div>
         </div>
         <p>GPU and VRAM matter. The Manager can offer lower-load choices such as smaller TRELLIS.2 GGUF quants or lighter Z-Image weights, but the public workflow should be treated as a serious local AI stack, not a lightweight plugin.</p>
-        <h4 id="wiki-footprint">Blender pipeline footprint</h4>
-        <p>For the Blender addon pipeline, plan around the Base Runtime plus the image and 3D modules it talks to: <code>Z-Image Turbo</code> and <code>TRELLIS.2</code>. This baseline does not include optional WORBI, Brain, or LoRA training installs.</p>
-        <ul>
-          <li><code>Base Runtime</code>: creates the dedicated Ubuntu WSL distro named <code>NymphsCore</code>, the Linux user <code>nymph</code>, system packages, scripts, and CUDA support. CUDA 13.0 alone is about <code>4.9 GB</code>.</li>
-          <li><code>Z-Image Turbo install</code>: prepares <code>/home/nymph/Z-Image</code> and the Nunchaku Python runtime. The local runtime folder is about <code>5.4 GB</code>.</li>
-          <li><code>Z-Image Turbo models</code>: <span class="wiki-action-text">Fetch Models</span> downloads <code>Tongyi-MAI/Z-Image-Turbo</code>, about <code>31 GB</code>, plus your selected Blender/Nunchaku weight from <code>nunchaku-ai/nunchaku-z-image-turbo</code>. Downloading all Z-Image weights is about <code>15 GB</code> locally.</li>
-          <li><code>TRELLIS.2 install</code>: prepares <code>/home/nymph/TRELLIS.2</code>, the 3D runtime, FlashAttention build pieces, and its Python environment. The local runtime folder is about <code>8.7 GB</code>.</li>
-          <li><code>TRELLIS.2 models</code>: <span class="wiki-action-text">Fetch Models</span> downloads <code>Aero-Ex/Trellis2-GGUF</code>, the required <code>microsoft/TRELLIS.2-4B</code> support checkpoint, and <code>rembg u2net</code>. Budget about <code>8.4 GB</code> for the smallest practical GGUF set, about <code>9.2 GB</code> for <code>Q5_K_M</code>, or up to about <code>25 GB</code> if all quants are installed.</li>
-          <li><code>Model prefetch</code>: downloads the Blender pipeline models before first use instead of waiting for the first generation. With Z-Image Turbo, TRELLIS.2, selected GGUF/support files, and helpers, budget about <code>72 GB</code>.</li>
-        </ul>
-        <p>Use <code>120 GB</code> free as the minimum and <code>150 GB</code> as the comfortable target. Generated meshes, textures, previews, logs, Hugging Face snapshots, temporary install files, and future model updates grow over time. If you skip model prefetch, setup is smaller at first, but these model downloads still happen later when the Blender workflow needs them.</p>
-        <h4 id="wiki-module-footprints">Other module footprints</h4>
-        <p>These are separate from the Blender addon pipeline budget. Install them only if you want those workflows.</p>
-        <ul>
-          <li><code>LoRA</code>: installs <code>/home/nymph/LoRA</code> with <code>ostris/ai-toolkit</code>, local Node 20, trainer UIs, datasets, jobs, logs, and LoRA outputs. <span class="wiki-action-text">Fetch Training Assets</span> adds <code>Tongyi-MAI/Z-Image-Turbo</code>, about <code>31 GB</code>, plus <code>ostris/zimage_turbo_training_adapter</code>, about <code>0.5 GB</code>.</li>
-          <li><code>Nymphs-Brain</code>: installs under <code>/home/nymph/Nymphs-Brain</code> with <code>llama-server</code>, LM Studio CLI, Open WebUI, MCP, mcpo, helper tools, and local model folders. This machine's Brain stack is about <code>16 GB</code>; serious use can land closer to <code>20-35 GB</code> depending on the selected local model.</li>
-          <li><code>WORBI</code>: installs under <code>/home/nymph/worbi</code>. This machine's installed WORBI runtime is about <code>34 MB</code> before project data; worlds, notes, exports, logs, and linked project material grow separately.</li>
-        </ul>
+        <h4 id="wiki-footprint">Footprint</h4>
+        <p>At a glance, this is the model/weight footprint by module. Runtime code, Python environments, generated outputs, logs, datasets, and temporary install files add on top.</p>
+        <div class="footprint-card-grid" aria-label="Approximate model and weight footprint by module">
+          <div class="footprint-card is-hot">
+            <div class="footprint-card-head"><span class="footprint-badge">ZI</span><div><h5>Z-Image Turbo</h5><div class="footprint-kind">// image weights</div></div></div>
+            <div class="footprint-weight"><strong>31-46 GB</strong><span>largest normal weight set</span></div>
+            <div class="footprint-bar"><span style="--size: 100%;"></span></div>
+            <p class="footprint-note">Base model is about 31 GB; selected Nunchaku weights add more. All Z-Image weights are about 15 GB locally.</p>
+          </div>
+          <div class="footprint-card is-warn">
+            <div class="footprint-card-head"><span class="footprint-badge">LO</span><div><h5>LoRA</h5><div class="footprint-kind">// training assets</div></div></div>
+            <div class="footprint-weight"><strong>31.5 GB</strong><span>before datasets</span></div>
+            <div class="footprint-bar"><span style="--size: 68%;"></span></div>
+            <p class="footprint-note">Training assets are Z-Image Turbo plus the training adapter. Datasets, jobs, and LoRA outputs grow separately.</p>
+          </div>
+          <div class="footprint-card is-warn">
+            <div class="footprint-card-head"><span class="footprint-badge">TR</span><div><h5>TRELLIS.2</h5><div class="footprint-kind">// 3d weights</div></div></div>
+            <div class="footprint-weight"><strong>8.4-25 GB</strong><span>GGUF choice</span></div>
+            <div class="footprint-bar"><span style="--size: 54%;"></span></div>
+            <p class="footprint-note">Smallest practical GGUF set through all quants, including shared support files.</p>
+          </div>
+          <div class="footprint-card is-cool">
+            <div class="footprint-card-head"><span class="footprint-badge">BR</span><div><h5>Nymphs-Brain</h5><div class="footprint-kind">// llm weights</div></div></div>
+            <div class="footprint-weight"><strong>varies</strong><span>chosen model</span></div>
+            <div class="footprint-bar"><span style="--size: 62%;"></span></div>
+            <p class="footprint-note">The selected local LLM is the main cost. Serious local-model use can add tens of GB.</p>
+          </div>
+          <div class="footprint-card is-good">
+            <div class="footprint-card-head"><span class="footprint-badge">WB</span><div><h5>WORBI</h5><div class="footprint-kind">// archive</div></div></div>
+            <div class="footprint-weight"><strong>0 GB</strong><span>required weights</span></div>
+            <div class="footprint-bar"><span style="--size: 2%;"></span></div>
+            <p class="footprint-note">No required model weights. Worlds, notes, exports, logs, and linked material grow separately.</p>
+          </div>
+          <div class="footprint-card is-good">
+            <div class="footprint-card-head"><span class="footprint-badge">RT</span><div><h5>Base Runtime</h5><div class="footprint-kind">// runtime</div></div></div>
+            <div class="footprint-weight"><strong>0 GB</strong><span>model weights</span></div>
+            <div class="footprint-bar"><span style="--size: 2%;"></span></div>
+            <p class="footprint-note">Runtime foundation only. CUDA 13.0 is about 4.9 GB, but it is not a model weight.</p>
+          </div>
+        </div>
+        <p>The Blender addon pipeline normally means Base Runtime plus <code>Z-Image Turbo</code> and <code>TRELLIS.2</code>. Model prefetch downloads those workflow models before first use; with Z-Image Turbo, TRELLIS.2, selected GGUF/support files, and helpers, budget about <code>72 GB</code> for model/helper downloads. If you skip model prefetch, setup is smaller at first, but those downloads still happen later when the workflow needs them.</p>
         <h4 id="wiki-manager-install">Install Manager</h4>
         <ul>
           <li>Download <code>NymphsCoreManager-win-x64.zip</code>.</li>
@@ -1551,6 +1684,12 @@
       <div class="wiki-entry" id="wiki-zimage">
         <h3 class="wiki-section-marker">// MODULES</h3>
         <h4>Z-Image Turbo</h4>
+        <div class="footprint-card module-footprint-card is-hot" aria-label="Z-Image Turbo model footprint">
+          <div class="footprint-card-head"><span class="footprint-badge">ZI</span><div><h5>Z-Image Turbo</h5><div class="footprint-kind">// image weights</div></div></div>
+          <div class="footprint-weight"><strong>31-46 GB</strong><span>model weights</span></div>
+          <div class="footprint-bar"><span style="--size: 100%;"></span></div>
+          <p class="footprint-note">Base model is about 31 GB; selected Nunchaku weights add more.</p>
+        </div>
         <p>Z-Image Turbo is the Blender addon's local image-generation module. It runs a FastAPI service for <code>txt2img</code> and <code>img2img</code> on the managed WSL runtime, writing outputs under the shared <code>NymphsData</code> folders instead of sending prompts or images to a remote generation service.</p>
         <p>Nunchaku is the optimized low-bit runtime used to run Z-Image Turbo locally with lower VRAM and faster inference. It uses quantized Z-Image Turbo weights, which are smaller/faster runtime versions of the model for local generation. NymphNerds forks Nunchaku so the Blender workflow can go beyond basic text-to-image: guide-image editing and LoRAs trained with the LoRA AI Toolkit module can be used through the same local runtime.</p>
         <p>In the Blender addon, Z-Image Turbo powers the <code>Nymphs Image</code> panel. Use it to create concept art, texture ideas, reference images, guide-image variations, or source images that can then be sent into 3D workflows such as TRELLIS.2.</p>
@@ -1592,6 +1731,12 @@
       <div class="wiki-entry" id="wiki-trellis">
         <h3 class="wiki-section-marker">// MODULES</h3>
         <h4>TRELLIS.2</h4>
+        <div class="footprint-card module-footprint-card is-warn" aria-label="TRELLIS.2 model footprint">
+          <div class="footprint-card-head"><span class="footprint-badge">TR</span><div><h5>TRELLIS.2</h5><div class="footprint-kind">// 3d weights</div></div></div>
+          <div class="footprint-weight"><strong>8.4-25 GB</strong><span>GGUF choice</span></div>
+          <div class="footprint-bar"><span style="--size: 54%;"></span></div>
+          <p class="footprint-note">Smallest practical GGUF set through all quants, including shared support files.</p>
+        </div>
         <p>TRELLIS.2 is the Blender addon's local 3D module. It turns a source image into a draft 3D asset and supports texture and retexture workflows through the managed TRELLIS.2 GGUF backend.</p>
         <p>The module combines Microsoft's TRELLIS.2 source, a NymphsCore local HTTP adapter, GGUF model loading through <code>ComfyUI-Trellis2-GGUF</code>, and module-owned scripts for install, start, stop, status, logs, model fetch, smoke test, and uninstall.</p>
         <p>Install prepares the runtime under <code>~/TRELLIS.2</code>. <span class="wiki-action-text">Fetch Models</span> downloads the selected <code>Aero-Ex/Trellis2-GGUF</code> quant bundle, shared support files, the required <code>microsoft/TRELLIS.2-4B</code> support checkpoint, and the <code>rembg u2net</code> background-removal model.</p>
@@ -1606,6 +1751,12 @@
       <div class="wiki-entry" id="wiki-brain">
         <h3 class="wiki-section-marker">// MODULES</h3>
         <h4>Nymphs Brain</h4>
+        <div class="footprint-card module-footprint-card is-cool" aria-label="Nymphs Brain model footprint">
+          <div class="footprint-card-head"><span class="footprint-badge">BR</span><div><h5>Nymphs Brain</h5><div class="footprint-kind">// llm weights</div></div></div>
+          <div class="footprint-weight"><strong>varies</strong><span>chosen model</span></div>
+          <div class="footprint-bar"><span style="--size: 62%;"></span></div>
+          <p class="footprint-note">The selected local LLM is the main cost; serious local-model use can add tens of GB.</p>
+        </div>
         <p>Nymphs Brain is an optional local assistant and tool-orchestration module. It is not required for the Blender addon baseline, and the installer does not need to download a chat model before the rest of NymphsCore can work.</p>
         <p>The current Brain module uses LM Studio CLI for model download and selection, then serves the selected GGUF through a CUDA-enabled <code>llama-server</code> on port <code>8000</code>. Brain also installs Open WebUI, an MCP gateway, the <code>mcpo</code> OpenAPI bridge, and tool bridges for filesystem, memory, web-forager, context7, optional remote LLM wrapper workflows, and future Blender-side flows over the in-progress MCP layer.</p>
         <ul>
@@ -1665,6 +1816,12 @@
       <div class="wiki-entry" id="wiki-worbi">
         <h3 class="wiki-section-marker">// MODULES</h3>
         <h4>WORBI</h4>
+        <div class="footprint-card module-footprint-card is-good" aria-label="WORBI model footprint">
+          <div class="footprint-card-head"><span class="footprint-badge">WB</span><div><h5>WORBI</h5><div class="footprint-kind">// archive</div></div></div>
+          <div class="footprint-weight"><strong>0 GB</strong><span>required weights</span></div>
+          <div class="footprint-bar"><span style="--size: 2%;"></span></div>
+          <p class="footprint-note">No required model weights. Worlds, notes, exports, and logs grow separately.</p>
+        </div>
         <p>WORBI is an optional local-first worldbuilding workspace. It is packaged as a Nymph module so writers, solo creators, and game teams can keep lore, characters, locations, timelines, notes, and project planning inside the managed local system.</p>
         <p>WORBI runs as a browser-based local app from the managed WSL runtime, normally on port <code>8082</code>. The Manager handles install, start, open, stop, status, logs, and data-folder access, while WORBI itself owns the deeper worldbuilding UI in the browser.</p>
         <p>Normal uninstall keeps WORBI project data, config, and logs unless the separate data-delete path is used.</p>
@@ -1673,6 +1830,12 @@
       <div class="wiki-entry" id="wiki-lora">
         <h3 class="wiki-section-marker">// MODULES</h3>
         <h4>LoRA</h4>
+        <div class="footprint-card module-footprint-card is-warn" aria-label="LoRA training asset footprint">
+          <div class="footprint-card-head"><span class="footprint-badge">LO</span><div><h5>LoRA</h5><div class="footprint-kind">// training assets</div></div></div>
+          <div class="footprint-weight"><strong>31.5 GB</strong><span>before datasets</span></div>
+          <div class="footprint-bar"><span style="--size: 68%;"></span></div>
+          <p class="footprint-note">Training assets are Z-Image Turbo plus the adapter. Datasets and outputs grow separately.</p>
+        </div>
         <p>LoRA is the optional Z-Image Turbo training module. It trains small <code>.safetensors</code> files for a character, outfit, object, style, or subject, then those files can be used in Z-Image generation without replacing the base model.</p>
         <p>The module installs under <code>~/LoRA</code>. It manages an isolated AI Toolkit sidecar, the <code>Easy LoRA</code> Manager UI, the advanced AI Toolkit UI, queue support, datasets, jobs, logs, model assets, training adapters, and finished LoRA outputs.</p>
         <div class="wiki-callout">
