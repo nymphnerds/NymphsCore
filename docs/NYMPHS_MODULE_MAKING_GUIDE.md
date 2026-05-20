@@ -1780,6 +1780,11 @@ Training asset downloads are still long downloads. Declare them through
 `manager_actions` with `show_output`, because that streams raw progress into the
 details card.
 
+Action groups may be submit-only. A fieldless `ui.manager_action_groups` entry
+is valid and the Manager must render its submit button. Modules may also expose
+the same long fetch as a plain `manager_actions` fallback only when its
+`result` is `show_logs`; never use `show_output` for long fetches.
+
 ## Action Entrypoints
 
 Common lifecycle actions:

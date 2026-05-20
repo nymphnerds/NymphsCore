@@ -2572,6 +2572,21 @@
                                          FontSize="11.5" />
                             </Button>
                           </StackPanel>
+                          <StackPanel Orientation="Horizontal"
+                                      Margin="24,0,0,6"
+                                      VerticalAlignment="Center"
+                                      Visibility="{Binding HasNoFields, Converter={StaticResource BoolToVisibilityConverter}}">
+                            <Button Style="{StaticResource ModuleActionButtonStyle}"
+                                    MinWidth="118"
+                                    Padding="10,4"
+                                    Command="{Binding DataContext.RunModuleActionGroupCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                    CommandParameter="{Binding}">
+                              <TextBlock Text="{Binding SubmitLabel, StringFormat=// {0}}"
+                                         Foreground="#23E7DB"
+                                         FontFamily="Cascadia Mono"
+                                         FontSize="11.5" />
+                            </Button>
+                          </StackPanel>
                         </StackPanel>
                       </StackPanel>
                     </DataTemplate>

@@ -72,6 +72,8 @@ public sealed class NymphModuleActionGroupInfo : ViewModelBase
 
     public bool HasFields => Fields.Count > 0;
 
+    public bool HasNoFields => Fields.Count == 0;
+
     public bool HasSecretFields => Fields.Any(field => field.IsSecret);
 
     public bool HasOptionFields => OptionFields.Count > 0;
