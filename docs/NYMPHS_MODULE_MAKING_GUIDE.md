@@ -244,6 +244,31 @@ This keeps failed installs retryable. A user should be able to press Install or
 Repair again after an interrupted dependency install without manually deleting a
 half-created venv.
 
+### Shared Runtime Venvs
+
+If two modules intentionally share a heavyweight runtime venv, both installers
+must be able to create and repair that same venv. Do not make one module a
+hidden prerequisite for the other just because they share CUDA/native packages.
+
+Current standard example:
+
+```text
+$HOME/TRELLIS.2/.venv
+```
+
+`TRELLIS.2` and `Pixal3D` both use that shared runtime. Installing either module
+first must leave the venv usable by both modules. TRELLIS model weights are not
+part of Pixal3D readiness and must not be required for Pixal3D install, Gradio,
+API start, or smoke testing.
+
+Keep the user flow simple:
+
+- `Install` or `Repair` on the module the user is looking at should prepare its
+  required runtime.
+- Do not add Manager-side special cases just to explain a missing shared venv.
+- The module status may mention the shared venv path, but the next action should
+  be a normal `Install` or `Repair` on the current module.
+
 ## Required Pieces
 
 A Nymph module normally has three public pieces:
@@ -1167,6 +1192,7 @@ The installed TRELLIS manifest declares:
 - source links for the official TRELLIS project, GGUF models, support
   checkpoint, and rembg u2net
 - simple module actions for `Smoke Test`, `Start`, `Stop`, and `Logs`
+- a shared runtime venv at `$HOME/TRELLIS.2/.venv` that is also Pixal3D-ready
 
 Its details guide must say that Fetch Models downloads:
 
@@ -1179,6 +1205,21 @@ rembg u2net background-removal model
 
 Do not describe `Q4_K_M` as the whole download. It is the smallest selected
 quant bundle, but the fetch still needs shared files and support models.
+
+## Pixal3D Example
+
+`nymphnerds/Pixal3D` shares the TRELLIS.2 native CUDA runtime venv but owns its
+own source, Gradio UI, API wrapper, model fetch, outputs, logs, and license
+terms.
+
+The Pixal3D install contract is:
+
+- `Install` creates or reuses `$HOME/TRELLIS.2/.venv`
+- TRELLIS model weights are not required for Pixal3D
+- Pixal3D model files are fetched separately into shared `NymphsData` caches
+- if the shared venv is missing or incomplete, `Repair` on Pixal3D rebuilds it
+- the Manager should not send the user to a different module page to fix the
+  basic Pixal3D runtime
 
 The Z-Image Fetch Models action currently offers all published compatible
 weights: INT4 r32/r128/r256 and FP4 r32/r128. `All weights` is available so the

@@ -8,6 +8,25 @@ This file focuses on user-facing and system-level changes rather than package-by
 
 Newest entries first.
 
+### 2026-05-20 Shared TRELLIS.2/Pixal3D runtime install standard
+Source: live Pixal3D install and Gradio testing.
+
+Changed in source:
+
+- documented the shared runtime venv standard for modules that intentionally
+  share heavyweight CUDA/native dependencies
+- clarified that Pixal3D and TRELLIS.2 both own creating/repairing
+  `$HOME/TRELLIS.2/.venv`
+- removed the need for Manager-side special-case guidance when Pixal3D needs
+  its shared runtime repaired
+
+Related module/registry updates:
+
+- Pixal3D `0.1.12`: Install creates or repairs the shared TRELLIS.2/Pixal3D
+  runtime venv and no longer exposes a runtime-choice install dropdown
+- TRELLIS.2 `0.1.24`: Install also provisions Pixal3D-compatible shared runtime
+  dependencies
+
 ### 2026-05-20 Manager 0.9.21 Pixal3D prerequisite clarity
 Source: live Pixal3D Gradio prerequisite testing.
 
