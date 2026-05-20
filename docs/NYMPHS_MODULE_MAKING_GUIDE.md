@@ -972,19 +972,25 @@ Wrap the blocking download call with a lightweight status reporter. Print one
 `MODEL FETCH STATUS` line immediately after `STARTED`, then print again every
 5-10 seconds with whatever the module can know.
 
-The primary progress line must be readable as a sentence at a glance. Do not
-make users decode raw telemetry such as long cache paths, unformatted byte
-counts, or dense `key=value` strings in the Manager details pane. If structured
-telemetry is useful for debugging, put it after the human-readable summary or in
-the module log file. Prefer formatted units and a small number of meaningful
-signals:
+The Manager details pane uses the latest standard progress keys to show a
+compact fetch status. Keep this shape consistent across modules:
 
 ```text
-MODEL FETCH STATUS: step 1/4 downloading TencentARC/Pixal3D - 1.20 GiB cached, +120.00 MiB this step, 2 active download files.
+Model download: downloading
+This repo cache: 2.14 GiB
+Active downloads: 5
 ```
 
-This keeps the Manager details pane useful even when the underlying downloader
-does not stream percentage progress.
+To get that output, every large model fetch should emit a `MODEL FETCH STATUS`
+line with formatted `this_repo_cache` and `active_download_files` values:
+
+```text
+MODEL FETCH STATUS: step=1/2 repo=example/model status=downloading this_repo_cache=2.14 GiB active_download_files=5
+```
+
+Optional keys such as `downloaded_this_step` and `recent_activity` may be logged
+for debugging, but keep the visible Manager progress small and consistent. Do
+not print long cache paths or dense telemetry as the primary progress signal.
 
 Large remote fetches must tolerate transient network breaks. Hugging Face and
 other model hosts may throw partial-read or connection-reset errors after
