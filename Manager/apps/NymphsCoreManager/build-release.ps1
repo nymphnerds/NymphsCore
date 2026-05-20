@@ -18,6 +18,66 @@ $projectPath = Join-Path $scriptRoot "NymphsCoreManager.csproj"
 $binRoot = Join-Path $scriptRoot "bin\Release"
 $objRoot = Join-Path $scriptRoot "obj\Release"
 
+function Convert-WslUncPath {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string] $Path
+    )
+
+    $normalized = $Path.TrimEnd("\")
+    if ($normalized -notmatch '^\\\\wsl(?:\.localhost)?\\([^\\]+)\\(.+)$') {
+        return $null
+    }
+
+    return [pscustomobject]@{
+        Distro = $Matches[1]
+        LinuxPath = "/" + ($Matches[2] -replace '\\', '/')
+    }
+}
+
+function Restore-WslExecutableBits {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string] $PublishRootPath
+    )
+
+    $wslPath = Convert-WslUncPath -Path $PublishRootPath
+    if ($null -eq $wslPath) {
+        return
+    }
+
+    $escapedPublishRoot = "'" + ($wslPath.LinuxPath -replace "'", "'\''") + "'"
+    $chmodCommand = "set -e; chmod +x -- $escapedPublishRoot/NymphsCoreManager.exe; if [ -d $escapedPublishRoot/scripts ]; then chmod +x -- $escapedPublishRoot/scripts/*.sh; fi"
+    & wsl.exe -d $wslPath.Distro -- bash -lc $chmodCommand
+    if ($LASTEXITCODE -ne 0) {
+        throw "Failed to restore executable bits in WSL publish output."
+    }
+}
+
+function Remove-BuildPath {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string] $Path
+    )
+
+    if (-not (Test-Path $Path)) {
+        return
+    }
+
+    $wslPath = Convert-WslUncPath -Path $Path
+    if ($null -ne $wslPath) {
+        $escapedPath = "'" + ($wslPath.LinuxPath -replace "'", "'\''") + "'"
+        & wsl.exe -d $wslPath.Distro -- bash -lc "rm -rf -- $escapedPath"
+        if ($LASTEXITCODE -ne 0) {
+            throw "Failed to remove WSL build path: $Path"
+        }
+
+        return
+    }
+
+    Remove-Item -Path $Path -Recurse -Force
+}
+
 Write-Host "Publishing NymphsCore Manager for $Runtime..."
 
 # Build the project
@@ -26,15 +86,9 @@ if (-not (Test-Path $projectPath)) {
 }
 
 # Force a clean rebuild so linked WPF resources like sidebar logos always refresh.
-if (Test-Path $publishRoot) {
-    Remove-Item -Path $publishRoot -Recurse -Force
-}
-if (Test-Path $binRoot) {
-    Remove-Item -Path $binRoot -Recurse -Force
-}
-if (Test-Path $objRoot) {
-    Remove-Item -Path $objRoot -Recurse -Force
-}
+Remove-BuildPath -Path $publishRoot
+Remove-BuildPath -Path $binRoot
+Remove-BuildPath -Path $objRoot
 
 dotnet publish $projectPath -c Release -r $Runtime -o $publishRoot -p:NoIncremental=true
 if ($LASTEXITCODE -ne 0) {
@@ -69,6 +123,8 @@ if (Test-Path $scriptsSource) {
         Remove-Item -Path $legacyPartsWrappers -Recurse -Force
     }
 }
+
+Restore-WslExecutableBits -PublishRootPath $publishRoot
 
 # Create zip
 $zipPath = Join-Path $publishBase ("NymphsCoreManager-" + $Runtime + ".zip")

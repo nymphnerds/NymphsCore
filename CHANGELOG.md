@@ -8,6 +8,16 @@ This file focuses on user-facing and system-level changes rather than package-by
 
 Newest entries first.
 
+### 2026-05-20 Manager 0.9.28 WSL release packaging hygiene
+Source: release build testing from WSL.
+
+Changed in source:
+
+- makes `build-release.ps1` clean WSL UNC publish folders through the target WSL
+  distro when Windows PowerShell cannot remove recreated files cleanly
+- restores executable bits on the published Manager EXE and packaged shell
+  scripts before zipping, avoiding repeated mode-only churn after release builds
+
 ### 2026-05-20 Manager 0.9.27 marker-based startup update checks
 Source: Home card update-state testing and the Nymphs module standard.
 
