@@ -223,6 +223,27 @@ model managers, Gradio apps, AI Toolkit, or 3D/image runtime libraries. A
 module install script may install those dependencies itself, but it should print
 clear progress and fail with the exact package/tool that needs attention.
 
+## Python Venv Install Standard
+
+Any module that creates a Python virtual environment must treat Python and pip
+as one readiness unit. A venv directory, or even `bin/python`, is not enough.
+
+Installer rules:
+
+- Before creating a venv, verify the chosen Python can import both `venv` and
+  `ensurepip`. If apt is available, install the matching `python*-venv` and
+  `python*-pip` packages when that tooling is missing.
+- If a venv already exists but its Python is missing, its pip executable is
+  missing, or `python -m pip --version` fails, remove and recreate that venv.
+- After creating a venv, run `python -m pip --version` before installing
+  dependencies. If pip is still unavailable, fail with a clear repair message.
+- Never write `.nymph-module-version` until the venv, required scripts, and
+  core runtime pieces for that install have all completed successfully.
+
+This keeps failed installs retryable. A user should be able to press Install or
+Repair again after an interrupted dependency install without manually deleting a
+half-created venv.
+
 ## Required Pieces
 
 A Nymph module normally has three public pieces:
