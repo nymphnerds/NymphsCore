@@ -969,12 +969,15 @@
   .footprint-weight strong {
     font-size: 16px;
     color: var(--light);
+    order: 2;
+    text-align: right;
   }
 
   .footprint-weight span {
     color: var(--muted);
     font-size: 12px;
-    text-align: right;
+    order: 1;
+    text-align: left;
   }
 
   .footprint-bar {
@@ -1600,7 +1603,7 @@
         </div>
         <p>GPU and VRAM matter. The Manager can offer lower-load choices such as smaller TRELLIS.2 GGUF quants or lighter Z-Image weights, but the public workflow should be treated as a serious local AI stack, not a lightweight plugin.</p>
         <h4 id="wiki-footprint">Footprint</h4>
-        <p>At a glance, each module card range means <code>install size + lightest weight fetch</code> through <code>install size + all weight fetches</code>. The small label shows the install-only size before model or training-weight fetches. Generated outputs, logs, project data, datasets, and temporary install files grow separately.</p>
+        <p>At a glance, ranges mean <code>install size + lightest weight fetch</code> through <code>install size + all weight fetches</code>. Complete package cards show a single total instead. The small label shows the install-only size before model or training-weight fetches where that split applies. Generated outputs, logs, project data, datasets, and temporary install files grow separately.</p>
         <div class="footprint-card-grid" aria-label="Approximate local footprint by module">
           <div class="footprint-card is-hot">
             <div class="footprint-card-head"><span class="footprint-badge">ZI</span><div><h5>Z-Image Turbo</h5><div class="footprint-kind">// image weights</div></div></div>
@@ -1608,7 +1611,7 @@
           </div>
           <div class="footprint-card is-warn">
             <div class="footprint-card-head"><span class="footprint-badge">LO</span><div><h5>LoRA</h5><div class="footprint-kind">// training</div></div></div>
-            <div class="footprint-weight"><strong>31.5 GB+</strong><span>install only: TBC</span></div>
+            <div class="footprint-weight"><strong>31.5 GB</strong><span>complete package</span></div>
           </div>
           <div class="footprint-card is-warn">
             <div class="footprint-card-head"><span class="footprint-badge">TR</span><div><h5>TRELLIS.2</h5><div class="footprint-kind">// 3d weights</div></div></div>
@@ -1620,7 +1623,7 @@
           </div>
           <div class="footprint-card is-cool">
             <div class="footprint-card-head"><span class="footprint-badge">BR</span><div><h5>Nymphs-Brain</h5><div class="footprint-kind">// llm weights</div></div></div>
-            <div class="footprint-weight"><strong>16 GB+</strong><span>install only: 16 GB</span></div>
+            <div class="footprint-weight"><strong>16 GB + model</strong><span>install only: 16 GB</span></div>
           </div>
           <div class="footprint-card is-good">
             <div class="footprint-card-head"><span class="footprint-badge">WB</span><div><h5>WORBI</h5><div class="footprint-kind">// archive</div></div></div>
@@ -1825,7 +1828,7 @@
         <h4>Nymphs Brain</h4>
         <div class="footprint-card module-footprint-card is-cool" aria-label="Nymphs Brain model footprint">
           <div class="footprint-card-head"><span class="footprint-badge">BR</span><div><h5>Nymphs Brain</h5><div class="footprint-kind">// llm weights</div></div></div>
-          <div class="footprint-weight"><strong>16 GB+</strong><span>install only: 16 GB</span></div>
+          <div class="footprint-weight"><strong>16 GB + model</strong><span>install only: 16 GB</span></div>
         </div>
         <p>The installed Brain runtime is about <code>16 GB</code> locally before a local LLM. The selected local model is the main variable cost and can add several to tens of GB.</p>
         <p>Nymphs Brain is an optional local assistant and tool-orchestration module. It is not required for the Blender addon baseline, and the installer does not need to download a chat model before the rest of NymphsCore can work.</p>
@@ -1903,9 +1906,9 @@
         <h4>LoRA</h4>
         <div class="footprint-card module-footprint-card is-warn" aria-label="LoRA training asset footprint">
           <div class="footprint-card-head"><span class="footprint-badge">LO</span><div><h5>LoRA</h5><div class="footprint-kind">// training</div></div></div>
-          <div class="footprint-weight"><strong>31.5 GB+</strong><span>install only: TBC</span></div>
+          <div class="footprint-weight"><strong>31.5 GB</strong><span>complete package</span></div>
         </div>
-        <p>Training downloads are the Z-Image Turbo training model plus the adapter. The LoRA app/runtime install adds more depending on the local AI Toolkit and Node setup, while datasets and outputs grow separately.</p>
+        <p>LoRA is a complete training package around Z-Image Turbo and the training adapter. Datasets, jobs, logs, and finished LoRA outputs grow separately.</p>
         <p>LoRA is the optional Z-Image Turbo training module. It trains small <code>.safetensors</code> files for a character, outfit, object, style, or subject, then those files can be used in Z-Image generation without replacing the base model.</p>
         <p>The module installs under <code>~/LoRA</code>. It manages an isolated AI Toolkit sidecar, the <code>Easy LoRA</code> Manager UI, the advanced AI Toolkit UI, queue support, datasets, jobs, logs, model assets, training adapters, and finished LoRA outputs.</p>
         <div class="wiki-callout">
