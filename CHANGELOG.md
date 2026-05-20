@@ -8,6 +8,16 @@ This file focuses on user-facing and system-level changes rather than package-by
 
 Newest entries first.
 
+### 2026-05-20 Manager 0.9.29 keyed module URL handling
+Source: Pixal3D Nymphs Ui open-path testing.
+
+Changed in source:
+
+- prefers explicit `module_ui_url=`, `url=`, `frontend_url=`, `backend_url=`,
+  or `api_url=` action output before falling back to the first bare URL in logs
+- prevents progress text containing a base service URL from overriding a
+  module-owned UI action's intended route
+
 ### 2026-05-20 Manager 0.9.28 WSL release packaging hygiene
 Source: release build testing from WSL.
 

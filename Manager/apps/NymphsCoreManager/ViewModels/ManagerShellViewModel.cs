@@ -5317,8 +5317,8 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         bool forceExternalBrowser = false,
         bool quietWhenMissing = false)
     {
-        var match = Regex.Match(output, @"https?://[^\s]+", RegexOptions.IgnoreCase);
-        if (!match.Success)
+        var url = ExtractPreferredUrlFromOutput(output);
+        if (string.IsNullOrWhiteSpace(url))
         {
             if (!quietWhenMissing)
             {
@@ -5331,7 +5331,6 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             return false;
         }
 
-        var url = match.Value.TrimEnd('.', ',', ';');
         try
         {
             if (module.HasInstalledModuleUi && !forceExternalBrowser)
@@ -5368,6 +5367,29 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                 ex.Message);
             return false;
         }
+    }
+
+    private static string ExtractPreferredUrlFromOutput(string output)
+    {
+        foreach (var key in new[] { "module_ui_url", "url", "frontend_url", "backend_url", "api_url" })
+        {
+            var keyMatch = Regex.Match(
+                output,
+                $@"(?im)^\s*{Regex.Escape(key)}\s*=\s*(https?://\S+)\s*$",
+                RegexOptions.IgnoreCase);
+            if (keyMatch.Success)
+            {
+                return CleanUrl(keyMatch.Groups[1].Value);
+            }
+        }
+
+        var match = Regex.Match(output, @"https?://[^\s]+", RegexOptions.IgnoreCase);
+        return match.Success ? CleanUrl(match.Value) : string.Empty;
+    }
+
+    private static string CleanUrl(string url)
+    {
+        return url.Trim().TrimEnd('.', ',', ';');
     }
 
     private bool OpenFirstDirectoryFromOutput(NymphModuleViewModel module, string actionLabel, string output)
