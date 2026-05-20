@@ -1987,17 +1987,6 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         {
             secondaryParts.Add("Models: download needed");
         }
-        else if (string.Equals(module.Id, "pixal3d", StringComparison.OrdinalIgnoreCase) &&
-                 string.Equals(snapshot.Get("trellis_runtime_ready"), "false", StringComparison.OrdinalIgnoreCase))
-        {
-            secondaryParts.Add("Needs: TRELLIS.2 runtime");
-            secondaryParts.Add("TRELLIS weights: not required");
-            var nextStep = snapshot.Get("next_step");
-            if (!string.IsNullOrWhiteSpace(nextStep))
-            {
-                secondaryParts.Add(nextStep);
-            }
-        }
         else if (repairNeeded)
         {
             secondaryParts.Add("Install: repair needed");
@@ -2052,9 +2041,6 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             ? BuildLoraModuleDetail(snapshot, trainingAssetsNeeded, repairNeeded)
             : isBrainModule && snapshot.IsInstalled
             ? "Live Brain status"
-            : string.Equals(module.Id, "pixal3d", StringComparison.OrdinalIgnoreCase) &&
-              string.Equals(snapshot.Get("trellis_runtime_ready"), "false", StringComparison.OrdinalIgnoreCase)
-            ? BuildPixal3DPrerequisiteDetail(snapshot)
             : snapshot.Detail;
 
         module.ApplyState(
@@ -2255,27 +2241,6 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         }
 
         return snapshot.Detail;
-    }
-
-    private static string BuildPixal3DPrerequisiteDetail(NymphStatusSnapshot snapshot)
-    {
-        var title = snapshot.Get("prerequisite_title");
-        var detail = snapshot.Get("prerequisite_detail");
-        var nextStep = snapshot.Get("next_step");
-        var lines = new List<string>();
-
-        lines.Add(string.IsNullOrWhiteSpace(title) ? "Install TRELLIS.2 runtime first." : title.Trim());
-        if (!string.IsNullOrWhiteSpace(detail))
-        {
-            lines.Add(detail.Trim());
-        }
-
-        if (!string.IsNullOrWhiteSpace(nextStep))
-        {
-            lines.Add(nextStep.Trim());
-        }
-
-        return string.Join(Environment.NewLine + Environment.NewLine, lines);
     }
 
     private static void AddLoraModuleStatusDetails(
@@ -5729,6 +5694,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             _modulesWithActiveLifecycle.Remove(targetId);
             try
             {
+                await RefreshModuleRosterAsync().ConfigureAwait(true);
                 await RefreshModuleStateAsync().ConfigureAwait(true);
             }
             catch (Exception refreshException)
@@ -5761,6 +5727,12 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             if (ownsBusyState)
             {
                 IsBusy = false;
+                RefreshDisplayedModuleActionState();
+                _installModuleCommand.RaiseCanExecuteChanged();
+                _repairModuleCommand.RaiseCanExecuteChanged();
+                _updateModuleCommand.RaiseCanExecuteChanged();
+                _uninstallModuleCommand.RaiseCanExecuteChanged();
+                _deleteModuleCommand.RaiseCanExecuteChanged();
             }
             else
             {

@@ -8,6 +8,20 @@ This file focuses on user-facing and system-level changes rather than package-by
 
 Newest entries first.
 
+### 2026-05-20 Manager 0.9.22 module uninstall refresh
+Source: live Pixal3D uninstall testing with retained model/cache data.
+
+Changed in source:
+
+- made module uninstall refresh the registry roster and live module state after
+  the uninstall completes, so the current details page immediately switches back
+  to install/repair-ready controls
+- refreshed module command state after uninstall busy state clears
+- changed the details header label from `installed` to `local` so an uninstalled
+  module reads as `local Not installed` instead of `installed Not installed`
+- removed the old Pixal3D-specific TRELLIS runtime helper rendering from the
+  Manager details page; Pixal3D install now owns creating its shared runtime
+
 ### 2026-05-20 Shared TRELLIS.2/Pixal3D runtime install standard
 Source: live Pixal3D install and Gradio testing.
 

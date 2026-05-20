@@ -2114,7 +2114,7 @@
                     <Run Text="{Binding DisplayedModule.Category, Mode=OneWay}" />
                     <Run Text=" | " />
                     <Run Text="{Binding DisplayedModule.Packaging, Mode=OneWay}" />
-                    <Run Text=" | installed " />
+                    <Run Text=" | local " />
                     <Run Text="{Binding DisplayedModule.VersionLabel, Mode=OneWay}" />
                     <Run Text=" | remote " />
                     <Run Text="{Binding DisplayedModule.RemoteVersionLabel, Mode=OneWay}" />

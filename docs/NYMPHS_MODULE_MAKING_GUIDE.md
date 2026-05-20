@@ -452,6 +452,11 @@ outputs, jobs, logs, config, and other module-owned data when a module reports
 `data_present=true`. It should remain available after uninstall when preserved
 data remains.
 
+After any normal uninstall, the Manager must refresh the registry roster,
+presence scan, displayed details page, and command state immediately. A user
+must not have to leave the module page and return before `Install`, `Repair`,
+`Directory`, `Uninstall`, or `Delete Data` reflect the post-uninstall state.
+
 Do not use `Delete Data` to blindly remove shared model/cache folders. If model
 files live in a shared cache such as `$HOME/NymphsData/cache/huggingface`, keep
 that cache preserved and expose module-specific model cleanup through a
