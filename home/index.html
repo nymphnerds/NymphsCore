@@ -836,7 +836,7 @@
     width: min(100%, 760px);
     max-width: 760px;
     margin: 14px 0 22px;
-    padding: 12px 14px;
+    padding: 14px 18px;
     border: 1px solid rgba(255,138,42,0.48);
     border-radius: 8px;
     background:
@@ -848,7 +848,13 @@
     line-height: 1.45;
   }
 
+  .wiki-warning-strip-text {
+    display: block;
+    margin-top: 4px;
+  }
+
   .wiki-entry .wiki-warning-strip strong {
+    display: block;
     color: var(--orange);
     font-weight: 500;
   }
@@ -1638,7 +1644,7 @@
             <figcaption>Then choose <code>Run anyway</code>.</figcaption>
           </figure>
         </div>
-        <p class="wiki-warning-strip"><strong>Do not run from the zip.</strong><br>Extract the Manager folder first, then run the app from the extracted folder. Windows can block bundled scripts inside the archive.</p>
+        <div class="wiki-warning-strip"><strong>Do not run from the zip.</strong><span class="wiki-warning-strip-text">Extract the Manager folder first, then run the app from the extracted folder. Windows can block bundled scripts inside the archive.</span></div>
         <h4 id="wiki-manager-layout">Manager layout</h4>
         <figure class="wiki-figure">
           <video controls muted playsinline preload="metadata" aria-label="NymphsCore Manager layout overview">
