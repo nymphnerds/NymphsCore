@@ -1600,8 +1600,8 @@
         </div>
         <p>GPU and VRAM matter. The Manager can offer lower-load choices such as smaller TRELLIS.2 GGUF quants or lighter Z-Image weights, but the public workflow should be treated as a serious local AI stack, not a lightweight plugin.</p>
         <h4 id="wiki-footprint">Footprint</h4>
-        <p>At a glance, this is the model/weight footprint by module.</p>
-        <div class="footprint-card-grid" aria-label="Approximate model and weight footprint by module">
+        <p>At a glance, this is the approximate local footprint by module or runtime. Generated outputs, logs, project data, and temporary install files grow separately.</p>
+        <div class="footprint-card-grid" aria-label="Approximate local footprint by module">
           <div class="footprint-card is-hot">
             <div class="footprint-card-head"><span class="footprint-badge">ZI</span><div><h5>Z-Image Turbo</h5><div class="footprint-kind">// image weights</div></div></div>
             <div class="footprint-weight"><strong>31-46 GB</strong><span>weights</span></div>
@@ -1616,7 +1616,7 @@
           </div>
           <div class="footprint-card is-warn">
             <div class="footprint-card-head"><span class="footprint-badge">PX</span><div><h5>Pixal3D</h5><div class="footprint-kind">// 3d weights</div></div></div>
-            <div class="footprint-weight"><strong>24 GB+</strong><span>plus aux</span></div>
+            <div class="footprint-weight"><strong>5.4-30 GB</strong><span>profile choice</span></div>
           </div>
           <div class="footprint-card is-cool">
             <div class="footprint-card-head"><span class="footprint-badge">BR</span><div><h5>Nymphs-Brain</h5><div class="footprint-kind">// llm weights</div></div></div>
@@ -1624,14 +1624,14 @@
           </div>
           <div class="footprint-card is-good">
             <div class="footprint-card-head"><span class="footprint-badge">WB</span><div><h5>WORBI</h5><div class="footprint-kind">// archive</div></div></div>
-            <div class="footprint-weight"><strong>0 GB</strong><span>required weights</span></div>
+            <div class="footprint-weight"><strong>34-235 MB</strong><span>app/archive</span></div>
           </div>
           <div class="footprint-card is-good">
             <div class="footprint-card-head"><span class="footprint-badge">RT</span><div><h5>Base Runtime</h5><div class="footprint-kind">// runtime</div></div></div>
-            <div class="footprint-weight"><strong>0 GB</strong><span>model weights</span></div>
+            <div class="footprint-weight"><strong>about 92 GB</strong><span>ready runtime</span></div>
           </div>
         </div>
-        <p>These cards show model or training-asset downloads only. Runtime code, Python environments, generated outputs, logs, datasets, and temporary install files add on top. The Blender addon baseline normally means Base Runtime plus <code>Z-Image Turbo</code> and <code>TRELLIS.2</code>; model prefetch for that workflow is about <code>72 GB</code> of model/helper downloads. <code>Pixal3D</code> is an additional 3D backend with its own checkpoint and auxiliary-model downloads.</p>
+        <p>The ready-to-run Base Runtime number includes the managed runtime stack. The Blender addon baseline normally means Base Runtime plus <code>Z-Image Turbo</code> and <code>TRELLIS.2</code>; model prefetch for that workflow is about <code>72 GB</code> of model/helper downloads. <code>Pixal3D</code> is an additional 3D backend with normal safetensors profiles and experimental GGUF quantized weight profiles.</p>
         <h4 id="wiki-manager-install">Install Manager</h4>
         <ul>
           <li>Download <code>NymphsCoreManager-win-x64.zip</code>.</li>
@@ -1793,12 +1793,12 @@
         <h4>Pixal3D</h4>
         <div class="footprint-card module-footprint-card is-warn" aria-label="Pixal3D model footprint">
           <div class="footprint-card-head"><span class="footprint-badge">PX</span><div><h5>Pixal3D</h5><div class="footprint-kind">// 3d weights</div></div></div>
-          <div class="footprint-weight"><strong>24 GB+</strong><span>plus auxiliary models</span></div>
+          <div class="footprint-weight"><strong>5.4-30 GB</strong><span>profile choice</span></div>
         </div>
-        <p>Main Pixal3D checkpoints are about 24 GB before DINOv3, MoGe, RMBG, NAF, caches, outputs, and logs.</p>
-        <p>Pixal3D is a separate local image-to-textured-3D backend. It shares TRELLIS.2 lineage, but it is not the TRELLIS.2 GGUF runtime and should not be treated as another GGUF quant choice.</p>
-        <p>Install prepares a dedicated runtime under <code>~/Pixal3D</code>, with its own Python environment, model fetch path, logs, outputs, and API service. The planned service uses port <code>8096</code> and exposes a Pixal3D-compatible image-to-3D generation path for the Blender shape workflow.</p>
-        <p><span class="wiki-action-text">Fetch Models</span> downloads <code>TencentARC/Pixal3D</code> checkpoints plus auxiliary camera, background-removal, and projection models. The first recommended profile is low-VRAM <code>1024</code>; standard <code>1536</code> mode is heavier and should be treated as unvalidated until tested on the target machine.</p>
+        <p>Pixal3D generates textured 3D assets from a single image. It is a separate 3D backend with its own runtime, model fetch options, Blender API service, and local Gradio view.</p>
+        <p>Install sets up the Pixal3D runtime. <span class="wiki-action-text">Fetch Models</span> downloads the model assets into shared <code>NymphsData</code> caches. The normal safetensors profiles are about <code>30 GB</code> including Pixal3D checkpoints and auxiliary model repos; the GGUF profiles download community quantized Pixal3D weights for adapter testing.</p>
+        <p>Use <code>Low VRAM 1024</code> as the first test profile. <code>Standard 1536</code> is heavier. The quantized options are about <code>5.4 GB</code> for <code>GGUF Q5_K_M</code>, <code>6.1 GB</code> for <code>GGUF Q6_K</code>, and <code>7.4 GB</code> for <code>GGUF Q8_0</code>; current generation still uses safetensors until Pixal3D's GGUF loader bridge is implemented.</p>
+        <p><span class="wiki-action-text">Start API</span> starts the Blender-facing service on port <code>8096</code>. <span class="wiki-action-text">Open Gradio</span> launches the local Pixal3D Gradio app on port <code>8097</code>.</p>
         <div class="wiki-callout is-warn">
           <div class="wiki-callout-title">
             <span>License And Access</span>
@@ -1807,19 +1807,14 @@
           <div class="wiki-callout-grid">
             <div class="wiki-callout-row"><span class="wiki-callout-warn">Pixal3D</span><span>The upstream license is academic-only, not for commercial or production use, and says it is not intended for use within the European Union.</span></div>
             <div class="wiki-callout-row"><span class="wiki-callout-label">RMBG</span><span>The official pipeline uses <code>briaai/RMBG-2.0</code>, which is gated on Hugging Face and requires accepting BRIA's access form with the same account as the token.</span></div>
-            <div class="wiki-callout-row"><span class="wiki-callout-label">Fetch</span><span>The module should require an explicit acknowledgement before downloading gated or non-commercial Pixal3D/RMBG assets.</span></div>
+            <div class="wiki-callout-row"><span class="wiki-callout-label">Fetch</span><span>The Manager asks for acknowledgement before downloading gated or non-commercial Pixal3D/RMBG assets.</span></div>
           </div>
         </div>
-        <ul>
-          <li><code>~/Pixal3D</code> is the install root and should contain the module manifest, scripts, source, venv, and version marker.</li>
-          <li><code>~/NymphsData/outputs/pixal3d</code>, <code>~/NymphsData/logs/pixal3d</code>, and <code>~/NymphsData/config/pixal3d</code> hold generated assets, logs, and profile state.</li>
-          <li>Pixal3D v1 supports shape plus texture generation, but selected-mesh retexture should stay on TRELLIS.2 until Pixal3D retexture is implemented and tested.</li>
-          <li>Pixal3D should hard-require the tested CUDA/flash-attn path rather than silently falling back to a slower or unvalidated attention backend.</li>
-        </ul>
         <h4>Source links</h4>
         <ul class="wiki-link-list">
           <li><a href="https://github.com/TencentARC/Pixal3D">Official Pixal3D repo</a></li>
           <li><a href="https://huggingface.co/TencentARC/Pixal3D">Pixal3D model</a></li>
+          <li><a href="https://huggingface.co/Aero-Ex/Pixal3D-GGUF">Pixal3D GGUF weights</a></li>
           <li><a href="https://huggingface.co/briaai/RMBG-2.0">BRIA RMBG-2.0 access form</a></li>
         </ul>
       </div>
@@ -1893,11 +1888,12 @@
         <h4>WORBI</h4>
         <div class="footprint-card module-footprint-card is-good" aria-label="WORBI model footprint">
           <div class="footprint-card-head"><span class="footprint-badge">WB</span><div><h5>WORBI</h5><div class="footprint-kind">// archive</div></div></div>
-          <div class="footprint-weight"><strong>0 GB</strong><span>required weights</span></div>
+          <div class="footprint-weight"><strong>34-235 MB</strong><span>app/archive</span></div>
         </div>
-        <p>No required model weights. Worlds, notes, exports, and logs grow separately.</p>
+        <p>WORBI has no required model weights, but the installed app/archive is still MB-scale. Worlds, notes, exports, and logs grow separately.</p>
         <p>WORBI is an optional local-first worldbuilding workspace. It is packaged as a Nymph module so writers, solo creators, and game teams can keep lore, characters, locations, timelines, notes, and project planning inside the managed local system.</p>
-        <p>WORBI runs as a browser-based local app from the managed WSL runtime, normally on port <code>8082</code>. The Manager handles install, start, open, stop, status, logs, and data-folder access, while WORBI itself owns the deeper worldbuilding UI in the browser.</p>
+        <p>WORBI runs as a browser-based local app from the managed WSL runtime, normally on port <code>8082</code>. It can work with the Nymphs Brain local AI stack when Brain is installed, while still keeping the worldbuilding workspace local-first.</p>
+        <p>The Manager handles install, start, open, stop, status, logs, and data-folder access, while WORBI itself owns the deeper worldbuilding UI in the browser.</p>
         <p>Normal uninstall keeps WORBI project data, config, and logs unless the separate data-delete path is used.</p>
       </div>
 
