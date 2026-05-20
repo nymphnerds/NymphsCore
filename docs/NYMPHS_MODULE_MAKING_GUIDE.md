@@ -986,6 +986,15 @@ MODEL FETCH STATUS: step 1/4 downloading TencentARC/Pixal3D - 1.20 GiB cached, +
 This keeps the Manager details pane useful even when the underlying downloader
 does not stream percentage progress.
 
+Large remote fetches must tolerate transient network breaks. Hugging Face and
+other model hosts may throw partial-read or connection-reset errors after
+several GiB. Wrap downloader calls with bounded retries, reuse the existing
+cache, and print a readable retry line before sleeping:
+
+```text
+MODEL FETCH STATUS: step 1/4 TencentARC/Pixal3D download was interrupted. Retrying attempt 2/3 using the existing cache.
+```
+
 Model fetch actions must be single-flight. Use a module-owned lock file under
 the module config/log root so repeated button clicks cannot start parallel
 downloads for the same cache. If a fetch is already running, print a concise
@@ -1623,6 +1632,22 @@ last_log=/home/nymph/NymphsData/logs/example/current.log
 marker=/home/nymph/example/.nymph-module-version
 detail=Example module is installed.
 ```
+
+Modules that offer multiple model or weight choices must also report a generic
+weight-profile summary. These keys let the Manager show what is already
+downloaded without knowing module-specific filenames or cache layouts:
+
+```text
+weight_profile_selected=Q5_K_M
+weight_profiles_available=Q4_K_M,Q5_K_M,Q6_K,Q8_0
+weight_profiles_downloaded=Q5_K_M
+weight_profiles_missing=Q4_K_M,Q6_K,Q8_0
+weight_profile_ready=true
+```
+
+Use comma-separated values with no spaces. Use `none` when no profile in a list
+is present. Keep this a cheap cache/symlink check; do not call remote APIs or
+load model libraries from normal `status`.
 
 For a missing install marker:
 

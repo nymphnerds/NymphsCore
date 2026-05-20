@@ -2038,6 +2038,10 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         {
             AddBrainModuleStatusDetails(secondaryParts, snapshot);
         }
+        else
+        {
+            AddWeightProfileStatusDetails(secondaryParts, snapshot);
+        }
 
         var detail = isLoraModule
             ? BuildLoraModuleDetail(snapshot, trainingAssetsNeeded, repairNeeded)
@@ -2148,6 +2152,10 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         AddStatusValue(parts, "runtime_present", snapshot.Get("runtime_present"));
         AddStatusValue(parts, "env_ready", snapshot.Get("env_ready"));
         AddStatusValue(parts, "models_ready", snapshot.Get("models_ready"));
+        AddStatusValue(parts, "weight_profile_selected", snapshot.Get("weight_profile_selected"));
+        AddStatusValue(parts, "weight_profiles_downloaded", snapshot.Get("weight_profiles_downloaded"));
+        AddStatusValue(parts, "weight_profiles_missing", snapshot.Get("weight_profiles_missing"));
+        AddStatusValue(parts, "weight_profile_ready", snapshot.Get("weight_profile_ready"));
         AddStatusValue(parts, "assets_ready", snapshot.Get("assets_ready"));
         AddStatusValue(parts, "asset_marker_ready", snapshot.Get("asset_marker_ready"));
         AddStatusValue(parts, "training_assets_present", snapshot.Get("training_assets_present"));
@@ -2358,6 +2366,70 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         {
             parts.Add($"{key}={value.Trim()}");
         }
+    }
+
+    private static void AddWeightProfileStatusDetails(List<string> parts, NymphStatusSnapshot snapshot)
+    {
+        var selected = NormalizeStatusListValue(snapshot.Get("weight_profile_selected"));
+        var downloaded = NormalizeStatusListValue(snapshot.Get("weight_profiles_downloaded"));
+        var missing = NormalizeStatusListValue(snapshot.Get("weight_profiles_missing"));
+        var available = NormalizeStatusListValue(snapshot.Get("weight_profiles_available"));
+        var ready = snapshot.Get("weight_profile_ready");
+
+        if (string.IsNullOrWhiteSpace(selected) &&
+            string.IsNullOrWhiteSpace(downloaded) &&
+            string.IsNullOrWhiteSpace(missing) &&
+            string.IsNullOrWhiteSpace(available))
+        {
+            return;
+        }
+
+        if (!string.IsNullOrWhiteSpace(selected))
+        {
+            var readySuffix = string.Equals(ready, "true", StringComparison.OrdinalIgnoreCase)
+                ? " ready"
+                : string.Equals(ready, "false", StringComparison.OrdinalIgnoreCase)
+                    ? " missing"
+                    : "";
+            parts.Add($"Selected weights: {FormatStatusList(selected)}{readySuffix}");
+        }
+
+        if (!string.IsNullOrWhiteSpace(downloaded))
+        {
+            parts.Add($"Downloaded weights: {FormatStatusList(downloaded)}");
+        }
+        else if (!string.IsNullOrWhiteSpace(available))
+        {
+            parts.Add("Downloaded weights: none");
+        }
+
+        if (!string.IsNullOrWhiteSpace(missing))
+        {
+            parts.Add($"Missing weights: {FormatStatusList(missing)}");
+        }
+    }
+
+    private static string NormalizeStatusListValue(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return "";
+        }
+
+        var trimmed = value.Trim();
+        return trimmed.Equals("none", StringComparison.OrdinalIgnoreCase) ||
+               trimmed.Equals("false", StringComparison.OrdinalIgnoreCase) ||
+               trimmed.Equals("no", StringComparison.OrdinalIgnoreCase) ||
+               trimmed.Equals("0", StringComparison.OrdinalIgnoreCase) ||
+               trimmed.Equals("[]", StringComparison.OrdinalIgnoreCase)
+            ? ""
+            : trimmed;
+    }
+
+    private static string FormatStatusList(string value)
+    {
+        return string.Join(", ",
+            value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
     }
 
     private void RefreshInstalledModuleUiInfo(NymphModuleViewModel module)
