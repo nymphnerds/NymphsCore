@@ -1229,6 +1229,10 @@ The Pixal3D install contract is:
   `o_voxel`, belongs under the shared runtime area, for example
   `$HOME/TRELLIS.2/runtime/TRELLIS.2-source`; do not assume Pixal3D itself has
   TRELLIS submodules such as `o-voxel/third_party/eigen`
+- because Pixal3D and TRELLIS.2 share the same FlashAttention build, Pixal3D
+  must expose the same install-time GPU arch, `MAX_JOBS`, and `NVCC_THREADS`
+  fields as TRELLIS.2 and pass them through the shared `TRELLIS_FLASH_ATTN_*`
+  environment variables
 
 The Z-Image Fetch Models action currently offers all published compatible
 weights: INT4 r32/r128/r256 and FP4 r32/r128. `All weights` is available so the

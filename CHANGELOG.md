@@ -8,6 +8,19 @@ This file focuses on user-facing and system-level changes rather than package-by
 
 Newest entries first.
 
+### 2026-05-20 Pixal3D 0.1.14 FlashAttention install options
+Source: live Pixal3D install testing against the TRELLIS.2 shared runtime standard.
+
+Changed in source:
+
+- added the same install-time FlashAttention GPU, `MAX_JOBS`, and
+  `NVCC_THREADS` fields to Pixal3D that TRELLIS.2 exposes
+- wired Pixal3D install to honor `TRELLIS_FLASH_ATTN_CUDA_ARCHS`,
+  `TRELLIS_FLASH_ATTN_MAX_JOBS`, and `TRELLIS_FLASH_ATTN_NVCC_THREADS` when it
+  builds the shared runtime
+- documented that shared-runtime modules must expose the same flash-attn build
+  controls when they can create that shared venv
+
 ### 2026-05-20 Pixal3D 0.1.13 shared runtime source fix
 Source: live Pixal3D install testing after uninstalling the base runtime while retaining model/cache data.
 
