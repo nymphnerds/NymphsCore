@@ -1798,7 +1798,7 @@
             <div class="wiki-callout-row"><span class="wiki-callout-good">Normal states</span><span>Use <code>available</code>, <code>installed</code>, and <code>running</code> for ordinary card states. A stopped installed service is not an error.</span></div>
             <div class="wiki-callout-row"><span class="wiki-callout-label">Setup states</span><span>Use <code>model_download_needed</code>, <code>needs_assets</code>, or <code>needs_brain</code> for expected missing downloads, datasets, or dependencies.</span></div>
             <div class="wiki-callout-row"><span class="wiki-callout-label">Broken states</span><span>Use <code>repair_needed</code> for marker/source-root repair cases. Reserve <code>needs_attention</code> for genuinely broken runtimes, wrappers, imports, or impossible core operation.</span></div>
-            <div class="wiki-callout-row"><span class="wiki-callout-label">Weights</span><span>Modules with model choices should report generic <code>weight_profile_*</code> keys plus <code>models_ready</code> or <code>aux_models_ready</code>, without making the Manager scan model caches.</span></div>
+            <div class="wiki-callout-row"><span class="wiki-callout-label">Weights</span><span>Modules with model choices should report generic <code>weight_profile_*</code> keys plus <code>models_ready</code> or <code>aux_models_ready</code>. The Manager should show short cached-weight text, not scan model caches.</span></div>
           </div>
         </div>
 
@@ -1822,7 +1822,7 @@
         </div>
 
         <h4>Model fetch, data, and shutdown</h4>
-        <p>Install should prepare runtime code; model downloads belong in explicit actions such as <span class="wiki-action-text">Fetch Models</span>. Model fetch scripts should print readable progress, use bounded retries, prevent parallel duplicate downloads, and let status clear stale fetch feedback once assets are ready.</p>
+        <p>Install should prepare runtime code; model downloads belong in explicit actions such as <span class="wiki-action-text">Fetch Models</span>. Model fetch scripts should print readable <code>MODEL FETCH STATUS</code> progress with standard values such as <code>this_repo_cache</code> and <code>active_download_files</code>, use bounded retries, prevent parallel duplicate downloads, and let status clear stale fetch feedback once assets are ready.</p>
         <p><span class="wiki-action-text">Uninstall</span> removes runtime files while preserving declared user data by default. Purge or <span class="wiki-action-text">Delete Data</span> may remove only module-declared scopes. Never guess broad paths, and do not blindly delete shared caches such as <code>$HOME/NymphsData/cache/huggingface</code>.</p>
         <p>Lifecycle jobs must stay inside the Manager-launched process tree. Do not use <code>nohup</code>, <code>disown</code>, detached <code>setsid</code>, or untracked background workers for install, update, repair, uninstall, fetch, or smoke-test jobs. If a script starts children, trap <code>TERM</code> and <code>INT</code> and clean them up. Backend <code>start</code> actions may leave a service running only when <code>stop</code> can cleanly terminate it.</p>
 
@@ -1832,12 +1832,6 @@
         <h4>Source links</h4>
         <ul class="wiki-link-list">
           <li><a href="https://github.com/nymphnerds/NymphsCore/blob/main/docs/NYMPHS_MODULE_MAKING_GUIDE.md">Nymphs Module Making Guide, source of truth</a></li>
-          <li><a href="https://github.com/nymphnerds/NymphsCore/blob/main/docs/NYMPHS_MODULE_MAKING_GUIDE.md#install-root-contract">Install Root Contract</a></li>
-          <li><a href="https://github.com/nymphnerds/NymphsCore/blob/main/docs/NYMPHS_MODULE_MAKING_GUIDE.md#status-contract">Status Contract</a></li>
-          <li><a href="https://github.com/nymphnerds/NymphsCore/blob/main/docs/NYMPHS_MODULE_MAKING_GUIDE.md#installed-module-ui-contract">Installed Module UI Contract</a></li>
-          <li><a href="https://github.com/nymphnerds/NymphsCore/blob/main/docs/NYMPHS_MODULE_MAKING_GUIDE.md#native-action-groups">Native Action Groups</a></li>
-          <li><a href="https://github.com/nymphnerds/NymphsCore/blob/main/docs/NYMPHS_MODULE_MAKING_GUIDE.md#process-shutdown-standard">Process Shutdown Standard</a></li>
-          <li><a href="https://github.com/nymphnerds/NymphsCore/blob/main/docs/NYMPHS_MODULE_MAKING_GUIDE.md#testing-checklist">Testing Checklist</a></li>
         </ul>
       </div>
 
