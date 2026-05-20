@@ -832,6 +832,33 @@
 
   .wiki-callout.is-hot .wiki-callout-status { color: #ff8a2a; }
 
+  .wiki-callout.is-compact {
+    padding: 10px 0 0;
+    border-width: 1px 0 0;
+    border-radius: 0;
+    background: transparent;
+  }
+
+  .wiki-callout.is-compact .wiki-callout-title {
+    margin-bottom: 6px;
+    font-size: 14px;
+  }
+
+  .wiki-callout.is-compact .wiki-callout-status {
+    font-size: 12px;
+  }
+
+  .wiki-callout.is-compact .wiki-callout-grid {
+    gap: 2px;
+  }
+
+  .wiki-callout.is-compact .wiki-callout-row {
+    grid-template-columns: 82px minmax(0, 1fr);
+    gap: 10px;
+    font-size: 12px;
+    line-height: 1.45;
+  }
+
   .wiki-warning-strip {
     max-width: 760px;
     margin: 14px 0 24px;
@@ -1631,7 +1658,7 @@
           </video>
           <figcaption>System Checks in the Manager.</figcaption>
         </figure>
-        <div class="wiki-callout">
+        <div class="wiki-callout is-compact">
           <div class="wiki-callout-title">
             <span>Before Base Runtime Install</span>
             <span class="wiki-callout-status">Check first</span>
