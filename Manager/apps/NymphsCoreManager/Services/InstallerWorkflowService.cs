@@ -23,7 +23,7 @@ public sealed class InstallerWorkflowService
     public const string SourceRepoUrl = "https://github.com/nymphnerds/NymphsCore";
     public const string FootprintDocUrl = "https://github.com/nymphnerds/NymphsCore/blob/main/docs/FOOTPRINT.md";
     public const string AddonGuideUrl = "https://github.com/nymphnerds/NymphsCore/blob/main/docs/BLENDER_ADDON_USER_GUIDE.md";
-    private const string NymphModuleRegistryUrl = "https://raw.githubusercontent.com/nymphnerds/nymphs-registry/refs/heads/main/nymphs.json";
+    private const string NymphModuleRegistryUrl = "https://api.github.com/repos/nymphnerds/nymphs-registry/contents/nymphs.json?ref=main";
 
     private readonly ProcessRunner _processRunner = new();
     private readonly HttpClient _aiToolkitHttpClient = new()
@@ -7679,6 +7679,7 @@ meta:
     private async Task<JsonDocument> FetchJsonDocumentAsync(string url, CancellationToken cancellationToken)
     {
         using var request = new HttpRequestMessage(HttpMethod.Get, BuildNoCacheUrl(url));
+        request.Headers.Accept.ParseAdd("application/vnd.github.raw+json");
         request.Headers.CacheControl = new CacheControlHeaderValue
         {
             NoCache = true,
