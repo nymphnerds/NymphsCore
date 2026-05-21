@@ -1114,20 +1114,28 @@
                        Height="1"
                        Fill="#173436"
                        Opacity="0.85" />
-            <TextBlock Text="{Binding AppVersionLabel}"
-                       Foreground="#CFE4DE"
-                       FontFamily="Segoe UI Semibold"
-                       FontSize="13" />
+            <TextBlock FontFamily="Segoe UI Semibold"
+                       FontSize="13">
+              <Run Text="Nymphs"
+                   Foreground="#F3FFFC" />
+              <Run Text="Core"
+                   Foreground="#50F07B" />
+              <Run Text=" v"
+                   Foreground="#CFE4DE" />
+              <Run Text="{Binding ManagerLocalVersionLabel, Mode=OneWay}"
+                   Foreground="#CFE4DE" />
+            </TextBlock>
             <TextBlock Margin="0,4,0,0"
                        Style="{StaticResource AccentTextStyle}"
-                       FontSize="14">
+                       FontSize="10.5"
+                       TextWrapping="Wrap">
               <Run Text="local " />
               <Run Text="{Binding ManagerLocalVersionLabel, Mode=OneWay}" />
               <Run Text=" | remote " />
               <Run Text="{Binding ManagerRemoteVersionLabel, Mode=OneWay}" />
               <Run Text=" | " />
               <Hyperlink Command="{Binding OpenManagerUpdateCommand}"
-                         Foreground="#97DF48"
+                         Foreground="{Binding ManagerUpdateActionBrush, Mode=OneWay}"
                          TextDecorations="{x:Null}">
                 <Run Text="{Binding ManagerUpdateActionLabel, Mode=OneWay}" />
               </Hyperlink>

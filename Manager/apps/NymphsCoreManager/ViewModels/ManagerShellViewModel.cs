@@ -122,7 +122,9 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
     private string _availableModulesSummary = "Manifest-aware shell is loading the known module roster.";
     private string _managerRemoteVersionLabel = "unknown";
     private string _managerUpdateActionLabel = "Update";
+    private string _managerUpdateActionBrush = "#97DF48";
     private string _managerUpdateUrl = string.Empty;
+    private bool _managerUpdateAvailable;
     private string _moduleActionFeedbackTitle = "No module command has run yet.";
     private string _moduleActionFeedbackDetail = "Use the manager contract buttons below to run this module's live commands.";
     private string _stickyModuleActionFeedbackModuleId = string.Empty;
@@ -330,6 +332,12 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
     {
         get => _managerUpdateActionLabel;
         private set => SetProperty(ref _managerUpdateActionLabel, value);
+    }
+
+    public string ManagerUpdateActionBrush
+    {
+        get => _managerUpdateActionBrush;
+        private set => SetProperty(ref _managerUpdateActionBrush, value);
     }
 
     public string ModuleActionFeedbackTitle
@@ -1856,7 +1864,9 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             {
                 ManagerRemoteVersionLabel = "unknown";
                 ManagerUpdateActionLabel = "Update";
+                ManagerUpdateActionBrush = "#97DF48";
                 _managerUpdateUrl = string.Empty;
+                _managerUpdateAvailable = false;
                 _openManagerUpdateCommand.RaiseCanExecuteChanged();
                 return;
             }
@@ -1865,16 +1875,18 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             _managerUpdateUrl = string.IsNullOrWhiteSpace(manager.ArtifactUrl)
                 ? manager.SourceUrl
                 : manager.ArtifactUrl;
-            ManagerUpdateActionLabel = IsRemoteVersionNewer(ManagerLocalVersionLabel, manager.Version)
-                ? "Update"
-                : "Current";
+            _managerUpdateAvailable = IsRemoteVersionNewer(ManagerLocalVersionLabel, manager.Version);
+            ManagerUpdateActionLabel = _managerUpdateAvailable ? "Update" : "Current";
+            ManagerUpdateActionBrush = _managerUpdateAvailable ? "#97DF48" : "#5AD5C7";
             _openManagerUpdateCommand.RaiseCanExecuteChanged();
         }
         catch (Exception ex)
         {
             ManagerRemoteVersionLabel = "unknown";
             ManagerUpdateActionLabel = "Update";
+            ManagerUpdateActionBrush = "#97DF48";
             _managerUpdateUrl = string.Empty;
+            _managerUpdateAvailable = false;
             _openManagerUpdateCommand.RaiseCanExecuteChanged();
             AppendActivity($"Manager manifest warning: {ex.Message}");
         }
@@ -6076,7 +6088,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
     private bool CanOpenManagerUpdate()
     {
-        return !string.IsNullOrWhiteSpace(_managerUpdateUrl);
+        return _managerUpdateAvailable && !string.IsNullOrWhiteSpace(_managerUpdateUrl);
     }
 
     private void OpenManagerUpdate()
