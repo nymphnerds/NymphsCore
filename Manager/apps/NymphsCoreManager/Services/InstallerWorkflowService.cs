@@ -1,6 +1,7 @@
 using System.IO;
 using System.Globalization;
 using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Net.Sockets;
 using System.Runtime.InteropServices;
 using System.Security.Principal;
@@ -7634,10 +7635,25 @@ meta:
 
     private async Task<JsonDocument> FetchJsonDocumentAsync(string url, CancellationToken cancellationToken)
     {
-        using var response = await _moduleRegistryHttpClient.GetAsync(url, cancellationToken).ConfigureAwait(false);
+        using var request = new HttpRequestMessage(HttpMethod.Get, BuildNoCacheUrl(url));
+        request.Headers.CacheControl = new CacheControlHeaderValue
+        {
+            NoCache = true,
+            NoStore = true,
+            MaxAge = TimeSpan.Zero,
+        };
+        request.Headers.Pragma.ParseAdd("no-cache");
+
+        using var response = await _moduleRegistryHttpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
         response.EnsureSuccessStatusCode();
         var body = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
         return JsonDocument.Parse(body);
+    }
+
+    private static string BuildNoCacheUrl(string url)
+    {
+        var separator = url.Contains('?', StringComparison.Ordinal) ? '&' : '?';
+        return $"{url}{separator}_nymph_cache_bust={DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}";
     }
 
     private static string? GetJsonString(JsonElement element, string propertyName)
