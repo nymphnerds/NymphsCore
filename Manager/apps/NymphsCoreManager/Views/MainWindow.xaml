@@ -1122,14 +1122,14 @@
                        Style="{StaticResource AccentTextStyle}"
                        FontSize="14">
               <Run Text="local " />
-              <Run Text="{Binding AppLocalVersionLabel}" />
+              <Run Text="{Binding AppLocalVersionLabel, Mode=OneWay}" />
               <Run Text=" | remote " />
-              <Run Text="{Binding ManagerRemoteVersionLabel}" />
+              <Run Text="{Binding ManagerRemoteVersionLabel, Mode=OneWay}" />
               <Run Text=" | " />
               <Hyperlink Command="{Binding OpenManagerUpdateCommand}"
                          Foreground="{StaticResource AccentBrush}"
                          TextDecorations="{x:Null}">
-                <Run Text="{Binding ManagerUpdateActionLabel}" />
+                <Run Text="{Binding ManagerUpdateActionLabel, Mode=OneWay}" />
               </Hyperlink>
             </TextBlock>
           </StackPanel>
