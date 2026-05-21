@@ -4818,6 +4818,29 @@ meta:
         return null;
     }
 
+    public async Task<ManagerManifestInfo?> GetManagerManifestInfoAsync(CancellationToken cancellationToken)
+    {
+        using var registryDocument = await FetchJsonDocumentAsync(NymphModuleRegistryUrl, cancellationToken).ConfigureAwait(false);
+        if (!registryDocument.RootElement.TryGetProperty("manager", out var managerElement) ||
+            managerElement.ValueKind != JsonValueKind.Object)
+        {
+            return null;
+        }
+
+        return new ManagerManifestInfo(
+            Id: GetJsonString(managerElement, "id") ?? "",
+            Name: GetJsonString(managerElement, "name") ?? "",
+            Version: GetJsonString(managerElement, "manifest_version")
+                ?? GetJsonString(managerElement, "version")
+                ?? "",
+            ArtifactUrl: GetJsonString(managerElement, "artifact_url")
+                ?? GetJsonString(managerElement, "download_url")
+                ?? "",
+            SourceUrl: GetJsonString(managerElement, "source_url")
+                ?? GetJsonString(managerElement, "repo_url")
+                ?? SourceRepoUrl);
+    }
+
     public async Task<IReadOnlyList<NymphModuleManifestInfo>> GetNymphModuleRegistryManifestInfosAsync(
         CancellationToken cancellationToken)
     {
@@ -7092,6 +7115,20 @@ meta:
         System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
         {
             FileName = SourceRepoUrl,
+            UseShellExecute = true,
+        });
+    }
+
+    public void OpenUrl(string url)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+        {
+            return;
+        }
+
+        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+        {
+            FileName = url,
             UseShellExecute = true,
         });
     }

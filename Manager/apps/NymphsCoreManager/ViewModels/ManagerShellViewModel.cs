@@ -77,6 +77,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
     private readonly RelayCommand _toggleDeveloperModeCommand;
     private readonly RelayCommand<NymphModuleViewModel> _uninstallModuleCommand;
     private readonly RelayCommand<NymphModuleViewModel> _deleteModuleCommand;
+    private readonly RelayCommand _openManagerUpdateCommand;
     private DriveChoice? _selectedBaseRuntimeDrive;
     private ShellNavigationItemViewModel? _selectedNavigationItem;
     private NymphModuleViewModel? _selectedModule;
@@ -119,6 +120,9 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
     private string _systemChecksSummary = "System checks have not run yet.";
     private string _installedModulesSummary = "Scanning installed Nymphs...";
     private string _availableModulesSummary = "Manifest-aware shell is loading the known module roster.";
+    private string _managerRemoteVersionLabel = "unknown";
+    private string _managerUpdateActionLabel = "Update";
+    private string _managerUpdateUrl = string.Empty;
     private string _moduleActionFeedbackTitle = "No module command has run yet.";
     private string _moduleActionFeedbackDetail = "Use the manager contract buttons below to run this module's live commands.";
     private string _stickyModuleActionFeedbackModuleId = string.Empty;
@@ -193,6 +197,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         _toggleDeveloperModeCommand = new RelayCommand(ToggleDeveloperMode);
         _uninstallModuleCommand = new RelayCommand<NymphModuleViewModel>(UninstallModule, module => module?.CanUninstall == true && !IsBusy);
         _deleteModuleCommand = new RelayCommand<NymphModuleViewModel>(DeleteModule, module => module?.CanDeleteData == true && !IsModuleLifecycleActive(module));
+        _openManagerUpdateCommand = new RelayCommand(OpenManagerUpdate, CanOpenManagerUpdate);
 
         LoadSidebarArtwork();
         LoadHistoricalLogs();
@@ -291,6 +296,8 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
     public RelayCommand OpenSourceCommand => new(() => SafeRun(_workflowService.OpenSourceRepo, "Source repo opened."));
 
+    public RelayCommand OpenManagerUpdateCommand => _openManagerUpdateCommand;
+
     public RelayCommand OpenAddonGuideCommand => new(() => SafeRun(_workflowService.OpenAddonGuide, "Addon guide opened."));
 
     public RelayCommand OpenFootprintCommand => new(() => SafeRun(_workflowService.OpenFootprintDoc, "Footprint document opened."));
@@ -310,6 +317,20 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
     public RelayCommand ShowGuideCommand => new(() => SelectPrimaryPage(ManagerPageKind.Guide));
 
     public string AppVersionLabel { get; } = BuildAppVersionLabel();
+
+    public string ManagerLocalVersionLabel { get; } = BuildAppLocalVersion();
+
+    public string ManagerRemoteVersionLabel
+    {
+        get => _managerRemoteVersionLabel;
+        private set => SetProperty(ref _managerRemoteVersionLabel, value);
+    }
+
+    public string ManagerUpdateActionLabel
+    {
+        get => _managerUpdateActionLabel;
+        private set => SetProperty(ref _managerUpdateActionLabel, value);
+    }
 
     public string ModuleActionFeedbackTitle
     {
@@ -1055,6 +1076,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             _setupBaseRuntimeCommand.RaiseCanExecuteChanged();
             _uninstallBaseRuntimeCommand.RaiseCanExecuteChanged();
             _checkForUpdatesCommand.RaiseCanExecuteChanged();
+            _openManagerUpdateCommand.RaiseCanExecuteChanged();
             _openModuleCommand.RaiseCanExecuteChanged();
             _installModuleCommand.RaiseCanExecuteChanged();
             _repairModuleCommand.RaiseCanExecuteChanged();
@@ -1217,6 +1239,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         try
         {
             await RefreshBaseRuntimeStateAsync().ConfigureAwait(true);
+            await RefreshManagerManifestAsync().ConfigureAwait(true);
             await RefreshModuleRosterAsync().ConfigureAwait(true);
             await RefreshSystemChecksAsync().ConfigureAwait(true);
             LoadHistoricalLogs();
@@ -1332,6 +1355,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
         try
         {
+            await RefreshManagerManifestAsync().ConfigureAwait(true);
             var updateResults = await _workflowService.CheckNymphModuleRegistryUpdatesAsync(
                 _settings,
                 _allModules.Where(module => module.IsInstalled).Select(module => module.Id),
@@ -1820,6 +1844,40 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         RebuildModuleCollections();
         RebuildModuleNavigation();
         HasLoadedModuleState = true;
+    }
+
+    private async Task RefreshManagerManifestAsync()
+    {
+        try
+        {
+            using var registryTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(8));
+            var manager = await _workflowService.GetManagerManifestInfoAsync(registryTimeout.Token).ConfigureAwait(true);
+            if (manager is null || string.IsNullOrWhiteSpace(manager.Version))
+            {
+                ManagerRemoteVersionLabel = "unknown";
+                ManagerUpdateActionLabel = "Update";
+                _managerUpdateUrl = string.Empty;
+                _openManagerUpdateCommand.RaiseCanExecuteChanged();
+                return;
+            }
+
+            ManagerRemoteVersionLabel = manager.Version;
+            _managerUpdateUrl = string.IsNullOrWhiteSpace(manager.ArtifactUrl)
+                ? manager.SourceUrl
+                : manager.ArtifactUrl;
+            ManagerUpdateActionLabel = IsRemoteVersionNewer(ManagerLocalVersionLabel, manager.Version)
+                ? "Update"
+                : "Current";
+            _openManagerUpdateCommand.RaiseCanExecuteChanged();
+        }
+        catch (Exception ex)
+        {
+            ManagerRemoteVersionLabel = "unknown";
+            ManagerUpdateActionLabel = "Update";
+            _managerUpdateUrl = string.Empty;
+            _openManagerUpdateCommand.RaiseCanExecuteChanged();
+            AppendActivity($"Manager manifest warning: {ex.Message}");
+        }
     }
 
     private async Task<NymphStatusSnapshot> RunModuleStatusSnapshotAsync(NymphModuleViewModel module)
@@ -6016,6 +6074,21 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         _workflowService.OpenGuide();
     }
 
+    private bool CanOpenManagerUpdate()
+    {
+        return !string.IsNullOrWhiteSpace(_managerUpdateUrl);
+    }
+
+    private void OpenManagerUpdate()
+    {
+        if (string.IsNullOrWhiteSpace(_managerUpdateUrl))
+        {
+            return;
+        }
+
+        SafeRun(() => _workflowService.OpenUrl(_managerUpdateUrl), "Manager update link opened.");
+    }
+
     private void OpenLoraGuide()
     {
         Process.Start(new ProcessStartInfo
@@ -6028,6 +6101,11 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
     }
 
     private static string BuildAppVersionLabel()
+    {
+        return $"NymphsCore v{BuildAppLocalVersion()}";
+    }
+
+    private static string BuildAppLocalVersion()
     {
         var version = Assembly.GetExecutingAssembly()
             .GetCustomAttribute<AssemblyInformationalVersionAttribute>()
@@ -6042,7 +6120,43 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             ? "unknown"
             : version.Split('+', 2)[0].Trim();
 
-        return $"NymphsCore v{version}";
+        return version;
+    }
+
+    private static bool IsRemoteVersionNewer(string? installedVersion, string? remoteVersion)
+    {
+        if (string.IsNullOrWhiteSpace(installedVersion) || string.IsNullOrWhiteSpace(remoteVersion))
+        {
+            return false;
+        }
+
+        var installedParts = ParseVersionParts(installedVersion);
+        var remoteParts = ParseVersionParts(remoteVersion);
+        var partCount = Math.Max(installedParts.Count, remoteParts.Count);
+
+        for (var index = 0; index < partCount; index++)
+        {
+            var installedPart = index < installedParts.Count ? installedParts[index] : 0;
+            var remotePart = index < remoteParts.Count ? remoteParts[index] : 0;
+            if (remotePart > installedPart)
+            {
+                return true;
+            }
+
+            if (remotePart < installedPart)
+            {
+                return false;
+            }
+        }
+
+        return false;
+    }
+
+    private static IReadOnlyList<int> ParseVersionParts(string version)
+    {
+        return Regex.Matches(version, @"\d+")
+            .Select(match => int.TryParse(match.Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var value) ? value : 0)
+            .ToList();
     }
 
     private void SelectPrimaryPage(ManagerPageKind pageKind)
