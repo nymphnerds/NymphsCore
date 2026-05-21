@@ -4818,34 +4818,6 @@ meta:
         return null;
     }
 
-    public async Task<ManagerReleaseInfo?> GetManagerReleaseInfoAsync(CancellationToken cancellationToken)
-    {
-        using var registryDocument = await FetchJsonDocumentAsync(NymphModuleRegistryUrl, cancellationToken).ConfigureAwait(false);
-        if (!registryDocument.RootElement.TryGetProperty("manager", out var managerElement) ||
-            managerElement.ValueKind != JsonValueKind.Object)
-        {
-            return null;
-        }
-
-        var releaseNotes = Array.Empty<string>();
-        if (managerElement.TryGetProperty("release_notes", out var notesElement) &&
-            notesElement.ValueKind == JsonValueKind.Array)
-        {
-            releaseNotes = notesElement
-                .EnumerateArray()
-                .Where(note => note.ValueKind == JsonValueKind.String)
-                .Select(note => note.GetString() ?? "")
-                .Where(note => !string.IsNullOrWhiteSpace(note))
-                .ToArray();
-        }
-
-        return new ManagerReleaseInfo(
-            Version: GetJsonString(managerElement, "version") ?? "",
-            ArtifactUrl: GetJsonString(managerElement, "artifact_url") ?? "",
-            ArtifactHash: GetJsonString(managerElement, "artifact_hash") ?? "",
-            ReleaseNotes: releaseNotes);
-    }
-
     public async Task<IReadOnlyList<NymphModuleManifestInfo>> GetNymphModuleRegistryManifestInfosAsync(
         CancellationToken cancellationToken)
     {
@@ -7120,21 +7092,6 @@ meta:
         System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
         {
             FileName = SourceRepoUrl,
-            UseShellExecute = true,
-        });
-    }
-
-    public void OpenManagerArtifactUrl(string artifactUrl)
-    {
-        if (!Uri.TryCreate(artifactUrl, UriKind.Absolute, out var uri) ||
-            (uri.Scheme != Uri.UriSchemeHttps && uri.Scheme != Uri.UriSchemeHttp))
-        {
-            throw new InvalidOperationException("Manager update artifact URL is missing or invalid.");
-        }
-
-        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
-        {
-            FileName = artifactUrl,
             UseShellExecute = true,
         });
     }

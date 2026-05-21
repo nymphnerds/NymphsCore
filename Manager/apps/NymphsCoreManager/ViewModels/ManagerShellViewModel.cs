@@ -77,7 +77,6 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
     private readonly RelayCommand _toggleDeveloperModeCommand;
     private readonly RelayCommand<NymphModuleViewModel> _uninstallModuleCommand;
     private readonly RelayCommand<NymphModuleViewModel> _deleteModuleCommand;
-    private readonly RelayCommand _openManagerUpdateCommand;
     private DriveChoice? _selectedBaseRuntimeDrive;
     private ShellNavigationItemViewModel? _selectedNavigationItem;
     private NymphModuleViewModel? _selectedModule;
@@ -120,8 +119,6 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
     private string _systemChecksSummary = "System checks have not run yet.";
     private string _installedModulesSummary = "Scanning installed Nymphs...";
     private string _availableModulesSummary = "Manifest-aware shell is loading the known module roster.";
-    private string _managerRemoteVersionLabel = "checking";
-    private string _managerUpdateArtifactUrl = string.Empty;
     private string _moduleActionFeedbackTitle = "No module command has run yet.";
     private string _moduleActionFeedbackDetail = "Use the manager contract buttons below to run this module's live commands.";
     private string _stickyModuleActionFeedbackModuleId = string.Empty;
@@ -196,7 +193,6 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         _toggleDeveloperModeCommand = new RelayCommand(ToggleDeveloperMode);
         _uninstallModuleCommand = new RelayCommand<NymphModuleViewModel>(UninstallModule, module => module?.CanUninstall == true && !IsBusy);
         _deleteModuleCommand = new RelayCommand<NymphModuleViewModel>(DeleteModule, module => module?.CanDeleteData == true && !IsModuleLifecycleActive(module));
-        _openManagerUpdateCommand = new RelayCommand(OpenManagerUpdate, CanOpenManagerUpdate);
 
         LoadSidebarArtwork();
         LoadHistoricalLogs();
@@ -217,7 +213,6 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         };
         _runtimeMonitorTimer.Tick += OnRuntimeMonitorTimerTick;
         _runtimeMonitorTimer.Start();
-        _ = RefreshManagerReleaseInfoAsync();
     }
 
     public event Action<ModuleUiActionProgress>? ModuleUiActionProgressed;
@@ -296,8 +291,6 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
     public RelayCommand OpenSourceCommand => new(() => SafeRun(_workflowService.OpenSourceRepo, "Source repo opened."));
 
-    public RelayCommand OpenManagerUpdateCommand => _openManagerUpdateCommand;
-
     public RelayCommand OpenAddonGuideCommand => new(() => SafeRun(_workflowService.OpenAddonGuide, "Addon guide opened."));
 
     public RelayCommand OpenFootprintCommand => new(() => SafeRun(_workflowService.OpenFootprintDoc, "Footprint document opened."));
@@ -316,27 +309,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
     public RelayCommand ShowGuideCommand => new(() => SelectPrimaryPage(ManagerPageKind.Guide));
 
-    public string AppLocalVersionLabel { get; } = BuildAppLocalVersion();
-
-    public string AppVersionLabel => $"NymphsCore v{AppLocalVersionLabel}";
-
-    public string ManagerRemoteVersionLabel
-    {
-        get => _managerRemoteVersionLabel;
-        private set
-        {
-            if (SetProperty(ref _managerRemoteVersionLabel, value))
-            {
-                OnPropertyChanged(nameof(ManagerUpdateAvailable));
-                OnPropertyChanged(nameof(ManagerUpdateActionLabel));
-                _openManagerUpdateCommand.RaiseCanExecuteChanged();
-            }
-        }
-    }
-
-    public bool ManagerUpdateAvailable => IsRemoteVersionNewer(AppLocalVersionLabel, ManagerRemoteVersionLabel);
-
-    public string ManagerUpdateActionLabel => ManagerUpdateAvailable ? "Update" : "Current";
+    public string AppVersionLabel { get; } = BuildAppVersionLabel();
 
     public string ModuleActionFeedbackTitle
     {
@@ -1359,7 +1332,6 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
         try
         {
-            await RefreshManagerReleaseInfoAsync().ConfigureAwait(true);
             var updateResults = await _workflowService.CheckNymphModuleRegistryUpdatesAsync(
                 _settings,
                 _allModules.Where(module => module.IsInstalled).Select(module => module.Id),
@@ -1382,49 +1354,6 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         {
             IsBusy = false;
         }
-    }
-
-    private async Task RefreshManagerReleaseInfoAsync()
-    {
-        try
-        {
-            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(8));
-            var releaseInfo = await _workflowService.GetManagerReleaseInfoAsync(timeout.Token).ConfigureAwait(true);
-            if (releaseInfo is null || string.IsNullOrWhiteSpace(releaseInfo.Version))
-            {
-                ManagerRemoteVersionLabel = "unknown";
-                _managerUpdateArtifactUrl = string.Empty;
-            }
-            else
-            {
-                ManagerRemoteVersionLabel = releaseInfo.Version.Trim();
-                _managerUpdateArtifactUrl = releaseInfo.ArtifactUrl.Trim();
-            }
-        }
-        catch (Exception ex)
-        {
-            ManagerRemoteVersionLabel = "unknown";
-            _managerUpdateArtifactUrl = string.Empty;
-            AppendActivity($"Manager update metadata warning: {FirstNonEmptyLine(ex.Message)}");
-        }
-        finally
-        {
-            OnPropertyChanged(nameof(ManagerUpdateAvailable));
-            OnPropertyChanged(nameof(ManagerUpdateActionLabel));
-            _openManagerUpdateCommand.RaiseCanExecuteChanged();
-        }
-    }
-
-    private bool CanOpenManagerUpdate()
-    {
-        return ManagerUpdateAvailable && !string.IsNullOrWhiteSpace(_managerUpdateArtifactUrl);
-    }
-
-    private void OpenManagerUpdate()
-    {
-        SafeRun(
-            () => _workflowService.OpenManagerArtifactUrl(_managerUpdateArtifactUrl),
-            "Manager update download opened.");
     }
 
     private async Task CheckForUpdatesOnStartupAsync()
@@ -6098,7 +6027,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         AppendActivity("LoRA guide opened.");
     }
 
-    private static string BuildAppLocalVersion()
+    private static string BuildAppVersionLabel()
     {
         var version = Assembly.GetExecutingAssembly()
             .GetCustomAttribute<AssemblyInformationalVersionAttribute>()
@@ -6113,43 +6042,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             ? "unknown"
             : version.Split('+', 2)[0].Trim();
 
-        return version;
-    }
-
-    private static bool IsRemoteVersionNewer(string? installedVersion, string? remoteVersion)
-    {
-        if (string.IsNullOrWhiteSpace(installedVersion) || string.IsNullOrWhiteSpace(remoteVersion))
-        {
-            return false;
-        }
-
-        var installedParts = ParseVersionParts(installedVersion);
-        var remoteParts = ParseVersionParts(remoteVersion);
-        var partCount = Math.Max(installedParts.Count, remoteParts.Count);
-
-        for (var index = 0; index < partCount; index++)
-        {
-            var installedPart = index < installedParts.Count ? installedParts[index] : 0;
-            var remotePart = index < remoteParts.Count ? remoteParts[index] : 0;
-            if (remotePart > installedPart)
-            {
-                return true;
-            }
-
-            if (remotePart < installedPart)
-            {
-                return false;
-            }
-        }
-
-        return false;
-    }
-
-    private static IReadOnlyList<int> ParseVersionParts(string version)
-    {
-        return Regex.Matches(version, @"\d+")
-            .Select(match => int.TryParse(match.Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var value) ? value : 0)
-            .ToList();
+        return $"NymphsCore v{version}";
     }
 
     private void SelectPrimaryPage(ManagerPageKind pageKind)
