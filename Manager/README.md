@@ -51,6 +51,20 @@ NymphsCoreManager-win-x64/
 
 Do not run the manager from inside the zip. Extract it first.
 
+## Manager Updates
+
+The Manager reads its own remote version from the trusted Nymphs registry, using
+the same registry JSON fetch as module discovery. The registry has a top-level
+`manager` entry with `manifest_version`, `artifact_url`, and `artifact_hash`.
+
+The sidebar footer shows the local Manager version, the registry version, and
+`Current` or `Update`.
+
+For update-path testing, do not run the Manager from this repo's
+`publish/win-x64` folder. That folder contains the newest dev build, so local
+and remote will match. Extract or copy the previous release to a normal Windows
+folder, then publish the next registry version.
+
 ## Quick Start
 
 1. Download `NymphsCoreManager-win-x64.zip`.

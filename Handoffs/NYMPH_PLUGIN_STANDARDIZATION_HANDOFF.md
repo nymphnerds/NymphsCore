@@ -1113,13 +1113,93 @@ repos, delete whatever is left in Manager/scripts/legacy.
 
 ## Suggested Next Moves
 
-1. Review the Manager diff and commit the shell/base-runtime/contract changes as one checkpoint if it looks sane.
-2. Confirm the release EXE opens the new Base Runtime page and monitor mode correctly.
-3. Fresh-test Base Runtime install, repair, and unregister on the target `NymphsCore` WSL.
-4. Check each module repo remote and push the normalized manifest/scripts where needed.
-5. Add shared artifact/model/log roots to the manifest contract before heavyweight module installs.
-6. Run real WORBI install/status/open/logs/uninstall/reinstall from the Manager using the staged installer fix.
-7. Explicitly test abuse paths: close Manager mid-install, reopen during install, click refresh during install, uninstall while stopped, reinstall after partial install, and force-close/crash while an action is running. The expected result is boring: no stuck Checking state, no Home-page jump, no stale Available state during install, no backup clutter, and no partial folder treated as installed.
-8. Run Z-Image or LoRA next to prove the contract against a heavier AI module.
-9. Use `docs/NYMPH_MODULE_UI_STANDARD.md` for custom installed-module UI. The Manager hosts installed module `ui.manager_ui` only; it must not hardcode module frontend pages.
-10. After all official modules install/start/stop/log/uninstall cleanly from their own repos, delete `Manager/scripts/legacy`.
+## 2026-05-21 Manager Update Path Checkpoint
+
+Manager self-update discovery now uses the same registry fetch as modules. The
+registry has one top-level `manager` entry beside `modules`; it is not a module
+card and does not alter module parsing.
+
+Current working shape:
+
+```json
+{
+  "registry_version": 80,
+  "manager": {
+    "id": "nymphscore-manager",
+    "name": "NymphsCore Manager",
+    "manifest_version": "0.9.36",
+    "artifact_url": "https://raw.githubusercontent.com/nymphnerds/NymphsCore/<commit>/Manager/apps/NymphsCoreManager/publish/NymphsCoreManager-win-x64.zip",
+    "artifact_hash": "<sha256>",
+    "source_url": "https://github.com/nymphnerds/NymphsCore"
+  },
+  "modules": []
+}
+```
+
+Do not change the registry URL path or move Manager discovery to the GitHub
+Contents API. That broke module loading once. Keep the normal
+`raw.githubusercontent.com/nymphnerds/nymphs-registry/main/nymphs.json` path and
+wait for raw propagation after pushes.
+
+Release/publish order:
+
+```text
+1. Bump Manager csproj version.
+2. Build with Manager/apps/NymphsCoreManager/build-release.ps1.
+3. Confirm publish contains only:
+   - publish/win-x64
+   - publish/NymphsCoreManager-win-x64.zip
+4. Commit and push NymphsCore source + release zip/exe/pdb.
+5. Update nymphs-registry manager.manifest_version, artifact_url, artifact_hash,
+   and registry_version.
+6. Push registry.
+7. Poll the raw registry URL until it serves the new manager version.
+8. Verify the commit-pinned zip hash.
+```
+
+Update testing gotcha:
+
+```text
+Do not test update availability by launching the repo publish/win-x64 EXE.
+That is the fresh dev build, so local == remote and Update will not appear.
+Copy/extract the previous release to a normal Windows folder, such as Desktop,
+then bump/publish the next Manager version. The older extracted Manager should
+show local old_version | remote new_version | Update.
+```
+
+The footer currently shows:
+
+```text
+NymphsCore v0.9.xx
+local 0.9.xx | remote 0.9.yy | Current/Update
+```
+
+`NymphsCore` must render as one word: `Nymphs` white, `Core` green, with no
+space between them.
+
+Known watch item:
+
+```text
+After the Manager update-link test, one launch logged:
+Fast module marker scan found 0 installed marker(s), 0 repair candidate(s).
+
+Reopening immediately logged:
+Fast module marker scan found 6 installed marker(s), 0 repair candidate(s).
+All module status checks then reported installed/current.
+
+This happened during mixed launch-path testing: an older extracted Desktop copy
+was used to test update availability, then the Manager was opened directly from
+the WSL repo publish path again. Treat it as a startup/WSL marker-scan race to
+watch unless it repeats from a normal extracted release. Do not manually edit
+installed markers to "fix" it. If it repeats, inspect startup ordering, launch
+path, and WSL readiness before changing registry/module contracts.
+```
+
+## Suggested Next Moves
+
+1. Keep the Manager self-update path stable and avoid broad registry refactors.
+2. Continue Pixal3D work from its module repo and handoff.
+3. Explicitly test abuse paths: close Manager mid-install, reopen during install, click refresh during install, uninstall while stopped, reinstall after partial install, and force-close/crash while an action is running. The expected result is boring: no stuck Checking state, no Home-page jump, no stale Available state during install, no backup clutter, and no partial folder treated as installed.
+4. Run Z-Image or LoRA next to prove the contract against a heavier AI module.
+5. Use `docs/NYMPH_MODULE_UI_STANDARD.md` for custom installed-module UI. The Manager hosts installed module `ui.manager_ui` only; it must not hardcode module frontend pages.
+6. After all official modules install/start/stop/log/uninstall cleanly from their own repos, delete `Manager/scripts/legacy`.
