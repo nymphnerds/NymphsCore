@@ -1256,11 +1256,57 @@
 	              </DockPanel>
 	            </Grid>
           </Grid>
+          <DockPanel LastChildFill="True">
+            <DockPanel.Style>
+              <Style TargetType="DockPanel">
+                <Setter Property="Visibility" Value="Collapsed" />
+                <Style.Triggers>
+                  <DataTrigger Binding="{Binding IsHomePage}" Value="True">
+                    <Setter Property="Visibility" Value="Visible" />
+                  </DataTrigger>
+                </Style.Triggers>
+              </Style>
+            </DockPanel.Style>
+            <Border Width="64"
+                    Height="64"
+                    CornerRadius="16"
+                    Background="#0A1717"
+                    BorderBrush="{StaticResource LimeBrush}"
+                    BorderThickness="1"
+                    Margin="0,0,16,0"
+                    VerticalAlignment="Top"
+                    Cursor="Hand"
+                    ToolTip="Show or hide sidebar"
+                    MouseLeftButtonUp="ModuleLogoCollapseButton_MouseLeftButtonUp">
+              <TextBlock Text="NC"
+                         HorizontalAlignment="Center"
+                         VerticalAlignment="Center"
+                         FontFamily="Cascadia Mono"
+                         FontSize="17"
+                         FontWeight="Bold"
+                         Foreground="{StaticResource LimeBrush}" />
+            </Border>
+            <StackPanel VerticalAlignment="Top">
+              <TextBlock Text="{Binding CurrentPageTitle}"
+                         FontFamily="Bahnschrift SemiBold"
+                         FontSize="38"
+                         Foreground="#F2FBF9"
+                         TextWrapping="NoWrap"
+                         TextTrimming="CharacterEllipsis" />
+              <TextBlock Text="{Binding CurrentPageSubtitle, StringFormat=// {0}}"
+                         Margin="0,4,0,0"
+                         Style="{StaticResource PageSubtitleStyle}" />
+            </StackPanel>
+          </DockPanel>
+
           <StackPanel>
             <StackPanel.Style>
               <Style TargetType="StackPanel">
                 <Setter Property="Visibility" Value="Visible" />
                 <Style.Triggers>
+                  <DataTrigger Binding="{Binding IsHomePage}" Value="True">
+                    <Setter Property="Visibility" Value="Collapsed" />
+                  </DataTrigger>
                   <DataTrigger Binding="{Binding IsBaseRuntimePage}" Value="True">
                     <Setter Property="Visibility" Value="Collapsed" />
                   </DataTrigger>

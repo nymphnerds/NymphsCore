@@ -8,6 +8,15 @@ This file focuses on user-facing and system-level changes rather than package-by
 
 Newest entries first.
 
+### 2026-05-21 Manager 0.9.30 Home header sidebar toggle
+Source: Home sidebar collapse testing.
+
+Changed in source:
+
+- adds a Home-page `NC` badge header that matches module page badge styling
+- keeps the sidebar collapse/restore affordance available from Home after the
+  left sidebar is hidden
+
 ### 2026-05-20 Manager 0.9.29 keyed module URL handling
 Source: Pixal3D Nymphs Ui open-path testing.
 
