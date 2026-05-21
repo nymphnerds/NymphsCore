@@ -1121,10 +1121,15 @@
             <TextBlock Margin="0,4,0,0"
                        Style="{StaticResource AccentTextStyle}"
                        FontSize="14">
-              <Hyperlink Command="{Binding OpenSourceCommand}"
+              <Run Text="local " />
+              <Run Text="{Binding AppLocalVersionLabel}" />
+              <Run Text=" | remote " />
+              <Run Text="{Binding ManagerRemoteVersionLabel}" />
+              <Run Text=" | " />
+              <Hyperlink Command="{Binding OpenManagerUpdateCommand}"
                          Foreground="{StaticResource AccentBrush}"
                          TextDecorations="{x:Null}">
-                <Run Text="Open Source" />
+                <Run Text="{Binding ManagerUpdateActionLabel}" />
               </Hyperlink>
             </TextBlock>
           </StackPanel>
