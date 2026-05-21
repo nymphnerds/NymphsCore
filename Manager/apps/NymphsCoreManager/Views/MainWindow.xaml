@@ -1114,17 +1114,7 @@
                        Height="1"
                        Fill="#173436"
                        Opacity="0.85" />
-            <TextBlock FontFamily="Segoe UI Semibold"
-                       FontSize="13">
-              <Run Text="Nymphs"
-                   Foreground="#F3FFFC" />
-              <Run Text="Core"
-                   Foreground="#50F07B" />
-              <Run Text=" v"
-                   Foreground="#CFE4DE" />
-              <Run Text="{Binding ManagerLocalVersionLabel, Mode=OneWay}"
-                   Foreground="#CFE4DE" />
-            </TextBlock>
+            <TextBlock FontFamily="Segoe UI Semibold" FontSize="13"><Run Text="Nymphs" Foreground="#F3FFFC" /><Run Text="Core" Foreground="#50F07B" /><Run Text=" v" Foreground="#CFE4DE" /><Run Text="{Binding ManagerLocalVersionLabel, Mode=OneWay}" Foreground="#CFE4DE" /></TextBlock>
             <TextBlock Margin="0,4,0,0"
                        Style="{StaticResource AccentTextStyle}"
                        FontSize="10.5"
