@@ -1985,7 +1985,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
     {
         try
         {
-            using var statusTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+            using var statusTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
             var output = await _workflowService.RunNymphModuleActionAsync(
                 _settings,
                 module.Id,
@@ -2035,7 +2035,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                     IsRunning: false,
                     Version: markerVersion,
                     State: "status_timeout",
-                    Detail: $"{module.Name} is installed, but its status check timed out. Runtime health has not been verified yet.",
+                    Detail: $"{module.Name} status is taking longer than usual. Refresh in a moment.",
                     InstallRoot: module.InstallPath,
                     Health: "status-timeout",
                     Values: new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
@@ -2163,41 +2163,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             secondaryParts.Add("Install: repair needed");
         }
 
-        if (!isLoraModule &&
-            snapshot.IsInstalled &&
-            !string.IsNullOrWhiteSpace(snapshot.Health) &&
-            !modelDownloadNeeded &&
-            !trainingAssetsNeeded &&
-            !isBrainModule)
-        {
-            secondaryParts.Add($"Health: {snapshot.Health}");
-        }
-
-        var statusError = snapshot.Get("status_error");
-        if (snapshot.IsInstalled && !string.IsNullOrWhiteSpace(statusError))
-        {
-            secondaryParts.Add($"Status warning: {statusError}");
-        }
-
-        var runtimePresent = snapshot.Get("runtime_present");
-        if (!isLoraModule &&
-            !isBrainModule &&
-            string.Equals(runtimePresent, "true", StringComparison.OrdinalIgnoreCase))
-        {
-            secondaryParts.Add($"Runtime: {runtimePresent}");
-        }
-
         var dataPresent = snapshot.Get("data_present");
-        if (!isLoraModule && !isBrainModule && string.Equals(dataPresent, "true", StringComparison.OrdinalIgnoreCase))
-        {
-            secondaryParts.Add($"Data: {dataPresent}");
-        }
-
-        var url = snapshot.Get("url") ?? snapshot.Get("frontend_url") ?? snapshot.Get("backend_url");
-        if (snapshot.IsInstalled && !string.IsNullOrWhiteSpace(url))
-        {
-            secondaryParts.Add($"URL: {url}");
-        }
 
         if (isBrainModule)
         {
@@ -2221,9 +2187,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             stateLabel,
             statusBrush,
             detail,
-            secondaryParts.Count == 0
-                ? "Status came from the module-owned status entrypoint."
-                : string.Join(Environment.NewLine, secondaryParts));
+            secondaryParts.Count == 0 ? "" : string.Join(Environment.NewLine, secondaryParts));
         module.ApplyModelCacheState(isBrainModule ? "" : BuildModelCacheDetail(snapshot));
         module.ApplyRetainedDataState(string.Equals(dataPresent, "true", StringComparison.OrdinalIgnoreCase));
         if (ShouldLogModuleStatusSnapshot(snapshot))
@@ -5210,21 +5174,16 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
     private static string BuildModuleDetailPaneText(NymphModuleViewModel module)
     {
-        var guideLines = module.ManagerActionGroups
-            .SelectMany(BuildModuleActionGroupGuideLines)
-            .Where(description => !string.IsNullOrWhiteSpace(description))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToArray();
-        var detail = module.HasUpdate
-            ? module.UpdateDetail
-            : $"{module.Detail}\n\n{module.SecondaryDetail}";
-
-        if (!module.IsInstalled || guideLines.Length == 0)
+        if (module.HasUpdate)
         {
-            return detail;
+            return module.UpdateDetail;
         }
 
-        return $"{detail}{Environment.NewLine}{Environment.NewLine}{string.Join(Environment.NewLine, guideLines)}";
+        return string.Join(
+            $"{Environment.NewLine}{Environment.NewLine}",
+            new[] { module.Detail, module.SecondaryDetail }
+                .Where(part => !string.IsNullOrWhiteSpace(part))
+                .Select(part => part.Trim()));
     }
 
     private static string BuildModuleDetailPaneTitle(NymphModuleViewModel module)
@@ -6433,7 +6392,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             "needs_assets" => "Needs assets",
             "needs_brain" => "Needs Brain",
             "status_warning" => "Status warning",
-            "status_timeout" => "Status timeout",
+            "status_timeout" => "Checking status",
             "needs_attention" => "Needs attention",
             "installing" => "Installing",
             "uninstalling" => "Uninstalling",

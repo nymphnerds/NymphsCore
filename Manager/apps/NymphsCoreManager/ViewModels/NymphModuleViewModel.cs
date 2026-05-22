@@ -389,13 +389,9 @@ public sealed class NymphModuleViewModel : ViewModelBase
             ? ""
             : manifest.OverviewDetail;
         var manifestDetail = overviewDetail;
-        if (!string.IsNullOrWhiteSpace(manifestDetail))
+        if (!IsInstalled && !string.IsNullOrWhiteSpace(manifestDetail))
         {
-            SecondaryDetail = IsInstalled &&
-                              !string.IsNullOrWhiteSpace(SecondaryDetail) &&
-                              !SecondaryDetail.Contains(manifestDetail, StringComparison.OrdinalIgnoreCase)
-                ? $"{SecondaryDetail}\n\n{manifestDetail}"
-                : manifestDetail;
+            SecondaryDetail = manifestDetail;
         }
 
         OnPropertyChanged(nameof(CanUpdate));
