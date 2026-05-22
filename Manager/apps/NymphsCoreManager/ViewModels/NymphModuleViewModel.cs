@@ -23,6 +23,7 @@ public sealed class NymphModuleViewModel : ViewModelBase
     private string _moduleUiTitle = "Module UI";
     private string _modelCacheDetail = "";
     private IReadOnlyList<NymphModuleActionLinkInfo> _overviewLinks = Array.Empty<NymphModuleActionLinkInfo>();
+    private NymphModuleDetailPrimaryActionInfo? _detailPrimaryAction;
     private InstalledNymphModuleUiInfo? _installedModuleUiInfo;
 
     public NymphModuleViewModel(
@@ -195,6 +196,12 @@ public sealed class NymphModuleViewModel : ViewModelBase
 
     public bool HasOverviewLinks => OverviewLinks.Count > 0;
 
+    public NymphModuleDetailPrimaryActionInfo? DetailPrimaryAction
+    {
+        get => _detailPrimaryAction;
+        private set => SetProperty(ref _detailPrimaryAction, value);
+    }
+
     public bool HasInstalledModuleUi
     {
         get => _hasInstalledModuleUi;
@@ -322,7 +329,8 @@ public sealed class NymphModuleViewModel : ViewModelBase
 
     public void ApplyInstalledModuleControls(
         IReadOnlyList<NymphModuleActionInfo> managerActions,
-        IReadOnlyList<NymphModuleActionGroupInfo> managerActionGroups)
+        IReadOnlyList<NymphModuleActionGroupInfo> managerActionGroups,
+        NymphModuleDetailPrimaryActionInfo? detailPrimaryAction)
     {
         if (managerActions.Count > 0)
         {
@@ -337,6 +345,11 @@ public sealed class NymphModuleViewModel : ViewModelBase
             OnPropertyChanged(nameof(ManagerActionGroupLinks));
             OnPropertyChanged(nameof(HasManagerActionGroupLinks));
         }
+
+        if (detailPrimaryAction is not null)
+        {
+            DetailPrimaryAction = detailPrimaryAction;
+        }
     }
 
     public void ApplyManifestInfo(NymphModuleManifestInfo manifest)
@@ -344,6 +357,7 @@ public sealed class NymphModuleViewModel : ViewModelBase
         ManagerActions = manifest.ManagerActions;
         OnPropertyChanged(nameof(ManagerActions));
         OverviewLinks = BuildOverviewLinks(manifest);
+        DetailPrimaryAction = manifest.DetailPrimaryAction;
         ManagerActionGroups = PreserveActionGroupFieldState(ManagerActionGroups, manifest.ManagerActionGroups);
         OnPropertyChanged(nameof(ManagerActionGroups));
         OnPropertyChanged(nameof(ManagerActionGroupLinks));

@@ -445,10 +445,12 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         !IsBusy &&
         DisplayedModule?.HasManagerActionGroupLinks == true;
 
-    public string ModuleDetailPrimaryActionHeading => "NEXT STEP:";
+    public string ModuleDetailPrimaryActionHeading =>
+        DisplayedModule?.DetailPrimaryAction?.Heading ?? "NEXT STEP:";
+    public string ModuleDetailPrimaryActionLabel => ModuleDetailPrimaryAction?.DisplayLabel ?? "Run";
 
     public string ModuleDetailPrimaryActionHelp =>
-        "Required before training. Downloads or resumes the Z-Image Turbo training model and adapter.";
+        ModuleDetailPrimaryAction is null ? "" : DisplayedModule?.DetailPrimaryAction?.Help ?? "";
 
     public string ModuleDetailProgressHeading => "PROGRESS:";
 
@@ -609,17 +611,46 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             return null;
         }
 
-        var needsAssets =
-            string.Equals(module.Id, "lora", StringComparison.OrdinalIgnoreCase) &&
-            module.StateLabel.Contains("Needs assets", StringComparison.OrdinalIgnoreCase);
-        if (!needsAssets)
+        if (!ModuleDetailPrimaryActionMatchesState(module))
         {
             return null;
         }
 
-        return module.ManagerActions.FirstOrDefault(action =>
-            string.Equals(action.Id, "fetch_assets", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(action.ActionName, "fetch_assets", StringComparison.OrdinalIgnoreCase));
+        return module.DetailPrimaryAction?.Action;
+    }
+
+    private static bool ModuleDetailPrimaryActionMatchesState(NymphModuleViewModel module)
+    {
+        var primaryAction = module.DetailPrimaryAction;
+        if (primaryAction is null)
+        {
+            return false;
+        }
+
+        if (primaryAction.ShowWhenStates.Count == 0)
+        {
+            return true;
+        }
+
+        var currentStates = new[]
+        {
+            NormalizeDetailPrimaryActionState(module.StateLabel),
+            NormalizeDetailPrimaryActionState(module.DisplayStateLabel),
+        };
+        return primaryAction.ShowWhenStates
+            .Select(NormalizeDetailPrimaryActionState)
+            .Where(state => !string.IsNullOrWhiteSpace(state))
+            .Any(state => currentStates.Contains(state, StringComparer.OrdinalIgnoreCase));
+    }
+
+    private static string NormalizeDetailPrimaryActionState(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value)
+            ? ""
+            : new string(value
+                .Where(char.IsLetterOrDigit)
+                .Select(char.ToLowerInvariant)
+                .ToArray());
     }
 
     public IReadOnlyList<NymphModuleActionFieldInfo> DisplayedModuleInstallFields =>
@@ -744,6 +775,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                 OnPropertyChanged(nameof(ShowDisplayedModuleOverviewLinks));
                 OnPropertyChanged(nameof(ShowDisplayedModuleActionGroupLinks));
                 OnPropertyChanged(nameof(ModuleDetailPrimaryActionHeading));
+                OnPropertyChanged(nameof(ModuleDetailPrimaryActionLabel));
                 OnPropertyChanged(nameof(ModuleDetailPrimaryActionHelp));
                 OnPropertyChanged(nameof(ModuleDetailProgressHeading));
                 OnPropertyChanged(nameof(ModuleDetailProgressHelp));
@@ -2565,6 +2597,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                 OnPropertyChanged(nameof(ShowModuleUiAction));
                 OnPropertyChanged(nameof(ModuleDetailPrimaryAction));
                 OnPropertyChanged(nameof(ShowModuleDetailPrimaryAction));
+                OnPropertyChanged(nameof(ModuleDetailPrimaryActionLabel));
                 OnPropertyChanged(nameof(ShowModuleDetailProgress));
                 OnPropertyChanged(nameof(DisplayedModuleContractActions));
                 OnPropertyChanged(nameof(ShowInstalledModuleActionGroups));
@@ -2582,7 +2615,10 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             var controls = _workflowService.GetInstalledNymphModuleControls(_settings, module.Id, module.InstallRoot);
             if (controls is not null)
             {
-                module.ApplyInstalledModuleControls(controls.Value.ManagerActions, controls.Value.ManagerActionGroups);
+                module.ApplyInstalledModuleControls(
+                    controls.Value.ManagerActions,
+                    controls.Value.ManagerActionGroups,
+                    controls.Value.DetailPrimaryAction);
             }
         }
         catch (Exception ex)
@@ -2596,6 +2632,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             OnPropertyChanged(nameof(ShowModuleUiAction));
             OnPropertyChanged(nameof(ModuleDetailPrimaryAction));
             OnPropertyChanged(nameof(ShowModuleDetailPrimaryAction));
+            OnPropertyChanged(nameof(ModuleDetailPrimaryActionLabel));
             OnPropertyChanged(nameof(ShowModuleDetailProgress));
             OnPropertyChanged(nameof(DisplayedModuleContractActions));
             OnPropertyChanged(nameof(ShowInstalledModuleActionGroups));
@@ -4529,6 +4566,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         _activeModuleDetailProgressModuleId = module.Id;
         OnPropertyChanged(nameof(ShowModuleDetailProgress));
         OnPropertyChanged(nameof(ShowModuleDetailPrimaryAction));
+        OnPropertyChanged(nameof(ModuleDetailPrimaryActionLabel));
     }
 
     private void EndModuleDetailProgress(NymphModuleViewModel module)
@@ -4541,6 +4579,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         _activeModuleDetailProgressModuleId = string.Empty;
         OnPropertyChanged(nameof(ShowModuleDetailProgress));
         OnPropertyChanged(nameof(ShowModuleDetailPrimaryAction));
+        OnPropertyChanged(nameof(ModuleDetailPrimaryActionLabel));
     }
 
     private static string BuildInstallFieldFeedback(
@@ -6030,6 +6069,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(ShowModuleUiAction));
         OnPropertyChanged(nameof(ModuleDetailPrimaryAction));
         OnPropertyChanged(nameof(ShowModuleDetailPrimaryAction));
+        OnPropertyChanged(nameof(ModuleDetailPrimaryActionLabel));
         OnPropertyChanged(nameof(ShowModuleDetailProgress));
         _repairModuleCommand.RaiseCanExecuteChanged();
         _runModuleActionCommand.RaiseCanExecuteChanged();

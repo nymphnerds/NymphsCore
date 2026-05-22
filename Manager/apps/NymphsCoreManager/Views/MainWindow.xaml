@@ -2264,7 +2264,7 @@
                                   Style="{StaticResource ModuleActionButtonStyle}"
                                   Command="{Binding RunModuleActionCommand}"
                                   CommandParameter="{Binding ModuleDetailPrimaryAction}">
-                            <TextBlock Text="// Fetch Training Assets"
+                            <TextBlock Text="{Binding ModuleDetailPrimaryActionLabel, StringFormat=// {0}}"
                                        Foreground="#23E7DB"
                                        FontFamily="Cascadia Mono"
                                        FontSize="12"

@@ -4968,6 +4968,7 @@ meta:
         var capabilities = BuildCapabilities(entrypointActions);
         var managerActions = ReadManagerActions(manifestRoot);
         var managerActionGroups = ReadManagerActionGroups(manifestRoot);
+        var detailPrimaryAction = ReadDetailPrimaryAction(manifestRoot);
         var managerUiTitle = "";
         if (manifestRoot.TryGetProperty("ui", out var manifestUiElement) &&
             manifestUiElement.ValueKind == JsonValueKind.Object &&
@@ -5012,6 +5013,7 @@ meta:
             Capabilities: capabilities,
             ManagerActions: managerActions,
             ManagerActionGroups: managerActionGroups,
+            DetailPrimaryAction: detailPrimaryAction,
             DevCapabilities: ["check-upstream", "test-upstream", "package"],
             SortOrder: sortOrder);
     }
@@ -5242,6 +5244,106 @@ meta:
             .GroupBy(action => action.Id, StringComparer.OrdinalIgnoreCase)
             .Select(group => group.First())
             .ToList();
+    }
+
+    private static NymphModuleDetailPrimaryActionInfo? ReadDetailPrimaryAction(JsonElement manifestRoot)
+    {
+        if (!manifestRoot.TryGetProperty("ui", out var uiElement) ||
+            uiElement.ValueKind != JsonValueKind.Object ||
+            !uiElement.TryGetProperty("detail_primary_action", out var actionElement) ||
+            actionElement.ValueKind != JsonValueKind.Object)
+        {
+            return null;
+        }
+
+        var entrypoint = GetJsonString(actionElement, "entrypoint")
+            ?? GetJsonString(actionElement, "entry")
+            ?? GetJsonString(actionElement, "action")
+            ?? "";
+        var id = GetJsonString(actionElement, "id")
+            ?? GetJsonString(actionElement, "action")
+            ?? entrypoint;
+
+        if (string.IsNullOrWhiteSpace(id) || string.IsNullOrWhiteSpace(entrypoint))
+        {
+            return null;
+        }
+
+        var label = GetJsonString(actionElement, "label") ?? id.Trim();
+        var heading = GetJsonString(actionElement, "heading") ?? "NEXT STEP:";
+        var help = GetJsonString(actionElement, "help")
+            ?? GetJsonString(actionElement, "description")
+            ?? GetJsonString(actionElement, "guide")
+            ?? "";
+
+        return new NymphModuleDetailPrimaryActionInfo(
+            new NymphModuleActionInfo(
+                id.Trim(),
+                label.Trim(),
+                entrypoint.Trim(),
+                GetJsonString(actionElement, "result")
+                    ?? GetJsonString(actionElement, "result_mode")
+                    ?? "show_output"),
+            heading.Trim(),
+            help.Trim(),
+            ReadDetailPrimaryActionShowWhenStates(actionElement));
+    }
+
+    private static IReadOnlyList<string> ReadDetailPrimaryActionShowWhenStates(JsonElement actionElement)
+    {
+        if (!actionElement.TryGetProperty("show_when", out var showWhenElement) ||
+            showWhenElement.ValueKind != JsonValueKind.Object)
+        {
+            var state = GetJsonString(actionElement, "show_when_state");
+            return string.IsNullOrWhiteSpace(state) ? Array.Empty<string>() : [state.Trim()];
+        }
+
+        var states = new List<string>();
+        AddDetailPrimaryActionShowWhenState(states, showWhenElement, "state");
+        AddDetailPrimaryActionShowWhenState(states, showWhenElement, "states");
+        return states
+            .Where(state => !string.IsNullOrWhiteSpace(state))
+            .Select(state => state.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+    }
+
+    private static void AddDetailPrimaryActionShowWhenState(List<string> states, JsonElement showWhenElement, string propertyName)
+    {
+        if (!showWhenElement.TryGetProperty(propertyName, out var stateElement))
+        {
+            return;
+        }
+
+        if (stateElement.ValueKind == JsonValueKind.String)
+        {
+            var value = stateElement.GetString();
+            if (!string.IsNullOrWhiteSpace(value))
+            {
+                states.Add(value.Trim());
+            }
+
+            return;
+        }
+
+        if (stateElement.ValueKind != JsonValueKind.Array)
+        {
+            return;
+        }
+
+        foreach (var item in stateElement.EnumerateArray())
+        {
+            if (item.ValueKind != JsonValueKind.String)
+            {
+                continue;
+            }
+
+            var value = item.GetString();
+            if (!string.IsNullOrWhiteSpace(value))
+            {
+                states.Add(value.Trim());
+            }
+        }
     }
 
     private static IReadOnlyList<NymphModuleActionGroupInfo> ReadManagerActionGroups(JsonElement manifestRoot)
@@ -5897,7 +5999,7 @@ meta:
             stopAction);
     }
 
-    public (IReadOnlyList<NymphModuleActionInfo> ManagerActions, IReadOnlyList<NymphModuleActionGroupInfo> ManagerActionGroups)? GetInstalledNymphModuleControls(
+    public (IReadOnlyList<NymphModuleActionInfo> ManagerActions, IReadOnlyList<NymphModuleActionGroupInfo> ManagerActionGroups, NymphModuleDetailPrimaryActionInfo? DetailPrimaryAction)? GetInstalledNymphModuleControls(
         InstallSettings settings,
         string moduleId,
         string? manifestInstallRoot = null)
@@ -5921,9 +6023,10 @@ meta:
                 var root = document.RootElement;
                 var managerActions = ReadManagerActions(root);
                 var managerActionGroups = ReadManagerActionGroups(root);
-                if (managerActions.Count > 0 || managerActionGroups.Count > 0)
+                var detailPrimaryAction = ReadDetailPrimaryAction(root);
+                if (managerActions.Count > 0 || managerActionGroups.Count > 0 || detailPrimaryAction is not null)
                 {
-                    return (managerActions, managerActionGroups);
+                    return (managerActions, managerActionGroups, detailPrimaryAction);
                 }
             }
             catch
