@@ -264,6 +264,11 @@ Use `TRELLIS.2` for:
 - single-image texture/retexture workflows
 - the simplest first real test
 
+For best TRELLIS.2 results, use a clean single-subject image. The TRELLIS
+module preprocesses the source into a square foreground image before inference,
+but surviving floor, shadow, or backdrop pixels can still become generated mesh
+geometry.
+
 Use `Z-Image` for:
 
 - generating concept or reference images locally

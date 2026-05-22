@@ -8,6 +8,26 @@ This file focuses on user-facing and system-level changes rather than package-by
 
 Newest entries first.
 
+### 2026-05-22 TRELLIS module Manager UI preprocessing fix
+Source: live TRELLIS Manager UI image-to-3D testing.
+
+Changed in source:
+
+- added a Pixal3D-style module-owned TRELLIS Manager UI at `/nymph`
+- copied the proven Blender addon GGUF profile recipes into the Manager UI
+- fixed the Manager UI generation path so portrait source images are converted
+  into square foreground conditioning images before TRELLIS inference
+- kept generation on a single preprocessing pass to avoid both double
+  preprocessing and square-resize subject squashing
+- documented that remaining floor/backdrop geometry comes from background
+  removal quality or future cleanup/retopo work, not the embedded previewer
+
+Related module/registry updates:
+
+- TRELLIS.2 `0.1.33`: square fallback preprocessing for Manager UI generation
+- TRELLIS.2 `0.1.35`: docs for the Manager UI/profile/preprocess behavior;
+  module release history remains in this NymphsCore changelog
+
 ### 2026-05-22 Manager 0.9.47 action-group state visibility
 Source: LoRA and Pixal3D module contract testing.
 
