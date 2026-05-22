@@ -8,6 +8,14 @@ This file focuses on user-facing and system-level changes rather than package-by
 
 Newest entries first.
 
+### 2026-05-22 Manager 0.9.46 model-fetch failure next steps
+Source: Pixal3D BRIA RMBG fetch testing.
+
+Changed in source:
+
+- surfaces module-provided model-fetch failure next steps in the details pane
+- keeps the generic parser module-owned; Pixal3D supplies the BRIA-specific text
+
 ### 2026-05-21 Manager 0.9.30 Home header sidebar toggle
 Source: Home sidebar collapse testing.
 

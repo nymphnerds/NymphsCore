@@ -5284,6 +5284,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             "repo_cache_mb", "downloaded_this_step_mb", "huggingface_cache_total", "this_repo_cache",
             "active_download_files", "downloaded", "total", "percent", "recent_activity",
             "downloading", "downloading_quant", "exit_status", "root", "profile", "quant",
+            "error", "next_step", "link",
         };
         var currentStep = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         var latest = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -5355,6 +5356,18 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                 : $"Caching weights: {cachedWeight}");
         }
 
+        if (latest.TryGetValue("error", out var error) &&
+            error.Equals("bria_access_needed", StringComparison.OrdinalIgnoreCase))
+        {
+            detail.Add("BRIA access needed.");
+        }
+        else
+        {
+            AddFeedbackLine(detail, "Issue", latest.GetValueOrDefault("error"));
+        }
+
+        AddFeedbackLine(detail, "Next step", latest.GetValueOrDefault("next_step"));
+        AddFeedbackLine(detail, "Link", latest.GetValueOrDefault("link"));
         AddFeedbackLine(detail, "Repo", latest.GetValueOrDefault("repo"));
         AddFeedbackLine(detail, "Phase", latest.GetValueOrDefault("phase"));
         AddFeedbackLine(detail, "Waiting on", latest.GetValueOrDefault("waiting_on"));
@@ -5416,6 +5429,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                      " repo_cache_mb=", " downloaded_this_step_mb=", " huggingface_cache_total=", " this_repo_cache=",
                      " active_download_files=", " downloaded=", " total=", " percent=", " recent_activity=",
                      " downloading=", " downloading_quant=", " exit_status=", " root=", " profile=", " quant=",
+                     " error=", " next_step=", " link=",
                  })
         {
             var candidate = line.IndexOf(nextKey, start, StringComparison.OrdinalIgnoreCase);
