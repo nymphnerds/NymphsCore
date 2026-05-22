@@ -493,7 +493,6 @@ public sealed class NymphModuleViewModel : ViewModelBase
     private static IReadOnlyList<NymphModuleActionLinkInfo> BuildOverviewLinks(NymphModuleManifestInfo manifest)
     {
         var links = new List<NymphModuleActionLinkInfo>();
-        AddOverviewLink(links, "Registry manifest", manifest.ManifestUrl);
         AddOverviewLink(links, "Source repo", manifest.RepositoryUrl);
         if (!string.Equals(manifest.SourceSummary, manifest.RepositoryUrl, StringComparison.OrdinalIgnoreCase))
         {
