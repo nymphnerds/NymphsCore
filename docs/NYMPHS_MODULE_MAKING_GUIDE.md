@@ -39,6 +39,12 @@ Current heavyweight proof state:
 - Z-Image proves native compact model fetch for image generation weights.
 - TRELLIS proves native compact model fetch for multi-part 3D GGUF bundles,
   support checkpoints, and auxiliary models.
+- Pixal3D proves that gated model-access guidance belongs in Details, Model
+  Fetch, or a temporary `NEXT STEP` prompt, not in unrelated install option
+  headings.
+- Brain and Pixal3D prove that module installers must verify real venv
+  creation with pip, not only `import venv`, before assuming Python venv support
+  is usable on a fresh or repaired runtime.
 - Both modules keep model fetch module-owned through `ui.manager_action_groups`.
 - Both modules keep generated outputs, logs, config, and reusable model caches
   under `$HOME/NymphsData` instead of inside disposable runtime source roots.
@@ -216,6 +222,13 @@ installer must also check it before running a module's install entrypoint. If an
 older or repaired distro is missing one of these tools, module install should
 self-heal with apt when `sudo` and `apt-get` are available, not fail inside a
 module-specific script with a mystery missing-tool error.
+
+Python venv checks must prove `ensurepip` works. Do not treat `import venv` as
+enough. Before creating a real module venv, either rely on a known-good Python
+from the completed Base Runtime floor or create a temporary probe venv and run
+that venv's Python with `-m pip --version`. If the probe fails and apt is
+available, install the matching `python3-venv`/`python3-pip` or pinned
+`python3.X-venv`/`python3.X-dev` packages first, then retry.
 
 Modules still own heavyweight and product-specific dependencies such as CUDA
 toolkits, Python versions beyond the base floor, Node runtimes, llama.cpp,
@@ -395,6 +408,11 @@ needing the catalog to know every detail.
 Install confirmations should stay concise for ordinary modules. The Manager may
 show the module name and a short one-paragraph description, but it must not dump
 the full `overview.body`, requirements, and links into every install popup.
+
+Install option titles must describe only install-time choices. Do not put model
+fetch, token, gated-access, or next-step instructions in an install form heading
+beside runtime/build options. Keep those instructions in Details, Model Fetch,
+action confirmation text, or a temporary module-owned `NEXT STEP` prompt.
 
 Use install or action confirmation terms only for modules with real legal,
 license, gated-access, or safety restrictions. Put those terms behind explicit
@@ -888,6 +906,12 @@ module-owned without custom Manager code.
 
 Model fetch controls should live on the installed module detail page, below the
 standard `// DETAILS` pane and above `// MODULE ACTIONS`.
+
+Keep fetch/action groups visible after assets are cached. The Details pane
+reports cached weights, missing models, and readiness; it should not remove the
+normal maintenance/refetch controls once setup succeeds. State-gated
+`show_when` belongs to temporary prompts such as `NEXT STEP`, not the ordinary
+`Model Fetch` or `Training Assets` action group.
 
 Do not create a second details card, a separate browser button, or a new
 module-specific Manager page for simple model downloads.
@@ -2082,6 +2106,10 @@ instead of a single button.
 This is the standard for model fetch panels such as Z-Image Turbo and TRELLIS.
 It is also suitable for small module-owned setup forms, such as selecting a
 runtime profile or optional model pack.
+
+Normal fetch/action groups should remain visible after assets are ready. Use
+Details/status output to show what is cached. Reserve `show_when` for temporary
+guidance such as a first-run `NEXT STEP` link.
 
 Use action groups when you need:
 
