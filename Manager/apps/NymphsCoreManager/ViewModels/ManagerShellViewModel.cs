@@ -4214,20 +4214,24 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             return string.Equals(DisplayedModule.Id, "lora", StringComparison.OrdinalIgnoreCase);
         }
 
+        var isEmergencyStopAction = IsEmergencyStopAction(normalizedAction);
+
         if (normalizedAction == "stop" && !DisplayedModule.IsRunning)
         {
             return false;
         }
 
         if (IsModuleDetailProgressActive(DisplayedModule) &&
-            normalizedAction is not "stop" and not "logs" &&
+            !isEmergencyStopAction &&
+            normalizedAction is not "logs" &&
             !isPassiveAction)
         {
             return false;
         }
 
         if (IsBusy &&
-            normalizedAction is not "stop" and not "logs" &&
+            !isEmergencyStopAction &&
+            normalizedAction is not "logs" &&
             !isPassiveAction &&
             !isDetailPrimaryAction)
         {
@@ -4268,8 +4272,10 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         }
 
         var normalizedAction = actionGroup.EntryPoint.Trim().ToLowerInvariant();
+        var isEmergencyStopAction = IsEmergencyStopAction(normalizedAction);
         if (IsBusy &&
-            normalizedAction is not "stop" and not "logs" &&
+            !isEmergencyStopAction &&
+            normalizedAction is not "logs" &&
             !IsPassiveModuleActionResultMode(actionGroup.ResultMode))
         {
             return false;
@@ -4302,8 +4308,9 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             ? "show_logs"
             : actionGroup.ResultMode.Trim().ToLowerInvariant();
         var isPassiveAction = IsPassiveModuleActionResultMode(resultMode);
+        var isEmergencyStopAction = IsEmergencyStopAction(normalizedAction);
         if (!module.IsInstalled ||
-            (IsBusy && normalizedAction is not "stop" and not "logs" && !isPassiveAction))
+            (IsBusy && !isEmergencyStopAction && normalizedAction is not "logs" && !isPassiveAction))
         {
             return;
         }
@@ -4343,7 +4350,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
         var (args, environment) = BuildActionGroupInvocation(actionGroup);
         var ownsBusyState = !IsBusy && !isPassiveAction;
-        var showDetailProgress = !isPassiveAction && normalizedAction is not "logs" and not "stop";
+        var showDetailProgress = !isPassiveAction && normalizedAction is not "logs" && !isEmergencyStopAction;
         if (ownsBusyState)
         {
             IsBusy = true;
@@ -4419,7 +4426,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             {
                 IsBusy = false;
             }
-            else if (string.Equals(normalizedAction, "stop", StringComparison.OrdinalIgnoreCase))
+            else if (isEmergencyStopAction)
             {
                 IsBusy = false;
             }
@@ -4764,14 +4771,16 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             : actionInfo.ResultMode.Trim().ToLowerInvariant();
         var isPassiveAction = IsPassiveModuleActionResultMode(resultMode);
         var isDetailPrimaryAction = IsDisplayedModuleDetailPrimaryAction(actionInfo);
+        var isEmergencyStopAction = IsEmergencyStopAction(normalizedAction);
         if (IsModuleDetailProgressActive(module) &&
-            normalizedAction is not "stop" and not "logs" &&
+            !isEmergencyStopAction &&
+            normalizedAction is not "logs" &&
             !isPassiveAction)
         {
             return;
         }
 
-        var canRunWhileBusy = normalizedAction is "stop" or "logs" || isPassiveAction || isDetailPrimaryAction;
+        var canRunWhileBusy = isEmergencyStopAction || normalizedAction is "logs" || isPassiveAction || isDetailPrimaryAction;
         if (IsBusy && !canRunWhileBusy)
         {
             return;
@@ -4845,7 +4854,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         }
 
         var ownsBusyState = !IsBusy && !isPassiveAction;
-        var showDetailProgress = !isPassiveAction && normalizedAction is not "logs" and not "stop";
+        var showDetailProgress = !isPassiveAction && normalizedAction is not "logs" && !isEmergencyStopAction;
         if (ownsBusyState)
         {
             IsBusy = true;
@@ -4936,7 +4945,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                 }
             }
 
-            if (string.Equals(normalizedAction, "stop", StringComparison.OrdinalIgnoreCase) &&
+            if (isEmergencyStopAction &&
                 CurrentPageKind == ManagerPageKind.ModuleUi &&
                 DisplayedModule is not null &&
                 string.Equals(DisplayedModule.Id, module.Id, StringComparison.OrdinalIgnoreCase))
@@ -4944,7 +4953,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                 ShowModulePage(module);
             }
 
-            if ((!isPassiveAction || normalizedAction is "start" or "stop") &&
+            if ((!isPassiveAction || normalizedAction is "start" || isEmergencyStopAction) &&
                 normalizedAction is not "logs" and not "open")
             {
                 await RefreshModuleStateAsync().ConfigureAwait(true);
@@ -5153,6 +5162,11 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
     private static bool IsSmokeTestAction(string normalizedAction)
     {
         return normalizedAction is "smoke_test" or "smoke-test" or "smoke";
+    }
+
+    private static bool IsEmergencyStopAction(string normalizedAction)
+    {
+        return normalizedAction is "stop" or "kill";
     }
 
     private static string BuildModuleDetailPaneText(NymphModuleViewModel module)
