@@ -2259,33 +2259,22 @@
                                      Style="{StaticResource MonoLabelStyle}"
                                      Foreground="{StaticResource LimeBrush}"
                                      FontSize="12" />
-                          <TextBlock Margin="0,8,0,0"
-                                     Text="{Binding ModuleDetailPrimaryActionHelp}"
-                                     Foreground="#9AB8B4"
-                                     FontSize="12"
-                                     TextWrapping="Wrap" />
                           <Button Margin="0,8,0,0"
                                   HorizontalAlignment="Left"
                                   Style="{StaticResource ModuleActionButtonStyle}"
-                                  Visibility="{Binding ShowModuleDetailPrimaryActionButton, Converter={StaticResource BoolToVisibilityConverter}}"
                                   Command="{Binding RunModuleActionCommand}"
                                   CommandParameter="{Binding ModuleDetailPrimaryAction}">
-                            <TextBlock Text="{Binding ModuleDetailPrimaryActionButtonLabel, StringFormat=// {0}}"
+                            <TextBlock Text="// Fetch Training Assets"
                                        Foreground="#23E7DB"
                                        FontFamily="Cascadia Mono"
                                        FontSize="12"
                                        FontWeight="Bold" />
                           </Button>
                           <TextBlock Margin="0,8,0,0"
-                                     FontFamily="Cascadia Mono"
+                                     Text="{Binding ModuleDetailPrimaryActionHelp}"
+                                     Foreground="#9AB8B4"
                                      FontSize="12"
-                                     FontWeight="Bold"
-                                     Visibility="{Binding ShowModuleDetailPrimaryLink, Converter={StaticResource BoolToVisibilityConverter}}">
-                            <Hyperlink Command="{Binding OpenModuleActionLinkCommand}"
-                                       CommandParameter="{Binding ModuleDetailPrimaryLink}">
-                              <Run Text="{Binding ModuleDetailPrimaryLinkLabel}" />
-                            </Hyperlink>
-                          </TextBlock>
+                                     TextWrapping="Wrap" />
                         </StackPanel>
                         <StackPanel Margin="0,12,0,12"
                                     Visibility="{Binding DisplayedModule.HasModelCacheDetail, Converter={StaticResource BoolToVisibilityConverter}}">

@@ -433,15 +433,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
     public NymphModuleActionInfo? ModuleDetailPrimaryAction => ResolveModuleDetailPrimaryAction(DisplayedModule);
 
-    public NymphModuleActionLinkInfo? ModuleDetailPrimaryLink => ResolveModuleDetailPrimaryLink(DisplayedModule);
-
-    public bool ShowModuleDetailPrimaryAction =>
-        (ModuleDetailPrimaryAction is not null || ModuleDetailPrimaryLink is not null) &&
-        !ShowModuleDetailProgress;
-
-    public bool ShowModuleDetailPrimaryActionButton => ModuleDetailPrimaryAction is not null;
-
-    public bool ShowModuleDetailPrimaryLink => ModuleDetailPrimaryLink is not null;
+    public bool ShowModuleDetailPrimaryAction => ModuleDetailPrimaryAction is not null && !ShowModuleDetailProgress;
 
     public bool ShowModuleDetailProgress => IsModuleDetailProgressActive(DisplayedModule);
 
@@ -455,34 +447,12 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
     public string ModuleDetailPrimaryActionHeading => "NEXT STEP:";
 
-    public string ModuleDetailPrimaryActionButtonLabel => ModuleDetailPrimaryAction?.Label ?? "Run Action";
-
-    public string ModuleDetailPrimaryLinkLabel =>
-        string.Equals(DisplayedModule?.Id, "pixal3d", StringComparison.OrdinalIgnoreCase)
-            ? "Fill BRIA form"
-            : ModuleDetailPrimaryLink?.Label ?? "Open Link";
-
     public string ModuleDetailPrimaryActionHelp =>
-        ModuleDetailPrimaryLink is not null
-            ? "BRIA form needs filling."
-            : "Required before training. Downloads or resumes the Z-Image Turbo training model and adapter.";
+        "Required before training. Downloads or resumes the Z-Image Turbo training model and adapter.";
 
     public string ModuleDetailProgressHeading => "PROGRESS:";
 
     public string ModuleDetailProgressHelp => "The module action is running. Live output appears below.";
-
-    private void RaiseModuleDetailPrimaryProperties()
-    {
-        OnPropertyChanged(nameof(ModuleDetailPrimaryAction));
-        OnPropertyChanged(nameof(ModuleDetailPrimaryLink));
-        OnPropertyChanged(nameof(ShowModuleDetailPrimaryAction));
-        OnPropertyChanged(nameof(ShowModuleDetailPrimaryActionButton));
-        OnPropertyChanged(nameof(ShowModuleDetailPrimaryLink));
-        OnPropertyChanged(nameof(ModuleDetailPrimaryActionHeading));
-        OnPropertyChanged(nameof(ModuleDetailPrimaryActionButtonLabel));
-        OnPropertyChanged(nameof(ModuleDetailPrimaryLinkLabel));
-        OnPropertyChanged(nameof(ModuleDetailPrimaryActionHelp));
-    }
 
     public IReadOnlyList<NymphModuleActionInfo> DisplayedModuleContractActions
     {
@@ -652,28 +622,6 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             string.Equals(action.ActionName, "fetch_assets", StringComparison.OrdinalIgnoreCase));
     }
 
-    private static NymphModuleActionLinkInfo? ResolveModuleDetailPrimaryLink(NymphModuleViewModel? module)
-    {
-        if (module is null || !module.IsInstalled)
-        {
-            return null;
-        }
-
-        var needsPixalModels =
-            string.Equals(module.Id, "pixal3d", StringComparison.OrdinalIgnoreCase) &&
-            module.StateLabel.Contains("Model download", StringComparison.OrdinalIgnoreCase);
-        if (!needsPixalModels)
-        {
-            return null;
-        }
-
-        return module.OverviewLinks
-            .Concat(module.ManagerActionGroupLinks)
-            .FirstOrDefault(link =>
-                link.Url.Contains("huggingface.co/briaai/RMBG-2.0", StringComparison.OrdinalIgnoreCase)) ??
-            new NymphModuleActionLinkInfo("Fill BRIA form", "https://huggingface.co/briaai/RMBG-2.0");
-    }
-
     public IReadOnlyList<NymphModuleActionFieldInfo> DisplayedModuleInstallFields =>
         DisplayedModule?.CanInstall == true
             ? DisplayedModule.InstallOptionFields
@@ -790,10 +738,13 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                 OnPropertyChanged(nameof(ShowInstalledModuleActions));
                 OnPropertyChanged(nameof(ShowInstalledModuleActionGroups));
                 OnPropertyChanged(nameof(ShowModuleUiAction));
-                RaiseModuleDetailPrimaryProperties();
+                OnPropertyChanged(nameof(ModuleDetailPrimaryAction));
+                OnPropertyChanged(nameof(ShowModuleDetailPrimaryAction));
                 OnPropertyChanged(nameof(ShowModuleDetailProgress));
                 OnPropertyChanged(nameof(ShowDisplayedModuleOverviewLinks));
                 OnPropertyChanged(nameof(ShowDisplayedModuleActionGroupLinks));
+                OnPropertyChanged(nameof(ModuleDetailPrimaryActionHeading));
+                OnPropertyChanged(nameof(ModuleDetailPrimaryActionHelp));
                 OnPropertyChanged(nameof(ModuleDetailProgressHeading));
                 OnPropertyChanged(nameof(ModuleDetailProgressHelp));
                 OnPropertyChanged(nameof(DisplayedModuleContractActions));
@@ -1145,7 +1096,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             _uninstallModuleCommand.RaiseCanExecuteChanged();
             _deleteModuleCommand.RaiseCanExecuteChanged();
             OnPropertyChanged(nameof(CanChooseBaseRuntimeDrive));
-            RaiseModuleDetailPrimaryProperties();
+            OnPropertyChanged(nameof(ShowModuleDetailPrimaryAction));
             OnPropertyChanged(nameof(ShowModuleDetailProgress));
             OnPropertyChanged(nameof(ShowDisplayedModuleOverviewLinks));
             OnPropertyChanged(nameof(ShowDisplayedModuleActionGroupLinks));
@@ -2612,7 +2563,8 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             if (DisplayedModule is not null && string.Equals(DisplayedModule.Id, module.Id, StringComparison.OrdinalIgnoreCase))
             {
                 OnPropertyChanged(nameof(ShowModuleUiAction));
-                RaiseModuleDetailPrimaryProperties();
+                OnPropertyChanged(nameof(ModuleDetailPrimaryAction));
+                OnPropertyChanged(nameof(ShowModuleDetailPrimaryAction));
                 OnPropertyChanged(nameof(ShowModuleDetailProgress));
                 OnPropertyChanged(nameof(DisplayedModuleContractActions));
                 OnPropertyChanged(nameof(ShowInstalledModuleActionGroups));
@@ -2642,7 +2594,8 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         if (DisplayedModule is not null && string.Equals(DisplayedModule.Id, module.Id, StringComparison.OrdinalIgnoreCase))
         {
             OnPropertyChanged(nameof(ShowModuleUiAction));
-            RaiseModuleDetailPrimaryProperties();
+            OnPropertyChanged(nameof(ModuleDetailPrimaryAction));
+            OnPropertyChanged(nameof(ShowModuleDetailPrimaryAction));
             OnPropertyChanged(nameof(ShowModuleDetailProgress));
             OnPropertyChanged(nameof(DisplayedModuleContractActions));
             OnPropertyChanged(nameof(ShowInstalledModuleActionGroups));
@@ -4575,7 +4528,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
         _activeModuleDetailProgressModuleId = module.Id;
         OnPropertyChanged(nameof(ShowModuleDetailProgress));
-        RaiseModuleDetailPrimaryProperties();
+        OnPropertyChanged(nameof(ShowModuleDetailPrimaryAction));
     }
 
     private void EndModuleDetailProgress(NymphModuleViewModel module)
@@ -4587,7 +4540,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
         _activeModuleDetailProgressModuleId = string.Empty;
         OnPropertyChanged(nameof(ShowModuleDetailProgress));
-        RaiseModuleDetailPrimaryProperties();
+        OnPropertyChanged(nameof(ShowModuleDetailPrimaryAction));
     }
 
     private static string BuildInstallFieldFeedback(
@@ -6075,7 +6028,8 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(DisplayedModuleActionGroups));
         OnPropertyChanged(nameof(ShowDeleteModuleData));
         OnPropertyChanged(nameof(ShowModuleUiAction));
-        RaiseModuleDetailPrimaryProperties();
+        OnPropertyChanged(nameof(ModuleDetailPrimaryAction));
+        OnPropertyChanged(nameof(ShowModuleDetailPrimaryAction));
         OnPropertyChanged(nameof(ShowModuleDetailProgress));
         _repairModuleCommand.RaiseCanExecuteChanged();
         _runModuleActionCommand.RaiseCanExecuteChanged();
