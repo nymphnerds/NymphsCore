@@ -805,6 +805,58 @@ Backend `start` actions may intentionally leave a service running, but only if
 the module records ownership state and its `stop` action can cleanly terminate
 that service.
 
+### Emergency Kill Action Contract
+
+Modules that run heavyweight backends may optionally expose a `kill` action.
+This is for cases where the module's normal web UI or API is blocked and cannot
+answer its own cleanup request.
+
+The contract is split deliberately:
+
+- The module owns the `kill` entrypoint and decides what has to be stopped.
+- The Manager owns the emergency availability behavior for the action name
+  `kill`.
+
+Starting with Manager `0.9.38`, an installed module action named exactly `kill`
+is treated like an emergency stop action. The Manager may keep it available
+while another module action is busy or a module detail progress panel is active.
+Do not use another action name if you need this behavior.
+
+Declare it in the installed module manifest, not in the registry:
+
+```json
+{
+  "entrypoints": {
+    "stop": "scripts/example_stop.sh",
+    "kill": "scripts/example_stop.sh"
+  },
+  "ui": {
+    "manager_actions": [
+      {
+        "id": "kill",
+        "label": "Kill",
+        "entrypoint": "kill",
+        "result": "show_output"
+      }
+    ]
+  }
+}
+```
+
+Rules for `kill`:
+
+- It must be an installed module entrypoint script that can run without the
+  module web server, API server, or UI answering.
+- It must be idempotent. If nothing is running, exit 0 and say so.
+- It should terminate all module-owned backend, UI, worker, and child processes
+  that would keep GPU/CPU work alive.
+- It may point at `stop` only when `stop` already performs a complete,
+  out-of-process hard stop.
+- It should clean stale module-owned pid/lock state, but it must not delete
+  user outputs, model caches, install markers, or manifests.
+- It should return quickly and print concise output that helps the user know
+  what was stopped.
+
 ## Native Action Groups
 
 Some module-owned UI does not need WebView2. If a module only needs compact
