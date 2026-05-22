@@ -1215,7 +1215,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
         _shutdownStarted = true;
         _operationCancellation.Cancel();
-        AppendActivity("Manager shutdown requested. Stopping active module lifecycle jobs in the managed WSL distro...");
+        AppendActivity("Manager shutdown requested. Stopping module backends in the managed WSL distro...");
 
         try
         {
@@ -1228,6 +1228,63 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         catch (Exception ex)
         {
             AppendActivity($"Shutdown lifecycle cleanup warning: {ex.Message}");
+        }
+
+        try
+        {
+            using var stopTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            await StopInstalledModuleBackendsOnShutdownAsync(stopTimeout.Token).ConfigureAwait(true);
+        }
+        catch (Exception ex)
+        {
+            AppendActivity($"Shutdown module stop warning: {ex.Message}");
+        }
+    }
+
+    private async Task StopInstalledModuleBackendsOnShutdownAsync(CancellationToken cancellationToken)
+    {
+        var modulesToStop = InstalledModules
+            .Where(module => module.IsInstalled)
+            .Where(module =>
+                module.Capabilities.Any(capability => string.Equals(capability, "stop", StringComparison.OrdinalIgnoreCase)) ||
+                module.ManagerActions.Any(action => string.Equals(action.ActionName, "stop", StringComparison.OrdinalIgnoreCase)) ||
+                !string.IsNullOrWhiteSpace(module.InstalledModuleUiInfo?.StopAction))
+            .ToList();
+
+        if (modulesToStop.Count == 0)
+        {
+            AppendActivity("Shutdown module backend stop: no installed modules expose a stop action.");
+            return;
+        }
+
+        AppendActivity($"Shutdown module backend stop: stopping {modulesToStop.Count} installed module(s).");
+
+        foreach (var module in modulesToStop)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var stopAction = module.InstalledModuleUiInfo?.StopAction?.Trim();
+            if (string.IsNullOrWhiteSpace(stopAction))
+            {
+                stopAction = "stop";
+            }
+
+            try
+            {
+                AppendActivity($"Stopping {module.Name} backend...");
+                await _workflowService.RunNymphModuleActionAsync(
+                    _settings,
+                    module.Id,
+                    stopAction,
+                    module.InstallRoot,
+                    new Progress<string>(AppendActivity),
+                    cancellationToken).ConfigureAwait(true);
+                AppendActivity($"{module.Name} backend stopped.");
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                AppendActivity($"{module.Name} backend stop warning: {ex.Message}");
+            }
         }
     }
 
