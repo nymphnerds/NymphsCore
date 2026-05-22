@@ -8,6 +8,15 @@ This file focuses on user-facing and system-level changes rather than package-by
 
 Newest entries first.
 
+### 2026-05-22 Manager 0.9.47 action-group state visibility
+Source: LoRA and Pixal3D module contract testing.
+
+Changed in source:
+
+- lets module-owned action groups use the same `show_when.state` contract as
+  Details-pane primary actions
+- keeps module-scoped action status from leaking across module pages
+
 ### 2026-05-22 Manager 0.9.46 model-fetch failure next steps
 Source: Pixal3D BRIA RMBG fetch testing.
 

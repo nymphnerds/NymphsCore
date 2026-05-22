@@ -427,7 +427,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
     public bool ShowInstalledModuleActionGroups =>
         !IsBusy &&
         DisplayedModule?.IsInstalled == true &&
-        DisplayedModule.ManagerActionGroups.Count > 0;
+        DisplayedModuleActionGroups.Count > 0;
 
     public bool ShowModuleUiAction => DisplayedModule?.HasInstalledModuleUi == true;
 
@@ -653,6 +653,24 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                 .ToArray());
     }
 
+    private static bool ModuleActionGroupMatchesState(NymphModuleViewModel module, NymphModuleActionGroupInfo group)
+    {
+        if (group.ShowWhenStates.Count == 0)
+        {
+            return true;
+        }
+
+        var currentStates = new[]
+        {
+            NormalizeDetailPrimaryActionState(module.StateLabel),
+            NormalizeDetailPrimaryActionState(module.DisplayStateLabel),
+        };
+        return group.ShowWhenStates
+            .Select(NormalizeDetailPrimaryActionState)
+            .Where(state => !string.IsNullOrWhiteSpace(state))
+            .Any(state => currentStates.Contains(state, StringComparer.OrdinalIgnoreCase));
+    }
+
     public IReadOnlyList<NymphModuleActionFieldInfo> DisplayedModuleInstallFields =>
         DisplayedModule?.CanInstall == true
             ? DisplayedModule.InstallOptionFields
@@ -671,7 +689,9 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             }
 
             RefreshActionGroupSecretState(DisplayedModule);
-            return DisplayedModule.ManagerActionGroups;
+            return DisplayedModule.ManagerActionGroups
+                .Where(group => ModuleActionGroupMatchesState(DisplayedModule, group))
+                .ToArray();
         }
     }
 
@@ -782,6 +802,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                 OnPropertyChanged(nameof(DisplayedModuleContractActions));
                 OnPropertyChanged(nameof(DisplayedModuleInstallFields));
                 OnPropertyChanged(nameof(DisplayedModuleActionGroups));
+                ClearOutOfScopeModuleStatus(value);
                 _repairModuleCommand.RaiseCanExecuteChanged();
                 _updateModuleCommand.RaiseCanExecuteChanged();
                 _runModuleActionCommand.RaiseCanExecuteChanged();
@@ -4361,7 +4382,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             BeginModuleDetailProgress(module, actionLabel);
         }
 
-        StatusMessage = $"Running {module.Name} {actionLabel}...";
+        SetModuleScopedStatusMessage(module, $"Running {module.Name} {actionLabel}...");
         ShowModuleLogs = false;
         ClearStickyModuleActionFeedback();
         SetModuleActionFeedback(
@@ -4411,11 +4432,11 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                 module,
                 BuildModuleActionSuccessTitle(module, actionLabel, normalizedAction),
                 BuildModuleActionSuccessDetail(normalizedAction, successDetail));
-            StatusMessage = BuildModuleActionSuccessStatus(module, actionLabel, normalizedAction);
+            SetModuleScopedStatusMessage(module, BuildModuleActionSuccessStatus(module, actionLabel, normalizedAction));
         }
         catch (Exception ex)
         {
-            StatusMessage = $"{module.Name} {actionLabel} needs attention.";
+            SetModuleScopedStatusMessage(module, $"{module.Name} {actionLabel} needs attention.");
             SetModuleActionFeedback(
                 $"{module.Name}: {actionLabel} failed",
                 BuildModuleActionFeedbackDetail(ex.Message));
@@ -4866,7 +4887,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         {
             BeginModuleDetailProgress(module, actionLabel);
         }
-        StatusMessage = $"Running {module.Name} {actionLabel}...";
+        SetModuleScopedStatusMessage(module, $"Running {module.Name} {actionLabel}...");
         ShowModuleLogs = false;
 
         ClearStickyModuleActionFeedback();
@@ -4966,11 +4987,11 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                 module,
                 BuildModuleActionSuccessTitle(module, actionLabel, normalizedAction),
                 BuildModuleActionSuccessDetail(normalizedAction, successDetail));
-            StatusMessage = BuildModuleActionSuccessStatus(module, actionLabel, normalizedAction);
+            SetModuleScopedStatusMessage(module, BuildModuleActionSuccessStatus(module, actionLabel, normalizedAction));
         }
         catch (Exception ex)
         {
-            StatusMessage = $"{module.Name} {actionLabel} needs attention.";
+            SetModuleScopedStatusMessage(module, $"{module.Name} {actionLabel} needs attention.");
             AppendActivity($"{module.Name} {actionLabel} warning: {ex.Message}");
             SetModuleActionFeedback(
                 $"{module.Name}: {actionLabel} needs attention",
@@ -5101,6 +5122,54 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
     {
         ModuleActionFeedbackTitle = title;
         ModuleActionFeedbackDetail = string.IsNullOrWhiteSpace(detail) ? "The command finished without output." : detail.Trim();
+    }
+
+    private bool IsDisplayedModule(NymphModuleViewModel module)
+    {
+        return DisplayedModule is not null &&
+               string.Equals(DisplayedModule.Id, module.Id, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private void SetModuleScopedStatusMessage(NymphModuleViewModel module, string message)
+    {
+        if (IsDisplayedModule(module))
+        {
+            StatusMessage = message;
+        }
+        else
+        {
+            AppendActivity(message);
+        }
+    }
+
+    private void ClearOutOfScopeModuleStatus(NymphModuleViewModel? displayedModule)
+    {
+        if (displayedModule is null || string.IsNullOrWhiteSpace(StatusMessage))
+        {
+            return;
+        }
+
+        var staleModule = _allModules.FirstOrDefault(module =>
+            !string.Equals(module.Id, displayedModule.Id, StringComparison.OrdinalIgnoreCase) &&
+            IsModuleScopedStatusMessage(module, StatusMessage));
+        if (staleModule is null)
+        {
+            return;
+        }
+
+        StatusMessage = $"{displayedModule.Name} selected.";
+    }
+
+    private static bool IsModuleScopedStatusMessage(NymphModuleViewModel module, string message)
+    {
+        if (string.IsNullOrWhiteSpace(module.Name) || string.IsNullOrWhiteSpace(message))
+        {
+            return false;
+        }
+
+        var trimmed = message.TrimStart();
+        return trimmed.StartsWith(module.Name + " ", StringComparison.OrdinalIgnoreCase) ||
+               trimmed.StartsWith(module.Name + ":", StringComparison.OrdinalIgnoreCase);
     }
 
     private void SetStickyModuleActionFeedback(NymphModuleViewModel module, string title, string detail)

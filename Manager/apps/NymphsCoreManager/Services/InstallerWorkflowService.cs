@@ -5392,7 +5392,8 @@ meta:
                 GetJsonString(groupElement, "visibility") ?? "installed",
                 ReadManagerActionGroupSubmitLabel(groupElement),
                 ReadManagerActionGroupLinks(groupElement),
-                ReadManagerActionGroupFields(groupElement)));
+                ReadManagerActionGroupFields(groupElement),
+                ReadDetailPrimaryActionShowWhenStates(groupElement)));
         }
 
         return groups

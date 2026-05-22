@@ -17,7 +17,8 @@ public sealed class NymphModuleActionGroupInfo : ViewModelBase
         string visibility,
         string submitLabel,
         IReadOnlyList<NymphModuleActionLinkInfo> links,
-        IReadOnlyList<NymphModuleActionFieldInfo> fields)
+        IReadOnlyList<NymphModuleActionFieldInfo> fields,
+        IReadOnlyList<string>? showWhenStates = null)
     {
         Id = id;
         Title = title;
@@ -28,6 +29,7 @@ public sealed class NymphModuleActionGroupInfo : ViewModelBase
         SubmitLabel = submitLabel;
         Links = links;
         Fields = fields;
+        ShowWhenStates = showWhenStates ?? Array.Empty<string>();
 
         foreach (var field in Fields)
         {
@@ -58,6 +60,8 @@ public sealed class NymphModuleActionGroupInfo : ViewModelBase
     public IReadOnlyList<NymphModuleActionLinkInfo> Links { get; }
 
     public IReadOnlyList<NymphModuleActionFieldInfo> Fields { get; }
+
+    public IReadOnlyList<string> ShowWhenStates { get; }
 
     public IReadOnlyList<NymphModuleActionFieldInfo> SecretFields =>
         Fields.Where(field => field.IsSecret).ToArray();
