@@ -45,6 +45,9 @@ Current heavyweight proof state:
 - Brain and Pixal3D prove that module installers must verify real venv
   creation with pip, not only `import venv`, before assuming Python venv support
   is usable on a fresh or repaired runtime.
+- TRELLIS and Pixal3D prove that CUDA 13/nvcc is module-owned but shared:
+  either module may install the toolkit when needed, but it must go to the
+  shared WSL path `/usr/local/cuda-13.0` so the other module benefits too.
 - Both modules keep model fetch module-owned through `ui.manager_action_groups`.
 - Both modules keep generated outputs, logs, config, and reusable model caches
   under `$HOME/NymphsData` instead of inside disposable runtime source roots.
@@ -232,9 +235,14 @@ available, install the matching `python3-venv`/`python3-pip` or pinned
 
 Modules still own heavyweight and product-specific dependencies such as CUDA
 toolkits, Python versions beyond the base floor, Node runtimes, llama.cpp,
-model managers, Gradio apps, AI Toolkit, or 3D/image runtime libraries. A
-module install script may install those dependencies itself, but it should print
-clear progress and fail with the exact package/tool that needs attention.
+model managers, Gradio apps, AI Toolkit, or 3D/image runtime libraries. Keep
+the base distro light. If multiple modules need the same heavyweight system
+toolkit, the first module that needs it may install it into a shared WSL system
+path. For CUDA 13/nvcc, TRELLIS and Pixal3D install or verify the same
+`/usr/local/cuda-13.0` toolkit; neither should install a private CUDA copy
+inside its module root or venv. A module install script may install those
+dependencies itself, but it should print clear progress and fail with the exact
+package/tool that needs attention.
 
 ## Python Venv Install Standard
 
