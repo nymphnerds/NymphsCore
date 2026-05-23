@@ -8,6 +8,33 @@ This file focuses on user-facing and system-level changes rather than package-by
 
 Newest entries first.
 
+### 2026-05-23 Pixal3D repeat-run crash/export fix
+Source: live Pixal3D Manager testing in the managed `NymphsCore` WSL distro.
+
+Changed in source:
+
+- fixed a Pixal3D repeat-run failure where the first generation/export could
+  succeed, then the next run could crash WSL or fail during GLB export
+- fixed the cleanup path so Pixal3D gives unused system memory back between
+  runs instead of keeping the warmed process near the WSL memory limit
+- fixed shape export so the decoder cannot accidentally reduce a generated
+  shape to nothing before GLB export
+- kept the fast FlashAttention path enabled
+- confirmed `Pixal3D 0.1.108` as the stable repeat-run baseline
+
+In plain terms:
+
+- Pixal3D was cleaning GPU memory, but normal system memory could stay too full
+  after a run. The next run could hit the WSL memory ceiling and crash.
+- Once that was fixed, a second bug showed up: sometimes export tried to decode
+  a shape that had collapsed to empty data. Pixal3D now keeps enough shape data
+  alive for export instead of crashing.
+
+Related module/registry updates:
+
+- Pixal3D `0.1.106`: native heap/RSS cleanup between runs
+- Pixal3D `0.1.108`: empty-shape decode/export guard
+
 ### 2026-05-22 TRELLIS module Manager UI preprocessing fix
 Source: live TRELLIS Manager UI image-to-3D testing.
 
