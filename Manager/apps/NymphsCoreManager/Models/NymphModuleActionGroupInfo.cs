@@ -31,6 +31,11 @@ public sealed class NymphModuleActionGroupInfo : ViewModelBase
         Fields = fields;
         ShowWhenStates = showWhenStates ?? Array.Empty<string>();
 
+        if (HasInlineOptionSubmit)
+        {
+            OptionFields[^1].SetShowsInlineGroupSubmit(true);
+        }
+
         foreach (var field in Fields)
         {
             field.PropertyChanged += (_, args) =>
@@ -88,6 +93,10 @@ public sealed class NymphModuleActionGroupInfo : ViewModelBase
 
     public bool HasNoChoiceFields => !HasChoiceFields;
 
+    public bool HasInlineOptionSubmit => HasOptionFields && !HasCheckboxFields;
+
+    public bool HasSeparateChoiceSubmit => HasChoiceFields && !HasInlineOptionSubmit;
+
     public bool CanSubmit => !Fields.Any(field => field.BlocksSubmit);
 
     public int FieldRowLeftMargin => HasChoiceFields ? 0 : 24;
@@ -126,6 +135,7 @@ public sealed class NymphModuleActionFieldInfo : ViewModelBase
     private NymphModuleActionOptionInfo? _selectedOption;
     private string _secretValue = string.Empty;
     private bool _hasSavedSecret;
+    private bool _showsInlineGroupSubmit;
 
     public NymphModuleActionFieldInfo(
         string name,
@@ -258,6 +268,17 @@ public sealed class NymphModuleActionFieldInfo : ViewModelBase
         string.Equals(Name, "license_ack", StringComparison.OrdinalIgnoreCase) ||
         string.Equals(ArgumentName, "--license-ack", StringComparison.OrdinalIgnoreCase) ||
         string.Equals(ArgumentName, "--license_ack", StringComparison.OrdinalIgnoreCase);
+
+    public bool ShowsInlineGroupSubmit
+    {
+        get => _showsInlineGroupSubmit;
+        private set => SetProperty(ref _showsInlineGroupSubmit, value);
+    }
+
+    public void SetShowsInlineGroupSubmit(bool value)
+    {
+        ShowsInlineGroupSubmit = value;
+    }
 
     public bool BlocksSubmit => (IsRequiredCheckbox || (IsAgreementField && !Optional)) && !IsChecked;
 

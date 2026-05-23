@@ -2552,6 +2552,18 @@
                                       </DataTemplate>
                                     </ComboBox.ItemTemplate>
                                   </ComboBox>
+                                  <Button Style="{StaticResource ModuleActionButtonStyle}"
+                                          MinWidth="118"
+                                          Padding="10,4"
+                                          Margin="12,0,0,0"
+                                          Command="{Binding DataContext.RunModuleActionGroupCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                          CommandParameter="{Binding DataContext, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                          Visibility="{Binding ShowsInlineGroupSubmit, Converter={StaticResource BoolToVisibilityConverter}}">
+                                    <TextBlock Text="{Binding DataContext.SubmitLabel, RelativeSource={RelativeSource AncestorType=ItemsControl}, StringFormat=// {0}}"
+                                               Foreground="#23E7DB"
+                                               FontFamily="Cascadia Mono"
+                                               FontSize="11.5" />
+                                  </Button>
                                 </StackPanel>
                               </DataTemplate>
                             </ItemsControl.ItemTemplate>
@@ -2584,7 +2596,7 @@
                           <StackPanel Orientation="Horizontal"
                                       Margin="{Binding FieldRowMargin}"
                                       VerticalAlignment="Center"
-                                      Visibility="{Binding HasChoiceFields, Converter={StaticResource BoolToVisibilityConverter}}">
+                                      Visibility="{Binding HasSeparateChoiceSubmit, Converter={StaticResource BoolToVisibilityConverter}}">
                             <TextBlock Width="{Binding FieldLabelWidth}"
                                        Margin="0,0,7,0" />
                             <Button Style="{StaticResource ModuleActionButtonStyle}"
