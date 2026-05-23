@@ -8,6 +8,40 @@ This file focuses on user-facing and system-level changes rather than package-by
 
 Newest entries first.
 
+### 2026-05-23 Pixal3D Manager/Blender runtime unification
+Source: follow-up after the Pixal3D repeat-run fix and Blender addon alignment.
+
+Changed in source:
+
+- unified Pixal3D module startup around the Manager/Nymph UI app server on
+  port `8097`
+- stopped advertising the old separate Pixal3D `8096` API wrapper as the
+  module runtime path
+- updated the Blender addon so Pixal3D uses the same Manager-style flow:
+  warm-up, source prep, latent generation, GLB export, cleanup, and import
+- made Blender source-image changes clear stale Pixal3D result state and flush
+  RMBG/source-prep memory before the next run
+- kept the repeat-run memory/export fixes from Pixal3D `0.1.106` and
+  `0.1.108` in the path Blender now uses
+
+In plain terms:
+
+- There were two Pixal3D server paths: an older Blender wrapper on `8096`, and
+  the fixed Manager UI runtime on `8097`.
+- That made testing confusing and risked Blender using a different path than
+  Manager.
+- Pixal3D now presents the `8097` app server as the module runtime, and the
+  Blender addon follows that same path.
+- Picking a new source image in Blender now behaves like Manager: old prepared
+  source/result state is cleared, and Pixal3D flushes the source-prep memory
+  before generating again.
+
+Related module/addon/registry updates:
+
+- Pixal3D `0.1.109`: module runtime metadata and start path unified on `8097`
+- Nymphs Blender addon `1.1.241`: Pixal3D Manager-flow and source-change flush
+- nymphs-registry: Pixal3D manifest updated to `0.1.109`
+
 ### 2026-05-23 Pixal3D repeat-run crash/export fix
 Source: live Pixal3D Manager testing in the managed `NymphsCore` WSL distro.
 
