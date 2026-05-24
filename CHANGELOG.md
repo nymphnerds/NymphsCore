@@ -8,6 +8,64 @@ This file focuses on user-facing and system-level changes rather than package-by
 
 Newest entries first.
 
+### 2026-05-24 Nymphs Image Manager UI and Z-Image model-flow fix
+Source: live Nymphs Image Manager UI and test WSL generation debugging.
+
+Changed in source:
+
+- added and iterated the Nymphs Image module UI as the Manager-hosted image
+  frontend for local Z-Image, Gemini Flash, variants, browsing, and part
+  extraction workflows
+- aligned the local Z-Image model flow with the working Blender addon pattern:
+  selected Nunchaku rank is saved, the runtime restarts when rank changes, and
+  generation verifies the selected model before running
+- fixed the bad state where the UI could show r32 while the running backend was
+  still configured as r128, causing generation to sit at `LOADING_MODEL` / 8%
+- changed the Nunchaku API path to use sequential CPU offload, matching the
+  working smoke-test path and avoiding the post-denoise hang after `9/9`
+- added denoise-step progress through `/active_task` so the UI reports real
+  `Nunchaku txt2img denoising step X/Y` status instead of staying at 33%
+- made `/server_info` report configured rank/precision separately from the
+  loaded weight, so selected/configured/loaded model state can be understood
+- made mismatched generate requests fail fast with a clear message instead of
+  silently loading the wrong rank
+- documented the session handoff, workflow rules, Blender addon reference
+  functions, test paths, caveats, and recovery commands in
+  `NYMPHS_IMAGE_HANDOFF_2026-05-24.md`
+
+In plain terms:
+
+- Nymphs Image now treats the Blender addon image flow as the source of truth
+  for Z-Image rank changes.
+- Choosing r32/r128/r256 is not just a label in the UI anymore. The Manager UI
+  applies the selection before generation, and the backend refuses to run if the
+  selected rank does not match the configured runtime.
+- The generation hang was two-part: the API was not following the addon-style
+  restart/env model path, and the Nunchaku pipeline needed the same offload mode
+  as the working smoke test.
+
+Verified in the managed `NymphsCore` test WSL:
+
+- installed Nymphs Image version `0.1.47` through the registry update path
+- verified mismatch guard: r128-configured server plus r32 request now returns
+  HTTP 400 instead of hanging
+- verified r32 load and generation; output saved under
+  `/home/nymph/NymphsData/outputs/zimage`
+- verified r128 load and generation; output saved under
+  `/home/nymph/NymphsData/outputs/zimage`
+- restored final test WSL state to r32 loaded and idle
+
+Related module/registry updates:
+
+- Nymphs Image / zimage `0.1.44`: restored addon-style model selection and
+  restart behavior
+- Nymphs Image / zimage `0.1.45`: fixed Nunchaku offload and denoise progress
+- Nymphs Image / zimage `0.1.46`: made the Load button actually preload the
+  selected model when possible
+- Nymphs Image / zimage `0.1.47`: applied selected model before generation and
+  added backend mismatch guards
+- nymphs-registry `164`: advertises zimage `0.1.47`
+
 ### 2026-05-23 Pixal3D Manager/Blender runtime unification
 Source: follow-up after the Pixal3D repeat-run fix and Blender addon alignment.
 
