@@ -8,6 +8,34 @@ This file focuses on user-facing and system-level changes rather than package-by
 
 Newest entries first.
 
+### 2026-05-24 Local vision planner handoff for Nymphs Image parts
+Source: research pass on replacing the Gemini Flash part-planning step with a Brain-hosted local vision model.
+
+Changed in docs:
+
+- added `Handoffs/LOCAL_VISION_PARTS_EXTRACTION_HANDOFF_2026-05-24.md`
+- documented the current Nymphs Image parts flow: Gemini/OpenRouter plans
+  structured part JSON, shared prompt/schema normalization happens in
+  `shared_image_parts.py`, and Gemini image generation still performs the
+  actual part extraction redraws
+- documented that a local VLM can replace `Plan Parts` and help LoRA captioning,
+  but cannot by itself replace image-edit extraction
+- identified Brain as the correct owner for local VLM download, selection,
+  `mmproj` handling, and llama-server hosting
+- recommended `Qwen/Qwen3-VL-4B-Instruct-GGUF:Q4_K_M` as the first local parts
+  planner target, with Qwen3-VL 8B as the quality upgrade, Qwen3-VL 2B as a
+  smoke-test fallback, and Qwen2.5-VL 7B as a stable fallback
+- captured why Florence-2 and JoyCaption are useful future sidecars but should
+  not be the first Brain planner path
+
+In plain terms:
+
+- The next local-parts step should not duplicate model downloading in zimage.
+  Brain should host the local vision model, and Nymphs Image should call Brain's
+  OpenAI-compatible `llama-server` endpoint for planning.
+- Keep Gemini available and keep the current extraction stage unchanged until
+  local planning quality is measured.
+
 ### 2026-05-24 Nymphs Image Manager UI and Z-Image model-flow fix
 Source: live Nymphs Image Manager UI and test WSL generation debugging.
 
