@@ -6369,7 +6369,7 @@ meta:
             "  done; " +
             "fi; " +
             "while IFS= read -r pid; do ROOTS=\"$ROOTS $pid\"; done < <(ps -eo pid=,args= | awk -v self=\"$SELF_PID\" " +
-            "'$1 != self && $0 !~ /awk/ && (/\\/tmp\\/nymphs-manager-(install|uninstall)-/ || /install_nymph_module_from_registry\\.sh/ || /uninstall_nymph_module\\.sh/ || /\\/\\.cache\\/nymphs-modules\\/repos\\/[^ ]+\\/scripts\\/(install|uninstall)_[^ ]+\\.sh/) {print $1}'); " +
+            "'$1 != self && $0 !~ /awk/ && (/\\/tmp\\/nymphs-manager-(install|update|uninstall|delete)-/ || /install_nymph_module_from_registry\\.sh/ || /uninstall_nymph_module\\.sh/ || /\\/\\.cache\\/nymphs-modules\\/repos\\/[^ ]+\\/scripts\\/[A-Za-z0-9_-]+_[A-Za-z0-9_-]+\\.sh/ || /\\/Nymphs-[^ ]+\\/scripts\\/[A-Za-z0-9_-]+_[A-Za-z0-9_-]+\\.sh/ || /\\/Z-Image\\/scripts\\/[A-Za-z0-9_-]+_[A-Za-z0-9_-]+\\.sh/) {print $1}'); " +
             "PIDS=$(for root in $ROOTS; do collect_tree \"$root\"; done | awk '!seen[$0]++'); " +
             "if [[ -n \"$PIDS\" ]]; then " +
             "  count=$(printf '%s\\n' \"$PIDS\" | sed '/^$/d' | wc -l); " +
@@ -6521,6 +6521,8 @@ meta:
         var manifestPath = $"{cacheRepo}/nymph.json";
         var installedManifestPath = $"{installRoot}/nymph.json";
         var versionMarkerPath = $"{installRoot}/.nymph-module-version";
+        var actionRoot = $"{homePath}/.cache/nymphs-modules/actions";
+        var actionStateFile = $"{actionRoot}/{normalizedModuleId}.state";
         var localBinEntrypoint = $"{homePath}/.local/bin/{normalizedModuleId}-{normalizedAction}";
         var installRootBinEntrypoint = $"{installRoot}/bin/{normalizedModuleId}-{normalizedAction}";
         var conventionalEntrypoint = $"scripts/{normalizedModuleId.Replace('-', '_')}_{normalizedAction}.sh";
@@ -6540,11 +6542,15 @@ meta:
             progress.Report($"Running module action '{normalizedAction}' for '{normalizedModuleId}'...");
             progress.Report($"module_action_entrypoint=installed:{installedConventionalEntrypointPath}");
 
-            var directArguments = new List<string> { "/bin/bash", installedConventionalEntrypointPath };
-            directArguments.AddRange(normalizedActionArguments);
-            var directResult = await RunWslCommandAsync(
+            var directCommand = BuildTrackedModuleActionCommand(
+                actionRoot,
+                actionStateFile,
+                normalizedModuleId,
+                normalizedAction,
+                $"bash {ToBashSingleQuoted(installedConventionalEntrypointPath)}{quotedActionArguments}");
+            var directResult = await RunWslBashAsync(
                 settings,
-                directArguments,
+                directCommand,
                 progress,
                 actionProcessEnvironment,
                 cancellationToken).ConfigureAwait(false);
@@ -6571,11 +6577,15 @@ meta:
             progress.Report($"Running module action '{normalizedAction}' for '{normalizedModuleId}'...");
             progress.Report($"module_action_entrypoint=installed-manifest:{installedManifestEntrypointPath}");
 
-            var directArguments = new List<string> { "/bin/bash", installedManifestEntrypointPath };
-            directArguments.AddRange(normalizedActionArguments);
-            var directResult = await RunWslCommandAsync(
+            var directCommand = BuildTrackedModuleActionCommand(
+                actionRoot,
+                actionStateFile,
+                normalizedModuleId,
+                normalizedAction,
+                $"bash {ToBashSingleQuoted(installedManifestEntrypointPath)}{quotedActionArguments}");
+            var directResult = await RunWslBashAsync(
                 settings,
-                directArguments,
+                directCommand,
                 progress,
                 actionProcessEnvironment,
                 cancellationToken).ConfigureAwait(false);
@@ -6707,9 +6717,18 @@ meta:
 
         progress.Report($"Running module action '{normalizedAction}' for '{normalizedModuleId}'...");
 
+        var trackedBashCommand = !isStatusAction
+            ? BuildTrackedModuleActionCommand(
+                actionRoot,
+                actionStateFile,
+                normalizedModuleId,
+                normalizedAction,
+                bashCommand)
+            : bashCommand;
+
         var result = await RunWslBashAsync(
             settings,
-            bashCommand,
+            trackedBashCommand,
             progress,
             actionProcessEnvironment,
             cancellationToken).ConfigureAwait(false);
@@ -6751,6 +6770,28 @@ meta:
         }
 
         return normalized;
+    }
+
+    private static string BuildTrackedModuleActionCommand(
+        string actionRoot,
+        string actionStateFile,
+        string normalizedModuleId,
+        string normalizedAction,
+        string actionCommand)
+    {
+        return
+            "set -euo pipefail; " +
+            $"ACTION_ROOT={ToBashSingleQuoted(actionRoot)}; " +
+            $"STATE_FILE={ToBashSingleQuoted(actionStateFile)}; " +
+            $"MODULE_ID={ToBashSingleQuoted(normalizedModuleId)}; " +
+            $"MODULE_ACTION={ToBashSingleQuoted(normalizedAction)}; " +
+            "mkdir -p \"$ACTION_ROOT\"; " +
+            "cleanup() { status=$?; if [[ -n \"${child_pid:-}\" ]] && kill -0 \"$child_pid\" >/dev/null 2>&1; then kill \"$child_pid\" >/dev/null 2>&1 || true; sleep 0.5; kill -9 \"$child_pid\" >/dev/null 2>&1 || true; fi; rm -f \"$STATE_FILE\"; exit \"$status\"; }; " +
+            "trap cleanup EXIT INT TERM; " +
+            $"({actionCommand}) & " +
+            "child_pid=$!; " +
+            "{ echo module=$MODULE_ID; echo action=$MODULE_ACTION; echo status=running; echo pid=$child_pid; echo detail=Module action is still running.; echo started_at=$(date -Is); } > \"$STATE_FILE\"; " +
+            "wait \"$child_pid\"";
     }
 
     private static IReadOnlyDictionary<string, string?>? BuildModuleActionProcessEnvironment(IReadOnlyDictionary<string, string> actionEnvironment)
