@@ -3670,47 +3670,14 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         NymphModuleActionGroupInfo actionGroup,
         string actionLabel)
     {
-        var lines = new List<string>
+        return string.Join(Environment.NewLine, new[]
         {
-            $"{module.Name}: {actionLabel}"
-        };
-
-        var terms = ExtractTermsText(module.SecondaryDetail);
-        if (string.IsNullOrWhiteSpace(terms))
-        {
-            terms = ExtractTermsText(module.Detail);
-        }
-        if (string.IsNullOrWhiteSpace(terms))
-        {
-            terms = actionGroup.Description.Trim();
-        }
-        if (!string.IsNullOrWhiteSpace(terms))
-        {
-            lines.Add("");
-            lines.Add(terms);
-        }
-
-        var links = actionGroup.Links
-            .Concat(module.OverviewLinks.Where(link =>
-                link.Label.Contains("license", StringComparison.OrdinalIgnoreCase) ||
-                link.Label.Contains("access", StringComparison.OrdinalIgnoreCase) ||
-                link.Label.Contains("terms", StringComparison.OrdinalIgnoreCase)))
-            .GroupBy(link => link.Url, StringComparer.OrdinalIgnoreCase)
-            .Select(group => group.First())
-            .ToArray();
-        if (links.Length > 0)
-        {
-            lines.Add("");
-            lines.Add("Links:");
-            foreach (var link in links)
-            {
-                lines.Add($"{link.Label}: {link.Url}");
-            }
-        }
-
-        lines.Add("");
-        lines.Add("Continue?");
-        return string.Join(Environment.NewLine, lines);
+            $"{module.Name}: {actionLabel}",
+            "",
+            "By continuing, you confirm you have accepted the required upstream model/license terms.",
+            "",
+            "Continue and start the fetch?"
+        });
     }
 
     private static string ExtractTermsText(string text)
