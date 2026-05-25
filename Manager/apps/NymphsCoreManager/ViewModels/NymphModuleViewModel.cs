@@ -22,6 +22,7 @@ public sealed class NymphModuleViewModel : ViewModelBase
     private bool _hasRetainedData;
     private string _moduleUiTitle = "Module UI";
     private string _modelCacheDetail = "";
+    private string _overviewDetail = "";
     private IReadOnlyList<NymphModuleActionLinkInfo> _overviewLinks = Array.Empty<NymphModuleActionLinkInfo>();
     private NymphModuleDetailPrimaryActionInfo? _detailPrimaryAction;
     private InstalledNymphModuleUiInfo? _installedModuleUiInfo;
@@ -264,6 +265,20 @@ public sealed class NymphModuleViewModel : ViewModelBase
 
     public bool HasModelCacheDetail => !string.IsNullOrWhiteSpace(ModelCacheDetail);
 
+    public string OverviewDetail
+    {
+        get => _overviewDetail;
+        private set
+        {
+            if (SetProperty(ref _overviewDetail, value))
+            {
+                OnPropertyChanged(nameof(HasOverviewDetail));
+            }
+        }
+    }
+
+    public bool HasOverviewDetail => !string.IsNullOrWhiteSpace(OverviewDetail);
+
     public bool CanDeleteData => IsInstalled || HasRetainedData;
 
     public bool CanUpdate => IsInstalled && (HasUpdate || IsRemoteVersionNewer(VersionLabel, RemoteVersionLabel));
@@ -388,6 +403,7 @@ public sealed class NymphModuleViewModel : ViewModelBase
         var overviewDetail = string.IsNullOrWhiteSpace(manifest.OverviewDetail)
             ? ""
             : manifest.OverviewDetail;
+        OverviewDetail = overviewDetail;
         var manifestDetail = overviewDetail;
         if (!IsInstalled && !string.IsNullOrWhiteSpace(manifestDetail))
         {
