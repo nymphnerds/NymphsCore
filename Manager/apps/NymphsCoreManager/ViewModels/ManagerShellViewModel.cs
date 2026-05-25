@@ -2544,17 +2544,9 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             return "";
         }
 
-        var cacheLine = string.IsNullOrWhiteSpace(downloaded)
+        return string.IsNullOrWhiteSpace(downloaded)
             ? "Cached weights: none yet"
             : $"Cached weights: {FormatStatusList(downloaded)}";
-        var modelCacheDetail = snapshot.Get("model_cache_detail");
-        if (!string.IsNullOrWhiteSpace(modelCacheDetail))
-        {
-            modelCacheDetail = modelCacheDetail.Replace(" || ", Environment.NewLine, StringComparison.Ordinal);
-        }
-        return string.IsNullOrWhiteSpace(modelCacheDetail)
-            ? cacheLine
-            : $"{cacheLine}{Environment.NewLine}{modelCacheDetail.Trim()}";
     }
 
     private static string NormalizeStatusListValue(string? value)
