@@ -6542,18 +6542,33 @@ meta:
             progress.Report($"Running module action '{normalizedAction}' for '{normalizedModuleId}'...");
             progress.Report($"module_action_entrypoint=installed:{installedConventionalEntrypointPath}");
 
-            var directCommand = BuildTrackedModuleActionCommand(
-                actionRoot,
-                actionStateFile,
-                normalizedModuleId,
-                normalizedAction,
-                $"bash {ToBashSingleQuoted(installedConventionalEntrypointPath)}{quotedActionArguments}");
-            var directResult = await RunWslBashAsync(
-                settings,
-                directCommand,
-                progress,
-                actionProcessEnvironment,
-                cancellationToken).ConfigureAwait(false);
+            CommandResult directResult;
+            if (isStatusAction)
+            {
+                var directArguments = new List<string> { "/bin/bash", installedConventionalEntrypointPath };
+                directArguments.AddRange(normalizedActionArguments);
+                directResult = await RunWslCommandAsync(
+                    settings,
+                    directArguments,
+                    progress,
+                    actionProcessEnvironment,
+                    cancellationToken).ConfigureAwait(false);
+            }
+            else
+            {
+                var directCommand = BuildTrackedModuleActionCommand(
+                    actionRoot,
+                    actionStateFile,
+                    normalizedModuleId,
+                    normalizedAction,
+                    $"bash {ToBashSingleQuoted(installedConventionalEntrypointPath)}{quotedActionArguments}");
+                directResult = await RunWslBashAsync(
+                    settings,
+                    directCommand,
+                    progress,
+                    actionProcessEnvironment,
+                    cancellationToken).ConfigureAwait(false);
+            }
             if (directResult.ExitCode != 0)
             {
                 var detail = string.IsNullOrWhiteSpace(directResult.CombinedOutput)
@@ -6577,18 +6592,33 @@ meta:
             progress.Report($"Running module action '{normalizedAction}' for '{normalizedModuleId}'...");
             progress.Report($"module_action_entrypoint=installed-manifest:{installedManifestEntrypointPath}");
 
-            var directCommand = BuildTrackedModuleActionCommand(
-                actionRoot,
-                actionStateFile,
-                normalizedModuleId,
-                normalizedAction,
-                $"bash {ToBashSingleQuoted(installedManifestEntrypointPath)}{quotedActionArguments}");
-            var directResult = await RunWslBashAsync(
-                settings,
-                directCommand,
-                progress,
-                actionProcessEnvironment,
-                cancellationToken).ConfigureAwait(false);
+            CommandResult directResult;
+            if (isStatusAction)
+            {
+                var directArguments = new List<string> { "/bin/bash", installedManifestEntrypointPath };
+                directArguments.AddRange(normalizedActionArguments);
+                directResult = await RunWslCommandAsync(
+                    settings,
+                    directArguments,
+                    progress,
+                    actionProcessEnvironment,
+                    cancellationToken).ConfigureAwait(false);
+            }
+            else
+            {
+                var directCommand = BuildTrackedModuleActionCommand(
+                    actionRoot,
+                    actionStateFile,
+                    normalizedModuleId,
+                    normalizedAction,
+                    $"bash {ToBashSingleQuoted(installedManifestEntrypointPath)}{quotedActionArguments}");
+                directResult = await RunWslBashAsync(
+                    settings,
+                    directCommand,
+                    progress,
+                    actionProcessEnvironment,
+                    cancellationToken).ConfigureAwait(false);
+            }
             if (directResult.ExitCode != 0)
             {
                 var detail = string.IsNullOrWhiteSpace(directResult.CombinedOutput)
