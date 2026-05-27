@@ -1879,7 +1879,10 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             var registryManifests = await _workflowService.GetNymphModuleRegistryManifestInfosAsync(
                 IsDeveloperMode,
                 registryTimeout.Token).ConfigureAwait(true);
-            manifests = MergeRegistryAndInstalledManifests(registryManifests, installedManifests);
+            manifests = MergeRegistryAndInstalledManifests(
+                registryManifests,
+                installedManifests,
+                includeRegistryUnknownInstalledModules: IsDeveloperMode);
         }
         catch (Exception ex)
         {
@@ -1948,10 +1951,13 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
     private static IReadOnlyList<NymphModuleManifestInfo> MergeRegistryAndInstalledManifests(
         IEnumerable<NymphModuleManifestInfo> registryManifests,
-        IEnumerable<NymphModuleManifestInfo> installedManifests)
+        IEnumerable<NymphModuleManifestInfo> installedManifests,
+        bool includeRegistryUnknownInstalledModules)
     {
         var modules = new Dictionary<string, NymphModuleManifestInfo>(StringComparer.OrdinalIgnoreCase);
-        foreach (var manifest in registryManifests.Concat(installedManifests))
+        var registryModuleIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var manifest in registryManifests)
         {
             if (string.IsNullOrWhiteSpace(manifest.Id))
             {
@@ -1959,7 +1965,24 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             }
 
             var moduleId = manifest.Id.Trim().ToLowerInvariant();
-            if (!modules.ContainsKey(moduleId) || !string.IsNullOrWhiteSpace(manifest.RegistryUrl))
+            registryModuleIds.Add(moduleId);
+            modules[moduleId] = manifest;
+        }
+
+        foreach (var manifest in installedManifests)
+        {
+            if (string.IsNullOrWhiteSpace(manifest.Id))
+            {
+                continue;
+            }
+
+            var moduleId = manifest.Id.Trim().ToLowerInvariant();
+            if (!includeRegistryUnknownInstalledModules && !registryModuleIds.Contains(moduleId))
+            {
+                continue;
+            }
+
+            if (!modules.ContainsKey(moduleId))
             {
                 modules[moduleId] = manifest;
             }
