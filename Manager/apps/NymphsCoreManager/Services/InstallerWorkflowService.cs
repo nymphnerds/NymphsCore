@@ -24,6 +24,7 @@ public sealed class InstallerWorkflowService
     public const string FootprintDocUrl = "https://github.com/nymphnerds/NymphsCore/blob/main/docs/FOOTPRINT.md";
     public const string AddonGuideUrl = "https://github.com/nymphnerds/NymphsCore/blob/main/docs/BLENDER_ADDON_USER_GUIDE.md";
     private const string NymphModuleRegistryUrl = "https://raw.githubusercontent.com/nymphnerds/nymphs-registry/main/nymphs.json";
+    private const string NymphModuleDeveloperRegistryUrl = "https://raw.githubusercontent.com/nymphnerds/nymphs-registry/main/nymphs-dev.json";
 
     private readonly ProcessRunner _processRunner = new();
     private readonly HttpClient _aiToolkitHttpClient = new()
@@ -42,6 +43,7 @@ public sealed class InstallerWorkflowService
     private static readonly Regex TrainerYamlAdapterPathRegex = new(@"^\s*assistant_lora_path:\s*[""']?(?<value>[^""'\r\n#]+)", RegexOptions.Compiled | RegexOptions.Multiline);
     private static readonly Regex TrainerYamlSamplePromptRegex = new(@"^\s*-\s*prompt:\s*(?<value>.+?)\s*$", RegexOptions.Compiled | RegexOptions.Multiline);
     private sealed record TrustedModuleSourceInfo(string RepositoryUrl, string Branch);
+    private sealed record NymphModuleRegistryEntry(JsonElement Element, string RegistryUrl);
 
     public InstallerWorkflowService()
     {
@@ -4472,6 +4474,21 @@ meta:
         IProgress<string> progress,
         CancellationToken cancellationToken)
     {
+        return await CheckNymphModuleRegistryUpdatesAsync(
+            settings,
+            installedModuleIds,
+            includeDeveloperRegistry: false,
+            progress,
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task<IReadOnlyList<NymphModuleUpdateInfo>> CheckNymphModuleRegistryUpdatesAsync(
+        InstallSettings settings,
+        IEnumerable<string> installedModuleIds,
+        bool includeDeveloperRegistry,
+        IProgress<string> progress,
+        CancellationToken cancellationToken)
+    {
         var installedIds = installedModuleIds
             .Where(id => !string.IsNullOrWhiteSpace(id))
             .Select(id => id.Trim().ToLowerInvariant())
@@ -4480,18 +4497,16 @@ meta:
 
         progress.Report("Checking Nymphs registry for module updates...");
 
-        using var registryDocument = await FetchJsonDocumentAsync(NymphModuleRegistryUrl, cancellationToken).ConfigureAwait(false);
         var updateTasks = new List<Task<NymphModuleUpdateInfo>>();
-
-        foreach (var moduleElement in registryDocument.RootElement.GetProperty("modules").EnumerateArray())
+        foreach (var registryEntry in await ReadNymphModuleRegistryEntriesAsync(includeDeveloperRegistry, cancellationToken).ConfigureAwait(false))
         {
-            var moduleId = GetJsonString(moduleElement, "id")?.Trim().ToLowerInvariant();
+            var moduleId = GetJsonString(registryEntry.Element, "id")?.Trim().ToLowerInvariant();
             if (string.IsNullOrWhiteSpace(moduleId) || !installedIds.Contains(moduleId))
             {
                 continue;
             }
 
-            var manifestUrl = GetJsonString(moduleElement, "manifest_url")?.Trim();
+            var manifestUrl = GetJsonString(registryEntry.Element, "manifest_url")?.Trim();
             if (string.IsNullOrWhiteSpace(manifestUrl))
             {
                 updateTasks.Add(Task.FromResult(new NymphModuleUpdateInfo(moduleId, null, null, false, "Registry entry has no manifest URL.")));
@@ -4770,6 +4785,30 @@ meta:
             InstallRoot: installRoot);
     }
 
+    private static NymphModuleMarkerProbe ProbeBestNymphModuleMarker(
+        InstallSettings settings,
+        string normalizedModuleId,
+        string? manifestInstallRoot)
+    {
+        NymphModuleMarkerProbe? bestProbe = null;
+        foreach (var installRoot in GetNymphModuleInstallRootCandidates(settings, normalizedModuleId, manifestInstallRoot))
+        {
+            var candidate = ProbeNymphModuleMarkerViaWindowsPath(settings, normalizedModuleId, installRoot);
+            if (bestProbe is null || ShouldReplaceNymphModuleMarkerProbe(bestProbe, candidate))
+            {
+                bestProbe = candidate;
+            }
+        }
+
+        return bestProbe ?? new NymphModuleMarkerProbe(
+            ModuleId: normalizedModuleId,
+            MarkerPresent: false,
+            InstallRootPresent: false,
+            RepairCandidatePresent: false,
+            Version: "not-installed",
+            InstallRoot: ResolveNymphModuleInstallRoot(settings, normalizedModuleId, manifestInstallRoot));
+    }
+
     private static bool ShouldReplaceNymphModuleMarkerProbe(NymphModuleMarkerProbe existingProbe, NymphModuleMarkerProbe candidateProbe)
     {
         if (candidateProbe.MarkerPresent != existingProbe.MarkerPresent)
@@ -4794,25 +4833,38 @@ meta:
         string moduleId,
         CancellationToken cancellationToken)
     {
+        return await GetNymphModuleManifestInfoAsync(
+            moduleId,
+            includeDeveloperRegistry: false,
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task<NymphModuleManifestInfo?> GetNymphModuleManifestInfoAsync(
+        string moduleId,
+        bool includeDeveloperRegistry,
+        CancellationToken cancellationToken)
+    {
         var normalizedModuleId = moduleId.Trim().ToLowerInvariant();
 
-        using var registryDocument = await FetchJsonDocumentAsync(NymphModuleRegistryUrl, cancellationToken).ConfigureAwait(false);
-        foreach (var moduleElement in registryDocument.RootElement.GetProperty("modules").EnumerateArray())
+        foreach (var registryEntry in await ReadNymphModuleRegistryEntriesAsync(includeDeveloperRegistry, cancellationToken).ConfigureAwait(false))
         {
-            var registryModuleId = GetJsonString(moduleElement, "id")?.Trim().ToLowerInvariant();
+            var registryModuleId = GetJsonString(registryEntry.Element, "id")?.Trim().ToLowerInvariant();
             if (!string.Equals(registryModuleId, normalizedModuleId, StringComparison.OrdinalIgnoreCase))
             {
                 continue;
             }
 
-            var manifestUrl = GetJsonString(moduleElement, "manifest_url")?.Trim();
+            var manifestUrl = GetJsonString(registryEntry.Element, "manifest_url")?.Trim();
             if (string.IsNullOrWhiteSpace(manifestUrl))
             {
                 return null;
             }
 
-            using var manifestDocument = await FetchJsonDocumentAsync(manifestUrl, cancellationToken).ConfigureAwait(false);
-            return BuildNymphModuleManifestInfo(moduleElement, manifestDocument.RootElement, manifestUrl);
+            return await FetchNymphModuleManifestInfoAsync(
+                registryEntry.Element,
+                registryEntry.RegistryUrl,
+                manifestUrl,
+                cancellationToken).ConfigureAwait(false);
         }
 
         return null;
@@ -4844,24 +4896,30 @@ meta:
     public async Task<IReadOnlyList<NymphModuleManifestInfo>> GetNymphModuleRegistryManifestInfosAsync(
         CancellationToken cancellationToken)
     {
-        using var registryDocument = await FetchJsonDocumentAsync(NymphModuleRegistryUrl, cancellationToken).ConfigureAwait(false);
+        return await GetNymphModuleRegistryManifestInfosAsync(
+            includeDeveloperRegistry: false,
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task<IReadOnlyList<NymphModuleManifestInfo>> GetNymphModuleRegistryManifestInfosAsync(
+        bool includeDeveloperRegistry,
+        CancellationToken cancellationToken)
+    {
         var manifestTasks = new List<Task<NymphModuleManifestInfo?>>();
 
-        foreach (var moduleElement in registryDocument.RootElement.GetProperty("modules").EnumerateArray())
+        foreach (var registryEntry in await ReadNymphModuleRegistryEntriesAsync(includeDeveloperRegistry, cancellationToken).ConfigureAwait(false))
         {
-            if (moduleElement.TryGetProperty("trusted", out var trustedElement) &&
-                trustedElement.ValueKind == JsonValueKind.False)
-            {
-                continue;
-            }
-
-            var manifestUrl = GetJsonString(moduleElement, "manifest_url")?.Trim();
+            var manifestUrl = GetJsonString(registryEntry.Element, "manifest_url")?.Trim();
             if (string.IsNullOrWhiteSpace(manifestUrl))
             {
                 continue;
             }
 
-            manifestTasks.Add(FetchNymphModuleManifestInfoAsync(moduleElement.Clone(), manifestUrl, cancellationToken));
+            manifestTasks.Add(FetchNymphModuleManifestInfoAsync(
+                registryEntry.Element,
+                registryEntry.RegistryUrl,
+                manifestUrl,
+                cancellationToken));
         }
 
         var modules = (await Task.WhenAll(manifestTasks).ConfigureAwait(false))
@@ -4869,25 +4927,179 @@ meta:
             .Cast<NymphModuleManifestInfo>()
             .ToList();
 
+        return SortNymphModuleManifests(modules);
+    }
+
+    public IReadOnlyList<NymphModuleManifestInfo> GetInstalledNymphModuleManifestInfos(InstallSettings settings)
+    {
+        var modules = new Dictionary<string, NymphModuleManifestInfo>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var manifestPath in EnumerateInstalledNymphModuleManifestPaths(settings))
+        {
+            try
+            {
+                using var manifestDocument = JsonDocument.Parse(File.ReadAllText(manifestPath));
+                var moduleId = GetJsonString(manifestDocument.RootElement, "id")?.Trim().ToLowerInvariant();
+                if (string.IsNullOrWhiteSpace(moduleId))
+                {
+                    continue;
+                }
+
+                var manifestInstallRoot = GetManifestInstallRoot(manifestDocument.RootElement);
+                var probe = ProbeBestNymphModuleMarker(settings, moduleId, manifestInstallRoot);
+                if (!probe.MarkerPresent && !probe.RepairCandidatePresent)
+                {
+                    continue;
+                }
+
+                using var registryDocument = JsonDocument.Parse("{}");
+                modules[moduleId] = BuildNymphModuleManifestInfo(
+                    registryDocument.RootElement,
+                    manifestDocument.RootElement,
+                    manifestPath,
+                    registryUrl: "");
+            }
+            catch
+            {
+                // Local module cache files can be stale or half-written. Keep scanning.
+            }
+        }
+
+        return SortNymphModuleManifests(modules.Values);
+    }
+
+    private async Task<IReadOnlyList<NymphModuleRegistryEntry>> ReadNymphModuleRegistryEntriesAsync(
+        bool includeDeveloperRegistry,
+        CancellationToken cancellationToken)
+    {
+        var registryUrls = includeDeveloperRegistry
+            ? new[] { NymphModuleRegistryUrl, NymphModuleDeveloperRegistryUrl }
+            : new[] { NymphModuleRegistryUrl };
+        var entries = new List<NymphModuleRegistryEntry>();
+
+        foreach (var registryUrl in registryUrls)
+        {
+            try
+            {
+                using var registryDocument = await FetchJsonDocumentAsync(registryUrl, cancellationToken).ConfigureAwait(false);
+                if (!registryDocument.RootElement.TryGetProperty("modules", out var modulesElement) ||
+                    modulesElement.ValueKind != JsonValueKind.Array)
+                {
+                    continue;
+                }
+
+                foreach (var moduleElement in modulesElement.EnumerateArray())
+                {
+                    if (moduleElement.TryGetProperty("trusted", out var trustedElement) &&
+                        trustedElement.ValueKind == JsonValueKind.False)
+                    {
+                        continue;
+                    }
+
+                    entries.Add(new NymphModuleRegistryEntry(moduleElement.Clone(), registryUrl));
+                }
+            }
+            catch when (includeDeveloperRegistry &&
+                        string.Equals(registryUrl, NymphModuleDeveloperRegistryUrl, StringComparison.OrdinalIgnoreCase))
+            {
+                // Developer registry is optional; a bad dev registry should not hide stable modules.
+            }
+        }
+
+        return entries
+            .Where(entry => !string.IsNullOrWhiteSpace(GetJsonString(entry.Element, "id")))
+            .GroupBy(entry => GetJsonString(entry.Element, "id")!.Trim().ToLowerInvariant(), StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.Last())
+            .ToList();
+    }
+
+    private static IReadOnlyList<NymphModuleManifestInfo> SortNymphModuleManifests(IEnumerable<NymphModuleManifestInfo> modules)
+    {
         return modules
+            .Where(module => !string.IsNullOrWhiteSpace(module.Id))
+            .GroupBy(module => module.Id.Trim().ToLowerInvariant(), StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.Last())
             .OrderBy(module => module.SortOrder)
             .ThenBy(module => module.Name, StringComparer.OrdinalIgnoreCase)
             .ToList();
     }
 
+    private static IEnumerable<string> EnumerateInstalledNymphModuleManifestPaths(InstallSettings settings)
+    {
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var moduleCacheRoot = ToWindowsWslPath(settings, $"/home/{settings.LinuxUser}/.cache/nymphs-modules");
+
+        foreach (var manifestPath in SafeEnumerateFiles(moduleCacheRoot, "*.nymph.json", SearchOption.TopDirectoryOnly))
+        {
+            if (seen.Add(manifestPath))
+            {
+                yield return manifestPath;
+            }
+        }
+
+        var cachedReposRoot = Path.Combine(moduleCacheRoot, "repos");
+        foreach (var manifestPath in SafeEnumerateFiles(cachedReposRoot, "nymph.json", SearchOption.AllDirectories))
+        {
+            if (seen.Add(manifestPath))
+            {
+                yield return manifestPath;
+            }
+        }
+
+        var homeRoot = ToWindowsWslPath(settings, $"/home/{settings.LinuxUser}");
+        foreach (var directory in SafeEnumerateDirectories(homeRoot))
+        {
+            var manifestPath = Path.Combine(directory, "nymph.json");
+            if (File.Exists(manifestPath) && seen.Add(manifestPath))
+            {
+                yield return manifestPath;
+            }
+        }
+    }
+
+    private static IReadOnlyList<string> SafeEnumerateFiles(string root, string pattern, SearchOption searchOption)
+    {
+        try
+        {
+            return Directory.Exists(root)
+                ? Directory.EnumerateFiles(root, pattern, searchOption).ToArray()
+                : Array.Empty<string>();
+        }
+        catch
+        {
+            return Array.Empty<string>();
+        }
+    }
+
+    private static IReadOnlyList<string> SafeEnumerateDirectories(string root)
+    {
+        try
+        {
+            return Directory.Exists(root)
+                ? Directory.EnumerateDirectories(root).ToArray()
+                : Array.Empty<string>();
+        }
+        catch
+        {
+            return Array.Empty<string>();
+        }
+    }
+
     private async Task<NymphModuleManifestInfo?> FetchNymphModuleManifestInfoAsync(
         JsonElement registryElement,
+        string registryUrl,
         string manifestUrl,
         CancellationToken cancellationToken)
     {
         using var manifestDocument = await FetchJsonDocumentAsync(manifestUrl, cancellationToken).ConfigureAwait(false);
-        return BuildNymphModuleManifestInfo(registryElement, manifestDocument.RootElement, manifestUrl);
+        return BuildNymphModuleManifestInfo(registryElement, manifestDocument.RootElement, manifestUrl, registryUrl);
     }
 
     private static NymphModuleManifestInfo BuildNymphModuleManifestInfo(
         JsonElement registryElement,
         JsonElement manifestRoot,
-        string manifestUrl)
+        string manifestUrl,
+        string registryUrl)
     {
         var id = GetJsonString(manifestRoot, "id") ?? GetJsonString(registryElement, "id") ?? "";
         var name = GetJsonString(manifestRoot, "name") ?? GetJsonString(registryElement, "name") ?? id;
@@ -5004,6 +5216,7 @@ meta:
             OverviewDetail: BuildNymphModuleOverviewDetail(manifestRoot, registryElement),
             OverviewLinks: ReadNymphModuleOverviewLinks(manifestRoot, registryElement),
             ManifestUrl: manifestUrl,
+            RegistryUrl: registryUrl,
             RepositoryUrl: repositoryUrl,
             SourceSummary: sourceSummary,
             InstallRoot: installRoot,
@@ -5840,6 +6053,21 @@ meta:
         IProgress<string> progress,
         CancellationToken cancellationToken)
     {
+        await RunNymphModuleUpdateFromRegistryAsync(
+            settings,
+            moduleId,
+            environmentVariables: null,
+            progress,
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task RunNymphModuleUpdateFromRegistryAsync(
+        InstallSettings settings,
+        string moduleId,
+        IReadOnlyDictionary<string, string?>? environmentVariables,
+        IProgress<string> progress,
+        CancellationToken cancellationToken)
+    {
         if (string.IsNullOrWhiteSpace(moduleId))
         {
             throw new ArgumentException("Module id is required.", nameof(moduleId));
@@ -5864,7 +6092,8 @@ meta:
             scriptArguments,
             "update",
             progress,
-            cancellationToken).ConfigureAwait(false);
+            cancellationToken,
+            environmentVariables).ConfigureAwait(false);
 
         if (result.ExitCode != 0)
         {

@@ -17,6 +17,7 @@ public sealed class NymphModuleViewModel : ViewModelBase
     private bool _hasUpdate;
     private string _remoteVersionLabel = "Not checked";
     private string _updateDetail = "No module update check has run yet.";
+    private string _registryUrl = "";
     private string _repositoryUrl = "";
     private bool _hasInstalledModuleUi;
     private bool _hasRetainedData;
@@ -38,6 +39,7 @@ public sealed class NymphModuleViewModel : ViewModelBase
         string installRoot,
         string installPath,
         string accentBrush,
+        string registryUrl,
         IReadOnlyList<string> capabilities,
         IReadOnlyList<NymphModuleActionInfo> managerActions,
         IReadOnlyList<NymphModuleActionFieldInfo>? installFields = null,
@@ -55,6 +57,7 @@ public sealed class NymphModuleViewModel : ViewModelBase
         InstallRoot = installRoot;
         InstallPath = installPath;
         AccentBrush = accentBrush;
+        RegistryUrl = registryUrl;
         Capabilities = capabilities;
         ManagerActions = managerActions;
         InstallFields = installFields ?? Array.Empty<NymphModuleActionFieldInfo>();
@@ -82,6 +85,12 @@ public sealed class NymphModuleViewModel : ViewModelBase
     public string InstallPath { get; }
 
     public string AccentBrush { get; }
+
+    public string RegistryUrl
+    {
+        get => _registryUrl;
+        private set => SetProperty(ref _registryUrl, value);
+    }
 
     public IReadOnlyList<string> Capabilities { get; }
 
@@ -399,6 +408,7 @@ public sealed class NymphModuleViewModel : ViewModelBase
             Detail = manifest.Description;
         }
 
+        RegistryUrl = manifest.RegistryUrl;
         RepositoryUrl = manifest.RepositoryUrl;
         var overviewDetail = string.IsNullOrWhiteSpace(manifest.OverviewDetail)
             ? ""

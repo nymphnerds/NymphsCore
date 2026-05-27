@@ -12,6 +12,7 @@ public sealed record NymphModuleManifestInfo(
     string OverviewDetail,
     IReadOnlyList<NymphModuleActionLinkInfo> OverviewLinks,
     string ManifestUrl,
+    string RegistryUrl,
     string RepositoryUrl,
     string SourceSummary,
     string InstallRoot,

@@ -402,6 +402,10 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                 _runModuleDevActionCommand.RaiseCanExecuteChanged();
                 StatusMessage = _isDeveloperMode ? "Developer mode enabled." : "Developer mode disabled.";
                 AppendActivity(StatusMessage);
+                if (!IsBusy)
+                {
+                    _ = RefreshModuleRosterForDeveloperModeChangeAsync();
+                }
             }
         }
     }
@@ -1477,6 +1481,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             var updateResults = await _workflowService.CheckNymphModuleRegistryUpdatesAsync(
                 _settings,
                 _allModules.Where(module => module.IsInstalled).Select(module => module.Id),
+                IsDeveloperMode,
                 new Progress<string>(AppendActivity),
                 CancellationToken.None).ConfigureAwait(true);
 
@@ -1866,28 +1871,38 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         var selectedModuleId = DisplayedModule?.Id ?? SelectedModule?.Id;
         var previousModules = _allModules.ToDictionary(module => module.Id, StringComparer.OrdinalIgnoreCase);
         IReadOnlyList<NymphModuleManifestInfo> manifests;
+        var installedManifests = GetInstalledModuleManifestsForRoster();
 
         try
         {
             using var registryTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(8));
-            manifests = await _workflowService.GetNymphModuleRegistryManifestInfosAsync(registryTimeout.Token).ConfigureAwait(true);
+            var registryManifests = await _workflowService.GetNymphModuleRegistryManifestInfosAsync(
+                IsDeveloperMode,
+                registryTimeout.Token).ConfigureAwait(true);
+            manifests = MergeRegistryAndInstalledManifests(registryManifests, installedManifests);
         }
         catch (Exception ex)
         {
             AppendActivity($"Module registry warning: {ex.Message}");
-            if (_allModules.Count == 0)
+            manifests = installedManifests;
+            if (manifests.Count == 0)
             {
-                InstalledModulesSummary = "Module registry could not be loaded yet.";
-                AvailableModulesSummary = "Check network access or the Nymphs registry JSON.";
-            }
-            else
-            {
-                RebuildModuleCollections();
-                RebuildModuleNavigation();
-                HasLoadedModuleState = true;
+                if (_allModules.Count == 0)
+                {
+                    InstalledModulesSummary = "Module registry could not be loaded yet.";
+                    AvailableModulesSummary = "Check network access or the Nymphs registry JSON.";
+                }
+                else
+                {
+                    RebuildModuleCollections();
+                    RebuildModuleNavigation();
+                    HasLoadedModuleState = true;
+                }
+
+                return;
             }
 
-            return;
+            AppendActivity($"Loaded {manifests.Count} installed module manifest(s) from local metadata.");
         }
 
         _allModules.Clear();
@@ -1918,6 +1933,44 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         }
     }
 
+    private IReadOnlyList<NymphModuleManifestInfo> GetInstalledModuleManifestsForRoster()
+    {
+        try
+        {
+            return _workflowService.GetInstalledNymphModuleManifestInfos(_settings);
+        }
+        catch (Exception ex)
+        {
+            AppendActivity($"Installed module metadata warning: {FirstNonEmptyLine(ex.Message)}");
+            return Array.Empty<NymphModuleManifestInfo>();
+        }
+    }
+
+    private static IReadOnlyList<NymphModuleManifestInfo> MergeRegistryAndInstalledManifests(
+        IEnumerable<NymphModuleManifestInfo> registryManifests,
+        IEnumerable<NymphModuleManifestInfo> installedManifests)
+    {
+        var modules = new Dictionary<string, NymphModuleManifestInfo>(StringComparer.OrdinalIgnoreCase);
+        foreach (var manifest in registryManifests.Concat(installedManifests))
+        {
+            if (string.IsNullOrWhiteSpace(manifest.Id))
+            {
+                continue;
+            }
+
+            var moduleId = manifest.Id.Trim().ToLowerInvariant();
+            if (!modules.ContainsKey(moduleId) || !string.IsNullOrWhiteSpace(manifest.RegistryUrl))
+            {
+                modules[moduleId] = manifest;
+            }
+        }
+
+        return modules.Values
+            .OrderBy(module => module.SortOrder)
+            .ThenBy(module => module.Name, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+    }
+
     private NymphModuleViewModel CreateModuleViewModel(NymphModuleManifestInfo manifest, int index)
     {
         var module = new NymphModuleViewModel(
@@ -1931,6 +1984,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             ResolveManagedInstallRoot(manifest.InstallRoot, manifest.Id),
             ResolveManagedInstallPath(manifest.InstallRoot, manifest.Id),
             BuildModuleAccent(manifest.Id, index),
+            manifest.RegistryUrl,
             manifest.Capabilities,
             manifest.ManagerActions,
             manifest.InstallFields,
@@ -3513,7 +3567,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             return;
         }
 
-        var installEnvironment = BuildInstallFieldEnvironment(module);
+        var installEnvironment = BuildModuleRegistryEnvironment(module, BuildInstallFieldEnvironment(module));
         var confirmation = MessageBox.Show(
             BuildModuleInstallPrompt(module),
             "Install Module",
@@ -3764,6 +3818,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             await _workflowService.RunNymphModuleInstallFromRegistryAsync(
                 _settings,
                 module.Id,
+                BuildModuleRegistryEnvironment(module),
                 CreateModuleLiveProgress(module, "repair", repairLines),
                 _operationCancellation.Token).ConfigureAwait(true);
             StatusMessage = $"{module.Name} repair finished.";
@@ -3853,6 +3908,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             await _workflowService.RunNymphModuleUpdateFromRegistryAsync(
                 _settings,
                 module.Id,
+                BuildModuleRegistryEnvironment(module),
                 CreateModuleLiveProgress(module, "update", updateLines),
                 _operationCancellation.Token).ConfigureAwait(true);
             StatusMessage = $"{module.Name} updated.";
@@ -3876,6 +3932,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                 var updateResults = await _workflowService.CheckNymphModuleRegistryUpdatesAsync(
                     _settings,
                     _allModules.Where(candidate => candidate.IsInstalled).Select(candidate => candidate.Id),
+                    IsDeveloperMode,
                     new Progress<string>(AppendActivity),
                     CancellationToken.None).ConfigureAwait(true);
 
@@ -3954,6 +4011,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         {
             var manifest = await _workflowService.GetNymphModuleManifestInfoAsync(
                 module.Id,
+                IsDeveloperMode,
                 CancellationToken.None).ConfigureAwait(true);
             if (manifest is null || DisplayedModule?.Id != module.Id)
             {
@@ -4469,6 +4527,25 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         return (args, environment);
     }
 
+    private IReadOnlyDictionary<string, string?> BuildModuleRegistryEnvironment(
+        NymphModuleViewModel module,
+        IReadOnlyDictionary<string, string?>? baseEnvironment = null)
+    {
+        var environment = baseEnvironment is null
+            ? new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
+            : new Dictionary<string, string?>(baseEnvironment, StringComparer.OrdinalIgnoreCase);
+
+        var registryUrl = module.RegistryUrl.Trim();
+        if (Uri.TryCreate(registryUrl, UriKind.Absolute, out var uri) &&
+            (string.Equals(uri.Scheme, Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase) ||
+             string.Equals(uri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase)))
+        {
+            environment["NYMPHS_REGISTRY_URL"] = registryUrl;
+        }
+
+        return environment;
+    }
+
     private IReadOnlyDictionary<string, string?> BuildInstallFieldEnvironment(NymphModuleViewModel module)
     {
         var environment = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
@@ -4695,6 +4772,24 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
     private void ToggleDeveloperMode()
     {
         IsDeveloperMode = !IsDeveloperMode;
+    }
+
+    private async Task RefreshModuleRosterForDeveloperModeChangeAsync()
+    {
+        await Task.Yield();
+
+        try
+        {
+            await RefreshModuleRosterAsync().ConfigureAwait(true);
+            if (ManagedDistroDetected)
+            {
+                await RefreshModuleStateAsync().ConfigureAwait(true);
+            }
+        }
+        catch (Exception ex)
+        {
+            AppendActivity($"Developer mode roster refresh warning: {FirstNonEmptyLine(ex.Message)}");
+        }
     }
 
     private async Task RunSelectedModuleActionAsync(NymphModuleActionInfo? actionInfo)

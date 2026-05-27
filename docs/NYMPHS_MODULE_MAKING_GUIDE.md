@@ -353,6 +353,13 @@ Manager code change. The Manager prefers registry `category` and `kind` for
 catalog/display text, and reads `packaging` separately for install facts and
 installer behavior.
 
+Use the public `nymphs.json` registry for modules that should be visible to
+normal users. Use `nymphs-dev.json` for modules that are still private,
+experimental, or being actively shaped; the Manager only reads that developer
+registry when Developer Mode is enabled. Installed modules must still carry
+their local `nymph.json` and `.nymph-module-version` marker so the Manager can
+show them from local metadata when the registry is offline.
+
 ## Install Root Contract
 
 The module manifest is the source of truth for the installed module root:
