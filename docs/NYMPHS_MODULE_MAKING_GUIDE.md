@@ -353,12 +353,34 @@ Manager code change. The Manager prefers registry `category` and `kind` for
 catalog/display text, and reads `packaging` separately for install facts and
 installer behavior.
 
-Use the public `nymphs.json` registry for modules that should be visible to
-normal users. Use `nymphs-dev.json` for modules that are still private,
-experimental, or being actively shaped; the Manager only reads that developer
-registry when Developer Mode is enabled. Installed modules must still carry
-their local `nymph.json` and `.nymph-module-version` marker so the Manager can
-show them from local metadata when the registry is offline.
+### Public vs Developer Registry
+
+Use `nymphs.json` for modules that should be visible to normal users.
+
+Use `nymphs-dev.json` for modules that are still private, experimental, or being
+actively shaped. The Manager only reads `nymphs-dev.json` when Developer Mode is
+enabled.
+
+The visibility rules are:
+
+- Public registry modules are visible in normal mode and Developer Mode.
+- Developer registry modules are visible only in Developer Mode.
+- Installed public modules should still show from local metadata when the
+  Manager is offline or the public registry fetch fails.
+- Installed developer-only modules must not leak into normal mode just because
+  their local marker exists. They should reappear only when Developer Mode is
+  enabled and the developer registry or local dev-mode metadata allows it.
+
+For a module to survive offline detection, it must still install the standard
+local files:
+
+```text
+<install root>/nymph.json
+<install root>/.nymph-module-version
+```
+
+Do not move an in-progress module from `nymphs-dev.json` to `nymphs.json` until
+it is ready for normal users to discover, install, update, and repair.
 
 ## Install Root Contract
 
@@ -1715,6 +1737,11 @@ registry/manifest roster -> resolve install root -> check <install root>/.nymph-
 
 If the marker exists, the module is shown as installed immediately. This keeps
 Home responsive and avoids waiting for every backend to prove runtime health.
+
+The roster still controls visibility. In normal mode, local installed metadata
+may restore installed public modules when the registry is offline, but it must
+not reveal developer-only modules. In Developer Mode, the Manager may merge the
+developer registry and local installed metadata so dev modules can be tested.
 
 On Windows, the Manager must perform this startup marker scan from the Windows
 side through the UNC view of the managed runtime distro:
