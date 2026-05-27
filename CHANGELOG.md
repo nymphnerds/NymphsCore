@@ -8,436 +8,99 @@ This file focuses on user-facing and system-level changes rather than package-by
 
 Newest entries first.
 
-### 2026-05-27 Nymphs Image local Qwen parts workflow
-Source: Nymphs Image module releases `0.1.91` through `0.1.97`, Blender addon
-`1.1.245`, and registry `215`.
+### 2026-05-27 Nymphs Image local Qwen workflow
 
 Added:
 
-- Qwen Image Edit 2511 as the local Nymphs Image edit and parts-extraction
-  provider.
-- Brain Vision planning for local parts JSON, keeping Qwen-VL model ownership in
-  Brain instead of Nymphs Image.
-- Blender addon routing for local Qwen image-to-image and Brain/Qwen parts
-  extraction, with Gemini still available as fallback.
-- Model Fetch options, links, readiness checks, and cache status for the Qwen
-  Image Edit 2511 Nunchaku stack.
+- Qwen Image Edit 2511 as a local Nymphs Image edit and parts-extraction provider.
+- Brain Vision planning for local parts JSON, with Qwen-VL models owned by Brain.
+- Blender addon routing for local Qwen image-to-image and Brain/Qwen parts extraction.
+- Qwen Image Edit model-fetch options, links, readiness checks, and cache status.
 
 Fixed:
 
-- Qwen Image Edit fetch now downloads only the non-transformer base components
-  needed with Nunchaku weights, avoiding the full official transformer shards.
-- Qwen parts extraction now supplies the required transformer text sequence
-  lengths for the Diffusers pipeline.
-- Parts extraction progress now updates per part and refreshes the preview strip
-  as outputs are saved.
-
-Notes:
-
-- No Manager code changes were required.
-- Anatomy Base quality remains under prompt/workflow testing; Qwen local
-  extraction is no longer blocked from attempting it.
-
-### 2026-05-24 Local vision planner handoff for Nymphs Image parts
-Source: research pass on replacing the Gemini Flash part-planning step with a Brain-hosted local vision model.
-
-Changed in docs:
-
-- added `Handoffs/LOCAL_VISION_PARTS_EXTRACTION_HANDOFF_2026-05-24.md`
-- documented the current Nymphs Image parts flow: Gemini/OpenRouter plans
-  structured part JSON, shared prompt/schema normalization happens in
-  `shared_image_parts.py`, and Gemini image generation still performs the
-  actual part extraction redraws
-- documented that a local VLM can replace `Plan Parts` and help LoRA captioning,
-  but cannot by itself replace image-edit extraction
-- identified Brain as the correct owner for local VLM download, selection,
-  `mmproj` handling, and llama-server hosting
-- recommended `Qwen/Qwen3-VL-4B-Instruct-GGUF:Q4_K_M` as the first local parts
-  planner target, with Qwen3-VL 8B as the quality upgrade, Qwen3-VL 2B as a
-  smoke-test fallback, and Qwen2.5-VL 7B as a stable fallback
-- captured why Florence-2 and JoyCaption are useful future sidecars but should
-  not be the first Brain planner path
-
-In plain terms:
-
-- The next local-parts step should not duplicate model downloading in zimage.
-  Brain should host the local vision model, and Nymphs Image should call Brain's
-  OpenAI-compatible `llama-server` endpoint for planning.
-- Keep Gemini available and keep the current extraction stage unchanged until
-  local planning quality is measured.
-
-### 2026-05-24 Nymphs Image Manager UI and Z-Image model-flow fix
-Source: live Nymphs Image Manager UI and test WSL generation debugging.
-
-Changed in source:
-
-- added and iterated the Nymphs Image module UI as the Manager-hosted image
-  frontend for local Z-Image, Gemini Flash, variants, browsing, and part
-  extraction workflows
-- aligned the local Z-Image model flow with the working Blender addon pattern:
-  selected Nunchaku rank is saved, the runtime restarts when rank changes, and
-  generation verifies the selected model before running
-- fixed the bad state where the UI could show r32 while the running backend was
-  still configured as r128, causing generation to sit at `LOADING_MODEL` / 8%
-- changed the Nunchaku API path to use sequential CPU offload, matching the
-  working smoke-test path and avoiding the post-denoise hang after `9/9`
-- added denoise-step progress through `/active_task` so the UI reports real
-  `Nunchaku txt2img denoising step X/Y` status instead of staying at 33%
-- made `/server_info` report configured rank/precision separately from the
-  loaded weight, so selected/configured/loaded model state can be understood
-- made mismatched generate requests fail fast with a clear message instead of
-  silently loading the wrong rank
-- documented the session handoff, workflow rules, Blender addon reference
-  functions, test paths, caveats, and recovery commands in
-  `NYMPHS_IMAGE_HANDOFF_2026-05-24.md`
-
-In plain terms:
-
-- Nymphs Image now treats the Blender addon image flow as the source of truth
-  for Z-Image rank changes.
-- Choosing r32/r128/r256 is not just a label in the UI anymore. The Manager UI
-  applies the selection before generation, and the backend refuses to run if the
-  selected rank does not match the configured runtime.
-- The generation hang was two-part: the API was not following the addon-style
-  restart/env model path, and the Nunchaku pipeline needed the same offload mode
-  as the working smoke test.
-
-Verified in the managed `NymphsCore` test WSL:
-
-- installed Nymphs Image version `0.1.47` through the registry update path
-- verified mismatch guard: r128-configured server plus r32 request now returns
-  HTTP 400 instead of hanging
-- verified r32 load and generation; output saved under
-  `/home/nymph/NymphsData/outputs/zimage`
-- verified r128 load and generation; output saved under
-  `/home/nymph/NymphsData/outputs/zimage`
-- restored final test WSL state to r32 loaded and idle
-
-Related module/registry updates:
-
-- Nymphs Image / zimage `0.1.44`: restored addon-style model selection and
-  restart behavior
-- Nymphs Image / zimage `0.1.45`: fixed Nunchaku offload and denoise progress
-- Nymphs Image / zimage `0.1.46`: made the Load button actually preload the
-  selected model when possible
-- Nymphs Image / zimage `0.1.47`: applied selected model before generation and
-  added backend mismatch guards
-- nymphs-registry `164`: advertises zimage `0.1.47`
-
-### 2026-05-23 Pixal3D Manager/Blender runtime unification
-Source: follow-up after the Pixal3D repeat-run fix and Blender addon alignment.
+- Qwen Image Edit fetch now skips the official transformer shards when using Nunchaku weights.
+- Qwen parts extraction now supplies the transformer text-sequence lengths required by Diffusers.
+- Parts extraction progress now updates per part and refreshes the preview strip as files save.
 
-Changed in source:
+Removed:
 
-- unified Pixal3D module startup around the Manager/Nymph UI app server on
-  port `8097`
-- stopped advertising the old separate Pixal3D `8096` API wrapper as the
-  module runtime path
-- updated the Blender addon so Pixal3D uses the same Manager-style flow:
-  warm-up, source prep, latent generation, GLB export, cleanup, and import
-- made Blender source-image changes clear stale Pixal3D result state and flush
-  RMBG/source-prep memory before the next run
-- kept the repeat-run memory/export fixes from Pixal3D `0.1.106` and
-  `0.1.108` in the path Blender now uses
+- The temporary guard that blocked Qwen local extraction from attempting Anatomy Base.
+- Qwen vision-model downloads from the Nymphs Image module path.
 
-In plain terms:
+### 2026-05-24 Nymphs Image Manager UI and local vision planning
 
-- There were two Pixal3D server paths: an older Blender wrapper on `8096`, and
-  the fixed Manager UI runtime on `8097`.
-- That made testing confusing and risked Blender using a different path than
-  Manager.
-- Pixal3D now presents the `8097` app server as the module runtime, and the
-  Blender addon follows that same path.
-- Picking a new source image in Blender now behaves like Manager: old prepared
-  source/result state is cleared, and Pixal3D flushes the source-prep memory
-  before generating again.
+Added:
 
-Related module/addon/registry updates:
+- Manager-hosted Nymphs Image UI for local Z-Image generation, Gemini fallback, browsing, variants, and parts extraction.
+- Z-Image rank/model controls with configured-vs-loaded state in `/server_info`.
+- Denoise-step progress in `/active_task` for local generation.
+- Local vision-planner handoff docs for replacing Gemini planning with Brain-hosted Qwen-VL.
 
-- Pixal3D `0.1.109`: module runtime metadata and start path unified on `8097`
-- Nymphs Blender addon `1.1.241`: Pixal3D Manager-flow and source-change flush
-- nymphs-registry: Pixal3D manifest updated to `0.1.109`
+Fixed:
 
-### 2026-05-23 Pixal3D repeat-run crash/export fix
-Source: live Pixal3D Manager testing in the managed `NymphsCore` WSL distro.
+- Generation now fails fast when the requested Nunchaku rank does not match the configured runtime.
+- Z-Image generation now follows the working Blender/addon-style model selection and offload path.
 
-Changed in source:
+Removed:
 
-- fixed a Pixal3D repeat-run failure where the first generation/export could
-  succeed, then the next run could crash WSL or fail during GLB export
-- fixed the cleanup path so Pixal3D gives unused system memory back between
-  runs instead of keeping the warmed process near the WSL memory limit
-- fixed shape export so the decoder cannot accidentally reduce a generated
-  shape to nothing before GLB export
-- kept the fast FlashAttention path enabled
-- confirmed `Pixal3D 0.1.108` as the stable repeat-run baseline
+- Silent wrong-rank generation attempts.
 
-In plain terms:
+### 2026-05-23 Pixal3D runtime and repeat-run stability
 
-- Pixal3D was cleaning GPU memory, but normal system memory could stay too full
-  after a run. The next run could hit the WSL memory ceiling and crash.
-- Once that was fixed, a second bug showed up: sometimes export tried to decode
-  a shape that had collapsed to empty data. Pixal3D now keeps enough shape data
-  alive for export instead of crashing.
+Added:
 
-Related module/registry updates:
+- Unified Pixal3D Manager and Blender runtime flow on the module app server at port `8097`.
+- Blender-side Pixal3D source-change cleanup so stale source/result state is cleared before reruns.
 
-- Pixal3D `0.1.106`: native heap/RSS cleanup between runs
-- Pixal3D `0.1.108`: empty-shape decode/export guard
+Fixed:
 
-### 2026-05-22 TRELLIS module Manager UI preprocessing fix
-Source: live TRELLIS Manager UI image-to-3D testing.
+- Pixal3D repeat-run crashes caused by memory not being released between generations.
+- Pixal3D GLB export failures caused by empty generated shape data.
 
-Changed in source:
+Removed:
 
-- added a Pixal3D-style module-owned TRELLIS Manager UI at `/nymph`
-- copied the proven Blender addon GGUF profile recipes into the Manager UI
-- fixed the Manager UI generation path so portrait source images are converted
-  into square foreground conditioning images before TRELLIS inference
-- kept generation on a single preprocessing pass to avoid both double
-  preprocessing and square-resize subject squashing
-- documented that remaining floor/backdrop geometry comes from background
-  removal quality or future cleanup/retopo work, not the embedded previewer
+- The old separate Pixal3D `8096` API wrapper as the advertised module runtime path.
 
-Related module/registry updates:
+### 2026-05-22 TRELLIS Manager UI preprocessing
 
-- TRELLIS.2 `0.1.33`: square fallback preprocessing for Manager UI generation
-- TRELLIS.2 `0.1.35`: docs for the Manager UI/profile/preprocess behavior;
-  module release history remains in this NymphsCore changelog
+Added:
 
-### 2026-05-22 Manager 0.9.47 action-group state visibility
-Source: LoRA and Pixal3D module contract testing.
+- Module-owned TRELLIS Manager UI at `/nymph`.
+- Blender-proven TRELLIS GGUF profile recipes in the Manager UI.
 
-Changed in source:
+Fixed:
 
-- lets module-owned action groups use the same `show_when.state` contract as
-  Details-pane primary actions
-- keeps module-scoped action status from leaking across module pages
+- Portrait source images are now converted to square foreground conditioning images before TRELLIS inference.
+- TRELLIS Manager generation avoids double preprocessing and square-resize subject squashing.
 
-### 2026-05-22 Manager 0.9.46 model-fetch failure next steps
-Source: Pixal3D BRIA RMBG fetch testing.
+### 2026-05-20 to 2026-05-22 Manager and module platform updates
 
-Changed in source:
+Added:
 
-- surfaces module-provided model-fetch failure next steps in the details pane
-- keeps the generic parser module-owned; Pixal3D supplies the BRIA-specific text
+- Module action-group state visibility through `show_when.state`.
+- Module-provided model-fetch failure next steps in the details pane.
+- Home header sidebar toggle and keyed module URL handling.
+- WSL release packaging hygiene for Manager publish folders and executable bits.
+- Marker-based startup update checks and accurate installed-module update cards.
+- Embedded module UI open guards, close actions, and optional `manager_ui.stop_action`.
+- Pixal3D FlashAttention install controls matching the TRELLIS shared-runtime options.
+- Shared TRELLIS.2/Pixal3D runtime install standard.
+- Standard lifecycle progress display for install, repair, update, uninstall, and delete-data.
+- Compact model/training-asset fetch status for long module downloads.
 
-### 2026-05-21 Manager 0.9.30 Home header sidebar toggle
-Source: Home sidebar collapse testing.
+Fixed:
 
-Changed in source:
+- Module uninstall now refreshes registry/module state after completion.
+- Pixal3D install now builds native `o_voxel` from TRELLIS.2 runtime source, not from the Pixal3D checkout.
+- Pixal3D Gradio startup, import paths, prerequisite messaging, and stale-port handling.
+- Fieldless compact action groups now render their submit button.
 
-- adds a Home-page `NC` badge header that matches module page badge styling
-- keeps the sidebar collapse/restore affordance available from Home after the
-  left sidebar is hidden
+Removed:
 
-### 2026-05-20 Manager 0.9.29 keyed module URL handling
-Source: Pixal3D Nymphs Ui open-path testing.
-
-Changed in source:
-
-- prefers explicit `module_ui_url=`, `url=`, `frontend_url=`, `backend_url=`,
-  or `api_url=` action output before falling back to the first bare URL in logs
-- prevents progress text containing a base service URL from overriding a
-  module-owned UI action's intended route
-
-### 2026-05-20 Manager 0.9.28 WSL release packaging hygiene
-Source: release build testing from WSL.
-
-Changed in source:
-
-- makes `build-release.ps1` clean WSL UNC publish folders through the target WSL
-  distro when Windows PowerShell cannot remove recreated files cleanly
-- restores executable bits on the published Manager EXE and packaged shell
-  scripts before zipping, avoiding repeated mode-only churn after release builds
-
-### 2026-05-20 Manager 0.9.27 marker-based startup update checks
-Source: Home card update-state testing and the Nymphs module standard.
-
-Changed in source:
-
-- keeps startup update detection tied to the standard `.nymph-module-version`
-  marker path instead of waiting for heavyweight module status probes
-- runs the real registry update check after a deferred marker scan if the first
-  fast marker scan times out, so Home cards can still show `Update available`
-  once installed modules are known
-
-### 2026-05-20 Manager 0.9.26 module update card truth
-Source: Pixal3D update UX testing.
-
-Changed in source:
-
-- removed the startup shortcut that treated already-loaded manifest card data as
-  a completed update check
-- made startup use the real module update checker so Home cards show
-  `Update available` only from the installed module version versus registry
-  manifest comparison
-- kept the standard Home card display path: installed cards bind
-  `DisplayStateLabel` and `DisplayStatusBrush`
-
-### 2026-05-20 Manager 0.9.25 module UI open guard
-Source: live Pixal3D Gradio testing.
-
-Changed in source:
-
-- kept embedded module UI pages from opening to a dead local URL when the
-  module start action does not return a URL
-
-### 2026-05-20 Manager 0.9.24 embedded module UI action cleanup
-Source: live Pixal3D Gradio testing.
-
-Changed in source:
-
-- changed the embedded module UI footer so a module does not keep showing its
-  own UI launch action while that UI is already open
-- Pixal3D Gradio now shows `Close Gradio` in the embedded view; that action uses
-  the module manifest stop action before returning to the module details page
-- hid module UI start/stop actions from the embedded footer when the close
-  action already owns that lifecycle
-
-### 2026-05-20 Pixal3D 0.1.14 FlashAttention install options
-Source: live Pixal3D install testing against the TRELLIS.2 shared runtime standard.
-
-Changed in source:
-
-- added the same install-time FlashAttention GPU, `MAX_JOBS`, and
-  `NVCC_THREADS` fields to Pixal3D that TRELLIS.2 exposes
-- wired Pixal3D install to honor `TRELLIS_FLASH_ATTN_CUDA_ARCHS`,
-  `TRELLIS_FLASH_ATTN_MAX_JOBS`, and `TRELLIS_FLASH_ATTN_NVCC_THREADS` when it
-  builds the shared runtime
-- documented that shared-runtime modules must expose the same flash-attn build
-  controls when they can create that shared venv
-
-### 2026-05-20 Pixal3D 0.1.13 shared runtime source fix
-Source: live Pixal3D install testing after uninstalling the base runtime while retaining model/cache data.
-
-Changed in source:
-
-- fixed Pixal3D install so it no longer runs TRELLIS `o-voxel` submodule
-  commands inside the Pixal3D checkout
-- documented that Pixal3D builds native `o_voxel` from official TRELLIS.2
-  runtime source under `$HOME/TRELLIS.2/runtime` when needed
-- kept the shared runtime standard: Pixal3D install/repair prepares
-  `$HOME/TRELLIS.2/.venv` itself and does not require TRELLIS model weights
-
-### 2026-05-20 Manager 0.9.23 lifecycle progress feedback
-Source: live Pixal3D install testing after uninstalling the base runtime while retaining model/cache data.
-
-Changed in source:
-
-- made install, repair, update, uninstall, and delete-data use the standard
-  details-pane live progress path instead of allowing static overview text to
-  overwrite lifecycle output
-- preserved the final lifecycle output briefly after success or failure so the
-  current module details page shows what happened without forcing the user into
-  Logs
-- kept this as Manager-level behavior for all modules, not a Pixal3D-specific
-  workaround
-
-### 2026-05-20 Manager 0.9.22 module uninstall refresh
-Source: live Pixal3D uninstall testing with retained model/cache data.
-
-Changed in source:
-
-- made module uninstall refresh the registry roster and live module state after
-  the uninstall completes, so the current details page immediately switches back
-  to install/repair-ready controls
-- refreshed module command state after uninstall busy state clears
-- changed the details header label from `installed` to `local` so an uninstalled
-  module reads as `local Not installed` instead of `installed Not installed`
-- removed the old Pixal3D-specific TRELLIS runtime helper rendering from the
-  Manager details page; Pixal3D install now owns creating its shared runtime
-
-### 2026-05-20 Shared TRELLIS.2/Pixal3D runtime install standard
-Source: live Pixal3D install and Gradio testing.
-
-Changed in source:
-
-- documented the shared runtime venv standard for modules that intentionally
-  share heavyweight CUDA/native dependencies
-- clarified that Pixal3D and TRELLIS.2 both own creating/repairing
-  `$HOME/TRELLIS.2/.venv`
-- removed the need for Manager-side special-case guidance when Pixal3D needs
-  its shared runtime repaired
-
-Related module/registry updates:
-
-- Pixal3D `0.1.12`: Install creates or repairs the shared TRELLIS.2/Pixal3D
-  runtime venv and no longer exposes a runtime-choice install dropdown
-- TRELLIS.2 `0.1.24`: Install also provisions Pixal3D-compatible shared runtime
-  dependencies
-
-### 2026-05-20 Manager 0.9.21 Pixal3D prerequisite clarity
-Source: live Pixal3D Gradio prerequisite testing.
-
-Changed in source:
-
-- made Pixal3D prerequisite status render as plain next steps in the details
-  card instead of a raw stderr failure
-- clarified that Pixal3D needs the TRELLIS.2 module runtime installed/repaired
-  first, but does not require TRELLIS model weights
-- added a Pixal3D module action that explains the TRELLIS.2 runtime prerequisite
-  for older Manager builds
-
-Related module/registry updates:
-
-- Pixal3D `0.1.10`: explicit TRELLIS.2 runtime prerequisite status and helper
-  action
-- Registry `41`: publishes Pixal3D `0.1.10`
-
-### 2026-05-20 Manager 0.9.20 module UI stop action and Pixal3D Gradio fix
-Source: live Pixal3D Gradio generate testing.
-
-Changed in source:
-
-- added optional `ui.manager_ui.stop_action` support so local URL module UIs can
-  stop their serving process when the embedded UI is closed
-- set Pixal3D Gradio to run `stop` on close, while keeping other modules
-  unchanged unless they opt in
-- fixed Pixal3D Gradio generation imports by adding the Pixal3D repo root to
-  the Gradio wrapper import path
-- hardened Pixal3D Gradio startup so a stale process on the same port cannot
-  make the start action falsely report success after the new worker exits
-- documented the `local_url` start/stop lifecycle in the Module Making Guide
-
-Related module/registry updates:
-
-- Pixal3D `0.1.8`: Gradio import fix, startup verification, and
-  `manager_ui.stop_action`
-
-### 2026-05-20 Manager 0.9.19 compact fetch status standard
-Source: live module update/fetch testing across LoRA, Z-Image, TRELLIS, and Pixal3D.
-
-Changed in source:
-
-- restored concise install confirmations for ordinary modules while keeping
-  Pixal3D's license/access notice explicit
-- standardized long fetch details so model and training-asset downloads show a
-  compact summary in the details card instead of repeated raw progress lines
-- made `FETCH_ASSETS_PROGRESS` render like model fetch progress:
-  `Training assets`, `Phase`, `This repo cache`, and `Active downloads`
-- documented that training asset fetches must use `ui.manager_action_groups`
-  with `result: "show_logs"` and compact progress keys
-- fixed fieldless compact action groups so submit-only groups render their
-  action button
-- rebuilt the Win x64 Manager release as `0.9.19`
-
-Related module/registry updates:
-
-- LoRA `0.1.40`: moved `Fetch Training Assets` to a compact action group,
-  emitted standard `FETCH_ASSETS_PROGRESS` cache/download fields, and kept a
-  `show_logs` module-action fallback so assets remain fetchable in older
-  Manager builds
-- Z-Image `0.1.13` and TRELLIS `0.1.23`: removed legacy duplicate
-  `Fetch Models` action buttons so the standardized compact fetch controls are
-  the only model-fetch surface
-- Registry `38`: publishes the updated LoRA, Z-Image, and TRELLIS manifests
-
-Validated locally:
-
-- Manager builds with `dotnet build -p:EnableWindowsTargeting=true`
-- Manager publishes the Win x64 EXE and ZIP to
-  `Manager/apps/NymphsCoreManager/publish/`
+- Pixal3D-specific TRELLIS runtime helper rendering from the generic Manager details page.
+- Duplicate legacy model-fetch buttons where compact module-owned fetch groups are used.
+- Embedded module UI footer actions that duplicated the currently open module UI.
 
 ### 2026-05-16 Modular LoRA validation and Manager module UI polish
 Source: real Easy LoRA validation against the managed `NymphsCore` WSL distro.
