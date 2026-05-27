@@ -8,73 +8,35 @@ This file focuses on user-facing and system-level changes rather than package-by
 
 Newest entries first.
 
-### 2026-05-27 Nymphs Image Qwen local edit and parts extraction push
-Source: Nymphs Image local image-stack work, Brain vision integration, Blender
-addon wiring, and managed test feedback after the FLUX download path was
-replaced with Qwen Image Edit.
+### 2026-05-27 Nymphs Image local Qwen parts workflow
+Source: Nymphs Image module releases `0.1.91` through `0.1.97`, Blender addon
+`1.1.245`, and registry `215`.
 
-Changed in source:
+Added:
 
-- switched the local image-edit direction from FLUX to Qwen Image Edit 2511 for
-  Nymphs Image local image-to-image and parts-extraction experiments
-- changed Nymphs Image model fetch so the recommended local stack downloads
-  Z-Image Turbo plus Qwen Image Edit 2511 Nunchaku weights, while Brain remains
-  the owner of Qwen vision/VLM model downloads
-- corrected the Qwen fetch profile so Nymphs Image does not download the full
-  official Qwen transformer shards when a Nunchaku transformer is supplied
-- added Manager Details / Model Fetch wording and links for Z-Image, Qwen Image
-  Edit 2511, Qwen 2511 Nunchaku weights, and Brain vision ownership without
-  changing Manager code
-- added Qwen readiness/status fields so the module can report whether the base
-  Qwen components and selected Nunchaku edit weight are cached
-- wired the Nymphs Image web UI for local provider selection, including
-  Z-Image Turbo for normal generation and Qwen Image Edit local for image edit
-  and parts extraction
-- added Brain Vision as a local parts-planner provider in Nymphs Image, calling
-  Brain rather than duplicating Qwen-VL downloads inside the image module
-- matched the Brain auto-find/start/switch/restore pattern used by the LoRA
-  captioning path so parts planning can use the configured Brain vision model
-- cleaned up the parts UI so the Gemini planner model is only shown when Gemini
-  is selected, while Brain Vision shows an auto vision-model state instead
-- fixed Qwen Image Edit parts extraction failing with
-  `Either max_txt_seq_len or txt_seq_lens must be provided` by patching the
-  loaded Nunchaku Qwen transformer call path for the Diffusers pipeline
-- improved long-running parts extraction feedback by mapping per-part denoise
-  callbacks into whole-job progress and refreshing the preview strip as parts
-  save
-- restored Qwen local extraction to allow planned Anatomy Base items after the
-  temporary visible-only guard proved too restrictive for prompt testing
-- updated the Blender addon local image flow so it can send Qwen Image Edit
-  image-to-image requests and route local parts extraction through the Nymphs
-  Image `/api/parts/*` endpoints while keeping Gemini as fallback
+- Qwen Image Edit 2511 as the local Nymphs Image edit and parts-extraction
+  provider.
+- Brain Vision planning for local parts JSON, keeping Qwen-VL model ownership in
+  Brain instead of Nymphs Image.
+- Blender addon routing for local Qwen image-to-image and Brain/Qwen parts
+  extraction, with Gemini still available as fallback.
+- Model Fetch options, links, readiness checks, and cache status for the Qwen
+  Image Edit 2511 Nunchaku stack.
 
-In plain terms:
+Fixed:
 
-- Z-Image is still the fast local text-to-image/default generation backend.
-- Brain owns local vision planning and captioning models.
-- Qwen Image Edit 2511 is now the local image-edit and parts-extraction
-  candidate in Nymphs Image.
-- The local stack is module-owned. Manager was not changed for this path.
-- Anatomy Base is still an open quality question: Gemini handles it better
-  because it reasons and invents a plausible hidden body, while Qwen Image Edit
-  needs tighter prompt/workflow testing before it can be trusted for that case.
+- Qwen Image Edit fetch now downloads only the non-transformer base components
+  needed with Nunchaku weights, avoiding the full official transformer shards.
+- Qwen parts extraction now supplies the required transformer text sequence
+  lengths for the Diffusers pipeline.
+- Parts extraction progress now updates per part and refreshes the preview strip
+  as outputs are saved.
 
-Verified / published:
+Notes:
 
-- Nymphs Image / zimage `0.1.91`: trimmed Qwen Image Edit fetch for Nunchaku
-- Nymphs Image / zimage `0.1.92`: auto-managed Brain vision for parts planning
-- Nymphs Image / zimage `0.1.93`: polished Brain planner UI state
-- Nymphs Image / zimage `0.1.94`: fixed Qwen parts extraction transformer
-  `txt_seq_lens` failure
-- Nymphs Image / zimage `0.1.95`: improved Qwen parts extraction progress and
-  preview-strip refresh
-- Nymphs Image / zimage `0.1.96`: tested temporary visible-only guard for Qwen
-  Anatomy Base, later reverted
-- Nymphs Image / zimage `0.1.97`: restored Qwen Anatomy Base extraction for
-  prompt/workflow testing
-- nymphs-registry `215`: advertises zimage `0.1.97`
-- Blender addon `1.1.245`: wires Qwen local image providers and local
-  Brain/Qwen parts flow
+- No Manager code changes were required.
+- Anatomy Base quality remains under prompt/workflow testing; Qwen local
+  extraction is no longer blocked from attempting it.
 
 ### 2026-05-24 Local vision planner handoff for Nymphs Image parts
 Source: research pass on replacing the Gemini Flash part-planning step with a Brain-hosted local vision model.
