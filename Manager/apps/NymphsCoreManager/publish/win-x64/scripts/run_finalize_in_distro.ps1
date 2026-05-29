@@ -109,6 +109,81 @@ function Build-LinuxSessionPrefix {
     )
 }
 
+function Invoke-WslShellOrThrow {
+    param(
+        [Parameter(Mandatory = $true)] [string] $Shell,
+        [Parameter(Mandatory = $true)] [string] $FailureMessage,
+        [Parameter(Mandatory = $true)] [string] $DistroName,
+        [Parameter()] [string[]] $WslUserArgs = @()
+    )
+
+    $command = @("-d", $DistroName) + $WslUserArgs + @(
+        "--",
+        "/bin/bash", "-lc",
+        $Shell
+    )
+    & wsl @command
+    if ($LASTEXITCODE -ne 0) {
+        throw $FailureMessage
+    }
+}
+
+function Invoke-PackagedBashScriptByContent {
+    param(
+        [Parameter(Mandatory = $true)] [string] $ScriptName,
+        [Parameter()] [string[]] $Arguments = @(),
+        [Parameter(Mandatory = $true)] [string] $FailureMessage,
+        [Parameter(Mandatory = $true)] [string] $DistroName,
+        [Parameter(Mandatory = $true)] [string] $SessionPrefix,
+        [Parameter()] [string[]] $WslUserArgs = @()
+    )
+
+    $scriptPath = Join-Path $PSScriptRoot $ScriptName
+    if (-not (Test-Path $scriptPath)) {
+        throw "Packaged helper script not found: $scriptPath"
+    }
+
+    $scriptContent = (Get-Content -LiteralPath $scriptPath -Raw) -replace "`r`n", "`n" -replace "`r", "`n"
+    $scriptBase64 = [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($scriptContent))
+    $argumentText = ""
+    if ($Arguments.Count -gt 0) {
+        $argumentText = " " + (($Arguments | ForEach-Object { ConvertTo-BashSingleQuoted $_ }) -join " ")
+    }
+
+    $shell = $SessionPrefix + "tmp_script=`$(mktemp); printf '%s' " + (ConvertTo-BashSingleQuoted $scriptBase64) + " | base64 -d > `"`$tmp_script`"; chmod +x `"`$tmp_script`"; set +e; bash `"`$tmp_script`"" + $argumentText + "; rc=`$?; set -e; rm -f `"`$tmp_script`"; exit `$rc"
+    Invoke-WslShellOrThrow -Shell $shell -FailureMessage $FailureMessage -DistroName $DistroName -WslUserArgs $WslUserArgs
+}
+
+function Invoke-PackagedRuntimeSetupByContent {
+    param(
+        [Parameter(Mandatory = $true)] [string] $DistroName,
+        [Parameter(Mandatory = $true)] [string] $SessionPrefix,
+        [Parameter()] [string[]] $WslUserArgs = @(),
+        [switch] $SkipCuda
+    )
+
+    $profileShell = $SessionPrefix + "cat <<'EOF' | sudo tee /etc/profile.d/nymphscore.sh >/dev/null`nexport NYMPHS3D_HELPER_ROOT=/opt/nymphs3d/NymphsCore`nexport NYMPHS3D_RUNTIME_ROOT=`"`$HOME`"`nEOF`nsudo chmod 644 /etc/profile.d/nymphscore.sh"
+    Write-Host "Normalizing runtime shell paths..."
+    Invoke-WslShellOrThrow -Shell $profileShell -FailureMessage "Failed to normalize runtime shell paths in distro '$DistroName'." -DistroName $DistroName -WslUserArgs $WslUserArgs
+
+    Invoke-PackagedBashScriptByContent -ScriptName "preflight_wsl.sh" -FailureMessage "Base Runtime preflight failed." -DistroName $DistroName -SessionPrefix $SessionPrefix -WslUserArgs $WslUserArgs
+    Invoke-PackagedBashScriptByContent -ScriptName "install_system_deps.sh" -FailureMessage "Base Runtime dependency installation failed." -DistroName $DistroName -SessionPrefix $SessionPrefix -WslUserArgs $WslUserArgs
+
+    if (-not $SkipCuda.IsPresent) {
+        Write-Host ""
+        Write-Host "Installing CUDA runtime/toolkit support..."
+        Invoke-PackagedBashScriptByContent -ScriptName "install_cuda_13_wsl.sh" -FailureMessage "Base Runtime CUDA setup failed." -DistroName $DistroName -SessionPrefix $SessionPrefix -WslUserArgs $WslUserArgs
+    }
+    else {
+        Write-Host ""
+        Write-Host "Skipping CUDA installation."
+    }
+
+    Write-Host ""
+    Write-Host "Skipping module backend environment creation."
+    Write-Host "Module installs, model fetches, and backend verification are owned by installed Nymph modules."
+}
+
 $existingDistros = @(Get-WslDistroNames)
 if ($existingDistros -notcontains $DistroName) {
     throw "WSL distro '$DistroName' was not found."
@@ -149,6 +224,11 @@ try {
         $githubToken = $env:GITHUB_TOKEN
     }
     $packagedScriptsDir = ConvertTo-WslPath -WindowsPath $PSScriptRoot
+    $canUsePackagedScriptsByContent = (
+        (Test-Path (Join-Path $PSScriptRoot "preflight_wsl.sh")) -and
+        (Test-Path (Join-Path $PSScriptRoot "install_system_deps.sh")) -and
+        (Test-Path (Join-Path $PSScriptRoot "install_cuda_13_wsl.sh"))
+    )
     $originalWslEnv = $env:WSLENV
     $tokenExportPrefix = ""
     $effectiveScriptsDir = "/opt/nymphs3d/NymphsCore/scripts"
@@ -181,12 +261,20 @@ try {
         $effectiveFinalizeScriptPath = "$packagedScriptsDir/finalize_imported_distro.sh"
         Write-Host "Using packaged helper scripts from '$effectiveScriptsDir'."
     }
+    elseif ($canUsePackagedScriptsByContent) {
+        Write-Host "Using Manager packaged helper scripts from '$PSScriptRoot'."
+    }
     else {
         Write-Host "Using in-distro helper scripts from '$effectiveScriptsDir'."
     }
 
     if (-not $SystemOnly.IsPresent) {
-        Write-Host "Effective finalize script: $effectiveFinalizeScriptPath"
+        if (-not [string]::IsNullOrWhiteSpace($packagedScriptsDir) -or -not $canUsePackagedScriptsByContent) {
+            Write-Host "Effective finalize script: $effectiveFinalizeScriptPath"
+        }
+        else {
+            Write-Host "Effective finalize source: Manager packaged helper scripts."
+        }
     }
 
     if ($CheckUpdatesOnly.IsPresent) {
@@ -195,6 +283,19 @@ try {
     }
 
     if ($SystemOnly.IsPresent) {
+        if ([string]::IsNullOrWhiteSpace($packagedScriptsDir) -and $canUsePackagedScriptsByContent) {
+            if (-not $SkipCuda.IsPresent) {
+                Write-Host "System-only CUDA setup: enabled."
+            }
+            else {
+                Write-Host "System-only CUDA setup: skipped."
+            }
+
+            Invoke-PackagedRuntimeSetupByContent -DistroName $DistroName -SessionPrefix $sessionPrefix -WslUserArgs $wslUserArgs -SkipCuda:$SkipCuda.IsPresent
+            Write-Host "System-only finalize step completed."
+            return
+        }
+
         $systemOnlyParts = @(
             "set -e",
             "bash " + (ConvertTo-BashSingleQuoted "$effectiveScriptsDir/preflight_wsl.sh"),
@@ -224,6 +325,13 @@ try {
             throw "System-only finalize step failed in distro '$DistroName'."
         }
         Write-Host "System-only finalize step completed."
+        return
+    }
+
+    if ([string]::IsNullOrWhiteSpace($packagedScriptsDir) -and $canUsePackagedScriptsByContent) {
+        Invoke-PackagedRuntimeSetupByContent -DistroName $DistroName -SessionPrefix $sessionPrefix -WslUserArgs $wslUserArgs -SkipCuda:$SkipCuda.IsPresent
+        Write-Host ""
+        Write-Host "Imported distro finalize step complete."
         return
     }
 
