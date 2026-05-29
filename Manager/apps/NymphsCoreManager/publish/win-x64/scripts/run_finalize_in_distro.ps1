@@ -4,7 +4,6 @@ param(
     [string] $LinuxUser,
     [switch] $CheckUpdatesOnly,
     [switch] $SystemOnly,
-    [switch] $IncludeCuda,
     [switch] $SkipCuda,
     [switch] $SkipBackendEnvs,
     [switch] $SkipModels,
@@ -197,10 +196,6 @@ try {
 
     if ($SystemOnly.IsPresent) {
         $systemOnlyShell = $sessionPrefix + "set -e; bash " + (ConvertTo-BashSingleQuoted "$effectiveScriptsDir/preflight_wsl.sh") + "; bash " + (ConvertTo-BashSingleQuoted "$effectiveScriptsDir/install_system_deps.sh")
-        if ($IncludeCuda.IsPresent) {
-            Write-Host "System-only CUDA check: enabled"
-            $systemOnlyShell += "; bash " + (ConvertTo-BashSingleQuoted "$effectiveScriptsDir/install_cuda_13_wsl.sh")
-        }
 
         $systemOnlyCommand = @(
             "-d", $DistroName

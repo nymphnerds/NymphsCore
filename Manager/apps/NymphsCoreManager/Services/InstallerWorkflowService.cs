@@ -4240,8 +4240,7 @@ meta:
     public async Task RunSystemDependenciesOnlyAsync(
         InstallSettings settings,
         IProgress<string> progress,
-        CancellationToken cancellationToken,
-        bool includeCuda = false)
+        CancellationToken cancellationToken)
     {
         var runtimeScript = RequireScript("run_finalize_in_distro.ps1");
         var arguments = new List<string>
@@ -4253,11 +4252,6 @@ meta:
 
         progress.Report("System dependencies: checking base Linux packages needed by optional modules.");
         progress.Report("System dependencies note: this may run apt briefly if the existing distro was created from an older base image.");
-        if (includeCuda)
-        {
-            arguments.Add("-IncludeCuda");
-            progress.Report("CUDA dependencies: verifying Base Runtime CUDA toolkit before GPU module install.");
-        }
 
         var result = await RunPowerShellScriptAsync(
             runtimeScript,
