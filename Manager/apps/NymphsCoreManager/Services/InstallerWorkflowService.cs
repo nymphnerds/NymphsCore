@@ -7384,32 +7384,6 @@ meta:
         return !string.IsNullOrWhiteSpace(await GetExistingManagedDistroNameAsync(cancellationToken).ConfigureAwait(false));
     }
 
-    public string? GetRegisteredManagedDistroName()
-    {
-        if (!OperatingSystem.IsWindows())
-        {
-            return null;
-        }
-
-        using var lxssKey = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Lxss");
-        if (lxssKey is null)
-        {
-            return null;
-        }
-
-        foreach (var subKeyName in lxssKey.GetSubKeyNames())
-        {
-            using var distroKey = lxssKey.OpenSubKey(subKeyName);
-            var distributionName = distroKey?.GetValue("DistributionName") as string;
-            if (string.Equals(distributionName, ManagedDistroName, StringComparison.OrdinalIgnoreCase))
-            {
-                return distributionName;
-            }
-        }
-
-        return null;
-    }
-
     public Task<CommandResult> CheckManagedDistroHealthAsync(
         InstallSettings settings,
         CancellationToken cancellationToken)

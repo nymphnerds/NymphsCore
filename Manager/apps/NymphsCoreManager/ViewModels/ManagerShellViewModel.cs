@@ -1423,7 +1423,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
         try
         {
-            RefreshBaseRuntimeState();
+            await RefreshBaseRuntimeStateAsync().ConfigureAwait(true);
             await RefreshManagerManifestAsync().ConfigureAwait(true);
             await RefreshModuleRosterAsync().ConfigureAwait(true);
             await RefreshSystemChecksAsync().ConfigureAwait(true);
@@ -1463,19 +1463,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         }
 
         StatusMessage = "Refreshing runtime monitor...";
-        if (ManagedDistroDetected && !ManagedDistroUsable)
-        {
-            _isRuntimeMonitorAvailable = false;
-            RuntimePanelTitle = "WSL: Unavailable";
-            RuntimePanelSummary = "Registered runtime could not be marked usable during startup.";
-            RuntimePanelDetail = "Reconnect the runtime drive, or unregister and reinstall Base Runtime.";
-            RuntimePanelStatusLabel = "Unavailable";
-            RuntimePanelStatusBrush = "#B74322";
-        }
-        else
-        {
-            await RefreshRuntimeMonitorSafelyAsync().ConfigureAwait(true);
-        }
+        await RefreshRuntimeMonitorSafelyAsync().ConfigureAwait(true);
 
         LastRefreshedText = $"Last refreshed {DateTime.Now:HH:mm:ss}";
         StatusMessage = _isRuntimeMonitorAvailable || ManagedDistroDetected
@@ -1835,11 +1823,12 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         AppendActivity(normalized);
     }
 
-    private void RefreshBaseRuntimeState()
+    private async Task RefreshBaseRuntimeStateAsync()
     {
         try
         {
-            var existingDistroName = _workflowService.GetRegisteredManagedDistroName();
+            using var runtimeStateTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            var existingDistroName = await _workflowService.GetExistingManagedDistroNameAsync(runtimeStateTimeout.Token).ConfigureAwait(true);
             ManagedDistroDetected = !string.IsNullOrWhiteSpace(existingDistroName);
             if (ManagedDistroDetected)
             {
@@ -1848,12 +1837,28 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                 OnPropertyChanged(nameof(BaseRuntimeInstallPath));
                 OnPropertyChanged(nameof(BaseRuntimeDriveSummary));
                 BaseRuntimeActionText = "Repair Base Runtime";
-                ManagedDistroUsable = false;
-                BaseRuntimeSummary = $"{existingDistroName} managed WSL shell is registered.";
-                BaseRuntimeDetail = "Startup skipped WSL probes so the Manager can open even after an interrupted runtime install. Run Repair Base Runtime once the runtime drive is stable.";
-                BaseRuntimeCardSubtitle = "WSL shell registered";
-                BaseRuntimeCardStatus = "Needs attention";
-                BaseRuntimeProgressText = "Runtime registered; startup WSL probe skipped.";
+                using var healthTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(4));
+                var health = await _workflowService.CheckManagedDistroHealthAsync(_settings, healthTimeout.Token).ConfigureAwait(true);
+                ManagedDistroUsable = health.ExitCode == 0;
+                if (ManagedDistroUsable)
+                {
+                    BaseRuntimeSummary = $"{existingDistroName} managed WSL shell detected.";
+                    BaseRuntimeDetail = "Base runtime is present. Modules remain registry-managed and optional.";
+                    BaseRuntimeCardSubtitle = "WSL shell detected";
+                    BaseRuntimeCardStatus = "Ready";
+                    BaseRuntimeProgressText = "Ready.";
+                }
+                else
+                {
+                    var detail = FirstNonEmptyLine(health.CombinedOutput);
+                    BaseRuntimeSummary = $"{existingDistroName} is registered but could not start.";
+                    BaseRuntimeDetail = string.IsNullOrWhiteSpace(detail)
+                        ? "The managed WSL runtime is registered, but Windows could not start it. If its drive was disconnected, reconnect it or unregister and reinstall Base Runtime."
+                        : $"{detail}. If its drive was disconnected, reconnect it or unregister and reinstall Base Runtime.";
+                    BaseRuntimeCardSubtitle = "WSL shell unavailable";
+                    BaseRuntimeCardStatus = "Needs attention";
+                    BaseRuntimeProgressText = BaseRuntimeDetail;
+                }
             }
             else
             {
@@ -1903,26 +1908,6 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
     private async Task RefreshSystemChecksAsync()
     {
-        if (ManagedDistroDetected && !ManagedDistroUsable)
-        {
-            SystemChecks.Clear();
-            SystemChecks.Add(new SystemCheckItem(
-                "Managed runtime",
-                "Checks whether the registered NymphsCore WSL runtime can be safely queried.",
-                CheckState.Fail,
-                "The runtime is registered, but startup skipped WSL probes to avoid hanging after an interrupted install.",
-                key: InstallerWorkflowService.WslAvailabilityCheckKey));
-            SystemChecksSummary = "Runtime needs attention";
-            WindowsWslReady = true;
-            RuntimePanelTitle = "WSL: Unverified";
-            RuntimePanelSummary = "Registered runtime needs repair or reinstall.";
-            RuntimePanelDetail = "Reconnect the runtime drive if needed, then run Repair Base Runtime. If WSL still cannot start it, unregister and reinstall Base Runtime.";
-            RuntimePanelStatusLabel = "Needs attention";
-            RuntimePanelStatusBrush = "#B74322";
-            _isRuntimeMonitorAvailable = false;
-            return;
-        }
-
         var checks = await _workflowService.RunSystemChecksAsync(CancellationToken.None).ConfigureAwait(true);
 
         SystemChecks.Clear();
@@ -2053,12 +2038,6 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
     private IReadOnlyList<NymphModuleManifestInfo> GetInstalledModuleManifestsForRoster()
     {
-        if (ManagedDistroDetected && !ManagedDistroUsable)
-        {
-            AppendActivity("Installed module metadata scan skipped because the managed WSL runtime has not been verified.");
-            return Array.Empty<NymphModuleManifestInfo>();
-        }
-
         try
         {
             return _workflowService.GetInstalledNymphModuleManifestInfos(_settings);
