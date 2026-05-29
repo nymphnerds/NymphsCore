@@ -147,17 +147,10 @@ public partial class MainWindow : Window
 
         ApplyDarkTitleBar();
         StartModuleUiPrewarm();
-        try
-        {
-            await _viewModel.InitializeAsync();
-            UpdateCompactMonitorMode();
-            _ = Dispatcher.BeginInvoke(ScrollMainContentToTop, DispatcherPriority.Loaded);
-            ScrollUnifiedLogToLatest();
-        }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"Manager shell startup warning: {ex.Message}");
-        }
+        await _viewModel.InitializeAsync();
+        UpdateCompactMonitorMode();
+        _ = Dispatcher.BeginInvoke(ScrollMainContentToTop, DispatcherPriority.Loaded);
+        ScrollUnifiedLogToLatest();
     }
 
     private void SidebarRoot_SizeChanged(object sender, SizeChangedEventArgs e)

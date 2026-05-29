@@ -116,7 +116,6 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
     private string _baseRuntimeOperationLabel = "idle";
     private bool _isBaseRuntimeOperationActive;
     private bool _managedDistroDetected;
-    private bool _managedDistroUsable;
     private bool _windowsWslReady;
     private string _systemChecksSummary = "System checks have not run yet.";
     private string _installedModulesSummary = "Scanning installed Nymphs...";
@@ -1091,22 +1090,9 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         }
     }
 
-    private bool ManagedDistroUsable
-    {
-        get => _managedDistroUsable;
-        set
-        {
-            if (SetProperty(ref _managedDistroUsable, value))
-            {
-                OnPropertyChanged(nameof(BaseRuntimeStatusLabel));
-                OnPropertyChanged(nameof(BaseRuntimeStatusBrush));
-            }
-        }
-    }
+    public string BaseRuntimeStatusLabel => ManagedDistroDetected ? "Ready" : "Not installed";
 
-    public string BaseRuntimeStatusLabel => ManagedDistroDetected ? ManagedDistroUsable ? "Ready" : "Unavailable" : "Not installed";
-
-    public string BaseRuntimeStatusBrush => ManagedDistroDetected ? ManagedDistroUsable ? "#97DF48" : "#B74322" : "#D9B36B";
+    public string BaseRuntimeStatusBrush => ManagedDistroDetected ? "#97DF48" : "#D9B36B";
 
     public DriveChoice? SelectedBaseRuntimeDrive
     {
@@ -1453,7 +1439,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         await Task.Yield();
 
         Task? moduleStatusTask = null;
-        if (ManagedDistroDetected && ManagedDistroUsable)
+        if (ManagedDistroDetected)
         {
             moduleStatusTask = RefreshModuleStateInBackgroundAsync(updateStatusMessage: false);
         }
@@ -1471,7 +1457,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             : "Manager shell refreshed. Runtime is offline.";
         AppendActivity(StatusMessage);
 
-        if (ManagedDistroDetected && ManagedDistroUsable)
+        if (ManagedDistroDetected)
         {
             await CheckForUpdatesOnStartupAsync().ConfigureAwait(true);
         }
@@ -1700,7 +1686,6 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
             ApplyRuntimeSettings(settings);
             ManagedDistroDetected = true;
-            ManagedDistroUsable = true;
             BaseRuntimeActionText = "Repair Base Runtime";
             BaseRuntimeSummary = $"{settings.DistroName} base runtime is ready.";
             BaseRuntimeDetail = "No optional modules were installed. Use module cards to install each Nymph individually.";
@@ -1779,7 +1764,6 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
             ApplyRuntimeSettings(CreateDefaultInstallSettings());
             ManagedDistroDetected = false;
-            ManagedDistroUsable = false;
             BaseRuntimeActionText = "Install Base Runtime";
             BaseRuntimeSummary = "No NymphsCore managed WSL shell detected.";
             BaseRuntimeDetail = "Install the base shell first. Modules remain registry-managed and optional.";
@@ -1837,32 +1821,14 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                 OnPropertyChanged(nameof(BaseRuntimeInstallPath));
                 OnPropertyChanged(nameof(BaseRuntimeDriveSummary));
                 BaseRuntimeActionText = "Repair Base Runtime";
-                using var healthTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(4));
-                var health = await _workflowService.CheckManagedDistroHealthAsync(_settings, healthTimeout.Token).ConfigureAwait(true);
-                ManagedDistroUsable = health.ExitCode == 0;
-                if (ManagedDistroUsable)
-                {
-                    BaseRuntimeSummary = $"{existingDistroName} managed WSL shell detected.";
-                    BaseRuntimeDetail = "Base runtime is present. Modules remain registry-managed and optional.";
-                    BaseRuntimeCardSubtitle = "WSL shell detected";
-                    BaseRuntimeCardStatus = "Ready";
-                    BaseRuntimeProgressText = "Ready.";
-                }
-                else
-                {
-                    var detail = FirstNonEmptyLine(health.CombinedOutput);
-                    BaseRuntimeSummary = $"{existingDistroName} is registered but could not start.";
-                    BaseRuntimeDetail = string.IsNullOrWhiteSpace(detail)
-                        ? "The managed WSL runtime is registered, but Windows could not start it. If its drive was disconnected, reconnect it or unregister and reinstall Base Runtime."
-                        : $"{detail}. If its drive was disconnected, reconnect it or unregister and reinstall Base Runtime.";
-                    BaseRuntimeCardSubtitle = "WSL shell unavailable";
-                    BaseRuntimeCardStatus = "Needs attention";
-                    BaseRuntimeProgressText = BaseRuntimeDetail;
-                }
+                BaseRuntimeSummary = $"{existingDistroName} managed WSL shell detected.";
+                BaseRuntimeDetail = "Base runtime is present. Modules remain registry-managed and optional.";
+                BaseRuntimeCardSubtitle = "WSL shell detected";
+                BaseRuntimeCardStatus = "Ready";
+                BaseRuntimeProgressText = "Ready.";
             }
             else
             {
-                ManagedDistroUsable = false;
                 BaseRuntimeActionText = "Install Base Runtime";
                 BaseRuntimeSummary = "No NymphsCore managed WSL shell detected.";
                 var installTarget = $"Install target: {BaseRuntimeInstallPath}.";
@@ -1877,7 +1843,6 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         catch (Exception ex)
         {
             ManagedDistroDetected = false;
-            ManagedDistroUsable = false;
             BaseRuntimeActionText = "Install Base Runtime";
             BaseRuntimeSummary = "Base runtime state could not be checked.";
             BaseRuntimeDetail = ex.Message;
@@ -2121,13 +2086,6 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
     private async Task RefreshModuleStateAsync()
     {
-        if (ManagedDistroDetected && !ManagedDistroUsable)
-        {
-            AppendActivity("Module status refresh skipped because the managed WSL runtime is registered but unavailable.");
-            HasLoadedModuleState = true;
-            return;
-        }
-
         var statusTargets = _allModules
             .Where(module => !_modulesWithActiveLifecycle.Contains(module.Id))
             .Where(module => module.IsInstalled || IsRepairStateLabel(module.StateLabel))
@@ -2188,23 +2146,6 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
     private async Task<NymphStatusSnapshot> RunModuleStatusSnapshotAsync(NymphModuleViewModel module)
     {
-        async Task<string?> TryGetMarkerVersionAsync()
-        {
-            try
-            {
-                return await _workflowService.GetInstalledNymphModuleMarkerVersionAsync(
-                    _settings,
-                    module.Id,
-                    module.InstallRoot,
-                    CancellationToken.None).ConfigureAwait(true);
-            }
-            catch (Exception markerEx)
-            {
-                AppendActivity($"{module.Name} marker lookup warning: {FirstNonEmptyLine(markerEx.Message)}");
-                return null;
-            }
-        }
-
         try
         {
             using var statusTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
@@ -2244,7 +2185,11 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         catch (OperationCanceledException)
         {
             AppendActivity($"{module.Name} status timed out; keeping Manager responsive.");
-            var markerVersion = await TryGetMarkerVersionAsync().ConfigureAwait(true);
+            var markerVersion = await _workflowService.GetInstalledNymphModuleMarkerVersionAsync(
+                _settings,
+                module.Id,
+                module.InstallRoot,
+                CancellationToken.None).ConfigureAwait(true);
             if (!string.IsNullOrWhiteSpace(markerVersion))
             {
                 return new NymphStatusSnapshot(
@@ -2279,7 +2224,11 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         catch (Exception ex)
         {
             AppendActivity($"{module.Name} status warning: {FirstNonEmptyLine(ex.Message)}");
-            var markerVersion = await TryGetMarkerVersionAsync().ConfigureAwait(true);
+            var markerVersion = await _workflowService.GetInstalledNymphModuleMarkerVersionAsync(
+                _settings,
+                module.Id,
+                module.InstallRoot,
+                CancellationToken.None).ConfigureAwait(true);
             if (!string.IsNullOrWhiteSpace(markerVersion))
             {
                 return new NymphStatusSnapshot(
@@ -2827,7 +2776,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         try
         {
             using var markerTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(3));
-            markerProbes = ManagedDistroDetected && ManagedDistroUsable
+            markerProbes = ManagedDistroDetected
                 ? await _workflowService.GetInstalledNymphModuleMarkerProbesAsync(
                     _settings,
                     manifests,
@@ -2838,7 +2787,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         {
             AppendActivity($"Fast module marker scan warning: {FirstNonEmptyLine(ex.Message)}");
             markerProbes = new Dictionary<string, NymphModuleMarkerProbe>(StringComparer.OrdinalIgnoreCase);
-            retryMarkerScan = ManagedDistroDetected && ManagedDistroUsable;
+            retryMarkerScan = ManagedDistroDetected;
         }
         catch (Exception ex)
         {

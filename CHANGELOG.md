@@ -8,17 +8,6 @@ This file focuses on user-facing and system-level changes rather than package-by
 
 Newest entries first.
 
-### 2026-05-29 Manager handles unavailable WSL runtime
-
-Fixed:
-
-- Manager startup/status refresh no longer crashes when the managed
-  `NymphsCore` distro is still registered but its WSL VHD cannot start after a
-  drive disconnect or interrupted install.
-- Registered-but-unavailable runtimes are shown as needing attention, and
-  module status refresh is skipped until the Base Runtime is repaired,
-  reconnected, unregistered, or reinstalled.
-
 ### 2026-05-29 Base Runtime CUDA ownership
 
 Added:
