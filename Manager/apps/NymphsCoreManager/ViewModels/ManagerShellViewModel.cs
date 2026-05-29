@@ -5347,11 +5347,27 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         string action,
         IProgress<string> progress)
     {
+        var includeCuda = RequiresBaseCuda(module);
         progress.Report($"{module.Name}: preparing Base Runtime system dependencies before {action}...");
+        if (includeCuda)
+        {
+            progress.Report($"{module.Name}: verifying Base Runtime CUDA before {action}...");
+        }
+
         await _workflowService.RunSystemDependenciesOnlyAsync(
             _settings,
             progress,
-            _operationCancellation.Token).ConfigureAwait(true);
+            _operationCancellation.Token,
+            includeCuda).ConfigureAwait(true);
+    }
+
+    private static bool RequiresBaseCuda(NymphModuleViewModel module)
+    {
+        return module.Id.Equals("brain", StringComparison.OrdinalIgnoreCase) ||
+               module.Id.Equals("zimage", StringComparison.OrdinalIgnoreCase) ||
+               module.Id.Equals("trellis", StringComparison.OrdinalIgnoreCase) ||
+               module.Id.Equals("pixal3d", StringComparison.OrdinalIgnoreCase) ||
+               module.Id.Equals("lora", StringComparison.OrdinalIgnoreCase);
     }
 
     private void AppendModuleLiveLine(NymphModuleViewModel module, string action, string? message, List<string> liveLines)
