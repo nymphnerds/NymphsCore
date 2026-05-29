@@ -1082,6 +1082,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             {
                 OnPropertyChanged(nameof(BaseRuntimeStatusLabel));
                 OnPropertyChanged(nameof(BaseRuntimeStatusBrush));
+                OnPropertyChanged(nameof(AvailableModulesSectionTitle));
                 OnPropertyChanged(nameof(BaseRuntimeInstallPath));
                 OnPropertyChanged(nameof(BaseRuntimeDriveSummary));
                 OnPropertyChanged(nameof(CanChooseBaseRuntimeDrive));
@@ -1100,13 +1101,14 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             {
                 OnPropertyChanged(nameof(BaseRuntimeStatusLabel));
                 OnPropertyChanged(nameof(BaseRuntimeStatusBrush));
+                OnPropertyChanged(nameof(AvailableModulesSectionTitle));
             }
         }
     }
 
-    public string BaseRuntimeStatusLabel => ManagedDistroDetected ? ManagedDistroUsable ? "Ready" : "Unavailable" : "Not installed";
+    public string BaseRuntimeStatusLabel => ManagedDistroDetected ? ManagedDistroUsable ? "Ready" : "Registered" : "Not installed";
 
-    public string BaseRuntimeStatusBrush => ManagedDistroDetected ? ManagedDistroUsable ? "#97DF48" : "#B74322" : "#D9B36B";
+    public string BaseRuntimeStatusBrush => ManagedDistroDetected ? ManagedDistroUsable ? "#97DF48" : "#5AD5C7" : "#D9B36B";
 
     public DriveChoice? SelectedBaseRuntimeDrive
     {
@@ -1182,6 +1184,10 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         get => _availableModulesSummary;
         private set => SetProperty(ref _availableModulesSummary, value);
     }
+
+    public string AvailableModulesSectionTitle => ManagedDistroDetected && !ManagedDistroUsable
+        ? "// MODULES"
+        : "// AVAILABLE MODULES";
 
     public string CurrentSidebarArtPath
     {
@@ -1850,9 +1856,9 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                 BaseRuntimeActionText = "Repair Base Runtime";
                 ManagedDistroUsable = false;
                 BaseRuntimeSummary = $"{existingDistroName} managed WSL shell is registered.";
-                BaseRuntimeDetail = "Startup skipped WSL probes so the Manager can open even after an interrupted runtime install. Run Repair Base Runtime once the runtime drive is stable.";
+                BaseRuntimeDetail = "Startup skipped live WSL probes so the Manager can open even after an interrupted module install. Module install markers still decide installed/available grouping.";
                 BaseRuntimeCardSubtitle = "WSL shell registered";
-                BaseRuntimeCardStatus = "Needs attention";
+                BaseRuntimeCardStatus = "Registered";
                 BaseRuntimeProgressText = "Runtime registered; startup WSL probe skipped.";
             }
             else
@@ -1909,16 +1915,16 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             SystemChecks.Add(new SystemCheckItem(
                 "Managed runtime",
                 "Checks whether the registered NymphsCore WSL runtime can be safely queried.",
-                CheckState.Fail,
-                "The runtime is registered, but startup skipped WSL probes to avoid hanging after an interrupted install.",
+                CheckState.Warning,
+                "The runtime is registered. Startup skipped live WSL probes to avoid hanging after an interrupted module install.",
                 key: InstallerWorkflowService.WslAvailabilityCheckKey));
-            SystemChecksSummary = "Runtime needs attention";
+            SystemChecksSummary = "Runtime registered";
             WindowsWslReady = true;
-            RuntimePanelTitle = "WSL: Unverified";
-            RuntimePanelSummary = "Registered runtime needs repair or reinstall.";
-            RuntimePanelDetail = "Reconnect the runtime drive if needed, then run Repair Base Runtime. If WSL still cannot start it, unregister and reinstall Base Runtime.";
-            RuntimePanelStatusLabel = "Needs attention";
-            RuntimePanelStatusBrush = "#B74322";
+            RuntimePanelTitle = "WSL: Registered";
+            RuntimePanelSummary = "Live runtime probe skipped during startup.";
+            RuntimePanelDetail = "Installed module grouping is based on cheap module markers. Run module actions or Base Runtime repair only when a specific action fails.";
+            RuntimePanelStatusLabel = "Registered";
+            RuntimePanelStatusBrush = "#5AD5C7";
             _isRuntimeMonitorAvailable = false;
             return;
         }
@@ -2053,12 +2059,6 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
     private IReadOnlyList<NymphModuleManifestInfo> GetInstalledModuleManifestsForRoster()
     {
-        if (ManagedDistroDetected && !ManagedDistroUsable)
-        {
-            AppendActivity("Installed module metadata scan skipped because the managed WSL runtime has not been verified.");
-            return Array.Empty<NymphModuleManifestInfo>();
-        }
-
         try
         {
             return _workflowService.GetInstalledNymphModuleManifestInfos(_settings);
@@ -2848,7 +2848,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         try
         {
             using var markerTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(3));
-            markerProbes = ManagedDistroDetected && ManagedDistroUsable
+            markerProbes = ManagedDistroDetected
                 ? await _workflowService.GetInstalledNymphModuleMarkerProbesAsync(
                     _settings,
                     manifests,
@@ -2859,7 +2859,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         {
             AppendActivity($"Fast module marker scan warning: {FirstNonEmptyLine(ex.Message)}");
             markerProbes = new Dictionary<string, NymphModuleMarkerProbe>(StringComparer.OrdinalIgnoreCase);
-            retryMarkerScan = ManagedDistroDetected && ManagedDistroUsable;
+            retryMarkerScan = ManagedDistroDetected;
         }
         catch (Exception ex)
         {
@@ -2871,7 +2871,11 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         var repairCount = markerProbes.Values.Count(probe => probe.RepairCandidatePresent);
         AppendActivity($"Fast module marker scan found {markerCount} installed marker(s), {repairCount} repair candidate(s).");
 
-        ApplyModuleMarkerProbes(markerProbes, markMissingAsAvailable: true);
+        var markerScanUnavailable = ManagedDistroDetected && markerProbes.Count == 0;
+        ApplyModuleMarkerProbes(
+            markerProbes,
+            markMissingAsAvailable: !markerScanUnavailable,
+            markMissingAsUnknown: markerScanUnavailable);
 
         if (retryMarkerScan)
         {
@@ -2896,7 +2900,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             var repairCount = markerProbes.Values.Count(probe => probe.RepairCandidatePresent);
             AppendActivity($"Deferred module marker scan found {markerCount} installed marker(s), {repairCount} repair candidate(s).");
 
-            if (ApplyModuleMarkerProbes(markerProbes, markMissingAsAvailable: false))
+            if (ApplyModuleMarkerProbes(markerProbes, markMissingAsAvailable: false, markMissingAsUnknown: false))
             {
                 RebuildModuleCollections();
                 RebuildModuleNavigation();
@@ -2923,7 +2927,8 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
     private bool ApplyModuleMarkerProbes(
         IReadOnlyDictionary<string, NymphModuleMarkerProbe> markerProbes,
-        bool markMissingAsAvailable)
+        bool markMissingAsAvailable,
+        bool markMissingAsUnknown = false)
     {
         var changed = false;
 
@@ -2975,6 +2980,19 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
             if (!markMissingAsAvailable)
             {
+                if (markMissingAsUnknown && !module.IsInstalled)
+                {
+                    module.ApplyState(
+                        isInstalled: false,
+                        isRunning: false,
+                        versionLabel: "Unknown",
+                        stateLabel: "Install state not checked",
+                        statusBrush: "#D49A2A",
+                        detail: $"{module.Name} install state could not be read from module markers yet.",
+                        secondaryDetail: "The Manager avoided live WSL probes during startup. This is not a module uninstall state.");
+                    changed = changed || wasInstalled != module.IsInstalled || !string.Equals(previousState, module.StateLabel, StringComparison.Ordinal);
+                }
+
                 continue;
             }
 

@@ -8,6 +8,17 @@ This file focuses on user-facing and system-level changes rather than package-by
 
 Newest entries first.
 
+### 2026-05-29 Manager preserves module marker grouping
+
+Fixed:
+
+- Startup no longer marks Base Runtime as failed just because live WSL probes
+  were skipped.
+- Module refresh now still uses cheap module install markers while live runtime
+  probes are deferred, preserving the installed/available grouping contract.
+- If marker reads return no result, the Home section label no longer claims
+  modules are available/uninstalled.
+
 ### 2026-05-29 Manager avoids startup WSL probes
 
 Fixed:

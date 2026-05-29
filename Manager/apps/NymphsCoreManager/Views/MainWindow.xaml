@@ -1614,7 +1614,7 @@
                           Margin="{StaticResource HomeModuleSectionSpacing}"
                           Visibility="{Binding ShowAvailableModulesSection, Converter={StaticResource BoolToVisibilityConverter}}">
                 <DockPanel LastChildFill="False">
-                  <TextBlock Text="// AVAILABLE MODULES"
+                  <TextBlock Text="{Binding AvailableModulesSectionTitle}"
                              Style="{StaticResource MonoLabelStyle}"
                              Foreground="{StaticResource LimeBrush}" />
                 </DockPanel>
