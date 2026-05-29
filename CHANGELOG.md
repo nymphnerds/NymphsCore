@@ -8,6 +8,61 @@ This file focuses on user-facing and system-level changes rather than package-by
 
 Newest entries first.
 
+### 2026-05-29 Base Runtime CUDA ownership
+
+Added:
+
+- Base Runtime setup now runs the shared runtime dependency stage after the
+  fresh WSL shell is provisioned.
+- Base Runtime installs the shared native CUDA 13 toolkit at
+  `/usr/local/cuda-13.0` and writes `/etc/profile.d/nymphscore-cuda.sh` so
+  modules can find `nvcc`, headers, CMake prefixes, and CUDA runtime libraries.
+- Manager runtime setup can run helper scripts from the packaged Manager
+  `scripts` directory even when the Manager is launched from a dev WSL UNC
+  path.
+
+Changed:
+
+- Module guidance now treats native CUDA as Base Runtime-owned system
+  infrastructure, while PyTorch CUDA wheels remain module-owned Python
+  dependencies when a module needs GPU PyTorch.
+- Brain 0.1.13 preinstalls CPU PyTorch for Open WebUI by default so Brain does
+  not download unnecessary bundled NVIDIA PyTorch wheels; llama.cpp still uses
+  the Base Runtime CUDA toolkit for CUDA builds.
+
+Fixed:
+
+- Fresh Base Runtime installs now finish with CUDA ready before reporting
+  `Base runtime ready`.
+- Brain CUDA llama.cpp builds now find Base Runtime CUDA instead of failing on
+  missing `nvcc`, `cuda.h`, or `libcudart`.
+
+### 2026-05-28 Optional provider dependency standard
+
+Added:
+
+- Module guide rules for optional provider dependencies such as Codex Sign In,
+  OpenRouter keys, and local Brain services.
+- Guidance that missing optional providers should be visible in status keys but
+  must not block module install/start or force `needs_attention`.
+
+### 2026-05-28 Module port planning standard
+
+Added:
+
+- Module port planning rules to the module-making guide.
+- A current reservation list for known module, dev-server, provider-default,
+  and external/admin ports.
+- Guidance that new auxiliary services should prefer `7000+` after checking
+  active module manifests and the guide.
+
+Changed:
+
+- Nymphs World's WORBI-derived runtime plan now uses production/backend port
+  `8083` and Vite dev frontend port `5174`, beside WORBI's `8082` and `5173`.
+- Port `8084` is reserved for a colleague-owned remote Git server admin
+  surface and must not be used by Nymphs World or new module services.
+
 ### 2026-05-27 Nymphs Image local Qwen workflow
 
 Added:

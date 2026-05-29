@@ -45,9 +45,15 @@ Current heavyweight proof state:
 - Brain and Pixal3D prove that module installers must verify real venv
   creation with pip, not only `import venv`, before assuming Python venv support
   is usable on a fresh or repaired runtime.
-- TRELLIS and Pixal3D prove that CUDA 13/nvcc is module-owned but shared:
-  either module may install the toolkit when needed, but it must go to the
-  shared WSL path `/usr/local/cuda-13.0` so the other module benefits too.
+- Base Runtime proves that the native CUDA 13 toolkit is shared system
+  infrastructure. It installs CUDA at `/usr/local/cuda-13.0` and exposes
+  standard CUDA environment through `/etc/profile.d/nymphscore-cuda.sh`.
+- Brain proves that native CUDA builds should use the Base Runtime toolkit for
+  llama.cpp/ggml CUDA compilation, while Open WebUI can use CPU PyTorch when it
+  does not need GPU tensors.
+- Nymphs Image proves that GPU PyTorch modules may still download PyTorch's
+  bundled `nvidia-*` CUDA wheels. Those wheels are Python package dependencies,
+  not a replacement for the Base Runtime native CUDA toolkit.
 - Both modules keep model fetch module-owned through `ui.manager_action_groups`.
 - Both modules keep generated outputs, logs, config, and reusable model caches
   under `$HOME/NymphsData` instead of inside disposable runtime source roots.
@@ -202,6 +208,52 @@ Rules:
 - Slow or deep probes must be opt-in through a module-specific environment flag,
   not the default Manager refresh path.
 
+## Module Port Planning Standard
+
+Ports are part of the module contract. Do not assign or move a port just
+because it is free on one development machine.
+
+Before adding or changing a module port:
+
+- inspect active module manifests, start/status scripts, and known local admin
+  services
+- update `nymph.json.runtime`, script defaults, Manager-facing docs, and this
+  guide together
+- keep ports configurable with environment overrides where the module owns a
+  service
+- make status output expose the active URL, port, and health endpoint when a
+  service exists
+- avoid `808x` and `809x` for new auxiliary services unless the team has
+  intentionally reserved that slot
+
+Known current reservations:
+
+```text
+5173  WORBI Vite dev frontend
+5174  Nymphs World Vite dev frontend
+7861  LoRA / AI Toolkit Gradio surface
+8000  Brain LLM API
+8081  Brain Open WebUI
+8082  WORBI production/backend
+8083  Nymphs World production/backend
+8084  colleague-owned remote Git server admin surface; do not use
+8090  Z-Image
+8095  TRELLIS.2
+8097  Pixal3D
+8099  Brain MCPO OpenAPI
+8100  Brain MCP gateway
+8675  LoRA / AI Toolkit UI
+```
+
+Provider defaults may appear in settings but are not NymphsCore-owned module
+ports: `1234` for LM Studio, `11434` for Ollama, `8080` for
+llama.cpp/LocalAI-style OpenAI-compatible endpoints, `5000` for TextGen WebUI,
+and `1337` for Jan.
+
+For future module services and Nymphs World auxiliary workers, prefer starting
+at `7000+` after checking this guide and active manifests. If there is a
+conflict, update this guide first, then update the module repo and registry.
+
 ## Base Runtime Dependency Floor
 
 The managed WSL base runtime must provide the small command-line floor needed to
@@ -233,16 +285,64 @@ that venv's Python with `-m pip --version`. If the probe fails and apt is
 available, install the matching `python3-venv`/`python3-pip` or pinned
 `python3.X-venv`/`python3.X-dev` packages first, then retry.
 
-Modules still own heavyweight and product-specific dependencies such as CUDA
-toolkits, Python versions beyond the base floor, Node runtimes, llama.cpp,
-model managers, Gradio apps, AI Toolkit, or 3D/image runtime libraries. Keep
-the base distro light. If multiple modules need the same heavyweight system
-toolkit, the first module that needs it may install it into a shared WSL system
-path. For CUDA 13/nvcc, TRELLIS and Pixal3D install or verify the same
-`/usr/local/cuda-13.0` toolkit; neither should install a private CUDA copy
-inside its module root or venv. A module install script may install those
-dependencies itself, but it should print clear progress and fail with the exact
-package/tool that needs attention.
+Base Runtime also owns the shared native build and CUDA floor used by GPU
+modules:
+
+```text
+build-essential
+cmake
+pkg-config
+CUDA 13 native toolkit at /usr/local/cuda-13.0
+CUDA profile at /etc/profile.d/nymphscore-cuda.sh
+```
+
+Modules must use the Base Runtime CUDA toolkit for native CUDA builds. Do not
+install a private native CUDA toolkit inside a module root or venv. Native CUDA
+build scripts should respect the standard environment keys written by Base
+Runtime:
+
+```text
+CUDA_HOME
+CUDA_PATH
+CUDAToolkit_ROOT
+CUDACXX
+CUDA_INCLUDE_DIRS
+CUDA_LIBRARY_DIR
+PATH
+LD_LIBRARY_PATH
+LIBRARY_PATH
+CMAKE_PREFIX_PATH
+```
+
+Modules still own product-specific dependencies such as Python versions beyond
+the base floor, Node runtimes, llama.cpp source builds, model managers, Gradio
+apps, AI Toolkit, or 3D/image runtime libraries. A module install script may
+install those dependencies itself, but it should print clear progress and fail
+with the exact package/tool that needs attention.
+
+PyTorch CUDA wheels are a separate Python packaging concern. A module that
+needs GPU PyTorch may install PyTorch's `nvidia-*` wheel dependencies even
+though Base Runtime already installed native CUDA. A module that does not need
+GPU PyTorch should prefer CPU PyTorch to avoid unnecessary multi-GB downloads.
+
+## Optional Provider Dependencies
+
+Some modules expose optional provider lanes, such as OpenRouter API keys, local
+Brain services, or Codex Sign In through the official standalone Codex CLI.
+These must be represented as optional dependencies, not hidden core install
+requirements, unless the module has no useful non-provider mode.
+
+Rules:
+
+- Missing optional providers must not block install, update, start, or basic UI
+  access.
+- Status scripts may expose clear keys such as `codex_cli`,
+  `codex_logged_in`, `codex_app_server`, and `codex_ready`.
+- Do not set `state=needs_attention` only because an optional provider is
+  missing. Reserve `needs_attention` for broken core runtime behavior.
+- Remote installers, account login, and token/key setup must be explicit user
+  actions or clearly printed next steps. Do not scrape browser cookies or ask
+  users to paste private session tokens.
 
 ## Python Venv Install Standard
 
