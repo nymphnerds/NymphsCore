@@ -138,7 +138,7 @@ public partial class MainWindow : Window
         base.OnClosed(e);
     }
 
-    private async void OnLoaded(object sender, RoutedEventArgs e)
+    private void OnLoaded(object sender, RoutedEventArgs e)
     {
         if (_viewModel is null)
         {
@@ -147,6 +147,16 @@ public partial class MainWindow : Window
 
         ApplyDarkTitleBar();
         StartModuleUiPrewarm();
+        _ = InitializeAfterLoadAsync();
+    }
+
+    private async Task InitializeAfterLoadAsync()
+    {
+        if (_viewModel is null)
+        {
+            return;
+        }
+
         try
         {
             await _viewModel.InitializeAsync();

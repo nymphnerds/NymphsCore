@@ -8,6 +8,17 @@ This file focuses on user-facing and system-level changes rather than package-by
 
 Newest entries first.
 
+### 2026-05-29 Manager avoids startup WSL probes
+
+Fixed:
+
+- Manager startup now checks only the Windows WSL registration at first paint,
+  instead of probing the managed distro while the shell is loading.
+- A registered runtime that was interrupted during module install is shown as
+  needing attention without freezing the Manager UI.
+- Module marker scans and system checks are deferred until the runtime is
+  repaired or reinstalled, so one bad WSL instance cannot hang the shell.
+
 ### 2026-05-29 Manager handles unavailable WSL runtime
 
 Fixed:
