@@ -8,6 +8,15 @@ This file focuses on user-facing and system-level changes rather than package-by
 
 Newest entries first.
 
+### 2026-05-29 Manager status refresh rollback
+
+Fixed:
+
+- Reverted the Manager refresh/status changes from `0.9.67` through `0.9.69`
+  and restored the prior module status refresh behavior.
+- `0.9.70` is a rollback build so users can update away from the bad
+  "Install state not checked" Manager state.
+
 ### 2026-05-29 Base Runtime CUDA ownership
 
 Added:
