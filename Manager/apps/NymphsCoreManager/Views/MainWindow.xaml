@@ -1968,9 +1968,17 @@
               <RowDefinition Height="*" />
             </Grid.RowDefinitions>
             <Grid Grid.Row="0">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+              </Grid.ColumnDefinitions>
               <TextBlock Text="// LOG STREAM"
                          Style="{StaticResource MonoLabelStyle}"
                          Foreground="{StaticResource LimeBrush}" />
+              <Button Grid.Column="1"
+                      Content="// open logs"
+                      Style="{StaticResource TopBarButtonStyle}"
+                      Command="{Binding OpenLogFolderCommand}" />
             </Grid>
             <Border Grid.Row="1"
                       Margin="0,12,0,0"
