@@ -8384,6 +8384,9 @@ meta:
             "-DistroName", settings.DistroName,
             "-InstallLocation", settings.InstallLocation,
             "-LinuxUser", settings.LinuxUser,
+            "-RunFinalize",
+            "-SkipModels",
+            "-SkipVerify",
         };
 
         if (settings.RepairExistingDistro)
