@@ -138,6 +138,55 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
     private string _currentSidebarArtPath = string.Empty;
     private string _unifiedLogText = string.Empty;
     private bool _isBusy;
+
+    private sealed class ManagerActionTranscript : IDisposable
+    {
+        private readonly object _sync = new();
+        private bool _disposed;
+
+        public ManagerActionTranscript(string path, string subject, string action)
+        {
+            Path = path;
+            Directory.CreateDirectory(System.IO.Path.GetDirectoryName(path)!);
+            AppendRaw($"# NymphsCore Manager transcript");
+            AppendRaw($"# subject={subject}");
+            AppendRaw($"# action={action}");
+            AppendRaw($"# started={DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+            AppendRaw(string.Empty);
+        }
+
+        public string Path { get; }
+
+        public void Append(string? message)
+        {
+            if (string.IsNullOrWhiteSpace(message))
+            {
+                return;
+            }
+
+            AppendRaw($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {message.Trim()}");
+        }
+
+        public void Dispose()
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            _disposed = true;
+            AppendRaw(string.Empty);
+            AppendRaw($"# finished={DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+        }
+
+        private void AppendRaw(string line)
+        {
+            lock (_sync)
+            {
+                File.AppendAllText(Path, $"{line}{Environment.NewLine}");
+            }
+        }
+    }
     private bool _hasLoadedModuleState;
     private bool _isRefreshingRuntimeMonitorLive;
     private bool _isRuntimeMonitorAvailable;
@@ -1606,24 +1655,27 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             : "Installing base NymphsCore runtime shell...";
         BaseRuntimeProgressText = StatusMessage;
         AppendActivity(StatusMessage);
+        using var transcript = BeginManagerActionTranscript("base-runtime", BaseRuntimeOperationLabel, "Base Runtime");
+        transcript.Append(StatusMessage);
+        var baseRuntimeProgress = CreateTranscriptProgress(transcript, new Progress<string>(ReportBaseRuntimeProgress));
 
         try
         {
-            ReportBaseRuntimeProgress("Checking for an existing managed WSL runtime...");
+            baseRuntimeProgress.Report("Checking for an existing managed WSL runtime...");
             var existingDistroName = await _workflowService.GetExistingManagedDistroNameAsync(CancellationToken.None).ConfigureAwait(true);
             var settings = CreateBaseRuntimeSettings(existingDistroName);
 
-            AppendActivity(settings.RepairExistingDistro
+            baseRuntimeProgress.Report(settings.RepairExistingDistro
                 ? $"Reusing existing {settings.DistroName} distro for base shell repair."
                 : $"Creating {settings.DistroName} distro at {settings.InstallLocation}.");
-            AppendActivity("Module install choices are intentionally skipped here. Modules are installed later from registry cards.");
-            ReportBaseRuntimeProgress(settings.RepairExistingDistro
+            baseRuntimeProgress.Report("Module install choices are intentionally skipped here. Modules are installed later from registry cards.");
+            baseRuntimeProgress.Report(settings.RepairExistingDistro
                 ? "Preparing repair of the existing managed WSL runtime..."
                 : "Preparing fresh Ubuntu runtime shell install...");
 
             await _workflowService.ImportBaseDistroAsync(
                 settings,
-                new Progress<string>(ReportBaseRuntimeProgress),
+                baseRuntimeProgress,
                 CancellationToken.None).ConfigureAwait(true);
 
             ApplyRuntimeSettings(settings);
@@ -1636,6 +1688,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             StatusMessage = "Base runtime shell ready.";
             BaseRuntimeProgressText = "Ready.";
             AppendActivity(StatusMessage);
+            transcript.Append(StatusMessage);
 
             await RefreshSystemChecksAsync().ConfigureAwait(true);
             await RefreshRuntimeMonitorAsync().ConfigureAwait(true);
@@ -1649,6 +1702,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             BaseRuntimeDetail = ex.Message;
             BaseRuntimeProgressText = ex.Message;
             AppendActivity($"Base runtime setup warning: {ex.Message}");
+            transcript.Append($"ERROR: {ex.Message}");
         }
         finally
         {
@@ -1690,13 +1744,16 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         StatusMessage = $"Unregistering {existingDistroName} WSL runtime...";
         BaseRuntimeProgressText = StatusMessage;
         AppendActivity(StatusMessage);
+        using var transcript = BeginManagerActionTranscript("base-runtime", "unregister", "Base Runtime");
+        transcript.Append(StatusMessage);
+        var baseRuntimeProgress = CreateTranscriptProgress(transcript, new Progress<string>(ReportBaseRuntimeProgress));
 
         try
         {
             var settings = CreateBaseRuntimeSettings(existingDistroName);
             await _workflowService.UninstallBaseRuntimeAsync(
                 settings,
-                new Progress<string>(ReportBaseRuntimeProgress),
+                baseRuntimeProgress,
                 CancellationToken.None).ConfigureAwait(true);
 
             ApplyRuntimeSettings(CreateDefaultInstallSettings());
@@ -1709,6 +1766,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             BaseRuntimeProgressText = "Base runtime uninstalled.";
             StatusMessage = "Base runtime uninstalled.";
             AppendActivity(StatusMessage);
+            transcript.Append(StatusMessage);
 
             await RefreshSystemChecksAsync().ConfigureAwait(true);
             await RefreshRuntimeMonitorAsync().ConfigureAwait(true);
@@ -1722,6 +1780,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             BaseRuntimeDetail = ex.Message;
             BaseRuntimeProgressText = ex.Message;
             AppendActivity($"Base runtime uninstall warning: {ex.Message}");
+            transcript.Append($"ERROR: {ex.Message}");
         }
         finally
         {
@@ -3052,21 +3111,24 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         {
             if (Directory.Exists(_workflowService.LogFolderPath))
             {
-                var latestLog = Directory.GetFiles(_workflowService.LogFolderPath, "*.log", SearchOption.TopDirectoryOnly)
+                var latestLogs = Directory.EnumerateFiles(_workflowService.LogFolderPath, "*.log", SearchOption.AllDirectories)
+                    .Where(IsVisibleManagerLogFile)
                     .OrderByDescending(File.GetLastWriteTimeUtc)
-                    .FirstOrDefault();
+                    .Take(10)
+                    .OrderBy(File.GetLastWriteTimeUtc)
+                    .ToList();
 
-                if (!string.IsNullOrWhiteSpace(latestLog))
+                foreach (var logPath in latestLogs)
                 {
-                    var fileName = Path.GetFileName(latestLog);
-                    foreach (var line in ReadRecentLogLines(latestLog, 200))
+                    var logLabel = BuildManagerLogLabel(logPath);
+                    foreach (var line in ReadRecentLogLines(logPath, 120))
                     {
                         if (IsNoisyUnavailableModuleLogLine(line))
                         {
                             continue;
                         }
 
-                        unifiedEntries.Add((ParseUnifiedLogTimestamp(line), sequence++, $"{fileName}  {line}"));
+                        unifiedEntries.Add((ParseUnifiedLogTimestamp(line), sequence++, $"{logLabel}  {line}"));
                     }
                 }
             }
@@ -3096,6 +3158,19 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         {
             RecentLogLines.Add(line);
         }
+    }
+
+    private bool IsVisibleManagerLogFile(string path)
+    {
+        var relativePath = Path.GetRelativePath(_workflowService.LogFolderPath, path);
+        return !relativePath.StartsWith("WebView2", StringComparison.OrdinalIgnoreCase) &&
+               !relativePath.StartsWith("ModuleUiCache", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private string BuildManagerLogLabel(string path)
+    {
+        var relativePath = Path.GetRelativePath(_workflowService.LogFolderPath, path);
+        return relativePath.Replace(Path.DirectorySeparatorChar, '/');
     }
 
     private static IReadOnlyList<string> ReadRecentLogLines(string path, int maxLines)
@@ -3157,6 +3232,50 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         {
             // The UI log should keep working even if the file is temporarily locked.
         }
+    }
+
+    private ManagerActionTranscript BeginManagerActionTranscript(string area, string action, string subject)
+    {
+        var normalizedArea = NormalizeLogRelativePath(area);
+        var normalizedAction = NormalizeLogPathSegment(action);
+        var directory = Path.Combine(_workflowService.LogFolderPath, normalizedArea);
+        var path = Path.Combine(directory, $"{normalizedAction}-{DateTime.Now:yyyyMMdd-HHmmss}.log");
+        var transcript = new ManagerActionTranscript(path, subject, action);
+        AppendActivity($"{subject} {action} transcript: {path}");
+        return transcript;
+    }
+
+    private ManagerActionTranscript BeginModuleLifecycleTranscript(NymphModuleViewModel module, string action)
+    {
+        var directory = Path.Combine("modules", NormalizeLogPathSegment(module.Id));
+        return BeginManagerActionTranscript(directory, action, module.Name);
+    }
+
+    private IProgress<string> CreateTranscriptProgress(ManagerActionTranscript transcript, IProgress<string> innerProgress)
+    {
+        return new Progress<string>(message =>
+        {
+            transcript.Append(message);
+            innerProgress.Report(message);
+        });
+    }
+
+    private static string NormalizeLogPathSegment(string value)
+    {
+        var normalized = Regex.Replace(value.Trim().ToLowerInvariant(), @"[^a-z0-9._-]+", "-");
+        normalized = normalized.Trim('-', '.', '_');
+        return string.IsNullOrWhiteSpace(normalized) ? "unknown" : normalized;
+    }
+
+    private static string NormalizeLogRelativePath(string value)
+    {
+        var segments = value
+            .Split([Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar], StringSplitOptions.RemoveEmptyEntries)
+            .Select(NormalizeLogPathSegment)
+            .Where(segment => !string.IsNullOrWhiteSpace(segment))
+            .ToArray();
+
+        return segments.Length == 0 ? "misc" : Path.Combine(segments);
     }
 
     private void OpenModule(NymphModuleViewModel? module)
@@ -3608,6 +3727,8 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         StatusMessage = $"Installing {module.Name} from the Nymphs registry...";
         ShowModuleLogs = false;
         var installLines = new List<string>();
+        using var transcript = BeginModuleLifecycleTranscript(module, "install");
+        transcript.Append(StatusMessage);
         ApplyModuleLifecycleState(
             module,
             "Installing",
@@ -3622,12 +3743,13 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         try
         {
             var liveProgress = CreateModuleLiveProgress(module, "install", installLines);
-            await EnsureModuleSystemDependenciesAsync(module, "install", liveProgress).ConfigureAwait(true);
+            var transcriptProgress = CreateTranscriptProgress(transcript, liveProgress);
+            await EnsureModuleSystemDependenciesAsync(module, "install", transcriptProgress).ConfigureAwait(true);
             await _workflowService.RunNymphModuleInstallFromRegistryAsync(
                 _settings,
                 module.Id,
                 installEnvironment,
-                liveProgress,
+                transcriptProgress,
                 _operationCancellation.Token).ConfigureAwait(true);
             StatusMessage = $"{module.Name} installed.";
             SetStickyModuleActionFeedback(
@@ -3636,6 +3758,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                 BuildModuleActionFeedbackDetail(string.Join(Environment.NewLine, installLines)));
 
             AppendActivity($"{module.Name} install completed.");
+            transcript.Append($"{module.Name} install completed.");
             var installedVersion = ExtractInstalledModuleVersion(installLines);
             ApplyImmediateModuleInstallResult(module, isInstalled: true, "Install completed. Live status verification will refresh next.", installedVersion);
             ClearModuleUpdateAfterSuccessfulInstall(module, installedVersion);
@@ -3658,6 +3781,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         {
             StatusMessage = $"{module.Name} install needs attention.";
             AppendActivity($"{module.Name} install warning: {ex.Message}");
+            transcript.Append($"ERROR: {ex.Message}");
             await RefreshModuleStateAfterLifecycleFailureAsync(module, "install").ConfigureAwait(true);
             SetStickyModuleActionFeedback(
                 module,
@@ -3827,6 +3951,8 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         StatusMessage = $"Repairing {module.Name} from the Nymphs registry...";
         ShowModuleLogs = false;
         var repairLines = new List<string>();
+        using var transcript = BeginModuleLifecycleTranscript(module, "repair");
+        transcript.Append(StatusMessage);
         ApplyModuleLifecycleState(
             module,
             "Repairing",
@@ -3841,12 +3967,13 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         try
         {
             var liveProgress = CreateModuleLiveProgress(module, "repair", repairLines);
-            await EnsureModuleSystemDependenciesAsync(module, "repair", liveProgress).ConfigureAwait(true);
+            var transcriptProgress = CreateTranscriptProgress(transcript, liveProgress);
+            await EnsureModuleSystemDependenciesAsync(module, "repair", transcriptProgress).ConfigureAwait(true);
             await _workflowService.RunNymphModuleInstallFromRegistryAsync(
                 _settings,
                 module.Id,
                 BuildModuleRegistryEnvironment(module),
-                liveProgress,
+                transcriptProgress,
                 _operationCancellation.Token).ConfigureAwait(true);
             StatusMessage = $"{module.Name} repair finished.";
             SetStickyModuleActionFeedback(
@@ -3855,6 +3982,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                 BuildModuleActionFeedbackDetail(string.Join(Environment.NewLine, repairLines)));
 
             AppendActivity($"{module.Name} repair completed.");
+            transcript.Append($"{module.Name} repair completed.");
             var installedVersion = ExtractInstalledModuleVersion(repairLines) ?? module.RemoteVersionLabel;
             ApplyImmediateModuleInstallResult(module, isInstalled: true, "Repair completed. Live status verification will refresh next.", installedVersion);
             ClearModuleUpdateAfterSuccessfulInstall(module, installedVersion);
@@ -3878,6 +4006,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         {
             StatusMessage = $"{module.Name} repair needs attention.";
             AppendActivity($"{module.Name} repair warning: {ex.Message}");
+            transcript.Append($"ERROR: {ex.Message}");
             await RefreshModuleStateAfterLifecycleFailureAsync(module, "repair").ConfigureAwait(true);
             SetStickyModuleActionFeedback(
                 module,
@@ -3919,6 +4048,8 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         StatusMessage = $"Updating {module.Name} from the Nymphs registry...";
         ShowModuleLogs = false;
         var updateLines = new List<string>();
+        using var transcript = BeginModuleLifecycleTranscript(module, "update");
+        transcript.Append(StatusMessage);
         ApplyModuleLifecycleState(
             module,
             "Updating",
@@ -3933,12 +4064,13 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         try
         {
             var liveProgress = CreateModuleLiveProgress(module, "update", updateLines);
-            await EnsureModuleSystemDependenciesAsync(module, "update", liveProgress).ConfigureAwait(true);
+            var transcriptProgress = CreateTranscriptProgress(transcript, liveProgress);
+            await EnsureModuleSystemDependenciesAsync(module, "update", transcriptProgress).ConfigureAwait(true);
             await _workflowService.RunNymphModuleUpdateFromRegistryAsync(
                 _settings,
                 module.Id,
                 BuildModuleRegistryEnvironment(module),
-                liveProgress,
+                transcriptProgress,
                 _operationCancellation.Token).ConfigureAwait(true);
             StatusMessage = $"{module.Name} updated.";
             UpdateSummary = $"{module.Name} updated from the registry.";
@@ -3948,6 +4080,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                 BuildModuleActionFeedbackDetail(string.Join(Environment.NewLine, updateLines)));
 
             AppendActivity($"{module.Name} update completed.");
+            transcript.Append($"{module.Name} update completed.");
             var installedVersion = ExtractInstalledModuleVersion(updateLines) ?? module.RemoteVersionLabel;
             ApplyImmediateModuleInstallResult(module, isInstalled: true, "Update completed. Live status verification will refresh next.", installedVersion);
             ClearModuleUpdateAfterSuccessfulInstall(module, installedVersion);
@@ -3985,6 +4118,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         {
             StatusMessage = $"{module.Name} update needs attention.";
             AppendActivity($"{module.Name} update warning: {ex.Message}");
+            transcript.Append($"ERROR: {ex.Message}");
             await RefreshModuleStateAfterLifecycleFailureAsync(module, "update").ConfigureAwait(true);
             SetStickyModuleActionFeedback(
                 module,
@@ -4449,6 +4583,8 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         }
 
         var liveLines = new List<string>();
+        using var transcript = BeginModuleLifecycleTranscript(module, normalizedAction);
+        transcript.Append($"Running {module.Name} {actionLabel}.");
         try
         {
             var liveProgress = new Progress<string>(line =>
@@ -4459,6 +4595,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                     $"{module.Name}: {actionLabel} running",
                     BuildModuleActionFeedbackDetail(string.Join(Environment.NewLine, liveLines)));
             });
+            var transcriptProgress = CreateTranscriptProgress(transcript, liveProgress);
             var output = await _workflowService.RunNymphModuleActionAsync(
                 _settings,
                 module.Id,
@@ -4466,9 +4603,10 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                 module.InstallRoot,
                 args,
                 environment,
-                liveProgress,
+                transcriptProgress,
                 CancellationToken.None).ConfigureAwait(true);
 
+            transcript.Append(output);
             AppendModuleActionOutput(module, normalizedAction, output);
             var successDetail = BuildModuleActionFeedbackDetail(string.Join(Environment.NewLine, liveLines.Append(output)));
 
@@ -4495,6 +4633,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                 $"{module.Name}: {actionLabel} failed",
                 BuildModuleActionFeedbackDetail(ex.Message));
             AppendActivity($"{module.Name} action group warning: {ex.Message}");
+            transcript.Append($"ERROR: {ex.Message}");
         }
         finally
         {
@@ -4845,14 +4984,17 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
                 try
                 {
+                    using var webUiTranscript = BeginModuleLifecycleTranscript(module, stopAction);
+                    webUiTranscript.Append($"Stopping {module.Name} WebUI.");
                     var output = await _workflowService.RunNymphModuleActionAsync(
                         _settings,
                         module.Id,
                         stopAction,
                         module.InstallRoot,
-                        new Progress<string>(AppendActivity),
+                        CreateTranscriptProgress(webUiTranscript, new Progress<string>(AppendActivity)),
                         CancellationToken.None).ConfigureAwait(true);
 
+                    webUiTranscript.Append(output);
                     AppendModuleActionOutput(module, stopAction, output);
                 }
                 catch (Exception ex)
@@ -4988,16 +5130,22 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         await Task.Yield();
 
         var liveLines = new List<string>();
+        using var transcript = BeginModuleLifecycleTranscript(module, normalizedAction);
+        transcript.Append($"Running {module.Name} {actionLabel}.");
         try
         {
+            var transcriptProgress = CreateTranscriptProgress(
+                transcript,
+                CreateModuleLiveProgress(module, actionLabel, liveLines));
             var output = await _workflowService.RunNymphModuleActionAsync(
                 _settings,
                 module.Id,
                 normalizedAction,
                 module.InstallRoot,
-                CreateModuleLiveProgress(module, actionLabel, liveLines),
+                transcriptProgress,
                 CancellationToken.None).ConfigureAwait(true);
 
+            transcript.Append(output);
             AppendModuleActionOutput(module, normalizedAction, output);
             var successDetail = BuildModuleActionFeedbackDetail(string.Join(Environment.NewLine, liveLines.Append(output)));
             SetStickyModuleActionFeedback(
@@ -5033,9 +5181,10 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                         module.Id,
                         "open",
                         module.InstallRoot,
-                        new Progress<string>(AppendActivity),
+                        CreateTranscriptProgress(transcript, new Progress<string>(AppendActivity)),
                         CancellationToken.None).ConfigureAwait(true);
 
+                    transcript.Append(openOutput);
                     AppendModuleActionOutput(module, "open", openOutput);
                     OpenFirstUrlFromOutput(module, openOutput);
                 }
@@ -5052,9 +5201,10 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                         module.Id,
                         "open",
                         module.InstallRoot,
-                        new Progress<string>(AppendActivity),
+                        CreateTranscriptProgress(transcript, new Progress<string>(AppendActivity)),
                         CancellationToken.None).ConfigureAwait(true);
 
+                    transcript.Append(openOutput);
                     AppendModuleActionOutput(module, "open", openOutput);
                     OpenFirstUrlFromOutput(module, openOutput, forceExternalBrowser: true);
                 }
@@ -5084,6 +5234,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         {
             SetModuleScopedStatusMessage(module, $"{module.Name} {actionLabel} needs attention.");
             AppendActivity($"{module.Name} {actionLabel} warning: {ex.Message}");
+            transcript.Append($"ERROR: {ex.Message}");
             SetModuleActionFeedback(
                 $"{module.Name}: {actionLabel} needs attention",
                 BuildModuleActionFeedbackDetail(ex.Message));
@@ -6025,6 +6176,8 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         ShowModuleLogs = false;
         var uninstallLines = new List<string>();
         var actionLabel = dataOnly ? "delete-data" : purge ? "delete" : "uninstall";
+        using var transcript = BeginModuleLifecycleTranscript(module, actionLabel);
+        transcript.Append(StatusMessage);
         BeginModuleDetailProgress(module, actionLabel);
         ApplyModuleLifecycleState(
             module,
@@ -6048,16 +6201,23 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         try
         {
             AppendActivity($"AUDIT module {actionLabel} requested: id={targetId}, name={targetName}, displayed={DisplayedModule?.Id ?? "-"}, selected={SelectedModule?.Id ?? "-"}.");
+            transcript.Append($"AUDIT module {actionLabel} requested: id={targetId}, name={targetName}, displayed={DisplayedModule?.Id ?? "-"}, selected={SelectedModule?.Id ?? "-"}.");
+            var transcriptProgress = CreateTranscriptProgress(transcript, CreateModuleLiveProgress(module, actionLabel, uninstallLines));
             var uninstallOutput = await _workflowService.RunNymphModuleUninstallAsync(
                 _settings,
                 targetId,
                 module.InstallRoot,
                 purge,
                 dataOnly,
-                CreateModuleLiveProgress(module, actionLabel, uninstallLines),
+                transcriptProgress,
                 _operationCancellation.Token).ConfigureAwait(true);
 
             AppendActivity(dataOnly
+                ? $"{targetName} data delete completed."
+                : purge
+                ? $"{targetName} delete completed."
+                : $"{targetName} uninstall completed.");
+            transcript.Append(dataOnly
                 ? $"{targetName} data delete completed."
                 : purge
                 ? $"{targetName} delete completed."
@@ -6105,6 +6265,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         {
             StatusMessage = $"{targetName} uninstall needs attention.";
             AppendActivity($"{targetName} uninstall warning: {ex.Message}");
+            transcript.Append($"ERROR: {ex.Message}");
             SetStickyModuleActionFeedback(
                 module,
                 $"{targetName}: {actionLabel} needs attention",

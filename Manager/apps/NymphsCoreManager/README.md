@@ -57,13 +57,16 @@ NymphsCoreManager-win-x64/
 ## If Something Fails
 
 - Use the `Show Logs` button in the manager.
-- The manager also writes logs under:
+- The manager writes support logs under:
 
 ```text
 %LOCALAPPDATA%\NymphsCore\
 ```
 
-- If you need help, send the newest `installer-run-*.log` file and a screenshot of the manager window.
+- Base Runtime transcripts live under `base-runtime\`.
+- Module install, update, repair, uninstall, and delete transcripts live under `modules\<module-id>\`.
+- `manager-app.log` is the app and shell activity log.
+- If you need help, send the relevant newest transcript plus `manager-app.log` and a screenshot of the manager window.
 
 ## Advanced / Developer Note
 
