@@ -7384,6 +7384,29 @@ meta:
         return !string.IsNullOrWhiteSpace(await GetExistingManagedDistroNameAsync(cancellationToken).ConfigureAwait(false));
     }
 
+    public Task<CommandResult> CheckManagedDistroHealthAsync(
+        InstallSettings settings,
+        CancellationToken cancellationToken)
+    {
+        return _processRunner.RunAsync(
+            fileName: "wsl.exe",
+            arguments:
+            [
+                "-d",
+                settings.DistroName,
+                "--user",
+                settings.LinuxUser,
+                "--",
+                "/usr/bin/id",
+                "-u",
+                settings.LinuxUser,
+            ],
+            workingDirectory: Environment.SystemDirectory,
+            progress: null,
+            environmentVariables: null,
+            cancellationToken);
+    }
+
     public async Task<string?> GetExistingManagedDistroNameAsync(CancellationToken cancellationToken)
     {
         var distros = await GetWslDistroNamesAsync(cancellationToken).ConfigureAwait(false);
