@@ -150,7 +150,9 @@ function Invoke-PackagedBashScriptByContent {
         $argumentText = " " + (($Arguments | ForEach-Object { ConvertTo-BashSingleQuoted $_ }) -join " ")
     }
 
-    $shell = $SessionPrefix + 'tmp_script=$(mktemp); printf ''%s'' ' + (ConvertTo-BashSingleQuoted $scriptBase64) + ' | base64 -d > "$tmp_script"; chmod +x "$tmp_script"; set +e; bash "$tmp_script"' + $argumentText + '; rc=$?; set -e; rm -f "$tmp_script"; exit $rc'
+    $tmpScriptPath = "/tmp/nymphscore-manager-" + ($ScriptName -replace '[^A-Za-z0-9_.-]', '_')
+    $quotedTmpScriptPath = ConvertTo-BashSingleQuoted $tmpScriptPath
+    $shell = $SessionPrefix + "printf '%s' " + (ConvertTo-BashSingleQuoted $scriptBase64) + " | base64 -d > " + $quotedTmpScriptPath + "; chmod +x " + $quotedTmpScriptPath + "; bash " + $quotedTmpScriptPath + $argumentText + "; rm -f " + $quotedTmpScriptPath
     Invoke-WslShellOrThrow -Shell $shell -FailureMessage $FailureMessage -DistroName $DistroName -WslUserArgs $WslUserArgs
 }
 
