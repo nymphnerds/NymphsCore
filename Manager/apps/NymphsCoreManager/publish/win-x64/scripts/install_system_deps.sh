@@ -70,8 +70,9 @@ fi
 
 echo
 echo "Important:"
-echo "- This setup expects CUDA at /usr/local/cuda-13.0"
-echo "- If CUDA 13.0 is not installed yet, install it before building Hunyuan"
+echo "- This setup expects CUDA_HOME at /usr/local/cuda-13.0"
+echo "- CUDA 13 WSL libraries may live under /usr/local/cuda-13.0/targets/x86_64-linux/lib"
+echo "- If CUDA 13.0 is not installed yet, install it before building GPU modules"
 echo "- GitHub CLI is optional once the forks are already public"
 
 if [[ -d /usr/local/cuda-13.0 ]]; then
