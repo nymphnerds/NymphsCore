@@ -3621,11 +3621,13 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
         try
         {
+            var liveProgress = CreateModuleLiveProgress(module, "install", installLines);
+            await EnsureModuleSystemDependenciesAsync(module, "install", liveProgress).ConfigureAwait(true);
             await _workflowService.RunNymphModuleInstallFromRegistryAsync(
                 _settings,
                 module.Id,
                 installEnvironment,
-                CreateModuleLiveProgress(module, "install", installLines),
+                liveProgress,
                 _operationCancellation.Token).ConfigureAwait(true);
             StatusMessage = $"{module.Name} installed.";
             SetStickyModuleActionFeedback(
@@ -3838,11 +3840,13 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
         try
         {
+            var liveProgress = CreateModuleLiveProgress(module, "repair", repairLines);
+            await EnsureModuleSystemDependenciesAsync(module, "repair", liveProgress).ConfigureAwait(true);
             await _workflowService.RunNymphModuleInstallFromRegistryAsync(
                 _settings,
                 module.Id,
                 BuildModuleRegistryEnvironment(module),
-                CreateModuleLiveProgress(module, "repair", repairLines),
+                liveProgress,
                 _operationCancellation.Token).ConfigureAwait(true);
             StatusMessage = $"{module.Name} repair finished.";
             SetStickyModuleActionFeedback(
@@ -3928,11 +3932,13 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
         try
         {
+            var liveProgress = CreateModuleLiveProgress(module, "update", updateLines);
+            await EnsureModuleSystemDependenciesAsync(module, "update", liveProgress).ConfigureAwait(true);
             await _workflowService.RunNymphModuleUpdateFromRegistryAsync(
                 _settings,
                 module.Id,
                 BuildModuleRegistryEnvironment(module),
-                CreateModuleLiveProgress(module, "update", updateLines),
+                liveProgress,
                 _operationCancellation.Token).ConfigureAwait(true);
             StatusMessage = $"{module.Name} updated.";
             UpdateSummary = $"{module.Name} updated from the registry.";
@@ -5183,6 +5189,18 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             AppendActivity(message);
             AppendModuleLiveLine(module, action, message, liveLines);
         });
+    }
+
+    private async Task EnsureModuleSystemDependenciesAsync(
+        NymphModuleViewModel module,
+        string action,
+        IProgress<string> progress)
+    {
+        progress.Report($"{module.Name}: preparing Base Runtime system dependencies before {action}...");
+        await _workflowService.RunSystemDependenciesOnlyAsync(
+            _settings,
+            progress,
+            _operationCancellation.Token).ConfigureAwait(true);
     }
 
     private void AppendModuleLiveLine(NymphModuleViewModel module, string action, string? message, List<string> liveLines)

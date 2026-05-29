@@ -56,6 +56,18 @@ if apt-cache show python3.11-distutils >/dev/null 2>&1; then
   sudo apt install -y python3.11-distutils
 fi
 
+missing_tools=()
+for tool in cmake git wget curl unzip gcc g++ make pkg-config python3 python3.10 python3.11; do
+  if ! command -v "${tool}" >/dev/null 2>&1; then
+    missing_tools+=("${tool}")
+  fi
+done
+
+if [[ "${#missing_tools[@]}" -gt 0 ]]; then
+  echo "Base system dependency verification failed. Missing tools: ${missing_tools[*]}" >&2
+  exit 1
+fi
+
 echo
 echo "Important:"
 echo "- This setup expects CUDA at /usr/local/cuda-13.0"

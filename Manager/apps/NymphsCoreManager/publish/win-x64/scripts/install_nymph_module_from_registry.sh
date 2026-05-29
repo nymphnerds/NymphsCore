@@ -88,12 +88,25 @@ clear_action_state() {
 
 ensure_base_tools() {
   local missing_packages=()
-  local tool
-  for tool in curl git python3 tar unzip; do
-    if ! command -v "${tool}" >/dev/null 2>&1; then
-      missing_packages+=("${tool}")
+  local package
+
+  add_missing_package() {
+    package="$1"
+    if [[ " ${missing_packages[*]} " != *" ${package} "* ]]; then
+      missing_packages+=("${package}")
     fi
-  done
+  }
+
+  command -v curl >/dev/null 2>&1 || add_missing_package curl
+  command -v git >/dev/null 2>&1 || add_missing_package git
+  command -v python3 >/dev/null 2>&1 || add_missing_package python3
+  command -v tar >/dev/null 2>&1 || add_missing_package tar
+  command -v unzip >/dev/null 2>&1 || add_missing_package unzip
+  command -v cmake >/dev/null 2>&1 || add_missing_package cmake
+  command -v make >/dev/null 2>&1 || add_missing_package build-essential
+  command -v gcc >/dev/null 2>&1 || add_missing_package build-essential
+  command -v g++ >/dev/null 2>&1 || add_missing_package build-essential
+  command -v pkg-config >/dev/null 2>&1 || add_missing_package pkg-config
 
   if [[ "${#missing_packages[@]}" -eq 0 ]]; then
     return 0
@@ -124,6 +137,11 @@ require_tool git
 require_tool python3
 require_tool tar
 require_tool unzip
+require_tool cmake
+require_tool make
+require_tool gcc
+require_tool g++
+require_tool pkg-config
 
 echo "module=${MODULE_ID}"
 echo "registry_url=${REGISTRY_URL}"
