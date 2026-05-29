@@ -109,27 +109,6 @@ function Invoke-NativeOrThrow {
     }
 }
 
-function Invoke-WslBashScriptOrThrow {
-    param(
-        [Parameter(Mandatory = $true)] [string] $DistroName,
-        [Parameter()] [string] $UserName,
-        [Parameter(Mandatory = $true)] [string] $Script,
-        [Parameter(Mandatory = $true)] [string] $FailureMessage
-    )
-
-    $arguments = @("-d", $DistroName)
-    if (-not [string]::IsNullOrWhiteSpace($UserName)) {
-        $arguments += @("--user", $UserName)
-    }
-    $arguments += @("--", "/bin/bash", "-s")
-
-    $normalizedScript = $Script -replace "`r`n", "`n" -replace "`r", "`n"
-    $normalizedScript | & wsl @arguments
-    if ($LASTEXITCODE -ne 0) {
-        throw "$FailureMessage (exit code $LASTEXITCODE)."
-    }
-}
-
 function Get-DefaultLinuxUserName {
     return "nymph"
 }
@@ -181,7 +160,10 @@ EOF
     $command = $command.Replace("__USER_NAME__", $UserName)
 
     Write-Host "Configuring default Linux user '$UserName'..."
-    Invoke-WslBashScriptOrThrow -DistroName $DistroName -UserName "root" -Script $command -FailureMessage "Failed to configure default Linux user '$UserName' in distro '$DistroName'"
+    & wsl -d $DistroName --user root -- bash -lc $command
+    if ($LASTEXITCODE -ne 0) {
+        throw "Failed to configure default Linux user '$UserName' in distro '$DistroName'."
+    }
 }
 
 function Normalize-DistroShellPaths {
@@ -200,7 +182,10 @@ chmod 644 /etc/profile.d/nymphscore.sh
 '@
 
     Write-Host "Normalizing runtime shell paths..."
-    Invoke-WslBashScriptOrThrow -DistroName $DistroName -UserName "root" -Script $command -FailureMessage "Failed to normalize runtime shell paths in distro '$DistroName'"
+    & wsl -d $DistroName --user root -- bash -lc $command
+    if ($LASTEXITCODE -ne 0) {
+        throw "Failed to normalize runtime shell paths in distro '$DistroName'."
+    }
 }
 
 function Restart-DistroForDefaultUser {
@@ -293,7 +278,7 @@ chmod +x /tmp/nymphscore-bootstrap-fresh-distro-root.sh
 
         try {
             Write-Host "Running first-boot bootstrap inside '$TargetDistroName'..."
-            Invoke-WslBashScriptOrThrow -DistroName $TargetDistroName -UserName "root" -Script $bootstrapCommand -FailureMessage "Bootstrap preparation failed"
+            Invoke-NativeOrThrow -FilePath "wsl" -ArgumentList @("-d", $TargetDistroName, "--user", "root", "--", "bash", "-lc", $bootstrapCommand) -FailureMessage "Bootstrap preparation failed"
         }
         catch {
             throw "Bootstrap preparation failed inside '$TargetDistroName'. If WSL asks for first-launch user setup on '$TargetDistroName', open it once manually, then rerun this command. Details: $($_.Exception.Message)"
@@ -412,6 +397,9 @@ if ($finalizeArgs.Count -gt 0) {
 
 Write-Host "Running post-import finalizer..."
 $wslUserArgs = @(Build-WslUserArgs -UserName $effectiveLinuxUser)
-Invoke-WslBashScriptOrThrow -DistroName $DistroName -UserName $effectiveLinuxUser -Script $command -FailureMessage "Post-import finalizer failed"
+& wsl -d $DistroName @wslUserArgs -- /bin/bash -lc $command
+if ($LASTEXITCODE -ne 0) {
+    throw "Post-import finalizer failed."
+}
 
 Write-Host "Post-import finalizer complete."
