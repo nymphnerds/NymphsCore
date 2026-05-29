@@ -16,6 +16,14 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+if (-not [string]::IsNullOrWhiteSpace($env:SystemRoot) -and (Test-Path $env:SystemRoot)) {
+    # wsl.exe inherits the caller working directory. A Manager launched from a
+    # \\wsl.localhost path can make WSL try to chdir into a path that does not
+    # exist inside the target runtime distro, so run native WSL calls from a
+    # stable Windows directory.
+    Set-Location $env:SystemRoot
+}
+
 function Get-WslDistroNames {
     $distros = & wsl -l -q 2>$null
     if ($LASTEXITCODE -ne 0) {
