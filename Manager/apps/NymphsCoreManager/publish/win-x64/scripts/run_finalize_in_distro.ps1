@@ -150,7 +150,7 @@ function Invoke-PackagedBashScriptByContent {
         $argumentText = " " + (($Arguments | ForEach-Object { ConvertTo-BashSingleQuoted $_ }) -join " ")
     }
 
-    $shell = $SessionPrefix + "tmp_script=`$(mktemp); printf '%s' " + (ConvertTo-BashSingleQuoted $scriptBase64) + " | base64 -d > `"`$tmp_script`"; chmod +x `"`$tmp_script`"; set +e; bash `"`$tmp_script`"" + $argumentText + "; rc=`$?; set -e; rm -f `"`$tmp_script`"; exit `$rc"
+    $shell = $SessionPrefix + 'tmp_script=$(mktemp); printf ''%s'' ' + (ConvertTo-BashSingleQuoted $scriptBase64) + ' | base64 -d > "$tmp_script"; chmod +x "$tmp_script"; set +e; bash "$tmp_script"' + $argumentText + '; rc=$?; set -e; rm -f "$tmp_script"; exit $rc'
     Invoke-WslShellOrThrow -Shell $shell -FailureMessage $FailureMessage -DistroName $DistroName -WslUserArgs $WslUserArgs
 }
 
