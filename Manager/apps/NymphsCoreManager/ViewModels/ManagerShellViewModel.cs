@@ -1678,14 +1678,20 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
                 baseRuntimeProgress,
                 CancellationToken.None).ConfigureAwait(true);
 
+            baseRuntimeProgress.Report("Running Base Runtime shared dependency setup...");
+            await _workflowService.RunRuntimeSetupAsync(
+                settings,
+                baseRuntimeProgress,
+                CancellationToken.None).ConfigureAwait(true);
+
             ApplyRuntimeSettings(settings);
             ManagedDistroDetected = true;
             BaseRuntimeActionText = "Repair Base Runtime";
-            BaseRuntimeSummary = $"{settings.DistroName} base shell is ready.";
+            BaseRuntimeSummary = $"{settings.DistroName} base runtime is ready.";
             BaseRuntimeDetail = "No optional modules were installed. Use module cards to install each Nymph individually.";
-            BaseRuntimeCardSubtitle = "WSL shell ready";
+            BaseRuntimeCardSubtitle = "Runtime ready";
             BaseRuntimeCardStatus = "Ready";
-            StatusMessage = "Base runtime shell ready.";
+            StatusMessage = "Base runtime ready.";
             BaseRuntimeProgressText = "Ready.";
             AppendActivity(StatusMessage);
             transcript.Append(StatusMessage);
