@@ -53,6 +53,19 @@ function Build-WslUserArgs {
     return @()
 }
 
+function ConvertTo-BashSingleQuoted {
+    param(
+        [AllowNull()]
+        [string] $Value
+    )
+
+    if ($null -eq $Value) {
+        return "''"
+    }
+
+    return "'" + ($Value -replace "'", "'\''") + "'"
+}
+
 function ConvertTo-WslPath {
     param(
         [string] $WindowsPath
@@ -91,6 +104,27 @@ function Invoke-NativeOrThrow {
     )
 
     & $FilePath @ArgumentList
+    if ($LASTEXITCODE -ne 0) {
+        throw "$FailureMessage (exit code $LASTEXITCODE)."
+    }
+}
+
+function Invoke-WslBashScriptOrThrow {
+    param(
+        [Parameter(Mandatory = $true)] [string] $DistroName,
+        [Parameter()] [string] $UserName,
+        [Parameter(Mandatory = $true)] [string] $Script,
+        [Parameter(Mandatory = $true)] [string] $FailureMessage
+    )
+
+    $arguments = @("-d", $DistroName)
+    if (-not [string]::IsNullOrWhiteSpace($UserName)) {
+        $arguments += @("--user", $UserName)
+    }
+    $arguments += @("--", "/bin/bash", "-s")
+
+    $normalizedScript = $Script -replace "`r`n", "`n" -replace "`r", "`n"
+    $normalizedScript | & wsl @arguments
     if ($LASTEXITCODE -ne 0) {
         throw "$FailureMessage (exit code $LASTEXITCODE)."
     }
@@ -147,10 +181,7 @@ EOF
     $command = $command.Replace("__USER_NAME__", $UserName)
 
     Write-Host "Configuring default Linux user '$UserName'..."
-    & wsl -d $DistroName --user root -- bash -lc $command
-    if ($LASTEXITCODE -ne 0) {
-        throw "Failed to configure default Linux user '$UserName' in distro '$DistroName'."
-    }
+    Invoke-WslBashScriptOrThrow -DistroName $DistroName -UserName "root" -Script $command -FailureMessage "Failed to configure default Linux user '$UserName' in distro '$DistroName'"
 }
 
 function Normalize-DistroShellPaths {
@@ -169,10 +200,7 @@ chmod 644 /etc/profile.d/nymphscore.sh
 '@
 
     Write-Host "Normalizing runtime shell paths..."
-    & wsl -d $DistroName --user root -- bash -lc $command
-    if ($LASTEXITCODE -ne 0) {
-        throw "Failed to normalize runtime shell paths in distro '$DistroName'."
-    }
+    Invoke-WslBashScriptOrThrow -DistroName $DistroName -UserName "root" -Script $command -FailureMessage "Failed to normalize runtime shell paths in distro '$DistroName'"
 }
 
 function Restart-DistroForDefaultUser {
@@ -265,7 +293,7 @@ chmod +x /tmp/nymphscore-bootstrap-fresh-distro-root.sh
 
         try {
             Write-Host "Running first-boot bootstrap inside '$TargetDistroName'..."
-            Invoke-NativeOrThrow -FilePath "wsl" -ArgumentList @("-d", $TargetDistroName, "--user", "root", "--", "bash", "-lc", $bootstrapCommand) -FailureMessage "Bootstrap preparation failed"
+            Invoke-WslBashScriptOrThrow -DistroName $TargetDistroName -UserName "root" -Script $bootstrapCommand -FailureMessage "Bootstrap preparation failed"
         }
         catch {
             throw "Bootstrap preparation failed inside '$TargetDistroName'. If WSL asks for first-launch user setup on '$TargetDistroName', open it once manually, then rerun this command. Details: $($_.Exception.Message)"
@@ -375,33 +403,15 @@ if ($SkipVerify.IsPresent) {
     $finalizeArgs += "--skip-verify"
 }
 
-$quotedFinalizeArgs = ($finalizeArgs | ForEach-Object { "'$_'" }) -join " "
-$finalizeCandidates = @(
-    "/opt/nymphs3d/NymphsCore/scripts/finalize_imported_distro.sh",
-    "/opt/nymphs3d/NymphsCore/scripts/finalize_imported_distro.sh"
-)
-$quotedCandidates = ($finalizeCandidates | ForEach-Object { "'$_'" }) -join " "
-$command = @"
-set -euo pipefail
-finalize_path=""
-for candidate in $quotedCandidates; do
-  if [ -x "`$candidate" ]; then
-    finalize_path="`$candidate"
-    break
-  fi
-done
-if [ -z "`$finalize_path" ]; then
-  echo "Finalize script not found in expected locations." >&2
-  exit 1
-fi
-"`$finalize_path" $quotedFinalizeArgs
-"@
+$finalizeScriptPath = "/opt/nymphs3d/NymphsCore/scripts/finalize_imported_distro.sh"
+$quotedFinalizeScriptPath = ConvertTo-BashSingleQuoted $finalizeScriptPath
+$command = "set -euo pipefail; if [ ! -f $quotedFinalizeScriptPath ]; then echo 'Finalize script not found in expected location.' >&2; exit 1; fi; bash $quotedFinalizeScriptPath"
+if ($finalizeArgs.Count -gt 0) {
+    $command += " " + (($finalizeArgs | ForEach-Object { ConvertTo-BashSingleQuoted $_ }) -join " ")
+}
 
 Write-Host "Running post-import finalizer..."
 $wslUserArgs = @(Build-WslUserArgs -UserName $effectiveLinuxUser)
-& wsl -d $DistroName @wslUserArgs -- bash -lc $command
-if ($LASTEXITCODE -ne 0) {
-    throw "Post-import finalizer failed."
-}
+Invoke-WslBashScriptOrThrow -DistroName $DistroName -UserName $effectiveLinuxUser -Script $command -FailureMessage "Post-import finalizer failed"
 
 Write-Host "Post-import finalizer complete."
