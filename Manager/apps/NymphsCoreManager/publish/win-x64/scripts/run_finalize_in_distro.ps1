@@ -195,7 +195,22 @@ try {
     }
 
     if ($SystemOnly.IsPresent) {
-        $systemOnlyShell = $sessionPrefix + "set -e; bash " + (ConvertTo-BashSingleQuoted "$effectiveScriptsDir/preflight_wsl.sh") + "; bash " + (ConvertTo-BashSingleQuoted "$effectiveScriptsDir/install_system_deps.sh")
+        $systemOnlyParts = @(
+            "set -e",
+            "bash " + (ConvertTo-BashSingleQuoted "$effectiveScriptsDir/preflight_wsl.sh"),
+            "bash " + (ConvertTo-BashSingleQuoted "$effectiveScriptsDir/install_system_deps.sh")
+        )
+
+        if (-not $SkipCuda.IsPresent) {
+            Write-Host "System-only CUDA setup: enabled."
+            $systemOnlyParts += "bash " + (ConvertTo-BashSingleQuoted "$effectiveScriptsDir/install_cuda_13_wsl.sh")
+        }
+        else {
+            Write-Host "System-only CUDA setup: skipped."
+            $systemOnlyParts += "echo " + (ConvertTo-BashSingleQuoted "Skipping CUDA installation.")
+        }
+
+        $systemOnlyShell = $sessionPrefix + ($systemOnlyParts -join "; ")
 
         $systemOnlyCommand = @(
             "-d", $DistroName

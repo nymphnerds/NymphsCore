@@ -4250,8 +4250,8 @@ meta:
             "-SystemOnly",
         };
 
-        progress.Report("System dependencies: checking base Linux packages needed by optional modules.");
-        progress.Report("System dependencies note: this may run apt briefly if the existing distro was created from an older base image.");
+        progress.Report("System dependencies: checking base Linux packages and shared CUDA toolkit support.");
+        progress.Report("System dependencies note: this may run apt/CUDA setup if the existing distro was created from an older base image.");
 
         var result = await RunPowerShellScriptAsync(
             runtimeScript,
@@ -8378,9 +8378,6 @@ meta:
             "-DistroName", settings.DistroName,
             "-InstallLocation", settings.InstallLocation,
             "-LinuxUser", settings.LinuxUser,
-            "-RunFinalize",
-            "-SkipModels",
-            "-SkipVerify",
         };
 
         if (settings.RepairExistingDistro)
