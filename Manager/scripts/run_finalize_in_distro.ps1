@@ -298,34 +298,14 @@ try {
             return
         }
 
-        $systemOnlyParts = @(
-            "set -e",
-            "bash " + (ConvertTo-BashSingleQuoted "$effectiveScriptsDir/preflight_wsl.sh"),
-            "bash " + (ConvertTo-BashSingleQuoted "$effectiveScriptsDir/install_system_deps.sh")
-        )
-
         if (-not $SkipCuda.IsPresent) {
             Write-Host "System-only CUDA setup: enabled."
-            $systemOnlyParts += "bash " + (ConvertTo-BashSingleQuoted "$effectiveScriptsDir/install_cuda_13_wsl.sh")
         }
         else {
             Write-Host "System-only CUDA setup: skipped."
-            $systemOnlyParts += "echo " + (ConvertTo-BashSingleQuoted "Skipping CUDA installation.")
         }
 
-        $systemOnlyShell = $sessionPrefix + ($systemOnlyParts -join "; ")
-
-        $systemOnlyCommand = @(
-            "-d", $DistroName
-        ) + $wslUserArgs + @(
-            "--",
-            "/bin/bash", "-lc",
-            $systemOnlyShell
-        )
-        & wsl @systemOnlyCommand
-        if ($LASTEXITCODE -ne 0) {
-            throw "System-only finalize step failed in distro '$DistroName'."
-        }
+        Invoke-PackagedRuntimeSetupByContent -DistroName $DistroName -SessionPrefix $sessionPrefix -WslUserArgs $wslUserArgs -SkipCuda:$SkipCuda.IsPresent
         Write-Host "System-only finalize step completed."
         return
     }
