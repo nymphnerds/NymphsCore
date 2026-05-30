@@ -65,6 +65,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
     private readonly RelayCommand<NymphModuleViewModel> _repairModuleCommand;
     private readonly RelayCommand<NymphModuleViewModel> _updateModuleCommand;
     private readonly RelayCommand _openModelCacheCommand;
+    private readonly RelayCommand<NymphModuleModelCacheItem> _deleteCachedWeightCommand;
     private readonly RelayCommand<NymphModuleViewModel> _openModuleInstallPathCommand;
     private readonly RelayCommand<NymphModuleViewModel> _openModuleUiCommand;
     private readonly RelayCommand<NymphModuleViewModel> _openModuleSourceCommand;
@@ -236,6 +237,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         _repairModuleCommand = new RelayCommand<NymphModuleViewModel>(RepairModule, module => module?.CanRepair == true && !IsBusy);
         _updateModuleCommand = new RelayCommand<NymphModuleViewModel>(UpdateModule, module => module?.CanUpdate == true && !IsBusy);
         _openModelCacheCommand = new RelayCommand(OpenModelCache);
+        _deleteCachedWeightCommand = new RelayCommand<NymphModuleModelCacheItem>(DeleteCachedWeight, CanDeleteCachedWeight);
         _openModuleInstallPathCommand = new RelayCommand<NymphModuleViewModel>(OpenModuleInstallPath, module => module?.CanOpenInstallPath == true);
         _openModuleUiCommand = new RelayCommand<NymphModuleViewModel>(OpenModuleUi, module => module?.HasInstalledModuleUi == true);
         _openModuleSourceCommand = new RelayCommand<NymphModuleViewModel>(OpenModuleSource, module => module?.HasRepositoryUrl == true);
@@ -316,6 +318,8 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
     public RelayCommand<NymphModuleViewModel> UpdateModuleCommand => _updateModuleCommand;
 
     public RelayCommand OpenModelCacheCommand => _openModelCacheCommand;
+
+    public RelayCommand<NymphModuleModelCacheItem> DeleteCachedWeightCommand => _deleteCachedWeightCommand;
 
     public RelayCommand<NymphModuleViewModel> OpenModuleInstallPathCommand => _openModuleInstallPathCommand;
 
@@ -2351,7 +2355,9 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
             statusBrush,
             detail,
             secondaryParts.Count == 0 ? "" : string.Join(Environment.NewLine, secondaryParts));
-        module.ApplyModelCacheState(isBrainModule ? "" : BuildModelCacheDetail(snapshot));
+        module.ApplyModelCacheState(
+            isBrainModule ? "" : BuildModelCacheDetail(snapshot),
+            isBrainModule ? Array.Empty<NymphModuleModelCacheItem>() : BuildModelCacheItems(snapshot));
         module.ApplyRetainedDataState(string.Equals(dataPresent, "true", StringComparison.OrdinalIgnoreCase));
         if (ShouldLogModuleStatusSnapshot(snapshot))
         {
@@ -2688,7 +2694,29 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
         return string.IsNullOrWhiteSpace(downloaded)
             ? "Cached weights: none yet"
-            : $"Cached weights: {FormatStatusList(downloaded)}";
+            : "Click a cached weight to delete only that local weight.";
+    }
+
+    private static IReadOnlyList<NymphModuleModelCacheItem> BuildModelCacheItems(NymphStatusSnapshot snapshot)
+    {
+        var downloaded = NormalizeStatusListValue(snapshot.Get("weight_profiles_downloaded"));
+        if (string.IsNullOrWhiteSpace(downloaded))
+        {
+            return Array.Empty<NymphModuleModelCacheItem>();
+        }
+
+        return downloaded
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Where(IsSafeModelCacheProfileId)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Select(profile => new NymphModuleModelCacheItem(profile))
+            .ToArray();
+    }
+
+    private static bool IsSafeModelCacheProfileId(string? profileId)
+    {
+        return !string.IsNullOrWhiteSpace(profileId) &&
+               Regex.IsMatch(profileId.Trim(), "^[a-z0-9][a-z0-9_:-]{0,80}$", RegexOptions.CultureInvariant);
     }
 
     private static string NormalizeStatusListValue(string? value)
@@ -4243,6 +4271,93 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         catch (Exception ex)
         {
             AppendActivity($"Could not open model cache: {ex.Message}");
+        }
+    }
+
+    private bool CanDeleteCachedWeight(NymphModuleModelCacheItem? item)
+    {
+        var module = DisplayedModule;
+        return module is not null &&
+               item is not null &&
+               module.IsInstalled &&
+               !IsBusy &&
+               !IsModuleLifecycleActive(module) &&
+               IsSafeModelCacheProfileId(item.ProfileId) &&
+               module.Capabilities.Any(capability => string.Equals(capability, "delete_models", StringComparison.OrdinalIgnoreCase));
+    }
+
+    private void DeleteCachedWeight(NymphModuleModelCacheItem? item)
+    {
+        _ = DeleteCachedWeightAsync(item);
+    }
+
+    private async Task DeleteCachedWeightAsync(NymphModuleModelCacheItem? item)
+    {
+        var module = DisplayedModule;
+        if (!CanDeleteCachedWeight(item) || module is null || item is null)
+        {
+            return;
+        }
+
+        var profileId = item.ProfileId.Trim();
+        var confirmation = MessageBox.Show(
+            $"Delete {profileId}?\n\nThis removes only this downloaded weight from the local Hugging Face cache. It does not delete outputs, LoRAs, presets, logs, or the runtime.",
+            "Delete Cached Weight",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Warning);
+        if (confirmation != MessageBoxResult.Yes)
+        {
+            AppendActivity($"{module.Name} cached weight delete cancelled: {profileId}.");
+            return;
+        }
+
+        const string action = "delete_models";
+        var actionLabel = $"Delete {profileId}";
+        IsBusy = true;
+        BeginModuleDetailProgress(module, actionLabel);
+        SetModuleScopedStatusMessage(module, $"Deleting {profileId} from {module.Name} cache...");
+        SetModuleActionFeedback(
+            $"{module.Name}: deleting cached weight",
+            $"Deleting {profileId} from the managed WSL distro.");
+        await Task.Yield();
+
+        using var transcript = BeginModuleLifecycleTranscript(module, action);
+        transcript.Append($"Deleting cached weight {profileId}.");
+        try
+        {
+            var output = await _workflowService.RunNymphModuleActionAsync(
+                _settings,
+                module.Id,
+                action,
+                module.InstallRoot,
+                ["--profile", profileId, "--yes"],
+                CreateTranscriptProgress(transcript, new Progress<string>(AppendActivity)),
+                CancellationToken.None).ConfigureAwait(true);
+
+            transcript.Append(output);
+            AppendModuleActionOutput(module, action, output);
+            SetStickyModuleActionFeedback(
+                module,
+                $"{module.Name}: cached weight deleted",
+                BuildModuleActionFeedbackDetail(output));
+            StatusMessage = $"{module.Name} cached weight deleted.";
+            AppendActivity($"{module.Name} cached weight deleted: {profileId}.");
+            await RefreshModuleStateAsync().ConfigureAwait(true);
+        }
+        catch (Exception ex)
+        {
+            transcript.Append($"ERROR: {ex.Message}");
+            SetModuleScopedStatusMessage(module, $"{module.Name} cached weight delete needs attention.");
+            SetModuleActionFeedback(
+                $"{module.Name}: cached weight delete failed",
+                BuildModuleActionFeedbackDetail(ex.Message));
+            AppendActivity($"{module.Name} cached weight delete warning: {FirstNonEmptyLine(ex.Message)}");
+        }
+        finally
+        {
+            EndModuleDetailProgress(module);
+            IsBusy = false;
+            _deleteCachedWeightCommand.RaiseCanExecuteChanged();
         }
     }
 

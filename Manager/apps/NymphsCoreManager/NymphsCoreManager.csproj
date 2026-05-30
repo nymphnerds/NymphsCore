@@ -7,9 +7,9 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>NymphsCoreManager</RootNamespace>
     <AssemblyName>NymphsCoreManager</AssemblyName>
-    <VersionPrefix>0.9.71</VersionPrefix>
-    <FileVersion>0.9.71.0</FileVersion>
-    <AssemblyVersion>0.9.71.0</AssemblyVersion>
+    <VersionPrefix>0.9.72</VersionPrefix>
+    <FileVersion>0.9.72.0</FileVersion>
+    <AssemblyVersion>0.9.72.0</AssemblyVersion>
     <InformationalVersion>$(VersionPrefix)</InformationalVersion>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <ApplicationIcon>AppAssets/nsw.ico</ApplicationIcon>

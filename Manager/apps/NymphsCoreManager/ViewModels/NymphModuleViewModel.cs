@@ -5,6 +5,11 @@ using NymphsCoreManager.Models;
 
 namespace NymphsCoreManager.ViewModels;
 
+public sealed record NymphModuleModelCacheItem(string ProfileId)
+{
+    public string DisplayLabel => ProfileId;
+}
+
 public sealed class NymphModuleViewModel : ViewModelBase
 {
     private bool _isInstalled;
@@ -23,6 +28,7 @@ public sealed class NymphModuleViewModel : ViewModelBase
     private bool _hasRetainedData;
     private string _moduleUiTitle = "Module UI";
     private string _modelCacheDetail = "";
+    private IReadOnlyList<NymphModuleModelCacheItem> _modelCacheItems = Array.Empty<NymphModuleModelCacheItem>();
     private string _overviewDetail = "";
     private IReadOnlyList<NymphModuleActionLinkInfo> _overviewLinks = Array.Empty<NymphModuleActionLinkInfo>();
     private NymphModuleDetailPrimaryActionInfo? _detailPrimaryAction;
@@ -274,6 +280,20 @@ public sealed class NymphModuleViewModel : ViewModelBase
 
     public bool HasModelCacheDetail => !string.IsNullOrWhiteSpace(ModelCacheDetail);
 
+    public IReadOnlyList<NymphModuleModelCacheItem> ModelCacheItems
+    {
+        get => _modelCacheItems;
+        private set
+        {
+            if (SetProperty(ref _modelCacheItems, value))
+            {
+                OnPropertyChanged(nameof(HasModelCacheItems));
+            }
+        }
+    }
+
+    public bool HasModelCacheItems => ModelCacheItems.Count > 0;
+
     public string OverviewDetail
     {
         get => _overviewDetail;
@@ -335,9 +355,10 @@ public sealed class NymphModuleViewModel : ViewModelBase
         OnPropertyChanged(nameof(CanDeleteData));
     }
 
-    public void ApplyModelCacheState(string detail)
+    public void ApplyModelCacheState(string detail, IReadOnlyList<NymphModuleModelCacheItem>? items = null)
     {
         ModelCacheDetail = detail;
+        ModelCacheItems = items ?? Array.Empty<NymphModuleModelCacheItem>();
     }
 
     public void ApplyInstalledModuleUi(InstalledNymphModuleUiInfo? uiInfo)

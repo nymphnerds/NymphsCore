@@ -618,6 +618,37 @@ that cache preserved and expose module-specific model cleanup through a
 module-owned action such as `Fetch Models`, `Open Weights`, or a scoped model
 delete action.
 
+If the Manager displays downloaded model or weight profiles from module status,
+the displayed items may be clickable, but deletion must still be module-owned.
+The Manager may pass the selected profile back to a module action after explicit
+confirmation; the module action is responsible for mapping that profile to exact
+cache files and for refusing unsafe paths.
+
+Recommended status/action contract for per-profile cache deletion:
+
+```text
+weight_profiles_downloaded=zimage_int4_r32,qwen_edit_2511_balance_int4
+entrypoints.delete_models=scripts/<module>_delete_models.sh
+```
+
+The module delete action should accept an exact profile argument:
+
+```bash
+scripts/<module>_delete_models.sh --profile zimage_int4_r32 --yes
+```
+
+Rules:
+
+- first click only opens a confirmation prompt
+- `--profile` deletes one downloaded weight/profile, not all module models
+- broad cache deletion, if supported, must be a separate explicit scope
+- the module must validate profile ids against an allow-list
+- the module must delete only files under its declared cache root
+- the Manager refreshes module status after deletion so the clicked item
+  disappears
+- base models and quantized weights should stay separately addressable when
+  they have different fetch/runtime meanings
+
 Modules that support the standard wipe action must declare both
 `uninstall.data_only_arg` and `uninstall.supports_data_delete=true` in
 `nymph.json`. The Manager owns the rail button; modules only provide the
