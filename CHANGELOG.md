@@ -8,6 +8,31 @@ This file focuses on user-facing and system-level changes rather than package-by
 
 Newest entries first.
 
+### 2026-05-30 Clickable cached weight deletes
+
+Added:
+
+- Manager `0.9.72` renders downloaded module weight profiles in the
+  `// MODEL CACHE` detail section as clickable items.
+- Clicking a cached weight opens a confirmation prompt, then calls the
+  module-owned `delete_models --profile <profile> --yes` action so deletion
+  stays module-owned while the Manager provides the compact UI.
+- The module guide now documents the per-profile cache deletion contract:
+  modules report `weight_profiles_downloaded`, validate allowed profile ids,
+  delete only declared cache files, and preserve `Delete Data` semantics for
+  outputs/logs/config rather than shared model caches.
+
+### 2026-05-30 Manager packaged finalize fix
+
+Fixed:
+
+- Manager `0.9.71` fixes the packaged system-only finalize path so launched
+  Windows builds run the preflight, system dependency, and CUDA helper scripts
+  directly instead of opening an idle `bash` shell before those scripts.
+- Rebuilt the Windows `win-x64` Manager package and registry artifact so fresh
+  Base Runtime and Nymphs Image installs can move past the
+  `System-only CUDA setup: enabled` stage.
+
 ### 2026-05-29 Manager status refresh rollback
 
 Fixed:
