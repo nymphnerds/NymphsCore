@@ -2481,6 +2481,13 @@ The module `status` output should include `logs_dir` and optionally `last_log`.
 
 Custom UI belongs to the module, not the Manager.
 
+For module-owned frontends that need the Nymphs 3D/product look, especially
+image-to-3D tools with source controls, progress, and GLB previews, follow
+`docs/NYMPHS_MODULE_UI_STANDARD.md`. That document defines the shared Nymphs UI
+brand constants such as the `360px` left rail, `760px` collapse point,
+`model-viewer` preview, viewer background, progress strip, and backend route
+contract.
+
 If a module has useful controls beyond the standard lifecycle rail, put local HTML in the module repo and declare it in the installed manifest:
 
 ```json
