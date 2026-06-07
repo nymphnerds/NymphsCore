@@ -62,6 +62,9 @@ Supporting docs:
 
 - `Ideas/CURRENT_NYMPH_MODULE_REPO_DEEP_DIVE.md`: migration notes for current
   module repos.
+- [Superhive Release Checklist](SUPERHIVE_RELEASE_CHECKLIST.md): addon-focused
+  Superhive release checklist for deciding public modules, dev/backbench
+  modules, published test gates, and TripoSplat launch work.
 - `Ideas/NYMPH_PLUGIN_STANDARDIZATION_HANDOFF.md`: session handoff and current
   proof-state notes.
 - `Ideas/NYMPH_MANIFEST_DRAFT.md`: older manifest design sketch; useful
@@ -112,6 +115,8 @@ Preserve the shared contract first:
 - startup card placement comes from cheap install markers, not deep scans
 - installed/available grouping must stay fast and stable
 - module status scripts own live health only after install
+- if the Manager hangs at `Refreshing the modular shell...`, verify WSL can
+  open a shell before changing Manager, registry, or module status code
 - normal stopped/configured-later states are not "needs attention"
 - model or asset downloads use explicit states, not generic failure wording
 - Manager code must stay generic; do not hardcode one module's UI or buttons
@@ -524,6 +529,13 @@ Every install, repair, and update script must write:
 The Manager startup card state depends on this marker. It must remain a cheap
 marker probe, not a module `status` script call, so installed cards appear
 quickly even when heavyweight modules or WSL services are slow.
+
+If the Manager is stuck on `Refreshing the modular shell...` and a Windows
+Terminal session for the relevant WSL distro opens blank or cannot reach a
+prompt, treat that as a WSL host/distro state problem first. Restart WSL with
+`wsl --shutdown` or reboot Windows before editing Manager source, registry JSON,
+installed module files, cached manifests, markers, or module status scripts.
+Do not change the status checker to work around a wedged WSL session.
 
 Installed state and health have separate owners:
 

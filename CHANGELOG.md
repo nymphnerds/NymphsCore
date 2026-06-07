@@ -29,6 +29,31 @@ Validated:
 - Server info now reports `controlnet_execution_device=cuda:0`,
   `controlnet_text_encoder_device=cpu`, and `controlnet_offload=false`.
 
+### 2026-06-05 TripoSplat dev module visible splat preview
+
+Added:
+
+- TripoSplat is now tracked as a dev-registry module for single-image Gaussian
+  splat generation, with `.ply` / `.splat` outputs and no GLB, OBJ, or
+  game-mesh claims.
+- The module handoff now owns the TripoSplat dev track separately from the
+  Superhive / Blender addon v1 release path.
+
+Fixed:
+
+- TripoSplat `0.1.12` fixes the Manager splat preview path so generated output
+  can visibly render in the embedded viewer.
+- Generated previews now follow upstream Gradio's working behavior by loading
+  `splat.ply`; `.splat` remains an output/download format.
+- The bundled Spark viewer no longer fails on `#include <splatDefines>` or the
+  previous `Preview failed: undefined` path.
+
+Validated:
+
+- Dev registry `32` points at TripoSplat `0.1.12`.
+- Raw TripoSplat manifest hash:
+  `9a78017dc714ee03a5bba27f633d1b57a585b37f0d9aa44bd17fab6ebebaf916`.
+
 ### 2026-05-30 Clickable cached weight deletes
 
 Added:

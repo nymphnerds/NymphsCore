@@ -6,6 +6,7 @@ Start here:
 - [Absolute Beginner Install Guide](ABSOLUTE_BEGINNER_INSTALL_GUIDE.md)
 - [Blender Addon User Guide](BLENDER_ADDON_USER_GUIDE.md)
 - [Install Disk And Model Footprint](FOOTPRINT.md)
+- [Superhive Release Checklist](SUPERHIVE_RELEASE_CHECKLIST.md)
 - [Features](FEATURES.md)
 - [Roadmap](ROADMAP.md)
 

@@ -17,6 +17,9 @@ the lifecycle, manifest, install/update, status, publishing, and registry
 contract. This UI standard owns the module-owned frontend look, layout, preview,
 progress, picker, and backend route conventions.
 
+For the addon-focused public release plan, see the
+[Superhive Release Checklist](SUPERHIVE_RELEASE_CHECKLIST.md).
+
 ## Proof Modules
 
 Current proof UIs:
@@ -48,6 +51,7 @@ Current families:
 ```text
 2D image workbench    Nymphs Image style: compact prompt/source rail, large image preview, output picker strip
 3D GLB workbench      TRELLIS/Pixal3D style: 360px source/control rail, model-viewer stage, GLB progress strip
+3D splat workbench    TripoSplat style: 360px source/control rail, Spark/splat stage, PLY/SPLAT progress strip
 ```
 
 Shared brand rules apply to both families:
@@ -60,9 +64,10 @@ Shared brand rules apply to both families:
 - same shared data root pattern under `$HOME/NymphsData`
 
 Do not mix the families casually. A 3D module such as TripoSplat should use the
-3D GLB workbench dimensions. A dense image-generation module with prompts,
-gallery browsing, and image-folder picking should use the 2D image workbench
-architecture.
+3D workbench dimensions, but it must use a splat-capable viewer and PLY/SPLAT
+output labels instead of model-viewer or GLB language. A dense image-generation
+module with prompts, gallery browsing, and image-folder picking should use the
+2D image workbench architecture.
 
 ## Manager Contract
 
@@ -270,11 +275,12 @@ Use a two-pane application shell:
 TRELLIS uses a nested `.viewer > .stage > .model-shell` shape. Pixal3D uses
 `.stage > .workspace > .preview > .viewer > .pane > .pane-body`. Either nested
 shape is acceptable, but the visible result must match: fixed left rail,
-full-height right preview, GLB viewer, empty state, and progress strip.
+full-height right preview, correct viewer for the module output type, empty
+state, and progress strip.
 
 ## 3D Layout Constants
 
-These values are part of the 3D GLB workbench brand standard.
+These values are part of the 3D object workbench brand standard.
 
 ```css
 .app {
@@ -1579,20 +1585,25 @@ Before considering an image workbench UI ready:
 
 ## TripoSplat Target
 
-The TripoSplat module should follow this standard directly:
+The TripoSplat module should follow the 3D object layout and the Nymphs Image
+preview-strip treatment, but only for splat output:
 
 ```text
 same 360px left rail
 same 760px collapse
 same source image drop zone
 same compact command rows
-same runtime/advanced/status section stack
-same model-viewer GLB preview
-same dark viewer background
+runtime/advanced/status sections containing only TripoSplat controls
+Spark.js or another splat-capable PLY/SPLAT viewer
+Nymphs forest-backed empty preview shell
 same progress strip
+same output browser strip shape as Nymphs Image, scoped to generated splats
 same local_url /nymph Manager contract
 ```
 
 TripoSplat may use upstream Gradio code as reference or internal backend
 plumbing, but the Manager-facing UI should look and behave like a Nymphs 3D
-module.
+module. Do not include Pixal3D-only warmup controls, GLB/model-viewer UI,
+mesh-conversion controls, prompt/image-generation controls, LoRA controls,
+manual folder picking, or managed image deletion/move workflows in the
+TripoSplat UI unless those features are implemented and tested for TripoSplat.
