@@ -8,6 +8,27 @@ This file focuses on user-facing and system-level changes rather than package-by
 
 Newest entries first.
 
+### 2026-06-07 Z-Image ControlNet GPU path for Sprite Foundry
+
+Fixed:
+
+- Nymphs Image `0.1.112` fixes the Z-Image ControlNet path used by Sprite
+  Foundry direction control on 16 GB GPUs.
+- `controlnet_edit` now keeps ControlNet and the Nunchaku transformer on CUDA
+  while running prompt/text encoding on CPU, avoiding the previous VRAM
+  saturation before inference.
+- Added a Nunchaku RoPE hook around shared Z-Image ControlNet refiner blocks so
+  ControlNet can safely share Nunchaku-patched transformer modules.
+
+Validated:
+
+- Confirmed the Z-Image ControlNet 2.1 weight is present in both dev and test
+  WSL Hugging Face caches.
+- Verified 512px no-LoRA `controlnet_edit` on the RTX 4080 SUPER:
+  cold run completed and saved output; warm run completed in about 5 seconds.
+- Server info now reports `controlnet_execution_device=cuda:0`,
+  `controlnet_text_encoder_device=cpu`, and `controlnet_offload=false`.
+
 ### 2026-05-30 Clickable cached weight deletes
 
 Added:
