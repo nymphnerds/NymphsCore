@@ -2,7 +2,9 @@ using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
+using System.Net.Http;
 using System.Reflection;
 using System.Security.Cryptography;
 using System.Text;
@@ -85,7 +87,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
     private readonly RelayCommand _toggleDeveloperModeCommand;
     private readonly RelayCommand<NymphModuleViewModel> _uninstallModuleCommand;
     private readonly RelayCommand<NymphModuleViewModel> _deleteModuleCommand;
-    private readonly RelayCommand _openManagerUpdateCommand;
+    private readonly AsyncRelayCommand _openManagerUpdateCommand;
     private DriveChoice? _selectedBaseRuntimeDrive;
     private ShellNavigationItemViewModel? _selectedNavigationItem;
     private NymphModuleViewModel? _selectedModule;
@@ -265,7 +267,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         _toggleDeveloperModeCommand = new RelayCommand(ToggleDeveloperMode);
         _uninstallModuleCommand = new RelayCommand<NymphModuleViewModel>(UninstallModule, module => module?.CanUninstall == true && !IsBusy);
         _deleteModuleCommand = new RelayCommand<NymphModuleViewModel>(DeleteModule, module => module?.CanDeleteData == true && !IsModuleLifecycleActive(module));
-        _openManagerUpdateCommand = new RelayCommand(OpenManagerUpdate, CanOpenManagerUpdate);
+        _openManagerUpdateCommand = new AsyncRelayCommand(UpdateManagerAsync, CanOpenManagerUpdate);
 
         LoadSidebarArtwork();
         LoadHistoricalLogs();
@@ -366,7 +368,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
     public RelayCommand OpenSourceCommand => new(() => SafeRun(_workflowService.OpenSourceRepo, "Source repo opened."));
 
-    public RelayCommand OpenManagerUpdateCommand => _openManagerUpdateCommand;
+    public AsyncRelayCommand OpenManagerUpdateCommand => _openManagerUpdateCommand;
 
     public RelayCommand OpenAddonGuideCommand => new(() => SafeRun(_workflowService.OpenAddonGuide, "Addon guide opened."));
 
@@ -6786,17 +6788,191 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
     private bool CanOpenManagerUpdate()
     {
-        return _managerUpdateAvailable && !string.IsNullOrWhiteSpace(_managerUpdateUrl);
+        return !IsBusy && _managerUpdateAvailable && !string.IsNullOrWhiteSpace(_managerUpdateUrl);
     }
 
-    private void OpenManagerUpdate()
+    private async Task UpdateManagerAsync()
     {
         if (string.IsNullOrWhiteSpace(_managerUpdateUrl))
         {
             return;
         }
 
-        SafeRun(() => _workflowService.OpenUrl(_managerUpdateUrl), "Manager update link opened.");
+        var targetDirectory = AppContext.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        var exeName = Path.GetFileName(Environment.ProcessPath);
+        if (string.IsNullOrWhiteSpace(exeName))
+        {
+            exeName = "NymphsCoreManager.exe";
+        }
+
+        var confirm = MessageBox.Show(
+            $"Update NymphsCore Manager from {ManagerLocalVersionLabel} to {ManagerRemoteVersionLabel}?\n\n" +
+            "The update will download, stage, close Manager, replace files in the current portable folder, then relaunch Manager.",
+            "NymphsCore Manager Update",
+            MessageBoxButton.OKCancel,
+            MessageBoxImage.Information);
+        if (confirm != MessageBoxResult.OK)
+        {
+            return;
+        }
+
+        IsBusy = true;
+        StatusMessage = "Downloading Manager update...";
+        AppendActivity($"Manager update download started: {_managerUpdateUrl}");
+
+        try
+        {
+            var versionLabel = SanitizeUpdatePathPart(ManagerRemoteVersionLabel);
+            var updateRoot = Path.Combine(
+                Path.GetTempPath(),
+                "NymphsCore",
+                "manager-updates",
+                $"manager-{versionLabel}-{DateTimeOffset.UtcNow:yyyyMMddHHmmss}");
+            var extractDirectory = Path.Combine(updateRoot, "extracted");
+            var zipPath = Path.Combine(updateRoot, "NymphsCoreManager-win-x64.zip");
+            var scriptPath = Path.Combine(updateRoot, "apply-manager-update.ps1");
+            var logPath = Path.Combine(updateRoot, "manager-update.log");
+
+            Directory.CreateDirectory(updateRoot);
+            Directory.CreateDirectory(extractDirectory);
+
+            using (var client = new HttpClient())
+            using (var response = await client.GetAsync(_managerUpdateUrl, _operationCancellation.Token).ConfigureAwait(true))
+            {
+                response.EnsureSuccessStatusCode();
+                await using var zipStream = await response.Content.ReadAsStreamAsync(_operationCancellation.Token).ConfigureAwait(true);
+                await using var fileStream = File.Create(zipPath);
+                await zipStream.CopyToAsync(fileStream, _operationCancellation.Token).ConfigureAwait(true);
+            }
+
+            StatusMessage = "Extracting Manager update...";
+            AppendActivity($"Manager update downloaded: {zipPath}");
+            ZipFile.ExtractToDirectory(zipPath, extractDirectory, overwriteFiles: true);
+
+            var stagedExePath = Path.Combine(extractDirectory, exeName);
+            if (!File.Exists(stagedExePath))
+            {
+                throw new InvalidOperationException($"Downloaded update did not contain {exeName}.");
+            }
+
+            File.WriteAllText(scriptPath, BuildManagerUpdaterScript(), Encoding.UTF8);
+
+            var process = Process.GetCurrentProcess();
+            var updater = new ProcessStartInfo
+            {
+                FileName = "powershell.exe",
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                WindowStyle = ProcessWindowStyle.Hidden,
+            };
+            updater.ArgumentList.Add("-NoProfile");
+            updater.ArgumentList.Add("-ExecutionPolicy");
+            updater.ArgumentList.Add("Bypass");
+            updater.ArgumentList.Add("-WindowStyle");
+            updater.ArgumentList.Add("Hidden");
+            updater.ArgumentList.Add("-File");
+            updater.ArgumentList.Add(scriptPath);
+            updater.ArgumentList.Add("-Source");
+            updater.ArgumentList.Add(extractDirectory);
+            updater.ArgumentList.Add("-Target");
+            updater.ArgumentList.Add(targetDirectory);
+            updater.ArgumentList.Add("-ExeName");
+            updater.ArgumentList.Add(exeName);
+            updater.ArgumentList.Add("-ManagerPid");
+            updater.ArgumentList.Add(process.Id.ToString(CultureInfo.InvariantCulture));
+            updater.ArgumentList.Add("-LogPath");
+            updater.ArgumentList.Add(logPath);
+
+            StatusMessage = "Applying Manager update...";
+            AppendActivity($"Manager updater staged: {scriptPath}");
+            Process.Start(updater);
+            Application.Current?.Shutdown();
+        }
+        catch (Exception ex)
+        {
+            IsBusy = false;
+            StatusMessage = "Manager update failed.";
+            AppendActivity($"Manager update failed: {ex.Message}");
+            MessageBox.Show(
+                $"Manager update failed.\n\n{ex.Message}",
+                "NymphsCore Manager Update",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+        }
+    }
+
+    private static string SanitizeUpdatePathPart(string value)
+    {
+        var sanitized = new string(value.Select(character =>
+            char.IsLetterOrDigit(character) || character is '.' or '-' or '_' ? character : '-').ToArray());
+        return string.IsNullOrWhiteSpace(sanitized) ? "unknown" : sanitized;
+    }
+
+    private static string BuildManagerUpdaterScript()
+    {
+        return """
+param(
+    [Parameter(Mandatory = $true)]
+    [string] $Source,
+    [Parameter(Mandatory = $true)]
+    [string] $Target,
+    [Parameter(Mandatory = $true)]
+    [string] $ExeName,
+    [Parameter(Mandatory = $true)]
+    [int] $ManagerPid,
+    [Parameter(Mandatory = $true)]
+    [string] $LogPath
+)
+
+$ErrorActionPreference = 'Stop'
+
+function Write-UpdateLog {
+    param([string] $Message)
+    $line = '[' + (Get-Date).ToString('yyyy-MM-dd HH:mm:ss') + '] ' + $Message
+    Add-Content -Path $LogPath -Value $line
+}
+
+try {
+    New-Item -ItemType Directory -Path (Split-Path -Parent $LogPath) -Force | Out-Null
+    Write-UpdateLog "Waiting for Manager process $ManagerPid to exit."
+    try {
+        Wait-Process -Id $ManagerPid -Timeout 90 -ErrorAction SilentlyContinue
+    } catch {
+        Write-UpdateLog "Wait-Process warning: $($_.Exception.Message)"
+    }
+
+    Start-Sleep -Milliseconds 750
+
+    $sourceExe = Join-Path $Source $ExeName
+    if (-not (Test-Path $sourceExe)) {
+        throw "Staged update is missing $ExeName at $sourceExe"
+    }
+
+    New-Item -ItemType Directory -Path $Target -Force | Out-Null
+    Write-UpdateLog "Copying update files from '$Source' to '$Target'."
+    robocopy $Source $Target /E /COPY:DAT /R:8 /W:1 /NFL /NDL /NP | Out-String | ForEach-Object {
+        if (-not [string]::IsNullOrWhiteSpace($_)) {
+            Write-UpdateLog $_.TrimEnd()
+        }
+    }
+    $exitCode = $LASTEXITCODE
+    if ($exitCode -gt 7) {
+        throw "robocopy failed with exit code $exitCode"
+    }
+
+    $targetExe = Join-Path $Target $ExeName
+    if (-not (Test-Path $targetExe)) {
+        throw "Updated Manager executable was not found at $targetExe"
+    }
+
+    Write-UpdateLog "Relaunching Manager: $targetExe"
+    Start-Process -FilePath $targetExe -WorkingDirectory $Target
+    Write-UpdateLog "Manager update completed."
+} catch {
+    Write-UpdateLog "Manager update failed: $($_.Exception.Message)"
+    throw
+}
+""";
     }
 
     private void OpenLoraGuide()
