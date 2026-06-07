@@ -1427,7 +1427,8 @@
                          Foreground="{StaticResource LimeBrush}"
                          FontSize="12" />
               <CheckBox Margin="0,10,0,0"
-                        IsChecked="{Binding IsDeveloperMode, Mode=TwoWay}"
+                        IsChecked="{Binding IsDeveloperMode, Mode=OneWay}"
+                        Command="{Binding ToggleDeveloperModeCommand}"
                         Foreground="#E4F2EF"
                         FontFamily="Segoe UI Semibold"
                         FontSize="12"

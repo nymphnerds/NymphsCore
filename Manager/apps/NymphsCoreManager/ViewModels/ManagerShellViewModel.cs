@@ -6,8 +6,10 @@ using System.Linq;
 using System.Reflection;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Threading;
 using NymphsCoreManager.Models;
 using NymphsCoreManager.Services;
@@ -44,6 +46,11 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
     private const string CloseModuleUiActionName = "__close_module_ui";
     private const string OpenLoraGuideActionName = "__open_lora_guide";
     private const string LoraGuideUrl = "https://nymphnerds.github.io/NymphsCore/home/guides/training.html";
+    private const string DeveloperModePassword = "Nymph007";
+    private static readonly string ManagerConfigDirectory = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        "NymphsCore");
+    private static readonly string ManagerSettingsPath = Path.Combine(ManagerConfigDirectory, "manager-settings.json");
     private readonly InstallerWorkflowService _workflowService;
     private readonly SharedSecretsService _sharedSecretsService = new();
     private readonly InstallSettings _settings;
@@ -193,12 +200,20 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
     private bool _isRuntimeMonitorAvailable;
     private bool _showModuleLogs;
     private bool _isDeveloperMode;
+    private ManagerLocalSettings _managerSettings = new();
     private int _sidebarArtIndex = -1;
+
+    private sealed class ManagerLocalSettings
+    {
+        public bool DeveloperModeEnabled { get; set; }
+    }
 
     public ManagerShellViewModel(InstallerWorkflowService workflowService)
     {
         _workflowService = workflowService;
         _settings = CreateDefaultInstallSettings();
+        _managerSettings = LoadManagerLocalSettings();
+        _isDeveloperMode = _managerSettings.DeveloperModeEnabled;
         var sharedSecrets = _sharedSecretsService.Load();
         _settings.HuggingFaceToken = sharedSecrets.HuggingFaceToken?.Trim() ?? string.Empty;
         _settings.OpenRouterApiKey = sharedSecrets.OpenRouterApiKey?.Trim() ?? string.Empty;
@@ -444,22 +459,9 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
     public bool IsDeveloperMode
     {
         get => _isDeveloperMode;
-        set
+        private set
         {
-            if (SetProperty(ref _isDeveloperMode, value))
-            {
-                OnPropertyChanged(nameof(DeveloperModeLabel));
-                OnPropertyChanged(nameof(DeveloperModeBrush));
-                OnPropertyChanged(nameof(BottomStatusText));
-                OnPropertyChanged(nameof(ShowDevContract));
-                _runModuleDevActionCommand.RaiseCanExecuteChanged();
-                StatusMessage = _isDeveloperMode ? "Developer mode enabled." : "Developer mode disabled.";
-                AppendActivity(StatusMessage);
-                if (!IsBusy)
-                {
-                    _ = RefreshModuleRosterForDeveloperModeChangeAsync();
-                }
-            }
+            SetDeveloperMode(value, persist: true, refreshRoster: true);
         }
     }
 
@@ -5060,7 +5062,164 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
     private void ToggleDeveloperMode()
     {
-        IsDeveloperMode = !IsDeveloperMode;
+        if (IsDeveloperMode)
+        {
+            SetDeveloperMode(false, persist: true, refreshRoster: true);
+            return;
+        }
+
+        var password = PromptForDeveloperPassword(
+            "Unlock Dev Mode",
+            "Enter the local Dev Mode password.",
+            actionLabel: "Unlock");
+        if (string.IsNullOrWhiteSpace(password) || !VerifyDeveloperModePassword(password))
+        {
+            StatusMessage = "Developer mode locked.";
+            AppendActivity("Developer mode unlock failed.");
+            MessageBox.Show(
+                "Dev Mode password was not accepted.",
+                "NymphsCore Manager",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+            OnPropertyChanged(nameof(IsDeveloperMode));
+            return;
+        }
+
+        SetDeveloperMode(true, persist: true, refreshRoster: true);
+    }
+
+    private void SetDeveloperMode(bool enabled, bool persist, bool refreshRoster)
+    {
+        if (!SetProperty(ref _isDeveloperMode, enabled, nameof(IsDeveloperMode)))
+        {
+            return;
+        }
+
+        if (persist)
+        {
+            _managerSettings.DeveloperModeEnabled = enabled;
+            SaveManagerLocalSettings(_managerSettings);
+        }
+
+        OnPropertyChanged(nameof(DeveloperModeLabel));
+        OnPropertyChanged(nameof(DeveloperModeBrush));
+        OnPropertyChanged(nameof(BottomStatusText));
+        OnPropertyChanged(nameof(ShowDevContract));
+        _runModuleDevActionCommand.RaiseCanExecuteChanged();
+        StatusMessage = enabled ? "Developer mode enabled." : "Developer mode disabled.";
+        AppendActivity(StatusMessage);
+        if (refreshRoster && !IsBusy)
+        {
+            _ = RefreshModuleRosterForDeveloperModeChangeAsync();
+        }
+    }
+
+    private static ManagerLocalSettings LoadManagerLocalSettings()
+    {
+        try
+        {
+            if (!File.Exists(ManagerSettingsPath))
+            {
+                return new ManagerLocalSettings();
+            }
+
+            var json = File.ReadAllText(ManagerSettingsPath);
+            return JsonSerializer.Deserialize<ManagerLocalSettings>(json) ?? new ManagerLocalSettings();
+        }
+        catch
+        {
+            return new ManagerLocalSettings();
+        }
+    }
+
+    private static void SaveManagerLocalSettings(ManagerLocalSettings settings)
+    {
+        Directory.CreateDirectory(ManagerConfigDirectory);
+        var json = JsonSerializer.Serialize(
+            settings,
+            new JsonSerializerOptions
+            {
+                WriteIndented = true,
+            });
+        File.WriteAllText(ManagerSettingsPath, json + Environment.NewLine);
+    }
+
+    private static bool VerifyDeveloperModePassword(string password)
+    {
+        return string.Equals(password, DeveloperModePassword, StringComparison.Ordinal);
+    }
+
+    private static string? PromptForDeveloperPassword(string title, string message, string actionLabel)
+    {
+        var passwordBox = new PasswordBox
+        {
+            MinWidth = 260,
+            Margin = new Thickness(0, 8, 0, 0),
+        };
+        var errorText = new TextBlock
+        {
+            Foreground = System.Windows.Media.Brushes.IndianRed,
+            Margin = new Thickness(0, 8, 0, 0),
+            TextWrapping = TextWrapping.Wrap,
+        };
+        var okButton = new Button
+        {
+            Content = actionLabel,
+            Width = 86,
+            IsDefault = true,
+            Margin = new Thickness(0, 14, 8, 0),
+        };
+        var cancelButton = new Button
+        {
+            Content = "Cancel",
+            Width = 86,
+            IsCancel = true,
+            Margin = new Thickness(0, 14, 0, 0),
+        };
+
+        var panel = new StackPanel
+        {
+            Margin = new Thickness(16),
+        };
+        panel.Children.Add(new TextBlock
+        {
+            Text = message,
+            TextWrapping = TextWrapping.Wrap,
+        });
+        panel.Children.Add(passwordBox);
+        panel.Children.Add(errorText);
+        var buttonRow = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            HorizontalAlignment = HorizontalAlignment.Right,
+        };
+        buttonRow.Children.Add(okButton);
+        buttonRow.Children.Add(cancelButton);
+        panel.Children.Add(buttonRow);
+
+        var dialog = new Window
+        {
+            Title = title,
+            Content = panel,
+            SizeToContent = SizeToContent.WidthAndHeight,
+            ResizeMode = ResizeMode.NoResize,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            Owner = Application.Current?.MainWindow,
+        };
+
+        okButton.Click += (_, _) =>
+        {
+            if (string.IsNullOrWhiteSpace(passwordBox.Password))
+            {
+                errorText.Text = "Enter a password.";
+                return;
+            }
+            dialog.DialogResult = true;
+            dialog.Close();
+        };
+
+        dialog.Loaded += (_, _) => passwordBox.Focus();
+        return dialog.ShowDialog() == true ? passwordBox.Password : null;
     }
 
     private async Task RefreshModuleRosterForDeveloperModeChangeAsync()
