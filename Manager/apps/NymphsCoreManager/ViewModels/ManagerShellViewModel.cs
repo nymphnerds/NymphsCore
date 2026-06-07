@@ -2,16 +2,12 @@ using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
-using System.IO.Compression;
 using System.Linq;
-using System.Net.Http;
 using System.Reflection;
 using System.Security.Cryptography;
 using System.Text;
-using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Windows;
-using System.Windows.Controls;
 using System.Windows.Threading;
 using NymphsCoreManager.Models;
 using NymphsCoreManager.Services;
@@ -48,11 +44,6 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
     private const string CloseModuleUiActionName = "__close_module_ui";
     private const string OpenLoraGuideActionName = "__open_lora_guide";
     private const string LoraGuideUrl = "https://nymphnerds.github.io/NymphsCore/home/guides/training.html";
-    private const string DeveloperModePassword = "Nymph007";
-    private static readonly string ManagerConfigDirectory = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-        "NymphsCore");
-    private static readonly string ManagerSettingsPath = Path.Combine(ManagerConfigDirectory, "manager-settings.json");
     private readonly InstallerWorkflowService _workflowService;
     private readonly SharedSecretsService _sharedSecretsService = new();
     private readonly InstallSettings _settings;
@@ -87,7 +78,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
     private readonly RelayCommand _toggleDeveloperModeCommand;
     private readonly RelayCommand<NymphModuleViewModel> _uninstallModuleCommand;
     private readonly RelayCommand<NymphModuleViewModel> _deleteModuleCommand;
-    private readonly AsyncRelayCommand _openManagerUpdateCommand;
+    private readonly RelayCommand _openManagerUpdateCommand;
     private DriveChoice? _selectedBaseRuntimeDrive;
     private ShellNavigationItemViewModel? _selectedNavigationItem;
     private NymphModuleViewModel? _selectedModule;
@@ -202,20 +193,12 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
     private bool _isRuntimeMonitorAvailable;
     private bool _showModuleLogs;
     private bool _isDeveloperMode;
-    private ManagerLocalSettings _managerSettings = new();
     private int _sidebarArtIndex = -1;
-
-    private sealed class ManagerLocalSettings
-    {
-        public bool DeveloperModeEnabled { get; set; }
-    }
 
     public ManagerShellViewModel(InstallerWorkflowService workflowService)
     {
         _workflowService = workflowService;
         _settings = CreateDefaultInstallSettings();
-        _managerSettings = LoadManagerLocalSettings();
-        _isDeveloperMode = _managerSettings.DeveloperModeEnabled;
         var sharedSecrets = _sharedSecretsService.Load();
         _settings.HuggingFaceToken = sharedSecrets.HuggingFaceToken?.Trim() ?? string.Empty;
         _settings.OpenRouterApiKey = sharedSecrets.OpenRouterApiKey?.Trim() ?? string.Empty;
@@ -267,7 +250,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
         _toggleDeveloperModeCommand = new RelayCommand(ToggleDeveloperMode);
         _uninstallModuleCommand = new RelayCommand<NymphModuleViewModel>(UninstallModule, module => module?.CanUninstall == true && !IsBusy);
         _deleteModuleCommand = new RelayCommand<NymphModuleViewModel>(DeleteModule, module => module?.CanDeleteData == true && !IsModuleLifecycleActive(module));
-        _openManagerUpdateCommand = new AsyncRelayCommand(UpdateManagerAsync, CanOpenManagerUpdate);
+        _openManagerUpdateCommand = new RelayCommand(OpenManagerUpdate, CanOpenManagerUpdate);
 
         LoadSidebarArtwork();
         LoadHistoricalLogs();
@@ -368,7 +351,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
     public RelayCommand OpenSourceCommand => new(() => SafeRun(_workflowService.OpenSourceRepo, "Source repo opened."));
 
-    public AsyncRelayCommand OpenManagerUpdateCommand => _openManagerUpdateCommand;
+    public RelayCommand OpenManagerUpdateCommand => _openManagerUpdateCommand;
 
     public RelayCommand OpenAddonGuideCommand => new(() => SafeRun(_workflowService.OpenAddonGuide, "Addon guide opened."));
 
@@ -461,9 +444,22 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
     public bool IsDeveloperMode
     {
         get => _isDeveloperMode;
-        private set
+        set
         {
-            SetDeveloperMode(value, persist: true, refreshRoster: true);
+            if (SetProperty(ref _isDeveloperMode, value))
+            {
+                OnPropertyChanged(nameof(DeveloperModeLabel));
+                OnPropertyChanged(nameof(DeveloperModeBrush));
+                OnPropertyChanged(nameof(BottomStatusText));
+                OnPropertyChanged(nameof(ShowDevContract));
+                _runModuleDevActionCommand.RaiseCanExecuteChanged();
+                StatusMessage = _isDeveloperMode ? "Developer mode enabled." : "Developer mode disabled.";
+                AppendActivity(StatusMessage);
+                if (!IsBusy)
+                {
+                    _ = RefreshModuleRosterForDeveloperModeChangeAsync();
+                }
+            }
         }
     }
 
@@ -5064,164 +5060,7 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
     private void ToggleDeveloperMode()
     {
-        if (IsDeveloperMode)
-        {
-            SetDeveloperMode(false, persist: true, refreshRoster: true);
-            return;
-        }
-
-        var password = PromptForDeveloperPassword(
-            "Unlock Dev Mode",
-            "Enter the local Dev Mode password.",
-            actionLabel: "Unlock");
-        if (string.IsNullOrWhiteSpace(password) || !VerifyDeveloperModePassword(password))
-        {
-            StatusMessage = "Developer mode locked.";
-            AppendActivity("Developer mode unlock failed.");
-            MessageBox.Show(
-                "Dev Mode password was not accepted.",
-                "NymphsCore Manager",
-                MessageBoxButton.OK,
-                MessageBoxImage.Warning);
-            OnPropertyChanged(nameof(IsDeveloperMode));
-            return;
-        }
-
-        SetDeveloperMode(true, persist: true, refreshRoster: true);
-    }
-
-    private void SetDeveloperMode(bool enabled, bool persist, bool refreshRoster)
-    {
-        if (!SetProperty(ref _isDeveloperMode, enabled, nameof(IsDeveloperMode)))
-        {
-            return;
-        }
-
-        if (persist)
-        {
-            _managerSettings.DeveloperModeEnabled = enabled;
-            SaveManagerLocalSettings(_managerSettings);
-        }
-
-        OnPropertyChanged(nameof(DeveloperModeLabel));
-        OnPropertyChanged(nameof(DeveloperModeBrush));
-        OnPropertyChanged(nameof(BottomStatusText));
-        OnPropertyChanged(nameof(ShowDevContract));
-        _runModuleDevActionCommand.RaiseCanExecuteChanged();
-        StatusMessage = enabled ? "Developer mode enabled." : "Developer mode disabled.";
-        AppendActivity(StatusMessage);
-        if (refreshRoster && !IsBusy)
-        {
-            _ = RefreshModuleRosterForDeveloperModeChangeAsync();
-        }
-    }
-
-    private static ManagerLocalSettings LoadManagerLocalSettings()
-    {
-        try
-        {
-            if (!File.Exists(ManagerSettingsPath))
-            {
-                return new ManagerLocalSettings();
-            }
-
-            var json = File.ReadAllText(ManagerSettingsPath);
-            return JsonSerializer.Deserialize<ManagerLocalSettings>(json) ?? new ManagerLocalSettings();
-        }
-        catch
-        {
-            return new ManagerLocalSettings();
-        }
-    }
-
-    private static void SaveManagerLocalSettings(ManagerLocalSettings settings)
-    {
-        Directory.CreateDirectory(ManagerConfigDirectory);
-        var json = JsonSerializer.Serialize(
-            settings,
-            new JsonSerializerOptions
-            {
-                WriteIndented = true,
-            });
-        File.WriteAllText(ManagerSettingsPath, json + Environment.NewLine);
-    }
-
-    private static bool VerifyDeveloperModePassword(string password)
-    {
-        return string.Equals(password, DeveloperModePassword, StringComparison.Ordinal);
-    }
-
-    private static string? PromptForDeveloperPassword(string title, string message, string actionLabel)
-    {
-        var passwordBox = new PasswordBox
-        {
-            MinWidth = 260,
-            Margin = new Thickness(0, 8, 0, 0),
-        };
-        var errorText = new TextBlock
-        {
-            Foreground = System.Windows.Media.Brushes.IndianRed,
-            Margin = new Thickness(0, 8, 0, 0),
-            TextWrapping = TextWrapping.Wrap,
-        };
-        var okButton = new Button
-        {
-            Content = actionLabel,
-            Width = 86,
-            IsDefault = true,
-            Margin = new Thickness(0, 14, 8, 0),
-        };
-        var cancelButton = new Button
-        {
-            Content = "Cancel",
-            Width = 86,
-            IsCancel = true,
-            Margin = new Thickness(0, 14, 0, 0),
-        };
-
-        var panel = new StackPanel
-        {
-            Margin = new Thickness(16),
-        };
-        panel.Children.Add(new TextBlock
-        {
-            Text = message,
-            TextWrapping = TextWrapping.Wrap,
-        });
-        panel.Children.Add(passwordBox);
-        panel.Children.Add(errorText);
-        var buttonRow = new StackPanel
-        {
-            Orientation = Orientation.Horizontal,
-            HorizontalAlignment = HorizontalAlignment.Right,
-        };
-        buttonRow.Children.Add(okButton);
-        buttonRow.Children.Add(cancelButton);
-        panel.Children.Add(buttonRow);
-
-        var dialog = new Window
-        {
-            Title = title,
-            Content = panel,
-            SizeToContent = SizeToContent.WidthAndHeight,
-            ResizeMode = ResizeMode.NoResize,
-            WindowStartupLocation = WindowStartupLocation.CenterOwner,
-            Owner = Application.Current?.MainWindow,
-        };
-
-        okButton.Click += (_, _) =>
-        {
-            if (string.IsNullOrWhiteSpace(passwordBox.Password))
-            {
-                errorText.Text = "Enter a password.";
-                return;
-            }
-            dialog.DialogResult = true;
-            dialog.Close();
-        };
-
-        dialog.Loaded += (_, _) => passwordBox.Focus();
-        return dialog.ShowDialog() == true ? passwordBox.Password : null;
+        IsDeveloperMode = !IsDeveloperMode;
     }
 
     private async Task RefreshModuleRosterForDeveloperModeChangeAsync()
@@ -6788,191 +6627,17 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
     private bool CanOpenManagerUpdate()
     {
-        return !IsBusy && _managerUpdateAvailable && !string.IsNullOrWhiteSpace(_managerUpdateUrl);
+        return _managerUpdateAvailable && !string.IsNullOrWhiteSpace(_managerUpdateUrl);
     }
 
-    private async Task UpdateManagerAsync()
+    private void OpenManagerUpdate()
     {
         if (string.IsNullOrWhiteSpace(_managerUpdateUrl))
         {
             return;
         }
 
-        var targetDirectory = AppContext.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-        var exeName = Path.GetFileName(Environment.ProcessPath);
-        if (string.IsNullOrWhiteSpace(exeName))
-        {
-            exeName = "NymphsCoreManager.exe";
-        }
-
-        var confirm = MessageBox.Show(
-            $"Update NymphsCore Manager from {ManagerLocalVersionLabel} to {ManagerRemoteVersionLabel}?\n\n" +
-            "The update will download, stage, close Manager, replace files in the current portable folder, then relaunch Manager.",
-            "NymphsCore Manager Update",
-            MessageBoxButton.OKCancel,
-            MessageBoxImage.Information);
-        if (confirm != MessageBoxResult.OK)
-        {
-            return;
-        }
-
-        IsBusy = true;
-        StatusMessage = "Downloading Manager update...";
-        AppendActivity($"Manager update download started: {_managerUpdateUrl}");
-
-        try
-        {
-            var versionLabel = SanitizeUpdatePathPart(ManagerRemoteVersionLabel);
-            var updateRoot = Path.Combine(
-                Path.GetTempPath(),
-                "NymphsCore",
-                "manager-updates",
-                $"manager-{versionLabel}-{DateTimeOffset.UtcNow:yyyyMMddHHmmss}");
-            var extractDirectory = Path.Combine(updateRoot, "extracted");
-            var zipPath = Path.Combine(updateRoot, "NymphsCoreManager-win-x64.zip");
-            var scriptPath = Path.Combine(updateRoot, "apply-manager-update.ps1");
-            var logPath = Path.Combine(updateRoot, "manager-update.log");
-
-            Directory.CreateDirectory(updateRoot);
-            Directory.CreateDirectory(extractDirectory);
-
-            using (var client = new HttpClient())
-            using (var response = await client.GetAsync(_managerUpdateUrl, _operationCancellation.Token).ConfigureAwait(true))
-            {
-                response.EnsureSuccessStatusCode();
-                await using var zipStream = await response.Content.ReadAsStreamAsync(_operationCancellation.Token).ConfigureAwait(true);
-                await using var fileStream = File.Create(zipPath);
-                await zipStream.CopyToAsync(fileStream, _operationCancellation.Token).ConfigureAwait(true);
-            }
-
-            StatusMessage = "Extracting Manager update...";
-            AppendActivity($"Manager update downloaded: {zipPath}");
-            ZipFile.ExtractToDirectory(zipPath, extractDirectory, overwriteFiles: true);
-
-            var stagedExePath = Path.Combine(extractDirectory, exeName);
-            if (!File.Exists(stagedExePath))
-            {
-                throw new InvalidOperationException($"Downloaded update did not contain {exeName}.");
-            }
-
-            File.WriteAllText(scriptPath, BuildManagerUpdaterScript(), Encoding.UTF8);
-
-            var process = Process.GetCurrentProcess();
-            var updater = new ProcessStartInfo
-            {
-                FileName = "powershell.exe",
-                UseShellExecute = false,
-                CreateNoWindow = true,
-                WindowStyle = ProcessWindowStyle.Hidden,
-            };
-            updater.ArgumentList.Add("-NoProfile");
-            updater.ArgumentList.Add("-ExecutionPolicy");
-            updater.ArgumentList.Add("Bypass");
-            updater.ArgumentList.Add("-WindowStyle");
-            updater.ArgumentList.Add("Hidden");
-            updater.ArgumentList.Add("-File");
-            updater.ArgumentList.Add(scriptPath);
-            updater.ArgumentList.Add("-Source");
-            updater.ArgumentList.Add(extractDirectory);
-            updater.ArgumentList.Add("-Target");
-            updater.ArgumentList.Add(targetDirectory);
-            updater.ArgumentList.Add("-ExeName");
-            updater.ArgumentList.Add(exeName);
-            updater.ArgumentList.Add("-ManagerPid");
-            updater.ArgumentList.Add(process.Id.ToString(CultureInfo.InvariantCulture));
-            updater.ArgumentList.Add("-LogPath");
-            updater.ArgumentList.Add(logPath);
-
-            StatusMessage = "Applying Manager update...";
-            AppendActivity($"Manager updater staged: {scriptPath}");
-            Process.Start(updater);
-            Application.Current?.Shutdown();
-        }
-        catch (Exception ex)
-        {
-            IsBusy = false;
-            StatusMessage = "Manager update failed.";
-            AppendActivity($"Manager update failed: {ex.Message}");
-            MessageBox.Show(
-                $"Manager update failed.\n\n{ex.Message}",
-                "NymphsCore Manager Update",
-                MessageBoxButton.OK,
-                MessageBoxImage.Warning);
-        }
-    }
-
-    private static string SanitizeUpdatePathPart(string value)
-    {
-        var sanitized = new string(value.Select(character =>
-            char.IsLetterOrDigit(character) || character is '.' or '-' or '_' ? character : '-').ToArray());
-        return string.IsNullOrWhiteSpace(sanitized) ? "unknown" : sanitized;
-    }
-
-    private static string BuildManagerUpdaterScript()
-    {
-        return """
-param(
-    [Parameter(Mandatory = $true)]
-    [string] $Source,
-    [Parameter(Mandatory = $true)]
-    [string] $Target,
-    [Parameter(Mandatory = $true)]
-    [string] $ExeName,
-    [Parameter(Mandatory = $true)]
-    [int] $ManagerPid,
-    [Parameter(Mandatory = $true)]
-    [string] $LogPath
-)
-
-$ErrorActionPreference = 'Stop'
-
-function Write-UpdateLog {
-    param([string] $Message)
-    $line = '[' + (Get-Date).ToString('yyyy-MM-dd HH:mm:ss') + '] ' + $Message
-    Add-Content -Path $LogPath -Value $line
-}
-
-try {
-    New-Item -ItemType Directory -Path (Split-Path -Parent $LogPath) -Force | Out-Null
-    Write-UpdateLog "Waiting for Manager process $ManagerPid to exit."
-    try {
-        Wait-Process -Id $ManagerPid -Timeout 90 -ErrorAction SilentlyContinue
-    } catch {
-        Write-UpdateLog "Wait-Process warning: $($_.Exception.Message)"
-    }
-
-    Start-Sleep -Milliseconds 750
-
-    $sourceExe = Join-Path $Source $ExeName
-    if (-not (Test-Path $sourceExe)) {
-        throw "Staged update is missing $ExeName at $sourceExe"
-    }
-
-    New-Item -ItemType Directory -Path $Target -Force | Out-Null
-    Write-UpdateLog "Copying update files from '$Source' to '$Target'."
-    robocopy $Source $Target /E /COPY:DAT /R:8 /W:1 /NFL /NDL /NP | Out-String | ForEach-Object {
-        if (-not [string]::IsNullOrWhiteSpace($_)) {
-            Write-UpdateLog $_.TrimEnd()
-        }
-    }
-    $exitCode = $LASTEXITCODE
-    if ($exitCode -gt 7) {
-        throw "robocopy failed with exit code $exitCode"
-    }
-
-    $targetExe = Join-Path $Target $ExeName
-    if (-not (Test-Path $targetExe)) {
-        throw "Updated Manager executable was not found at $targetExe"
-    }
-
-    Write-UpdateLog "Relaunching Manager: $targetExe"
-    Start-Process -FilePath $targetExe -WorkingDirectory $Target
-    Write-UpdateLog "Manager update completed."
-} catch {
-    Write-UpdateLog "Manager update failed: $($_.Exception.Message)"
-    throw
-}
-""";
+        SafeRun(() => _workflowService.OpenUrl(_managerUpdateUrl), "Manager update link opened.");
     }
 
     private void OpenLoraGuide()
