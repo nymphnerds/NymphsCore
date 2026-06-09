@@ -1005,9 +1005,10 @@ that service.
 
 ### Emergency Kill Action Contract
 
-Modules that run heavyweight backends may optionally expose a `kill` action.
-This is for cases where the module's normal web UI or API is blocked and cannot
-answer its own cleanup request.
+Modules that run heavyweight backends, local web servers, GPU workers, or any
+other persistent service must expose a `kill` action. This is for cases where
+the module's normal web UI or API is blocked and cannot answer its own cleanup
+request. Lightweight modules with no persistent process do not need one.
 
 The contract is split deliberately:
 
@@ -1054,6 +1055,9 @@ Rules for `kill`:
   user outputs, model caches, install markers, or manifests.
 - It should return quickly and print concise output that helps the user know
   what was stopped.
+- It belongs in `ui.manager_actions` on the Manager details page. Do not rely
+  on a custom HTML/WebView UI as the only way to stop a module, because that UI
+  may be exactly what is broken.
 
 ## Native Action Groups
 

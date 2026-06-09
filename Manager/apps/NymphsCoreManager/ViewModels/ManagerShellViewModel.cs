@@ -7175,6 +7175,11 @@ public sealed class ManagerShellViewModel : ViewModelBase, IDisposable
 
     private static string BuildModuleAccent(string moduleId, int index)
     {
+        if (string.Equals(moduleId, "nymphs-sprite", StringComparison.OrdinalIgnoreCase))
+        {
+            return "#E487FF";
+        }
+
         var palette = new[]
         {
             "#97DF48",
