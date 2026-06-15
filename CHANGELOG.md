@@ -8,6 +8,25 @@ This file focuses on user-facing and system-level changes rather than package-by
 
 Newest entries first.
 
+### 2026-06-15 Nymphs Sprite rank-safe ControlNet batch testing
+
+Changed:
+
+- Nymphs Sprite `1.2.38` keeps the Z-Image model-rank dropdown user-selected
+  instead of silently inheriting the currently loaded rank from the shared
+  Nymphs Image backend.
+- Sprite batch generation now remains on the safe `r32` default unless the user
+  explicitly chooses `r128` or `r256` in Advanced.
+
+Fixed:
+
+- Prevents a 1024px multi-direction Sprite run from accidentally launching
+  ControlNet + LoRA at `r128`, which was observed saturating a 16 GB GPU and
+  stalling at `Nunchaku ControlNet denoising step 5/9`.
+- Updated the Nymphs Sprite handoff with the stall symptom, recovery checklist,
+  and guidance to judge `<direction>_raw.png` before blaming cutout, pixelation,
+  or map postprocess stages.
+
 ### 2026-06-07 Z-Image ControlNet GPU path for Sprite Foundry
 
 Fixed:
